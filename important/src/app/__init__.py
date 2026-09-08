@@ -1,0 +1,1 @@
+"""Compust FastAPI application."""

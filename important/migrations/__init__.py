@@ -1,0 +1,1 @@
+"""Compust database migrations."""

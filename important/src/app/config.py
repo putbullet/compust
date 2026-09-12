@@ -58,6 +58,10 @@ class Settings(BaseSettings):
         default=3,
         validation_alias="COMPUST_STALE_JOB_MISSED_RUNS",
     )
+    job_titles_path: str | None = Field(
+        default=None,
+        validation_alias="COMPUST_JOB_TITLES_PATH",
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env",

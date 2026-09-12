@@ -26,6 +26,7 @@ class JobCandidate:
     salary_max: float | None = None
     salary_currency: str | None = None
     salary_period: str | None = None
+    discovery_source: str | None = None
 
 
 @dataclass(frozen=True)

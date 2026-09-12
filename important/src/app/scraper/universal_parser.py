@@ -53,7 +53,7 @@ EXCLUDED_SECTION_HEADINGS = [
     r"our\s+values|our\s+mission|our\s+culture|who\s+we\s+are",
     r"about\s+us|about\s+the\s+company|life\s+at",
     r"benefits\s+(?:&|and)?\s+perks|working\s+here",
-    r"open\s+positions|current\s+openings|career\s+opportunities",
+    r"(?:open|current|latest|available|career)\s+(?:positions?|openings?|opportunities|jobs?|vacancies|roles?)",
     r"frequently\s+asked\s+questions|faq",
     r"equal\s+opportunity|diversity\s+(?:&|and)\s+inclusion",
     r"^\s*\d+\s+(?:open\s+)?(?:jobs?|positions?|vacancies|openings?|roles?|opportunities)",
@@ -277,7 +277,7 @@ def extract_semantic_cards_jobs(soup: BeautifulSoup, source_url: str) -> list[Jo
         # Determine job URL:
         # If the card links to a generic contact or apply anchor, anchor to the card position
         if not href or "/contact" in href.lower() or href.startswith("#") or href.startswith("mailto:"):
-            job_url = normalize_url(f"{source_url.split('#')[0]}#{slug}")
+            job_url = f"{normalize_url(source_url.split('#')[0])}#{slug}"
         else:
             job_url = normalize_url(urljoin(source_url, href))
 
@@ -666,6 +666,17 @@ def parse_universal_jobs(source: FetchedSource) -> ParseResult:
     if not jobs:
         jobs = extract_semantic_cards_jobs(soup, source.final_url)
 
+    # Layer 7: Job Title Intelligence Discovery fallback
+    # Activates when Layers 1-6 yield 0 jobs on arbitrary HTML pages
+    if not jobs:
+        try:
+            from .job_title_intelligence import discover_jobs_via_title_intelligence
+            intel_jobs, intel_diag = discover_jobs_via_title_intelligence(soup, source.final_url)
+            if intel_jobs:
+                jobs = intel_jobs
+        except Exception as exc:
+            errors.append(f"Job title intelligence discovery error: {exc}")
+
     # Quality and Confidence Validation: filter out invalid entries
     validated_jobs: list[JobCandidate] = []
     for job in jobs:
@@ -683,6 +694,6 @@ def parse_universal_jobs(source: FetchedSource) -> ParseResult:
         if "enable javascript" in html_lower or (soup.find(id="app") and not soup.find(id="app").find_all()):
             errors.append("Client-rendered SPA shell detected ('enable JavaScript' or empty container). Static response contains no rendered job cards or embedded state.")
         else:
-            errors.append("Static HTML received. Evaluated JSON-LD, embedded state, semantic heading cards, and anchor links, but 0 qualifying job candidates were discovered.")
+            errors.append("Static HTML received. Evaluated JSON-LD, embedded state, semantic heading cards, anchor links, and job-title intelligence, but 0 qualifying job candidates were discovered.")
 
     return ParseResult(jobs=validated_jobs, errors=errors)

@@ -148,7 +148,9 @@ def run_scraper_diagnostics(
             if strategy.name in ("ashby", "workable", "greenhouse", "lever", "smartrecruiters", "workday", "orange", "capgemini", "inwi", "deloitte"):
                 discovery_method = f"{strategy.name}_platform_adapter"
             elif strategy.name == "universal":
-                if content_type and "json" in content_type.lower():
+                if any(getattr(j, "discovery_source", None) == "job_title_intelligence" for j in accepted):
+                    discovery_method = "job_title_intelligence_discovery"
+                elif content_type and "json" in content_type.lower():
                     discovery_method = "direct_json"
                 elif crawl_res.initial_source and ('itemtype="http://schema.org/JobPosting"' in crawl_res.initial_source.body or 'application/ld+json' in crawl_res.initial_source.body):
                     discovery_method = "json_ld_or_microdata"

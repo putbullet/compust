@@ -220,3 +220,41 @@ def test_live_redsift_discovery():
     assert "Sales Development Representative (SDR)" in titles
     assert "IAM Product Engineer" in titles
     assert "Business Automation Manager" in titles
+
+
+def test_darktrace_workday_fixture_parsing():
+    from src.app.scraper.platforms.workday import WorkdayAdapter
+
+    fixture_path = FIXTURES_DIR / "workday_darktrace_cxs.json"
+    assert fixture_path.exists(), "Darktrace CXS fixture must exist"
+    json_text = fixture_path.read_text(encoding="utf-8")
+
+    source = make_source(
+        "https://darktrace.wd3.myworkdayjobs.com/wday/cxs/darktrace/DarktaceExternal/jobs",
+        json_text,
+        "application/json",
+    )
+    adapter = WorkdayAdapter()
+    result = adapter.parse(source)
+
+    assert not result.errors, f"Workday errors: {result.errors}"
+    assert len(result.jobs) == 20, f"Expected 20 jobs from fixture page, got {len(result.jobs)}"
+    titles = [j.title for j in result.jobs]
+    assert any("Technical Success Manager" in t for t in titles)
+    for job in result.jobs:
+        assert job.title
+        assert job.job_url
+        assert "darktrace.wd3.myworkdayjobs.com" in job.job_url
+        assert job.external_job_id
+
+
+def test_live_darktrace_workday_discovery():
+    report = run_scraper_diagnostics("https://darktrace.wd3.myworkdayjobs.com/DarktaceExternal", max_pages=1)
+    assert report.status in ("SUCCESS", "PARTIAL_SUCCESS"), f"Expected success, got {report.status} with errors {report.errors}"
+    assert report.platform_detected == "workday"
+    assert report.jobs_discovered == 75, f"Expected 75 jobs, got {report.jobs_discovered}"
+    assert report.jobs_accepted == 75
+    assert report.jobs_rejected == 0
+    titles = [j["title"] for j in report.sample_jobs]
+    assert any("Technical Success Manager" in t for t in titles)
+

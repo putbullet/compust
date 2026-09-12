@@ -11,13 +11,14 @@ import {
   Building2,
   Bot,
   Database,
+  BookOpen,
 } from 'lucide-react';
 import type { UserProfile } from '../api/client';
 import { useTranslation } from '../i18n';
 
 interface NavbarProps {
-  activeTab: 'directory' | 'profile' | 'scraper' | 'applications' | 'companies' | 'supervision';
-  setActiveTab: (tab: 'directory' | 'profile' | 'scraper' | 'applications' | 'companies' | 'supervision') => void;
+  activeTab: 'directory' | 'profile' | 'scraper' | 'applications' | 'companies' | 'supervision' | 'guide';
+  setActiveTab: (tab: 'directory' | 'profile' | 'scraper' | 'applications' | 'companies' | 'supervision' | 'guide') => void;
   user: UserProfile | null;
   onOpenAuth: () => void;
   onLogout: () => void;
@@ -164,7 +165,26 @@ export const Navbar: React.FC<NavbarProps> = ({
             <Activity size={20} />
             <div className="tooltip">{t.nav.scraperHub}</div>
           </div>
+
+          <div
+            className={`nav-item ${activeTab === 'guide' ? 'active' : ''}`}
+            onClick={() => setActiveTab('guide')}
+            role="tab"
+            tabIndex={0}
+            aria-selected={activeTab === 'guide'}
+            aria-label={language === 'fr' ? 'Guide & Documentation' : 'Guide & Documentation'}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setActiveTab('guide');
+              }
+            }}
+          >
+            <BookOpen size={20} />
+            <div className="tooltip">{language === 'fr' ? 'Guide & Doc' : 'Guide & Docs'}</div>
+          </div>
         </div>
+
 
         {/* Actions: AI Settings, Language Switcher & Auth */}
         <div className="actions-cluster">

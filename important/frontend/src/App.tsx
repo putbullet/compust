@@ -22,6 +22,8 @@ import { ScraperDashboard } from './components/ScraperDashboard';
 import { ApplicationsView } from './components/ApplicationsView';
 import { CompanyManagementView } from './components/CompanyManagementView';
 import { MyDataSupervisionView } from './components/MyDataSupervisionView';
+import { GuideView } from './components/Guide/GuideView';
+import { FloatingHelpControls } from './components/Guide/FloatingHelpControls';
 import { AISettingsModal } from './components/AISettingsModal';
 import { AIAssistantWidget } from './components/AIAssistantWidget';
 import { Loader } from './components/Loader';
@@ -32,7 +34,19 @@ export const App: React.FC = () => {
   const { t } = useTranslation();
 
   // Navigation & View
-  const [activeTab, setActiveTab] = useState<'directory' | 'profile' | 'scraper' | 'applications' | 'companies' | 'supervision'>('directory');
+  const [activeTab, setActiveTab] = useState<'directory' | 'profile' | 'scraper' | 'applications' | 'companies' | 'supervision' | 'guide'>(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab');
+      if (tab && ['directory', 'profile', 'scraper', 'applications', 'companies', 'supervision', 'guide'].includes(tab)) {
+        return tab as any;
+      }
+      if (window.location.hash.startsWith('#guide')) {
+        return 'guide';
+      }
+    } catch {}
+    return 'directory';
+  });
   const [isAISettingsOpen, setIsAISettingsOpen] = useState(false);
 
   // Metadata
@@ -421,6 +435,11 @@ export const App: React.FC = () => {
         {activeTab === 'supervision' && (
           <MyDataSupervisionView />
         )}
+
+        {/* VIEW 7: GUIDE & DOCUMENTATION CENTER */}
+        {activeTab === 'guide' && (
+          <GuideView />
+        )}
       </main>
 
       {/* Footer */}
@@ -456,8 +475,15 @@ export const App: React.FC = () => {
         onSuccess={(newUser) => setUser(newUser)}
       />
 
+      {/* Persistent Floating Quick Help, GitHub & Support Controls */}
+      <FloatingHelpControls
+        onNavigateToGuide={() => setActiveTab('guide')}
+        activeTab={activeTab}
+      />
+
       {/* Local AI Assistant Widget */}
       <AIAssistantWidget onOpenSettings={() => setIsAISettingsOpen(true)} />
+
 
       {/* Local AI Settings Modal */}
       <AISettingsModal

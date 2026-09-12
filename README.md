@@ -30,7 +30,15 @@
 
 ## Overview
 
-**Compust** is an end-to-end career intelligence and job discovery platform built for transparency, accuracy, and performance. Unlike traditional job aggregators that suffer from stale listings, broken links, or generic indexing, Compust connects directly to verified employer career portals (Workday, SmartRecruiters, Greenhouse, Taleo, custom career sites) and processes listings through an ethical, rate-limited, and deduplicating ingestion pipeline.
+**Compust** is an end-to-end career intelligence and job discovery platform built for transparency, accuracy, and performance. Unlike traditional job aggregators that suffer from stale listings, broken links, or generic indexing, Compust connects directly to verified employer career portals (Workday, SmartRecruiters, Greenhouse, Ashby, Workable, Lever, Teamtailor, custom career sites) and processes listings through an ethical, rate-limited, and deduplicating ingestion pipeline.
+
+> [!IMPORTANT]
+> ### Please Read Before Using Compust
+> - **What Compust IS:** A companion career discovery and intelligence tool that helps users ingest and centralize vacancies directly from verified employer portals, evaluate transparent match scores, manage resumes, and track recruitment pipelines.
+> - **What Compust IS NOT:** Compust is **NOT** a full replacement for LinkedIn, Indeed, Glassdoor, professional recruiters, or company career boards. Compust does not contain every job on the internet.
+> - **Why Some Jobs May Be Missing:** Whether an opening appears in Compust depends on whether its source portal can be accessed, detected, parsed, and normalized. **Not seeing a job in Compust does NOT mean the company does not have that opening available.** Always check company career portals directly.
+> - **Project Limitations:** Some sites enforce Cloudflare WAF bot-protection (Compust respects robots.txt and does not bypass WAF/CAPTCHAs), client-rendered SPA shells (hydrated via our Playwright fallback), or multi-tier infinite-scroll pagination.
+> - **In-App Interactive Guide:** For an interactive walkthrough, live architecture diagrams, and testing guides, open the **Guide & Docs** tab directly inside the Compust application or click the persistent **"Need Help? See Guide"** button.
 
 In addition to job discovery, Compust provides a **Career Intelligence & Resume Match Engine**:
 - Candidates upload their resumes in standard PDF format.
@@ -309,15 +317,34 @@ The following enhancements are planned for upcoming releases:
 
 ---
 
-## Contributing & Development
+## Scraper & Parser Contributor Guide
 
-Contributions are welcome! Please ensure:
-1. All Python code adheres to PEP 8 standards enforced by `ruff`.
-2. Frontend code passes `npm run lint` and `npm run build` with zero errors.
-3. Relevant unit tests are added under `important/tests/`.
+Compust is designed to be extensible. If a company's career site is not currently parsed correctly, contributors can add or refine support:
+
+1. **Test the Target URL**:
+   Use the in-app **Data Supervision ➔ Scraper Test Diagnostic** tool or call `POST /api/v1/admin/scraper/test` to inspect HTTP status, rendering mode, detected platform, and diagnostic errors.
+2. **Evaluate Strategy Fit**:
+   - If the site uses a known ATS (Greenhouse, Lever, Ashby, Workable, SmartRecruiters, Workday, Teamtailor), update or add a platform adapter in `important/src/app/scraper/platforms/`.
+   - If the site is arbitrary HTML, it will flow through our 7-layer Universal Parser (JSON-LD, embedded state, semantic cards, and Job Title Intelligence).
+   - If the site is a client-rendered SPA, Playwright headless rendering hydrates the DOM automatically.
+3. **Add Deterministic Fixtures & Tests**:
+   Save a representative HTML snapshot in `important/tests/fixtures/` and add test coverage in `important/tests/`.
+4. **Run Full Verification**:
+   Ensure all 204+ backend tests and frontend checks pass cleanly before submitting a Pull Request.
+
+---
+
+## Contributing & Community
+
+Contributions are warmly welcome! Whether you are submitting a new career portal adapter, fixing a parser edge case, improving the match engine, or refining the UI:
+1. Fork and clone the repository: `https://github.com/putbullet/compust`
+2. Follow the detailed developer guidelines inside the in-app **Guide & Docs** center.
+3. Keep changes modular, well-tested, and clean.
+4. Note: Contribution is completely optional—you are free to use Compust simply as a user or build private custom solutions.
 
 ---
 
 ## License
+
 
 Compust is distributed under the MIT License. See [LICENSE](LICENSE) for details.

@@ -19,6 +19,7 @@ class FetchedSource:
     content_type: str
     body: str
     fetched_at: datetime
+    is_rendered: bool = False
 
 
 from ..config import get_settings

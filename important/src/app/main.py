@@ -1584,6 +1584,7 @@ def test_scraper_target_diagnostic(
         rendering_mode=report.rendering_mode,
         discovery_method=report.discovery_method,
         failure_reason=report.failure_reason,
+        browser_rendered=report.browser_rendered,
     )
 
 

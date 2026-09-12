@@ -134,3 +134,4 @@ class ScraperDiagnosticResponse(BaseModel):
     rendering_mode: str | None = None
     discovery_method: str | None = None
     failure_reason: str | None = None
+    browser_rendered: bool = False

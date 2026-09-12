@@ -26,6 +26,7 @@ class DiagnosticReport:
     rendering_mode: str | None = None
     discovery_method: str | None = None
     failure_reason: str | None = None
+    browser_rendered: bool = False
 
 
 def detect_target_platform(url: str) -> str:
@@ -128,8 +129,15 @@ def run_scraper_diagnostics(
         http_status = crawl_res.initial_source.status_code if crawl_res.initial_source else None
         content_type = crawl_res.initial_source.content_type if crawl_res.initial_source else None
 
+        is_browser_rendered = (
+            getattr(crawl_res.initial_source, "is_rendered", False)
+            or any("[Browser Fallback]" in e for e in crawl_res.errors)
+        )
+
         rendering_mode = "static_html"
-        if content_type and "json" in content_type.lower():
+        if is_browser_rendered:
+            rendering_mode = "spa_client_rendered"
+        elif content_type and "json" in content_type.lower():
             rendering_mode = "json_api"
         elif crawl_res.initial_source and any(
             m in crawl_res.initial_source.body.lower()
@@ -156,6 +164,9 @@ def run_scraper_diagnostics(
                     discovery_method = "json_ld_or_microdata"
                 else:
                     discovery_method = "semantic_cards_or_heuristics"
+
+            if is_browser_rendered and discovery_method:
+                discovery_method = f"{discovery_method} (browser_rendered)"
 
         failure_reason = None
         if status in ("NO_JOBS_FOUND", "SCRAPE_FAILED"):
@@ -206,7 +217,9 @@ def run_scraper_diagnostics(
             rendering_mode=rendering_mode,
             discovery_method=discovery_method,
             failure_reason=failure_reason,
+            browser_rendered=is_browser_rendered,
         )
+
     except SourceFetchError as exc:
         duration = round(time.time() - start_time, 3)
         exc_msg = str(exc)

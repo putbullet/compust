@@ -62,6 +62,18 @@ class Settings(BaseSettings):
         default=None,
         validation_alias="COMPUST_JOB_TITLES_PATH",
     )
+    scraper_enable_browser_fallback: bool = Field(
+        default=True,
+        validation_alias="COMPUST_SCRAPER_ENABLE_BROWSER_FALLBACK",
+    )
+    scraper_browser_timeout_seconds: float = Field(
+        default=15.0,
+        validation_alias="COMPUST_SCRAPER_BROWSER_TIMEOUT",
+    )
+    scraper_browser_headless: bool = Field(
+        default=True,
+        validation_alias="COMPUST_SCRAPER_BROWSER_HEADLESS",
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env",

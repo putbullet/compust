@@ -441,7 +441,7 @@ def get_sankey_pipeline(
     start_date: datetime | None = None,
     end_date: datetime | None = None,
 ) -> SankeyDataRead:
-    """Generate dynamic left-to-right Sankey / pipeline funnel based on actual applications and status transitions."""
+    """Generate exact SankeyMATIC-style recruitment funnel based on actual applications and status transitions."""
     apps = get_user_applications(
         db,
         user_id,
@@ -454,36 +454,30 @@ def get_sankey_pipeline(
     if not apps:
         return SankeyDataRead(nodes=[], links=[], total=0)
 
-    # Funnel stages:
-    # 0: Sources (Compust, LinkedIn, Indeed, etc.)
-    # 1: Applied
-    # 2: 1st Round / Screening (or No Answer)
-    # 3: Advanced Interviews
-    # 4: Offers
-    # 5: Final Outcomes (Accepted, Rejected, Withdrawn)
+    total_apps = len(apps)
 
-    source_counts: dict[str, int] = {}
-    applied_count = 0
-    no_answer_count = 0
-    screen_count = 0
-    screen_rej_count = 0
-    advanced_int_count = 0
-    advanced_rej_count = 0
-    offer_count = 0
-    accepted_count = 0
-    offer_declined_count = 0
-    withdrawn_count = 0
+    # Transition tracking per application
+    # Stage IDs:
+    # 'stage_applications' (Stage 0)
+    # 'stage_1st_interview', 'stage_rejected_init', 'stage_no_answer' (Stage 1)
+    # 'stage_2nd_interview', 'stage_rejected_1st', 'stage_in_progress_1st' (Stage 2)
+    # 'stage_3rd_interview', 'stage_rejected_2nd', 'stage_in_progress_2nd' (Stage 3)
+    # 'stage_4th_interview', 'stage_rejected_3rd', 'stage_in_progress_3rd' (Stage 4)
+    # 'stage_offers', 'stage_rejected_final', 'stage_in_progress_final' (Stage 5)
+    # 'stage_accepted', 'stage_declined', 'stage_pending_offer' (Stage 6)
+
+    link_counts: dict[tuple[str, str], int] = {}
+
+    def add_flow(src: str, tgt: str):
+        link_counts[(src, tgt)] = link_counts.get((src, tgt), 0) + 1
 
     for app in apps:
-        src = app.source or "Compust"
-        source_counts[src] = source_counts.get(src, 0) + 1
-        applied_count += 1
+        hist_statuses = [h.to_status for h in (app.history or [])]
+        all_statuses = set(hist_statuses) | {app.status}
 
-        history_statuses = [h.to_status for h in (app.history or [])]
-        all_statuses = set(history_statuses) | {app.status}
-
-        has_interview = any(
-            s in {
+        reached_1st = bool(
+            all_statuses
+            & {
                 "interviewing",
                 "1st_interview",
                 "2nd_interview",
@@ -492,237 +486,169 @@ def get_sankey_pipeline(
                 "offer",
                 "accepted",
             }
-            for s in all_statuses
         )
-        has_adv_interview = any(
-            s in {"2nd_interview", "3rd_interview", "final_interview", "offer", "accepted"}
-            for s in all_statuses
+        reached_2nd = bool(
+            all_statuses
+            & {"2nd_interview", "3rd_interview", "final_interview", "offer", "accepted"}
         )
-        has_offer = any(s in {"offer", "accepted"} for s in all_statuses)
-        is_accepted = app.status == "accepted" or "accepted" in all_statuses
+        reached_3rd = bool(
+            all_statuses & {"3rd_interview", "final_interview", "offer", "accepted"}
+        )
+        reached_4th = bool(all_statuses & {"final_interview", "offer", "accepted"})
+        reached_offer = bool(all_statuses & {"offer", "accepted"})
+        reached_accepted = app.status == "accepted" or "accepted" in all_statuses
 
-        if app.status == "no_answer":
-            no_answer_count += 1
-        elif app.status == "withdrawn":
-            withdrawn_count += 1
-        elif not has_interview:
-            if app.status == "rejected":
-                screen_rej_count += 1
-        else:
-            # Reached interview stage
-            screen_count += 1
-            if has_adv_interview:
-                advanced_int_count += 1
-                if has_offer:
-                    offer_count += 1
-                    if is_accepted:
-                        accepted_count += 1
-                    elif app.status == "rejected":
-                        offer_declined_count += 1
-                elif app.status == "rejected":
-                    advanced_rej_count += 1
+        if not reached_1st:
+            if app.status == "no_answer":
+                add_flow("stage_applications", "stage_no_answer")
             elif app.status == "rejected":
-                screen_rej_count += 1
+                add_flow("stage_applications", "stage_rejected_init")
+            elif app.status == "withdrawn":
+                add_flow("stage_applications", "stage_withdrawn_init")
+            else:
+                # Still waiting on initial screening
+                add_flow("stage_applications", "stage_no_answer")
+            continue
+
+        # Reached 1st Interview
+        add_flow("stage_applications", "stage_1st_interview")
+
+        if not reached_2nd:
+            if reached_offer:
+                # Direct jump from 1st to offer
+                add_flow("stage_1st_interview", "stage_offers")
+                if reached_accepted:
+                    add_flow("stage_offers", "stage_accepted")
+                elif app.status == "rejected":
+                    add_flow("stage_offers", "stage_declined")
+                else:
+                    add_flow("stage_offers", "stage_pending_offer")
+            elif app.status == "rejected":
+                add_flow("stage_1st_interview", "stage_rejected_1st")
+            elif app.status in ["interviewing", "1st_interview"]:
+                add_flow("stage_1st_interview", "stage_in_progress_1st")
+            else:
+                add_flow("stage_1st_interview", "stage_rejected_1st")
+            continue
+
+        # Reached 2nd Interview
+        add_flow("stage_1st_interview", "stage_2nd_interview")
+
+        if not reached_3rd:
+            if reached_offer:
+                # Jump from 2nd to offer
+                add_flow("stage_2nd_interview", "stage_offers")
+                if reached_accepted:
+                    add_flow("stage_offers", "stage_accepted")
+                elif app.status == "rejected":
+                    add_flow("stage_offers", "stage_declined")
+                else:
+                    add_flow("stage_offers", "stage_pending_offer")
+            elif app.status == "rejected":
+                add_flow("stage_2nd_interview", "stage_rejected_2nd")
+            elif app.status == "2nd_interview":
+                add_flow("stage_2nd_interview", "stage_in_progress_2nd")
+            else:
+                add_flow("stage_2nd_interview", "stage_rejected_2nd")
+            continue
+
+        # Reached 3rd Interview
+        add_flow("stage_2nd_interview", "stage_3rd_interview")
+
+        if not reached_4th:
+            if reached_offer:
+                # Jump from 3rd to offer
+                add_flow("stage_3rd_interview", "stage_offers")
+                if reached_accepted:
+                    add_flow("stage_offers", "stage_accepted")
+                elif app.status == "rejected":
+                    add_flow("stage_offers", "stage_declined")
+                else:
+                    add_flow("stage_offers", "stage_pending_offer")
+            elif app.status == "rejected":
+                add_flow("stage_3rd_interview", "stage_rejected_3rd")
+            elif app.status == "3rd_interview":
+                add_flow("stage_3rd_interview", "stage_in_progress_3rd")
+            else:
+                add_flow("stage_3rd_interview", "stage_rejected_3rd")
+            continue
+
+        # Reached 4th / Final Interview
+        add_flow("stage_3rd_interview", "stage_4th_interview")
+
+        if not reached_offer:
+            if app.status == "rejected":
+                add_flow("stage_4th_interview", "stage_rejected_final")
+            elif app.status == "final_interview":
+                add_flow("stage_4th_interview", "stage_in_progress_final")
+            else:
+                add_flow("stage_4th_interview", "stage_rejected_final")
+            continue
+
+        # Reached Offer
+        add_flow("stage_4th_interview", "stage_offers")
+
+        if reached_accepted:
+            add_flow("stage_offers", "stage_accepted")
+        elif app.status == "rejected":
+            add_flow("stage_offers", "stage_declined")
+        else:
+            add_flow("stage_offers", "stage_pending_offer")
+
+    # Node definitions with exact SankeyMATIC colors & stage columns
+    node_configs: dict[str, tuple[str, int, str]] = {
+        "stage_applications": ("Applications", 0, "#f97316"),  # Orange
+        "stage_1st_interview": ("1st Interviews", 1, "#22c55e"),  # Green
+        "stage_rejected_init": ("Rejected", 1, "#ef4444"),  # Coral Red
+        "stage_no_answer": ("No Answer", 1, "#a855f7"),  # Purple Lavender
+        "stage_withdrawn_init": ("Withdrawn", 1, "#64748b"),
+        "stage_2nd_interview": ("2nd Interviews", 2, "#d97706"),  # Tan / Brown
+        "stage_rejected_1st": ("Rejected", 2, "#f87171"),
+        "stage_in_progress_1st": ("1st In Progress", 2, "#60a5fa"),
+        "stage_3rd_interview": ("3rd interviews(home assignment)", 3, "#ec4899"),  # Pink
+        "stage_rejected_2nd": ("Rejected", 3, "#f87171"),
+        "stage_in_progress_2nd": ("2nd In Progress", 3, "#60a5fa"),
+        "stage_4th_interview": ("4th interviews", 4, "#06b6d4"),  # Light Cyan
+        "stage_rejected_3rd": ("Rejected", 4, "#f87171"),
+        "stage_in_progress_3rd": ("3rd In Progress", 4, "#60a5fa"),
+        "stage_offers": ("Offers", 5, "#eab308"),  # Yellow / Gold
+        "stage_rejected_final": ("rejections", 5, "#14b8a6"),  # Teal
+        "stage_in_progress_final": ("Final In Progress", 5, "#60a5fa"),
+        "stage_accepted": ("Accepted", 6, "#0284c7"),  # Blue
+        "stage_declined": ("Declined", 6, "#94a3b8"),
+        "stage_pending_offer": ("Offer Pending", 6, "#38bdf8"),
+    }
+
+    # Calculate node totals from in/out links
+    node_values: dict[str, int] = {}
+    for (src, tgt), count in link_counts.items():
+        node_values[src] = max(node_values.get(src, 0), sum(v for (s, _), v in link_counts.items() if s == src))
+        node_values[tgt] = max(node_values.get(tgt, 0), sum(v for (_, t), v in link_counts.items() if t == tgt))
+    node_values["stage_applications"] = total_apps
 
     nodes: list[SankeyNode] = []
-    links: list[SankeyLink] = []
-
-    # Stage 0: Sources
-    for src_name, count in sorted(source_counts.items(), key=lambda x: x[1], reverse=True):
-        src_id = f"src_{src_name.lower().replace(' ', '_')}"
+    for node_id, count in node_values.items():
+        if count <= 0:
+            continue
+        cfg = node_configs.get(node_id, (node_id, 1, "#64748b"))
         nodes.append(
             SankeyNode(
-                id=src_id,
-                label=src_name,
-                stage_index=0,
+                id=node_id,
+                label=cfg[0],
+                stage_index=cfg[1],
                 count=count,
-                color="#6366f1",
-            )
-        )
-        links.append(SankeyLink(source=src_id, target="stage_applied", value=count))
-
-    # Stage 1: Applied
-    nodes.append(
-        SankeyNode(
-            id="stage_applied",
-            label="Applied",
-            stage_index=1,
-            count=applied_count,
-            color="#3b82f6",
-        )
-    )
-
-    # Links from Applied
-    if no_answer_count > 0:
-        nodes.append(
-            SankeyNode(
-                id="stage_no_answer",
-                label="No Answer / Ghosted",
-                stage_index=2,
-                count=no_answer_count,
-                color="#64748b",
-            )
-        )
-        links.append(
-            SankeyLink(
-                source="stage_applied",
-                target="stage_no_answer",
-                value=no_answer_count,
+                color=cfg[2],
             )
         )
 
-    direct_rejections = max(0, applied_count - no_answer_count - screen_count - withdrawn_count)
-    if direct_rejections > 0:
-        nodes.append(
-            SankeyNode(
-                id="stage_screening_rej",
-                label="Initial Screening Rejected",
-                stage_index=2,
-                count=direct_rejections,
-                color="#ef4444",
-            )
-        )
-        links.append(
-            SankeyLink(
-                source="stage_applied",
-                target="stage_screening_rej",
-                value=direct_rejections,
-            )
-        )
+    links: list[SankeyLink] = [
+        SankeyLink(source=src, target=tgt, value=val)
+        for (src, tgt), val in link_counts.items()
+        if val > 0
+    ]
 
-    if screen_count > 0:
-        nodes.append(
-            SankeyNode(
-                id="stage_1st_interview",
-                label="1st Interview / Screening",
-                stage_index=2,
-                count=screen_count,
-                color="#8b5cf6",
-            )
-        )
-        links.append(
-            SankeyLink(
-                source="stage_applied",
-                target="stage_1st_interview",
-                value=screen_count,
-            )
-        )
+    return SankeyDataRead(nodes=nodes, links=links, total=total_apps)
 
-        # Stage 3: Advanced Interviews
-        stage2_rej = max(0, screen_count - advanced_int_count)
-        if stage2_rej > 0:
-            nodes.append(
-                SankeyNode(
-                    id="stage_post_1st_rej",
-                    label="Rejected After 1st Round",
-                    stage_index=3,
-                    count=stage2_rej,
-                    color="#f87171",
-                )
-            )
-            links.append(
-                SankeyLink(
-                    source="stage_1st_interview",
-                    target="stage_post_1st_rej",
-                    value=stage2_rej,
-                )
-            )
-
-        if advanced_int_count > 0:
-            nodes.append(
-                SankeyNode(
-                    id="stage_advanced_interview",
-                    label="Technical / Final Rounds",
-                    stage_index=3,
-                    count=advanced_int_count,
-                    color="#ec4899",
-                )
-            )
-            links.append(
-                SankeyLink(
-                    source="stage_1st_interview",
-                    target="stage_advanced_interview",
-                    value=advanced_int_count,
-                )
-            )
-
-            # Stage 4: Offers
-            adv_rej = max(0, advanced_int_count - offer_count)
-            if adv_rej > 0:
-                nodes.append(
-                    SankeyNode(
-                        id="stage_final_rej",
-                        label="Rejected After Final",
-                        stage_index=4,
-                        count=adv_rej,
-                        color="#dc2626",
-                    )
-                )
-                links.append(
-                    SankeyLink(
-                        source="stage_advanced_interview",
-                        target="stage_final_rej",
-                        value=adv_rej,
-                    )
-                )
-
-            if offer_count > 0:
-                nodes.append(
-                    SankeyNode(
-                        id="stage_offer",
-                        label="Offers Received",
-                        stage_index=4,
-                        count=offer_count,
-                        color="#10b981",
-                    )
-                )
-                links.append(
-                    SankeyLink(
-                        source="stage_advanced_interview",
-                        target="stage_offer",
-                        value=offer_count,
-                    )
-                )
-
-                # Stage 5: Final Outcomes
-                if accepted_count > 0:
-                    nodes.append(
-                        SankeyNode(
-                            id="stage_accepted",
-                            label="Offer Accepted 🎉",
-                            stage_index=5,
-                            count=accepted_count,
-                            color="#059669",
-                        )
-                    )
-                    links.append(
-                        SankeyLink(
-                            source="stage_offer",
-                            target="stage_accepted",
-                            value=accepted_count,
-                        )
-                    )
-
-                other_offer_outcome = max(0, offer_count - accepted_count)
-                if other_offer_outcome > 0:
-                    nodes.append(
-                        SankeyNode(
-                            id="stage_declined",
-                            label="Offer Pending / Declined",
-                            stage_index=5,
-                            count=other_offer_outcome,
-                            color="#34d399",
-                        )
-                    )
-                    links.append(
-                        SankeyLink(
-                            source="stage_offer",
-                            target="stage_declined",
-                            value=other_offer_outcome,
-                        )
-                    )
-
-    return SankeyDataRead(nodes=nodes, links=links, total=applied_count)
 
 
 def export_applications_xlsx(db: Session, user_id: int) -> bytes:

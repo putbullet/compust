@@ -173,7 +173,7 @@ def test_unified_manual_and_compust_applications():
     assert len(pipeline["nodes"]) > 0
     assert len(pipeline["links"]) > 0
     node_ids = {n["id"] for n in pipeline["nodes"]}
-    assert "stage_applied" in node_ids
+    assert "stage_applications" in node_ids
 
     # 8. Test Excel Workbook Export (.xlsx)
     export_res = client.get("/api/v1/applications/export", headers=headers)

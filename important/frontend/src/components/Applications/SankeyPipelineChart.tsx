@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import styled from 'styled-components';
-import { GitFork, Info } from 'lucide-react';
+import { Download, Sun, Moon, Sparkles, Info } from 'lucide-react';
 import type { SankeyData, SankeyNode, SankeyLink } from '../../api/client';
 
 interface SankeyPipelineChartProps {
@@ -8,88 +8,368 @@ interface SankeyPipelineChartProps {
   loading?: boolean;
 }
 
+interface ComputedNode {
+  id: string;
+  label: string;
+  stage_index: number;
+  count: number;
+  color: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  alignLeftLabel?: boolean;
+}
+
+interface ComputedRibbon {
+  link: SankeyLink;
+  path: string;
+  sourceNode: ComputedNode;
+  targetNode: ComputedNode;
+  color: string;
+}
+
 export const SankeyPipelineChart: React.FC<SankeyPipelineChartProps> = ({
   data,
   loading,
 }) => {
-  const [hoveredLink, setHoveredLink] = useState<SankeyLink | null>(null);
-  const [hoveredNode, setHoveredNode] = useState<SankeyNode | null>(null);
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [hoveredRibbon, setHoveredRibbon] = useState<SankeyLink | null>(null);
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const svgRef = useRef<SVGSVGElement | null>(null);
 
-  // Layout calculation
+  // Colors accurately reflecting SankeyMATIC screenshot
+  const NODE_COLORS: Record<string, string> = {
+    stage_applications: '#f97316', // Orange
+    stage_1st_interview: '#4ade80', // Green
+    stage_rejected_init: '#f87171', // Coral Red
+    stage_no_answer: '#c084fc', // Lavender Purple
+    stage_withdrawn_init: '#94a3b8',
+    stage_2nd_interview: '#b48a78', // Warm Brown / Tan
+    stage_rejected_1st: '#f87171',
+    stage_in_progress_1st: '#38bdf8',
+    stage_3rd_interview: '#f472b6', // Pink
+    stage_rejected_2nd: '#f87171',
+    stage_in_progress_2nd: '#38bdf8',
+    stage_4th_interview: '#7dd3fc', // Light Cyan
+    stage_rejected_3rd: '#f87171',
+    stage_in_progress_3rd: '#38bdf8',
+    stage_offers: '#facc15', // Yellow / Gold
+    stage_rejected_final: '#2dd4bf', // Aqua / Cyan Rejection
+    stage_in_progress_final: '#38bdf8',
+    stage_accepted: '#38bdf8', // Royal / Cyan Blue
+    stage_declined: '#94a3b8',
+    stage_pending_offer: '#fef08a',
+  };
+
   const layout = useMemo(() => {
-    if (!data || !data.nodes || data.nodes.length === 0) return null;
+    if (!data || !data.nodes || data.nodes.length === 0 || !data.links || data.links.length === 0) {
+      return null;
+    }
 
-    const width = 960;
-    const height = 480;
-    const paddingX = 40;
-    const paddingY = 40;
-    const usableWidth = width - paddingX * 2;
-    const usableHeight = height - paddingY * 2;
+    const svgWidth = 1100;
+    const svgHeight = 560;
+    const nodeWidth = 9;
+
+    // Filter nodes that actually exist in links or have positive count
+    const activeNodeIds = new Set<string>();
+    data.links.forEach((l) => {
+      activeNodeIds.add(l.source);
+      activeNodeIds.add(l.target);
+    });
+
+    const activeNodes = data.nodes.filter((n) => activeNodeIds.has(n.id));
 
     // Group nodes by stage_index
-    const stageGroups: Record<number, SankeyNode[]> = {};
-    data.nodes.forEach((n) => {
-      stageGroups[n.stage_index] = stageGroups[n.stage_index] || [];
-      stageGroups[n.stage_index].push(n);
+    const stageCols: Record<number, SankeyNode[]> = {};
+    activeNodes.forEach((n) => {
+      stageCols[n.stage_index] = stageCols[n.stage_index] || [];
+      stageCols[n.stage_index].push(n);
     });
 
-    const stageIndices = Object.keys(stageGroups)
+    const stages = Object.keys(stageCols)
       .map(Number)
       .sort((a, b) => a - b);
-    const numStages = stageIndices.length;
-    const colStep = numStages > 1 ? usableWidth / (numStages - 1) : usableWidth;
 
-    const nodePositions: Record<
-      string,
-      { x: number; y: number; width: number; height: number; node: SankeyNode }
-    > = {};
+    // X positions across the canvas
+    // Left margin 160px for the "Applications" label on the left
+    // Right margin 160px for terminal labels on the right
+    const startX = 140;
+    const availableW = svgWidth - startX - 180;
+    const colCount = Math.max(stages.length - 1, 1);
+    const colStep = availableW / colCount;
 
-    const nodeWidth = 24;
+    // Calculate vertical scaling
+    const rootNode = activeNodes.find((n) => n.id === 'stage_applications') || activeNodes[0];
+    const totalVal = Math.max(rootNode ? rootNode.count : data.total, 1);
 
-    stageIndices.forEach((stageIdx, colIndex) => {
-      const stageNodes = stageGroups[stageIdx];
-      const x = paddingX + colIndex * colStep - (colIndex === 0 ? 0 : colIndex === numStages - 1 ? nodeWidth : nodeWidth / 2);
+    // Height of Applications root bar: about 320px on a 560px canvas
+    const maxBarHeight = 300;
+    const minNodeHeight = 4;
+    const scale = maxBarHeight / totalVal;
 
-      const totalStageCount = stageNodes.reduce((acc, n) => acc + n.count, 0) || 1;
-      const availableHeight = usableHeight - (stageNodes.length - 1) * 20;
+    // Map out links: in_links and out_links per node
+    const outLinks: Record<string, SankeyLink[]> = {};
+    const inLinks: Record<string, SankeyLink[]> = {};
 
-      let currentY = paddingY;
-      stageNodes.forEach((node) => {
-        const hRatio = Math.max(node.count / totalStageCount, 0.08);
-        const nodeH = Math.max(availableHeight * hRatio, 32);
+    // Sort links by target priority:
+    // For Applications: 1st Interviews on top, Rejected in middle, No Answer at bottom
+    const stage1Order = ['stage_1st_interview', 'stage_rejected_init', 'stage_no_answer', 'stage_withdrawn_init'];
+    const finalStageOrder = ['stage_offers', 'stage_rejected_final', 'stage_in_progress_final'];
 
-        nodePositions[node.id] = {
-          x,
-          y: currentY,
-          width: nodeWidth,
-          height: nodeH,
-          node,
-        };
-
-        currentY += nodeH + 20;
-      });
+    data.links.forEach((l) => {
+      outLinks[l.source] = outLinks[l.source] || [];
+      outLinks[l.source].push(l);
+      inLinks[l.target] = inLinks[l.target] || [];
+      inLinks[l.target].push(l);
     });
 
-    // Compute link paths (ribbons)
-    const linksWithPaths = data.links.map((link) => {
-      const srcPos = nodePositions[link.source];
-      const tgtPos = nodePositions[link.target];
+    // Custom sort order for links leaving Applications
+    if (outLinks['stage_applications']) {
+      outLinks['stage_applications'].sort((a, b) => {
+        const idxA = stage1Order.indexOf(a.target);
+        const idxB = stage1Order.indexOf(b.target);
+        return (idxA >= 0 ? idxA : 99) - (idxB >= 0 ? idxB : 99);
+      });
+    }
 
-      if (!srcPos || !tgtPos) return null;
+    // Custom sort order for links leaving 4th / Final Interview
+    if (outLinks['stage_4th_interview']) {
+      outLinks['stage_4th_interview'].sort((a, b) => {
+        const idxA = finalStageOrder.indexOf(a.target);
+        const idxB = finalStageOrder.indexOf(b.target);
+        return (idxA >= 0 ? idxA : 99) - (idxB >= 0 ? idxB : 99);
+      });
+    }
 
-      const x0 = srcPos.x + srcPos.width;
-      const y0_mid = srcPos.y + srcPos.height / 2;
-      const x1 = tgtPos.x;
-      const y1_mid = tgtPos.y + tgtPos.height / 2;
+    const computedNodes: Record<string, ComputedNode> = {};
 
-      // Thickness proportional to value
-      const totalSourceCount = srcPos.node.count || 1;
-      const ribbonThickness = Math.max((link.value / totalSourceCount) * srcPos.height * 0.7, 4);
+    // 1. Position Root Node (Applications)
+    const rootH = Math.max(totalVal * scale, 36);
+    const rootY = 175; // Vertically centered
+    const rootX = startX;
 
-      const y0_top = y0_mid - ribbonThickness / 2;
-      const y0_bot = y0_mid + ribbonThickness / 2;
-      const y1_top = y1_mid - ribbonThickness / 2;
-      const y1_bot = y1_mid + ribbonThickness / 2;
+    computedNodes['stage_applications'] = {
+      id: 'stage_applications',
+      label: rootNode.label || 'Applications',
+      stage_index: 0,
+      count: totalVal,
+      color: NODE_COLORS['stage_applications'] || '#f97316',
+      x: rootX,
+      y: rootY,
+      width: nodeWidth,
+      height: rootH,
+      alignLeftLabel: true,
+    };
+
+    // 2. Position downstream nodes based on their incoming ribbon offsets
+    // First, track current Y-offset on the root bar
+    let currentRootOutY = rootY;
+    const rootLinks = outLinks['stage_applications'] || [];
+
+    rootLinks.forEach((link) => {
+      const linkH = Math.max(link.value * scale, minNodeHeight);
+      const targetId = link.target;
+      const targetNode = activeNodes.find((n) => n.id === targetId);
+      if (!targetNode) return;
+
+      const colIdx = targetNode.stage_index;
+      const x = startX + colIdx * colStep;
+
+      // Vertical position for Stage 1 nodes:
+      // - 1st Interviews: curves up to near top (~45px)
+      // - Rejected: sits in middle (~165px)
+      // - No Answer: curves down to bottom (~315px)
+      let y = currentRootOutY;
+      if (targetId === 'stage_1st_interview') {
+        y = 45;
+      } else if (targetId === 'stage_rejected_init') {
+        y = 165;
+      } else if (targetId === 'stage_no_answer') {
+        y = 315;
+      } else if (targetId === 'stage_withdrawn_init') {
+        y = 445;
+      }
+
+      const nodeH = Math.max(link.value * scale, minNodeHeight);
+
+      computedNodes[targetId] = {
+        id: targetId,
+        label: targetNode.label,
+        stage_index: targetNode.stage_index,
+        count: link.value,
+        color: NODE_COLORS[targetId] || targetNode.color || '#64748b',
+        x,
+        y,
+        width: nodeWidth,
+        height: nodeH,
+        alignLeftLabel: false,
+      };
+
+      currentRootOutY += linkH;
+    });
+
+    // 3. Position Stage 2, 3, 4, 5, 6 nodes cascading horizontally from 1st Interviews
+    // - 2nd Interviews horizontally from 1st
+    // - 3rd Interviews horizontally
+    // - 4th Interviews horizontally
+    // - Offers curves upward, rejections curve downward
+    // - Accepted horizontally from Offers
+
+    const cascadeChain = [
+      { id: 'stage_2nd_interview', yOffset: 0 },
+      { id: 'stage_3rd_interview', yOffset: 8 },
+      { id: 'stage_4th_interview', yOffset: 16 },
+    ];
+
+    cascadeChain.forEach(({ id, yOffset }) => {
+      const nodeObj = activeNodes.find((n) => n.id === id);
+      if (!nodeObj) return;
+
+      const inL = inLinks[id]?.[0];
+      const prevNode = inL ? computedNodes[inL.source] : null;
+      const baseY = prevNode ? prevNode.y + yOffset : 45 + yOffset;
+      const nodeH = Math.max(nodeObj.count * scale, minNodeHeight);
+      const x = startX + nodeObj.stage_index * colStep;
+
+      computedNodes[id] = {
+        id,
+        label: nodeObj.label,
+        stage_index: nodeObj.stage_index,
+        count: nodeObj.count,
+        color: NODE_COLORS[id] || nodeObj.color,
+        x,
+        y: baseY,
+        width: nodeWidth,
+        height: nodeH,
+        alignLeftLabel: false,
+      };
+    });
+
+    // Offers & Final Rejections from 4th Interviews (or previous interview stage)
+    const prevToOffers = activeNodes.find((n) => n.id === 'stage_4th_interview')
+      || activeNodes.find((n) => n.id === 'stage_3rd_interview')
+      || activeNodes.find((n) => n.id === 'stage_2nd_interview')
+      || activeNodes.find((n) => n.id === 'stage_1st_interview');
+
+    const prevY = prevToOffers && computedNodes[prevToOffers.id] ? computedNodes[prevToOffers.id].y : 60;
+
+    // Offers
+    const offersNode = activeNodes.find((n) => n.id === 'stage_offers');
+    if (offersNode) {
+      const x = startX + offersNode.stage_index * colStep;
+      const y = Math.max(prevY - 35, 18); // Curves up toward the top
+      const nodeH = Math.max(offersNode.count * scale, minNodeHeight);
+
+      computedNodes['stage_offers'] = {
+        id: 'stage_offers',
+        label: offersNode.label,
+        stage_index: offersNode.stage_index,
+        count: offersNode.count,
+        color: NODE_COLORS['stage_offers'] || '#facc15',
+        x,
+        y,
+        width: nodeWidth,
+        height: nodeH,
+        alignLeftLabel: false,
+      };
+    }
+
+    // Final Rejections
+    const finalRejNode = activeNodes.find((n) => n.id === 'stage_rejected_final');
+    if (finalRejNode) {
+      const x = startX + finalRejNode.stage_index * colStep;
+      const y = prevY + 55; // Curves down toward rejections
+      const nodeH = Math.max(finalRejNode.count * scale, minNodeHeight);
+
+      computedNodes['stage_rejected_final'] = {
+        id: 'stage_rejected_final',
+        label: finalRejNode.label,
+        stage_index: finalRejNode.stage_index,
+        count: finalRejNode.count,
+        color: NODE_COLORS['stage_rejected_final'] || '#2dd4bf',
+        x,
+        y,
+        width: nodeWidth,
+        height: nodeH,
+        alignLeftLabel: false,
+      };
+    }
+
+    // Accepted (Stage 6)
+    const acceptedNode = activeNodes.find((n) => n.id === 'stage_accepted');
+    if (acceptedNode) {
+      const offersComputed = computedNodes['stage_offers'];
+      const x = startX + acceptedNode.stage_index * colStep;
+      const y = offersComputed ? offersComputed.y : 18; // Aligns horizontally with Offers
+      const nodeH = Math.max(acceptedNode.count * scale, minNodeHeight);
+
+      computedNodes['stage_accepted'] = {
+        id: 'stage_accepted',
+        label: acceptedNode.label,
+        stage_index: acceptedNode.stage_index,
+        count: acceptedNode.count,
+        color: NODE_COLORS['stage_accepted'] || '#38bdf8',
+        x,
+        y,
+        width: nodeWidth,
+        height: nodeH,
+        alignLeftLabel: false,
+      };
+    }
+
+    // Any other auxiliary nodes (e.g. intermediate rejections or in-progress)
+    activeNodes.forEach((n) => {
+      if (!computedNodes[n.id]) {
+        const inL = inLinks[n.id]?.[0];
+        const srcPos = inL ? computedNodes[inL.source] : null;
+        const x = startX + n.stage_index * colStep;
+        const y = srcPos ? srcPos.y + 45 : 200;
+        const nodeH = Math.max(n.count * scale, minNodeHeight);
+
+        computedNodes[n.id] = {
+          id: n.id,
+          label: n.label,
+          stage_index: n.stage_index,
+          count: n.count,
+          color: NODE_COLORS[n.id] || n.color,
+          x,
+          y,
+          width: nodeWidth,
+          height: nodeH,
+          alignLeftLabel: false,
+        };
+      }
+    });
+
+    // 4. Compute exact Sankey Ribbon Paths with top-to-bottom slice stacking
+    const sourceOutOffsets: Record<string, number> = {};
+    const targetInOffsets: Record<string, number> = {};
+
+    const computedRibbons: ComputedRibbon[] = [];
+
+    data.links.forEach((link) => {
+      const srcNode = computedNodes[link.source];
+      const tgtNode = computedNodes[link.target];
+      if (!srcNode || !tgtNode) return;
+
+      const srcOffset = sourceOutOffsets[link.source] || 0;
+      const tgtOffset = targetInOffsets[link.target] || 0;
+
+      // Slice height proportional to link value
+      const srcSliceH = Math.max((link.value / (srcNode.count || 1)) * srcNode.height, 2);
+      const tgtSliceH = Math.max((link.value / (tgtNode.count || 1)) * tgtNode.height, 2);
+
+      const x0 = srcNode.x + srcNode.width;
+      const y0_top = srcNode.y + srcOffset;
+      const y0_bot = y0_top + srcSliceH;
+
+      const x1 = tgtNode.x;
+      const y1_top = tgtNode.y + tgtOffset;
+      const y1_bot = y1_top + tgtSliceH;
+
+      sourceOutOffsets[link.source] = srcOffset + srcSliceH;
+      targetInOffsets[link.target] = tgtOffset + tgtSliceH;
 
       const dx = (x1 - x0) * 0.5;
 
@@ -101,359 +381,430 @@ export const SankeyPipelineChart: React.FC<SankeyPipelineChartProps> = ({
         Z
       `;
 
-      return {
+      computedRibbons.push({
         link,
         path,
-        sourcePos: srcPos,
-        targetPos: tgtPos,
-      };
-    }).filter(Boolean);
+        sourceNode: srcNode,
+        targetNode: tgtNode,
+        color: srcNode.color,
+      });
+    });
 
     return {
-      width,
-      height,
-      stageIndices,
-      nodePositions,
-      linksWithPaths,
+      svgWidth,
+      svgHeight,
+      nodes: Object.values(computedNodes),
+      ribbons: computedRibbons,
     };
   }, [data]);
 
-  if (loading) {
-    return (
-      <PipelineCard>
-        <div className="chart-loading">
-          <GitFork size={28} className="spin" />
-          <p>Calculating live Sankey pipeline flows...</p>
-        </div>
-      </PipelineCard>
-    );
-  }
-
-  if (!data || data.total === 0 || !layout) {
-    return (
-      <PipelineCard>
-        <EmptyPipeline>
-          <GitFork size={36} />
-          <h4>No Pipeline Data Yet</h4>
-          <p>
-            Track more job applications and update their stages (Interviewing, Offers, Outcomes) to
-            generate your interactive recruitment funnel.
-          </p>
-        </EmptyPipeline>
-      </PipelineCard>
-    );
-  }
-
-  const STAGE_TITLES: Record<number, string> = {
-    0: 'Sources',
-    1: 'Applied',
-    2: 'Screening / 1st Round',
-    3: 'Advanced Interviews',
-    4: 'Offer Extended',
-    5: 'Outcomes',
+  const handleDownloadSvg = () => {
+    if (!svgRef.current) return;
+    const svgData = new XMLSerializer().serializeToString(svgRef.current);
+    const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `compust_sankey_pipeline_${new Date().toISOString().slice(0, 10)}.svg`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   };
 
-  return (
-    <PipelineCard>
-      <ChartHeader>
-        <div className="header-info">
-          <div className="title-with-badge">
-            <GitFork size={18} className="chart-icon" />
-            <h4>Application Conversion Pipeline</h4>
-            <span className="total-badge">{data.total} Applications</span>
-          </div>
-          <p className="caption">
-            Dynamic horizontal Sankey flow mapping actual stage progression and conversion rates.
+  if (loading) {
+    return (
+      <ChartCard themeMode={theme}>
+        <div className="state-message">
+          <Sparkles className="spin" size={28} />
+          <p>Generating your Sankey recruitment pipeline...</p>
+        </div>
+      </ChartCard>
+    );
+  }
+
+  if (!data || data.total === 0 || !layout || layout.nodes.length === 0) {
+    return (
+      <ChartCard themeMode={theme}>
+        <div className="state-message">
+          <h4>No Application Funnel Data</h4>
+          <p>
+            Add applications and log stage transitions (1st Interview, 2nd Round, Offers, Accepted) to
+            generate your interactive SankeyMATIC job search diagram.
           </p>
         </div>
-      </ChartHeader>
+      </ChartCard>
+    );
+  }
 
-      <SvgWrapper>
+  return (
+    <ChartCard themeMode={theme}>
+      {/* Top Toolbar */}
+      <CardHeader themeMode={theme}>
+        <div className="header-left">
+          <div className="title-row">
+            <h4>Application Conversion Pipeline</h4>
+            <span className="source-pill">SankeyMATIC Funnel</span>
+          </div>
+          <p className="subtitle">
+            Visual recruitment progression showing stage transitions, screening drop-offs, and offer conversions.
+          </p>
+        </div>
+
+        <div className="header-right">
+          <button
+            type="button"
+            className="tool-btn theme-toggle"
+            onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+            title={`Switch to ${theme === 'light' ? 'Compust Dark' : 'SankeyMATIC Light'} mode`}
+          >
+            {theme === 'light' ? <Moon size={15} /> : <Sun size={15} />}
+            <span>{theme === 'light' ? 'Dark Mode' : 'Light Mode'}</span>
+          </button>
+
+          <button
+            type="button"
+            className="tool-btn export-btn"
+            onClick={handleDownloadSvg}
+            title="Download vector graphic of this Sankey diagram"
+          >
+            <Download size={15} />
+            <span>Download SVG</span>
+          </button>
+        </div>
+      </CardHeader>
+
+      {/* SVG Canvas */}
+      <SvgCanvasContainer themeMode={theme}>
         <svg
-          viewBox={`0 0 ${layout.width} ${layout.height}`}
+          ref={svgRef}
+          viewBox={`0 0 ${layout.svgWidth} ${layout.svgHeight}`}
           preserveAspectRatio="xMidYMid meet"
           className="sankey-svg"
         >
-          <defs>
-            <linearGradient id="link-grad-default" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#6366f1" stopOpacity="0.35" />
-              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.35" />
-            </linearGradient>
-            <linearGradient id="link-grad-active" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#818cf8" stopOpacity="0.75" />
-              <stop offset="100%" stopColor="#60a5fa" stopOpacity="0.75" />
-            </linearGradient>
-          </defs>
+          {/* Background rect for clean SVG export */}
+          <rect
+            x={0}
+            y={0}
+            width={layout.svgWidth}
+            height={layout.svgHeight}
+            fill={theme === 'light' ? '#ffffff' : '#0b1329'}
+          />
 
-          {/* Render Stage Column Headers */}
-          {layout.stageIndices.map((stIdx, i) => {
-            const x = 40 + i * ((layout.width - 80) / (layout.stageIndices.length - 1));
-            return (
-              <text
-                key={stIdx}
-                x={x}
-                y={24}
-                textAnchor={i === 0 ? 'start' : i === layout.stageIndices.length - 1 ? 'end' : 'middle'}
-                className="stage-header-label"
-              >
-                {STAGE_TITLES[stIdx] || `Stage ${stIdx}`}
-              </text>
-            );
-          })}
+          {/* Ribbons Layer */}
+          <g className="ribbons-layer">
+            {layout.ribbons.map((ribbon, idx) => {
+              const isHovered = hoveredRibbon === ribbon.link;
+              const isConnectedToNode =
+                hoveredNodeId &&
+                (ribbon.sourceNode.id === hoveredNodeId || ribbon.targetNode.id === hoveredNodeId);
 
-          {/* Render Link Ribbons */}
-          <g className="links-layer">
-            {layout.linksWithPaths.map((item, idx) => {
-              if (!item) return null;
-              const isHovered = hoveredLink === item.link;
-              const isConnectedToHoveredNode =
-                hoveredNode &&
-                (hoveredNode.id === item.link.source || hoveredNode.id === item.link.target);
+              const opacity = isHovered || isConnectedToNode ? 0.88 : 0.55;
 
               return (
                 <path
                   key={idx}
-                  d={item.path}
-                  fill={isHovered || isConnectedToHoveredNode ? 'url(#link-grad-active)' : 'url(#link-grad-default)'}
-                  stroke={isHovered ? '#818cf8' : 'none'}
+                  d={ribbon.path}
+                  fill={ribbon.color}
+                  fillOpacity={opacity}
+                  stroke={isHovered ? '#1e293b' : 'none'}
                   strokeWidth={isHovered ? 1 : 0}
-                  onMouseEnter={() => setHoveredLink(item.link)}
-                  onMouseLeave={() => setHoveredLink(null)}
+                  onMouseEnter={() => setHoveredRibbon(ribbon.link)}
+                  onMouseLeave={() => setHoveredRibbon(null)}
                   className="sankey-ribbon"
                 >
-                  <title>{`${item.link.source} → ${item.link.target}: ${item.link.value} candidates`}</title>
+                  <title>{`${ribbon.sourceNode.label} → ${ribbon.targetNode.label}: ${ribbon.link.value}`}</title>
                 </path>
               );
             })}
           </g>
 
-          {/* Render Nodes */}
+          {/* Nodes Layer */}
           <g className="nodes-layer">
-            {Object.values(layout.nodePositions).map(({ x, y, width, height, node }) => {
-              const isHovered = hoveredNode?.id === node.id;
+            {layout.nodes.map((node) => {
+              const isHovered = hoveredNodeId === node.id;
 
               return (
                 <g
                   key={node.id}
                   className="sankey-node"
-                  onMouseEnter={() => setHoveredNode(node)}
-                  onMouseLeave={() => setHoveredNode(null)}
+                  onMouseEnter={() => setHoveredNodeId(node.id)}
+                  onMouseLeave={() => setHoveredNodeId(null)}
                 >
+                  {/* Vertical Node Bar */}
                   <rect
-                    x={x}
-                    y={y}
-                    width={width}
-                    height={height}
-                    rx={6}
+                    x={node.x}
+                    y={node.y}
+                    width={node.width}
+                    height={node.height}
                     fill={node.color}
-                    fillOpacity={isHovered ? 1 : 0.85}
-                    stroke={isHovered ? '#ffffff' : 'rgba(255, 255, 255, 0.2)'}
-                    strokeWidth={isHovered ? 2 : 1}
+                    rx={1}
+                    ry={1}
+                    stroke={isHovered ? (theme === 'light' ? '#000000' : '#ffffff') : 'none'}
+                    strokeWidth={isHovered ? 1.5 : 0}
                   />
 
-                  {/* Node Label & Count */}
-                  <text
-                    x={node.stage_index === 0 ? x + width + 8 : x - 8}
-                    y={y + height / 2 + 4}
-                    textAnchor={node.stage_index === 0 ? 'start' : 'end'}
-                    className="node-text"
-                  >
-                    <tspan className="node-title">{node.label}</tspan>{' '}
-                    <tspan className="node-count" fill={node.color}>
-                      ({node.count})
-                    </tspan>
-                  </text>
+                  {/* Two-line Text Label (Number on top, Label on bottom) */}
+                  {node.alignLeftLabel ? (
+                    <text
+                      x={node.x - 14}
+                      y={node.y + node.height / 2 - 6}
+                      textAnchor="end"
+                      className={`sankey-label ${theme}`}
+                    >
+                      <tspan className="count-text" x={node.x - 14}>
+                        {node.count}
+                      </tspan>
+                      <tspan className="name-text" x={node.x - 14} dy="18">
+                        {node.label}
+                      </tspan>
+                    </text>
+                  ) : (
+                    <text
+                      x={node.x + node.width + 12}
+                      y={node.y + Math.min(node.height / 2, 10) - 6}
+                      textAnchor="start"
+                      className={`sankey-label ${theme}`}
+                    >
+                      <tspan className="count-text" x={node.x + node.width + 12}>
+                        {node.count}
+                      </tspan>
+                      <tspan className="name-text" x={node.x + node.width + 12} dy="18">
+                        {node.label}
+                      </tspan>
+                    </text>
+                  )}
                 </g>
               );
             })}
           </g>
         </svg>
-      </SvgWrapper>
+      </SvgCanvasContainer>
 
-      {/* Interactive Tooltip Footer */}
-      <TooltipRow>
-        {hoveredLink ? (
-          <div className="tooltip-badge">
-            <span className="source-target">
-              {hoveredLink.source} ➔ {hoveredLink.target}
-            </span>
-            <span className="count-val">
-              <strong>{hoveredLink.value}</strong> transitions (
-              {Math.round((hoveredLink.value / (data.total || 1)) * 100)}% of total)
+      {/* Info Tooltip Footer */}
+      <TooltipFooter themeMode={theme}>
+        {hoveredRibbon ? (
+          <div className="tooltip-content">
+            <span className="badge">Flow</span>
+            <span className="text">
+              <strong>{hoveredRibbon.source.replace('stage_', '').replace(/_/g, ' ')}</strong> ➔{' '}
+              <strong>{hoveredRibbon.target.replace('stage_', '').replace(/_/g, ' ')}</strong>:{' '}
+              {hoveredRibbon.value} candidates ({Math.round((hoveredRibbon.value / (data.total || 1)) * 100)}% of total)
             </span>
           </div>
-        ) : hoveredNode ? (
-          <div className="tooltip-badge">
-            <span className="source-target">{hoveredNode.label}</span>
-            <span className="count-val">
-              <strong>{hoveredNode.count}</strong> applications in this stage (
-              {Math.round((hoveredNode.count / (data.total || 1)) * 100)}%)
+        ) : hoveredNodeId ? (
+          <div className="tooltip-content">
+            <span className="badge">Stage</span>
+            <span className="text">
+              <strong>{hoveredNodeId.replace('stage_', '').replace(/_/g, ' ')}</strong>
             </span>
           </div>
         ) : (
-          <div className="tooltip-hint">
-            <Info size={13} />
-            <span>Hover over ribbons and stages to inspect candidate volume and drop-off rates</span>
+          <div className="hint-content">
+            <Info size={14} />
+            <span>Hover over ribbons or stage bars to inspect exact candidate counts and progression rates</span>
           </div>
         )}
-      </TooltipRow>
-    </PipelineCard>
+      </TooltipFooter>
+    </ChartCard>
   );
 };
 
-const PipelineCard = styled.div`
-  background: rgba(15, 23, 42, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-  padding: 1.25rem 1.5rem;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+const ChartCard = styled.div<{ themeMode: 'light' | 'dark' }>`
+  background: ${(props) => (props.themeMode === 'light' ? '#ffffff' : '#0f172a')};
+  border: 1px solid ${(props) => (props.themeMode === 'light' ? '#e2e8f0' : 'rgba(255, 255, 255, 0.08)')};
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  transition: background 0.2s ease, border-color 0.2s ease;
   margin-bottom: 1.5rem;
+
+  .state-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    gap: 12px;
+    text-align: center;
+    color: #94a3b8;
+
+    .spin {
+      animation: spin 1.2s linear infinite;
+      color: #6366f1;
+    }
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
 `;
 
-const ChartHeader = styled.div`
+const CardHeader = styled.div<{ themeMode: 'light' | 'dark' }>`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 1rem;
+  padding: 16px 24px;
+  border-bottom: 1px solid ${(props) => (props.themeMode === 'light' ? '#f1f5f9' : 'rgba(255, 255, 255, 0.06)')};
+  flex-wrap: wrap;
+  gap: 12px;
 
-  .header-info {
-    .title-with-badge {
+  .header-left {
+    .title-row {
       display: flex;
       align-items: center;
-      gap: 0.65rem;
-
-      .chart-icon {
-        color: #818cf8;
-      }
+      gap: 10px;
 
       h4 {
         margin: 0;
-        font-size: 1.05rem;
+        font-size: 1.15rem;
         font-weight: 700;
-        color: #f8fafc;
+        color: ${(props) => (props.themeMode === 'light' ? '#0f172a' : '#f8fafc')};
       }
 
-      .total-badge {
-        background: rgba(99, 102, 241, 0.15);
-        border: 1px solid rgba(99, 102, 241, 0.3);
-        color: #818cf8;
-        font-size: 0.75rem;
+      .source-pill {
+        background: ${(props) => (props.themeMode === 'light' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(99, 102, 241, 0.2)')};
+        color: #6366f1;
+        font-size: 0.725rem;
         font-weight: 600;
         padding: 0.15rem 0.5rem;
         border-radius: 9999px;
       }
     }
 
-    .caption {
-      margin: 0.25rem 0 0;
+    .subtitle {
+      margin: 4px 0 0;
       font-size: 0.8rem;
-      color: #94a3b8;
+      color: ${(props) => (props.themeMode === 'light' ? '#64748b' : '#94a3b8')};
+    }
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .tool-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0.45rem 0.85rem;
+      border-radius: 8px;
+      font-size: 0.775rem;
+      font-weight: 600;
+      cursor: pointer;
+      outline: none;
+      transition: all 0.15s ease;
+
+      &.theme-toggle {
+        background: ${(props) => (props.themeMode === 'light' ? '#f1f5f9' : 'rgba(255, 255, 255, 0.06)')};
+        border: 1px solid ${(props) => (props.themeMode === 'light' ? '#e2e8f0' : 'rgba(255, 255, 255, 0.1)')};
+        color: ${(props) => (props.themeMode === 'light' ? '#334155' : '#cbd5e1')};
+
+        &:hover {
+          background: ${(props) => (props.themeMode === 'light' ? '#e2e8f0' : 'rgba(255, 255, 255, 0.12)')};
+          color: ${(props) => (props.themeMode === 'light' ? '#0f172a' : '#ffffff')};
+        }
+      }
+
+      &.export-btn {
+        background: ${(props) => (props.themeMode === 'light' ? '#0f172a' : 'linear-gradient(135deg, #6366f1, #3b82f6)')};
+        border: none;
+        color: #ffffff;
+
+        &:hover {
+          opacity: 0.92;
+        }
+      }
     }
   }
 `;
 
-const SvgWrapper = styled.div`
+const SvgCanvasContainer = styled.div<{ themeMode: 'light' | 'dark' }>`
   width: 100%;
   overflow-x: auto;
+  background: ${(props) => (props.themeMode === 'light' ? '#ffffff' : '#0b1329')};
+  padding: 16px 0;
 
   .sankey-svg {
     width: 100%;
-    min-width: 720px;
+    min-width: 900px;
     height: auto;
-    max-height: 480px;
-
-    .stage-header-label {
-      font-size: 0.75rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      fill: #94a3b8;
-    }
+    display: block;
 
     .sankey-ribbon {
       cursor: pointer;
-      transition: fill 0.15s ease, stroke 0.15s ease;
+      transition: fill-opacity 0.15s ease;
     }
 
     .sankey-node {
       cursor: pointer;
 
       rect {
-        transition: fill-opacity 0.15s ease, stroke 0.15s ease;
+        transition: stroke 0.15s ease;
+      }
+    }
+
+    .sankey-label {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      user-select: none;
+
+      .count-text {
+        font-size: 15px;
+        font-weight: 700;
       }
 
-      .node-text {
-        font-size: 0.75rem;
-        font-family: inherit;
+      .name-text {
+        font-size: 12px;
+        font-weight: 500;
+      }
 
-        .node-title {
-          font-weight: 600;
-          fill: #f8fafc;
-        }
+      &.light {
+        .count-text { fill: #0f172a; }
+        .name-text { fill: #334155; }
+      }
 
-        .node-count {
-          font-weight: 700;
-        }
+      &.dark {
+        .count-text { fill: #f8fafc; }
+        .name-text { fill: #94a3b8; }
       }
     }
   }
 `;
 
-const TooltipRow = styled.div`
+const TooltipFooter = styled.div<{ themeMode: 'light' | 'dark' }>`
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: 0.75rem;
-  min-height: 28px;
+  padding: 10px 20px;
+  background: ${(props) => (props.themeMode === 'light' ? '#f8fafc' : 'rgba(0, 0, 0, 0.25)')};
+  border-top: 1px solid ${(props) => (props.themeMode === 'light' ? '#e2e8f0' : 'rgba(255, 255, 255, 0.05)')};
+  min-height: 42px;
 
-  .tooltip-badge {
-    background: rgba(30, 41, 59, 0.85);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 9999px;
-    padding: 0.3rem 0.85rem;
-    font-size: 0.8rem;
+  .tooltip-content {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: ${(props) => (props.themeMode === 'light' ? '#1e293b' : '#e2e8f0')};
 
-    .source-target {
-      color: #818cf8;
-      font-weight: 600;
-    }
-
-    .count-val {
-      color: #e2e8f0;
+    .badge {
+      background: #6366f1;
+      color: #ffffff;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
     }
   }
 
-  .tooltip-hint {
+  .hint-content {
     display: flex;
     align-items: center;
-    gap: 0.4rem;
+    gap: 6px;
     font-size: 0.775rem;
     color: #64748b;
-  }
-`;
-
-const EmptyPipeline = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem 1.5rem;
-  color: #64748b;
-  text-align: center;
-  gap: 0.5rem;
-
-  h4 {
-    margin: 0;
-    font-size: 1rem;
-    color: #94a3b8;
-  }
-
-  p {
-    margin: 0;
-    font-size: 0.825rem;
-    max-width: 440px;
   }
 `;

@@ -40,6 +40,8 @@ def _clean_for_sqlite(sql: str) -> str:
             continue
         if trimmed.upper().startswith("CREATE INDEX"):
             continue
+        if "MODIFY " in trimmed.upper() and trimmed.upper().startswith("ALTER TABLE"):
+            continue
         lines.append(line)
     cleaned = "\n".join(lines)
     cleaned = re.sub(r",\s*\)", "\n)", cleaned)
@@ -106,6 +108,14 @@ def apply_migrations() -> list[str]:
                                     ).fetchone()
                                     if not check:
                                         connection.execute(text(f"CREATE TABLE {table_name} (id INTEGER PRIMARY KEY)"))
+
+                                    add_col = re.match(r"^ALTER\s+TABLE\s+(\w+)\s+ADD\s+COLUMN\s+(\w+)", stmt, re.IGNORECASE)
+                                    if add_col:
+                                        col_name = add_col.group(2)
+                                        col_info = connection.execute(text(f"PRAGMA table_info({table_name})")).fetchall()
+                                        existing_cols = {c[1].lower() for c in col_info}
+                                        if col_name.lower() in existing_cols:
+                                            continue
                             connection.execute(text(stmt))
 
                 now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")

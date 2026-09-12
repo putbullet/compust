@@ -109,6 +109,8 @@ class JobRead(BaseModel):
     salary_currency: str | None = None
     salary_period: str | None = None
     match_score: int | None = None
+    company_name: str | None = None
+    country_name: str | None = None
 
 
 class JobDetailRead(JobRead):

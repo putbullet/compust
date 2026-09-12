@@ -1,5 +1,6 @@
+from datetime import datetime, timezone
 import time
-from fastapi import Body, Depends, FastAPI, File, HTTPException, Path, Query, UploadFile, status
+from fastapi import Body, Depends, FastAPI, File, HTTPException, Path, Query, Response, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
@@ -12,9 +13,13 @@ from .matching.semantic_adapter import semantic_service
 from .models import Company, Country, ScrapeTarget, ScrapingRun, User, Resume, CustomizedResume
 from .services.translation import JobTranslationService
 from .repositories.applications import (
+    create_manual_application,
     delete_application,
     delete_application_by_job_id,
+    export_applications_xlsx,
     get_application,
+    get_application_statistics,
+    get_sankey_pipeline,
     get_user_applications,
     save_or_update_application,
     update_application,
@@ -95,7 +100,10 @@ from .schemas_ai_resume import (
 from .schemas_applications import (
     ApplicationCreate,
     ApplicationRead,
+    ApplicationStatsRead,
     ApplicationUpdate,
+    ManualApplicationCreate,
+    SankeyDataRead,
 )
 from .schemas_metrics import ScraperTelemetryRead
 from .schemas_auth import (
@@ -891,14 +899,82 @@ def remove_language(
 
 
 # User Job Applications & Pipeline Tracking
+@app.get("/api/v1/applications/stats", response_model=ApplicationStatsRead, tags=["applications"])
+def get_my_application_stats(
+    start_date: datetime | None = Query(None, description="Start date filter (YYYY-MM-DD)"),
+    end_date: datetime | None = Query(None, description="End date filter (YYYY-MM-DD)"),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ApplicationStatsRead:
+    return get_application_statistics(db, user.id, start_date=start_date, end_date=end_date)
+
+
+@app.get("/api/v1/applications/pipeline", response_model=SankeyDataRead, tags=["applications"])
+def get_my_application_pipeline(
+    source: str | None = Query(None, description="Filter pipeline by source"),
+    country: str | None = Query(None, description="Filter pipeline by country"),
+    start_date: datetime | None = Query(None, description="Start date filter (YYYY-MM-DD)"),
+    end_date: datetime | None = Query(None, description="End date filter (YYYY-MM-DD)"),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> SankeyDataRead:
+    return get_sankey_pipeline(
+        db,
+        user.id,
+        source=source,
+        country=country,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+
+@app.get("/api/v1/applications/export", tags=["applications"])
+def export_my_applications_to_excel(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    xlsx_bytes = export_applications_xlsx(db, user.id)
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M")
+    filename = f"compust_applications_{timestamp}.xlsx"
+    return Response(
+        content=xlsx_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @app.get("/api/v1/applications", response_model=list[ApplicationRead], tags=["applications"])
 def list_my_applications(
-    status: str | None = Query(None, description="Filter by status (saved, applied, interviewing, offer, rejected)"),
+    status: str | None = Query(None, description="Filter by status"),
+    source: str | None = Query(None, description="Filter by source"),
+    country: str | None = Query(None, description="Filter by country"),
+    search: str | None = Query(None, description="Search by title, company, notes, contact, etc."),
+    start_date: datetime | None = Query(None, description="Start date filter (YYYY-MM-DD)"),
+    end_date: datetime | None = Query(None, description="End date filter (YYYY-MM-DD)"),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[ApplicationRead]:
-    apps = get_user_applications(db, user.id, status=status)
+    apps = get_user_applications(
+        db,
+        user.id,
+        status=status,
+        source=source,
+        country=country,
+        search=search,
+        start_date=start_date,
+        end_date=end_date,
+    )
     return [ApplicationRead.model_validate(a) for a in apps]
+
+
+@app.post("/api/v1/applications", response_model=ApplicationRead, status_code=status.HTTP_201_CREATED, tags=["applications"])
+def create_manual_tracked_application(
+    data: ManualApplicationCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ApplicationRead:
+    app_record = create_manual_application(db, user, data)
+    return ApplicationRead.model_validate(app_record)
 
 
 @app.post("/api/v1/applications/{job_id}", response_model=ApplicationRead, status_code=status.HTTP_201_CREATED, tags=["applications"])

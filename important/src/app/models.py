@@ -105,11 +105,21 @@ class Job(Base):
     salary_period: Mapped[str | None] = mapped_column(String(20), nullable=True)
     scrape_target_id: Mapped[int | None] = mapped_column(ForeignKey("scrape_targets.id"), nullable=True)
     scrape_target: Mapped["ScrapeTarget | None"] = relationship(foreign_keys=[scrape_target_id])
+    company: Mapped["Company | None"] = relationship(foreign_keys=[company_id], lazy="selectin")
+    country: Mapped["Country | None"] = relationship(foreign_keys=[country_id], lazy="selectin")
     translations: Mapped[list["JobTranslation"]] = relationship(
         back_populates="job",
         cascade="all, delete-orphan",
         lazy="selectin",
     )
+
+    @property
+    def company_name(self) -> str | None:
+        return self.company.name if self.company else None
+
+    @property
+    def country_name(self) -> str | None:
+        return self.country.name if self.country else None
 
 
 class JobTranslation(Base):
@@ -268,15 +278,53 @@ class UserApplication(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id"))
+    job_id: Mapped[int | None] = mapped_column(ForeignKey("jobs.id"), nullable=True)
     status: Mapped[str] = mapped_column(String(50), default="saved")
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     applied_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    # Manual application / unified tracker attributes
+    custom_job_title: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    custom_company_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    custom_location: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    custom_country: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    custom_job_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    source: Mapped[str] = mapped_column(String(100), default="Compust")
+    salary: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    employment_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    contact_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    contact_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    contact_phone: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    recruiter: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    referral: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    priority: Mapped[str] = mapped_column(String(50), default="medium")
+    next_follow_up: Mapped[datetime | None] = mapped_column(Date, nullable=True)
+    interview_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime)
     updated_at: Mapped[datetime] = mapped_column(DateTime)
 
     user: Mapped[User] = relationship(back_populates="applications")
-    job: Mapped[Job] = relationship(lazy="selectin")
+    job: Mapped["Job | None"] = relationship(lazy="selectin")
+    history: Mapped[list["UserApplicationHistory"]] = relationship(
+        back_populates="application",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="UserApplicationHistory.changed_at.asc()",
+    )
+
+
+class UserApplicationHistory(Base):
+    __tablename__ = "user_application_history"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    application_id: Mapped[int] = mapped_column(ForeignKey("user_applications.id", ondelete="CASCADE"))
+    from_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    to_status: Mapped[str] = mapped_column(String(50))
+    changed_at: Mapped[datetime] = mapped_column(DateTime)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    application: Mapped[UserApplication] = relationship(back_populates="history")
 
 
 class Resume(Base):

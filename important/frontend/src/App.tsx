@@ -112,7 +112,7 @@ export const App: React.FC = () => {
             ]);
             setUser(profile);
             if (userApps && userApps.length > 0) {
-              const ids = userApps.map((a) => a.job_id);
+              const ids = userApps.map((a) => a.job_id).filter((id): id is number => id !== null);
               setSavedJobIds((prev) => Array.from(new Set([...prev, ...ids])));
             }
           } catch {

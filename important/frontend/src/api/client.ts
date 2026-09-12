@@ -261,16 +261,139 @@ export interface ResumeSaveTailoredCopyRequest {
   accepted_experience_refinements: string[];
 }
 
+export type ApplicationStatus =
+  | 'saved'
+  | 'applied'
+  | 'no_answer'
+  | 'interviewing'
+  | '1st_interview'
+  | '2nd_interview'
+  | '3rd_interview'
+  | 'final_interview'
+  | 'offer'
+  | 'accepted'
+  | 'rejected'
+  | 'withdrawn';
+
+export interface ApplicationHistoryItem {
+  id: number;
+  application_id: number;
+  from_status: string | null;
+  to_status: string;
+  changed_at: string;
+  notes: string | null;
+}
+
 export interface ApplicationItem {
   id: number;
   user_id: number;
-  job_id: number;
-  status: 'saved' | 'applied' | 'interviewing' | 'offer' | 'rejected';
+  job_id: number | null;
+  status: ApplicationStatus;
   notes: string | null;
   applied_at: string | null;
   created_at: string;
   updated_at: string;
+  source: string;
+  custom_job_title?: string | null;
+  custom_company_name?: string | null;
+  custom_location?: string | null;
+  custom_country?: string | null;
+  custom_job_url?: string | null;
+  salary?: string | null;
+  employment_type?: string | null;
+  contact_name?: string | null;
+  contact_email?: string | null;
+  contact_phone?: string | null;
+  recruiter?: string | null;
+  referral?: string | null;
+  priority?: 'low' | 'medium' | 'high' | string;
+  next_follow_up?: string | null;
+  interview_date?: string | null;
+  effective_title: string;
+  effective_company: string;
+  effective_location?: string | null;
+  effective_country?: string | null;
+  effective_job_url?: string | null;
   job?: Job | null;
+  history?: ApplicationHistoryItem[];
+}
+
+export interface ManualApplicationPayload {
+  job_title: string;
+  company_name: string;
+  source?: string;
+  status?: ApplicationStatus | string;
+  location?: string;
+  country?: string;
+  job_url?: string;
+  applied_at?: string;
+  salary?: string;
+  employment_type?: string;
+  contact_name?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  recruiter?: string;
+  referral?: string;
+  priority?: string;
+  notes?: string;
+  next_follow_up?: string;
+  interview_date?: string;
+}
+
+export interface ApplicationUpdatePayload {
+  status?: ApplicationStatus | string;
+  notes?: string;
+  applied_at?: string | null;
+  job_title?: string;
+  company_name?: string;
+  location?: string;
+  country?: string;
+  job_url?: string;
+  source?: string;
+  salary?: string;
+  employment_type?: string;
+  contact_name?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  recruiter?: string;
+  referral?: string;
+  priority?: string;
+  next_follow_up?: string | null;
+  interview_date?: string | null;
+}
+
+export interface ApplicationStats {
+  total_applications: number;
+  active_applications: number;
+  status_breakdown: Record<string, number>;
+  source_breakdown: Record<string, number>;
+  interview_rate_percent: number;
+  response_rate_percent: number;
+  offer_rate_percent: number;
+  acceptance_rate_percent: number;
+  rejection_rate_percent: number;
+  avg_days_to_interview: number | null;
+  avg_days_to_offer: number | null;
+}
+
+export interface SankeyNode {
+  id: string;
+  label: string;
+  stage_index: number;
+  count: number;
+  color: string;
+}
+
+export interface SankeyLink {
+  source: string;
+  target: string;
+  value: number;
+}
+
+export interface SankeyData {
+  nodes: SankeyNode[];
+  links: SankeyLink[];
+  total: number;
 }
 
 export interface ScraperTelemetry {
@@ -487,16 +610,38 @@ export const api = {
     }),
 
   // Application Tracking & Pipeline
-  getApplications: (status?: string) =>
-    request<ApplicationItem[]>(status ? `/applications?status=${encodeURIComponent(status)}` : '/applications'),
+  getApplications: (params?: {
+    status?: string;
+    source?: string;
+    country?: string;
+    search?: string;
+    start_date?: string;
+    end_date?: string;
+  }) => {
+    const q = new URLSearchParams();
+    if (params?.status) q.append('status', params.status);
+    if (params?.source) q.append('source', params.source);
+    if (params?.country) q.append('country', params.country);
+    if (params?.search) q.append('search', params.search);
+    if (params?.start_date) q.append('start_date', params.start_date);
+    if (params?.end_date) q.append('end_date', params.end_date);
+    const qs = q.toString();
+    return request<ApplicationItem[]>(qs ? `/applications?${qs}` : '/applications');
+  },
 
-  trackApplication: (jobId: number, data?: { status?: string; notes?: string }) =>
+  createManualApplication: (data: ManualApplicationPayload) =>
+    request<ApplicationItem>('/applications', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  trackApplication: (jobId: number, data?: { status?: string; notes?: string; source?: string }) =>
     request<ApplicationItem>(`/applications/${jobId}`, {
       method: 'POST',
       body: JSON.stringify(data || { status: 'saved' }),
     }),
 
-  updateApplication: (applicationId: number, data: { status?: string; notes?: string }) =>
+  updateApplication: (applicationId: number, data: ApplicationUpdatePayload) =>
     request<ApplicationItem>(`/applications/${applicationId}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
@@ -511,6 +656,48 @@ export const api = {
     request<{ status: string }>(`/applications/jobs/${jobId}`, {
       method: 'DELETE',
     }),
+
+  getApplicationStats: (startDate?: string, endDate?: string) => {
+    const q = new URLSearchParams();
+    if (startDate) q.append('start_date', startDate);
+    if (endDate) q.append('end_date', endDate);
+    const qs = q.toString();
+    return request<ApplicationStats>(qs ? `/applications/stats?${qs}` : '/applications/stats');
+  },
+
+  getPipelineData: (params?: { source?: string; country?: string; start_date?: string; end_date?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.source) q.append('source', params.source);
+    if (params?.country) q.append('country', params.country);
+    if (params?.start_date) q.append('start_date', params.start_date);
+    if (params?.end_date) q.append('end_date', params.end_date);
+    const qs = q.toString();
+    return request<SankeyData>(qs ? `/applications/pipeline?${qs}` : '/applications/pipeline');
+  },
+
+  exportApplicationsXlsx: async () => {
+    const token = getStoredToken();
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    const res = await fetch(`${API_BASE_URL}/applications/export`, {
+      method: 'GET',
+      headers,
+    });
+    if (!res.ok) {
+      throw new Error(`Export failed with status ${res.status}`);
+    }
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `compust_applications_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  },
 
   // Scraper Telemetry & Metrics
   getScraperMetrics: () => request<ScraperTelemetry>('/admin/metrics'),

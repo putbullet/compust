@@ -81,12 +81,122 @@ SKILL_SYNONYMS: dict[str, str] = {
     "go": "Go",
 }
 
-# Common cities in Morocco and target markets
-KNOWN_CITIES = [
-    "Casablanca", "Rabat", "Marrakech", "Fès", "Tanger", "Agadir", "Salé",
-    "Kénitra", "Oujda", "Tétouan", "Mohammédia", "Technopolis", "Sidi Maarouf",
-    "Paris", "Lyon", "Toulouse", "Nantes", "Lille", "Bordeaux", "Dubai", "Madrid",
+# Country Aliases & Identifiers (canonical country name -> list of aliases/regex keywords)
+COUNTRY_ALIASES: list[tuple[str, str, list[str]]] = [
+    # (Canonical Name, ISO-2 Code, [aliases / keywords])
+    ("Morocco", "MA", ["morocco", "maroc", "al-maghrib", "marruecos", "ma"]),
+    ("France", "FR", ["france", "francia", "fr"]),
+    ("Germany", "DE", ["germany", "deutschland", "allemagne", "alemania", "de"]),
+    ("United Kingdom", "GB", ["united kingdom", "uk", "great britain", "u.k.", "england", "scotland", "wales", "gb"]),
+    ("United States", "US", ["united states", "united states of america", "usa", "u.s.a.", "u.s.", "us"]),
+    ("United Arab Emirates", "AE", ["united arab emirates", "uae", "u.a.e.", "emirates", "émirats arabes unis", "ae"]),
+    ("Saudi Arabia", "SA", ["saudi arabia", "saudi", "ksa", "k.s.a.", "arabie saoudite", "sa"]),
+    ("Spain", "ES", ["spain", "españa", "espagne", "es"]),
+    ("Belgium", "BE", ["belgium", "belgique", "belgië", "be"]),
+    ("Netherlands", "NL", ["netherlands", "pays-bas", "nederland", "holland", "nl"]),
+    ("Canada", "CA", ["canada", "ca"]),
+    ("Switzerland", "CH", ["switzerland", "suisse", "schweiz", "svizzera", "ch"]),
+    ("Italy", "IT", ["italy", "italia", "italie", "it"]),
+    ("Ireland", "IE", ["ireland", "irlande", "ie"]),
+    ("Sweden", "SE", ["sweden", "suède", "sverige", "se"]),
+    ("Portugal", "PT", ["portugal", "pt"]),
+    ("Poland", "PL", ["poland", "pologne", "polska", "pl"]),
+    ("Singapore", "SG", ["singapore", "singapour", "sg"]),
+    ("Australia", "AU", ["australia", "australie", "au"]),
+    ("Japan", "JP", ["japan", "japon", "nihon", "jp"]),
+    ("Brazil", "BR", ["brazil", "brésil", "brasil", "br"]),
+    ("India", "IN", ["india", "inde", "in"]),
+    ("Egypt", "EG", ["egypt", "égypte", "misr", "eg"]),
+    ("Tunisia", "TN", ["tunisia", "tunisie", "tounes", "tn"]),
+    ("Qatar", "QA", ["qatar", "qa"]),
+    ("Kuwait", "KW", ["kuwait", "koweit", "kw"]),
+    ("Bahrain", "BH", ["bahrain", "bahreïn", "bh"]),
+    ("Oman", "OM", ["oman", "om"]),
+    ("Luxembourg", "LU", ["luxembourg", "lu"]),
+    ("Austria", "AT", ["austria", "autriche", "österreich", "at"]),
+    ("Denmark", "DK", ["denmark", "danemark", "danmark", "dk"]),
+    ("Norway", "NO", ["norway", "norvège", "norge", "no"]),
+    ("Finland", "FI", ["finland", "finlande", "suomi", "fi"]),
+    ("South Korea", "KR", ["south korea", "corée du sud", "korea", "kr"]),
+    ("China", "CN", ["china", "chine", "cn"]),
+    ("Mexico", "MX", ["mexico", "mexique", "méxico", "mx"]),
+    ("Turkey", "TR", ["turkey", "turquie", "türkiye", "tr"]),
+    ("South Africa", "ZA", ["south africa", "afrique du sud", "za"]),
+    ("New Zealand", "NZ", ["new zealand", "nouvelle-zélande", "nz"]),
 ]
+
+# Major city-to-country mapping (city -> Canonical Country Name)
+CITY_TO_COUNTRY: dict[str, str] = {
+    # Morocco
+    "Casablanca": "Morocco", "Rabat": "Morocco", "Marrakech": "Morocco", "Fès": "Morocco",
+    "Fes": "Morocco", "Tanger": "Morocco", "Tangier": "Morocco", "Agadir": "Morocco",
+    "Salé": "Morocco", "Sale": "Morocco", "Kénitra": "Morocco", "Kenitra": "Morocco",
+    "Oujda": "Morocco", "Tétouan": "Morocco", "Tetouan": "Morocco", "Mohammédia": "Morocco",
+    "Mohammedia": "Morocco", "Technopolis": "Morocco", "Sidi Maarouf": "Morocco",
+    # Germany
+    "Berlin": "Germany", "Munich": "Germany", "München": "Germany", "Frankfurt": "Germany",
+    "Hamburg": "Germany", "Cologne": "Germany", "Köln": "Germany", "Stuttgart": "Germany",
+    "Düsseldorf": "Germany", "Dusseldorf": "Germany", "Dortmund": "Germany", "Essen": "Germany",
+    "Leipzig": "Germany", "Bremen": "Germany", "Dresden": "Germany", "Hanover": "Germany",
+    "Hannover": "Germany", "Nuremberg": "Germany", "Nürnberg": "Germany", "Bonn": "Germany",
+    # United Kingdom
+    "London": "United Kingdom", "Manchester": "United Kingdom", "Birmingham": "United Kingdom",
+    "Leeds": "United Kingdom", "Glasgow": "United Kingdom", "Edinburgh": "United Kingdom",
+    "Bristol": "United Kingdom", "Liverpool": "United Kingdom", "Sheffield": "United Kingdom",
+    "Belfast": "United Kingdom", "Cambridge": "United Kingdom", "Oxford": "United Kingdom",
+    # United States
+    "New York": "United States", "San Francisco": "United States", "Los Angeles": "United States",
+    "Chicago": "United States", "Seattle": "United States", "Austin": "United States",
+    "Boston": "United States", "Atlanta": "United States", "Denver": "United States",
+    "Dallas": "United States", "Houston": "United States", "Miami": "United States",
+    "San Jose": "United States", "San Diego": "United States", "Washington": "United States",
+    # UAE
+    "Dubai": "United Arab Emirates", "Abu Dhabi": "United Arab Emirates", "Sharjah": "United Arab Emirates",
+    # Saudi Arabia
+    "Riyadh": "Saudi Arabia", "Jeddah": "Saudi Arabia", "Dammam": "Saudi Arabia",
+    "Khobar": "Saudi Arabia", "Dhahran": "Saudi Arabia", "Mecca": "Saudi Arabia", "Medina": "Saudi Arabia",
+    # France
+    "Paris": "France", "Lyon": "France", "Marseille": "France", "Toulouse": "France",
+    "Nantes": "France", "Lille": "France", "Bordeaux": "France", "Strasbourg": "France",
+    "Rennes": "France", "Nice": "France", "Montpellier": "France", "Grenoble": "France",
+    # Spain
+    "Madrid": "Spain", "Barcelona": "Spain", "Valencia": "Spain", "Seville": "Spain",
+    "Sevilla": "Spain", "Malaga": "Spain", "Málaga": "Spain", "Bilbao": "Spain",
+    # Belgium
+    "Brussels": "Belgium", "Bruxelles": "Belgium", "Antwerp": "Belgium", "Ghent": "Belgium", "Gent": "Belgium", "Liège": "Belgium",
+    # Netherlands
+    "Amsterdam": "Netherlands", "Rotterdam": "Netherlands", "The Hague": "Netherlands", "Utrecht": "Netherlands", "Eindhoven": "Netherlands",
+    # Canada
+    "Toronto": "Canada", "Vancouver": "Canada", "Montreal": "Canada", "Montréal": "Canada", "Ottawa": "Canada", "Calgary": "Canada",
+    # Switzerland
+    "Zurich": "Switzerland", "Zürich": "Switzerland", "Geneva": "Switzerland", "Genève": "Switzerland", "Basel": "Switzerland", "Lausanne": "Switzerland",
+    # Italy
+    "Rome": "Italy", "Roma": "Italy", "Milan": "Italy", "Milano": "Italy", "Turin": "Italy", "Torino": "Italy",
+    # Ireland
+    "Dublin": "Ireland", "Cork": "Ireland", "Galway": "Ireland",
+    # Sweden
+    "Stockholm": "Sweden", "Gothenburg": "Sweden", "Göteborg": "Sweden", "Malmö": "Sweden",
+    # Portugal
+    "Lisbon": "Portugal", "Lisboa": "Portugal", "Porto": "Portugal",
+    # Poland
+    "Warsaw": "Poland", "Warszawa": "Poland", "Krakow": "Poland", "Kraków": "Poland", "Wrocław": "Poland",
+    # Singapore
+    "Singapore": "Singapore",
+    # Australia
+    "Sydney": "Australia", "Melbourne": "Australia", "Brisbane": "Australia", "Perth": "Australia",
+    # Japan
+    "Tokyo": "Japan", "Osaka": "Japan", "Kyoto": "Japan",
+    # India
+    "Bangalore": "India", "Bengaluru": "India", "Mumbai": "India", "Delhi": "India", "New Delhi": "India", "Hyderabad": "India", "Pune": "India",
+    # Egypt
+    "Cairo": "Egypt", "Alexandria": "Egypt", "Giza": "Egypt",
+    # Tunisia
+    "Tunis": "Tunisia", "Sfax": "Tunisia", "Sousse": "Tunisia",
+    # Qatar
+    "Doha": "Qatar",
+}
+
+KNOWN_CITIES = list(CITY_TO_COUNTRY.keys())
 
 
 def normalize_employment_type(raw: str | None) -> str | None:
@@ -124,20 +234,29 @@ def normalize_location(raw: str | None) -> ParsedLocation:
     city_match: str | None = None
     country_match: str | None = None
 
-    for city in KNOWN_CITIES:
+    # 1. Check for city matches
+    for city, mapped_country in CITY_TO_COUNTRY.items():
         if re.search(rf"\b{re.escape(city)}\b", raw_clean, re.IGNORECASE):
             city_match = city
+            country_match = mapped_country
             break
 
-    # Country detection
-    if re.search(r"\b(maroc|morocco|ma)\b", raw_clean, re.IGNORECASE):
-        country_match = "Morocco"
-    elif re.search(r"\b(france|fr)\b", raw_clean, re.IGNORECASE):
-        country_match = "France"
-
-    # If city is in Morocco and no country was explicit, default to Morocco
-    if city_match in ["Casablanca", "Rabat", "Marrakech", "Fès", "Tanger", "Agadir", "Salé", "Kénitra", "Technopolis", "Sidi Maarouf"] and not country_match:
-        country_match = "Morocco"
+    # 2. Check explicit country matches (country takes precedence if explicit, or fills if city didn't match)
+    for c_name, c_code, aliases in COUNTRY_ALIASES:
+        # Check aliases with word boundary
+        for alias in aliases:
+            # If alias is 2 letters (ISO code like DE, FR, US), ensure strict boundary/capitalization or separator
+            if len(alias) == 2:
+                pattern = rf"(?:^|[\s,/\(\)\-\|\.]{{1}}){re.escape(alias.upper())}(?:$|[\s,/\(\)\-\|\.]{{1}})"
+                if re.search(pattern, raw_clean):
+                    country_match = c_name
+                    break
+            else:
+                if re.search(rf"\b{re.escape(alias)}\b", raw_clean, re.IGNORECASE):
+                    country_match = c_name
+                    break
+        if country_match and country_match == c_name:
+            break
 
     return ParsedLocation(
         city=city_match,

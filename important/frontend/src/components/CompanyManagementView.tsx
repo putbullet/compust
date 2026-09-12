@@ -25,9 +25,14 @@ import { Loader } from './Loader';
 interface CompanyManagementViewProps {
   countries: Country[];
   onRefreshCountries?: () => void;
+  onCompanyUpdated?: () => void;
 }
 
-export const CompanyManagementView: React.FC<CompanyManagementViewProps> = ({ countries }) => {
+export const CompanyManagementView: React.FC<CompanyManagementViewProps> = ({
+  countries,
+  onRefreshCountries,
+  onCompanyUpdated,
+}) => {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -169,6 +174,8 @@ export const CompanyManagementView: React.FC<CompanyManagementViewProps> = ({ co
       }
       setIsCompanyModalOpen(false);
       loadCompanies();
+      onRefreshCountries?.();
+      onCompanyUpdated?.();
     } catch (err) {
       console.error('Failed to save company:', err);
     } finally {
@@ -180,6 +187,7 @@ export const CompanyManagementView: React.FC<CompanyManagementViewProps> = ({ co
     try {
       await api.toggleCompany(companyId);
       loadCompanies();
+      onCompanyUpdated?.();
     } catch (err) {
       console.error('Failed to toggle company active status:', err);
     }
@@ -192,6 +200,8 @@ export const CompanyManagementView: React.FC<CompanyManagementViewProps> = ({ co
       await api.deleteCompany(hardDeleteTarget.id, true);
       setHardDeleteTarget(null);
       loadCompanies();
+      onRefreshCountries?.();
+      onCompanyUpdated?.();
     } catch (err) {
       console.error('Failed to delete company:', err);
     } finally {

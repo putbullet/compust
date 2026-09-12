@@ -17,6 +17,7 @@ import {
   UploadCloud,
   CheckCircle2,
   AlertCircle,
+  Search,
 } from 'lucide-react';
 import { api } from '../api/client';
 import type { UserProfile, Country, ResumeItem } from '../api/client';
@@ -46,6 +47,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, onUpdate }) => {
   const [selectedCountries, setSelectedCountries] = useState<number[]>(
     (user.country_preferences || []).map((c) => c.id)
   );
+  const [countrySearch, setCountrySearch] = useState('');
 
   useEffect(() => {
     api.getCountries().then(setAvailableCountries).catch(() => {});
@@ -381,21 +383,57 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, onUpdate }) => {
             </div>
 
             <div className="field-group">
-              <label>Target Countries</label>
-              <div className="toggle-group wrap">
-                {availableCountries.map((c) => {
-                  const isSelected = selectedCountries.includes(c.id);
-                  return (
-                    <button
-                      key={c.id}
-                      type="button"
-                      className={`toggle-btn ${isSelected ? 'active' : ''}`}
-                      onClick={() => toggleCountry(c.id)}
-                    >
-                      {c.name}
-                    </button>
-                  );
-                })}
+              <div className="label-with-count">
+                <label>Target Countries ({selectedCountries.length} selected)</label>
+                {selectedCountries.length > 0 && (
+                  <button
+                    type="button"
+                    className="text-link-btn"
+                    onClick={async () => {
+                      setSelectedCountries([]);
+                      try {
+                        const updated = await api.updateCountryPreferences([]);
+                        onUpdate(updated);
+                      } catch {}
+                    }}
+                  >
+                    Clear All
+                  </button>
+                )}
+              </div>
+              <div className="country-search-box">
+                <Search size={13} className="c-search-icon" />
+                <input
+                  type="text"
+                  placeholder="Filter countries (e.g. Germany, UAE)..."
+                  value={countrySearch}
+                  onChange={(e) => setCountrySearch(e.target.value)}
+                  className="country-search-input"
+                />
+              </div>
+              <div className="country-chips-container">
+                {availableCountries
+                  .filter(
+                    (c) =>
+                      !countrySearch ||
+                      c.name.toLowerCase().includes(countrySearch.toLowerCase()) ||
+                      c.code.toLowerCase().includes(countrySearch.toLowerCase())
+                  )
+                  .map((c) => {
+                    const isSelected = selectedCountries.includes(c.id);
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        className={`country-chip ${isSelected ? 'active' : ''}`}
+                        onClick={() => toggleCountry(c.id)}
+                      >
+                        <span className="c-code">{c.code}</span>
+                        <span className="c-name">{c.name}</span>
+                        {isSelected && <Check size={12} className="c-check" />}
+                      </button>
+                    );
+                  })}
               </div>
             </div>
 
@@ -1148,9 +1186,119 @@ const StyledProfileContainer = styled.div<{ $isBuilder?: boolean }>`
     }
   }
 
+  .label-with-count {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    .text-link-btn {
+      background: none;
+      border: none;
+      color: #60a5fa;
+      font-size: 0.75rem;
+      cursor: pointer;
+      padding: 0;
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+
+  .country-search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-bottom: 6px;
+
+    .c-search-icon {
+      position: absolute;
+      left: 10px;
+      color: #64748b;
+      pointer-events: none;
+    }
+
+    .country-search-input {
+      width: 100%;
+      padding: 6px 12px 6px 30px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      color: #ffffff;
+      font-size: 0.8rem;
+      outline: none;
+
+      &:focus {
+        border-color: #3b82f6;
+      }
+    }
+  }
+
+  .country-chips-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    max-height: 180px;
+    overflow-y: auto;
+    padding: 6px;
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+  }
+
+  .country-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: #94a3b8;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex: 0 0 auto;
+
+    .c-code {
+      font-size: 0.7rem;
+      font-weight: 700;
+      opacity: 0.6;
+    }
+
+    .c-check {
+      color: #ffffff;
+    }
+
+    &:hover {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    &.active {
+      background: #2563eb;
+      color: #ffffff;
+      border-color: #3b82f6;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
+
+      .c-code {
+        opacity: 0.9;
+      }
+    }
+  }
+
   .toggle-group {
     display: flex;
     gap: 8px;
+
+    &.wrap {
+      flex-wrap: wrap;
+
+      .toggle-btn {
+        flex: 0 0 auto;
+      }
+    }
   }
 
   .toggle-btn {

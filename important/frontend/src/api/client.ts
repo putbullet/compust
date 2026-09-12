@@ -57,6 +57,7 @@ export interface JobDetail extends Job {
   skills: string[];
   positive_factors: string[];
   missing_factors: string[];
+  category_scores?: Record<string, number>;
 }
 
 export interface JobTranslationItem {

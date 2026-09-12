@@ -29,6 +29,8 @@ def persist_candidates(
     candidates: list[JobCandidate],
     scrape_target_id: int | None = None,
 ) -> tuple[int, int]:
+    from .countries import resolve_country_by_location
+
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     added = 0
     updated = 0
@@ -40,6 +42,10 @@ def persist_candidates(
         clean_department = sanitize_plain_text(candidate.department)
         clean_employment = sanitize_plain_text(candidate.employment_type)
         clean_remote = sanitize_plain_text(candidate.remote_type)
+
+        # Resolve actual job country from location, falling back to company country
+        actual_country = resolve_country_by_location(db, clean_location)
+        effective_country_id = actual_country.id if actual_country else country_id
 
         job = None
         # Tier 1: Match by Company + External Job ID (highest confidence)
@@ -112,7 +118,7 @@ def persist_candidates(
         if job is None:
             job = Job(
                 company_id=company_id,
-                country_id=country_id,
+                country_id=effective_country_id,
                 title=clean_title,
                 location=clean_location,
                 job_url=norm_url,
@@ -141,7 +147,7 @@ def persist_candidates(
             updated += 1
             if scrape_target_id is not None:
                 job.scrape_target_id = scrape_target_id
-        job.country_id = country_id
+        job.country_id = effective_country_id
         job.title = clean_title
         job.location = clean_location
         job.job_url = norm_url

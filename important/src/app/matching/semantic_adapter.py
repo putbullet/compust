@@ -104,6 +104,7 @@ class RuleBasedSemanticFallback:
             score=score,
             positive_factors=positive_factors,
             missing_factors=missing_factors,
+            category_scores=base_match.category_scores,
         )
 
 

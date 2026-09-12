@@ -251,6 +251,27 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 <span className="score-desc">Calculated against your career profile and skills</span>
               </div>
 
+              {job.category_scores && Object.keys(job.category_scores).length > 0 && (
+                <div className="category-scores-grid">
+                  {Object.entries(job.category_scores).map(([category, score]) => (
+                    <div key={category} className="cat-score-item">
+                      <div className="cat-score-label">
+                        <span className="cat-name">{category.charAt(0).toUpperCase() + category.slice(1)}</span>
+                        <span className="cat-val">{score}%</span>
+                      </div>
+                      <div className="cat-progress-bar">
+                        <div
+                          className={`cat-progress-fill ${
+                            score >= 75 ? 'high' : score >= 50 ? 'med' : 'low'
+                          }`}
+                          style={{ width: `${score}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {job.positive_factors && job.positive_factors.length > 0 && (
                 <div className="factors-group positive">
                   {job.positive_factors.map((f, i) => (
@@ -819,6 +840,57 @@ const StyledModalBackdrop = styled.div`
   .score-desc {
     font-size: 0.85rem;
     color: #94a3b8;
+  }
+
+  .category-scores-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 8px;
+    padding: 10px 12px;
+    background: rgba(15, 23, 42, 0.4);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .cat-score-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .cat-score-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: #cbd5e1;
+
+    .cat-val {
+      color: #93c5fd;
+    }
+  }
+
+  .cat-progress-bar {
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .cat-progress-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.4s ease;
+
+    &.high {
+      background: linear-gradient(90deg, #10b981, #34d399);
+    }
+    &.med {
+      background: linear-gradient(90deg, #3b82f6, #60a5fa);
+    }
+    &.low {
+      background: linear-gradient(90deg, #f59e0b, #fbbf24);
+    }
   }
 
   .factors-group {

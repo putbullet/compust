@@ -41,9 +41,34 @@ export const App: React.FC = () => {
 
   // Filters & Search
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCountry, setSelectedCountry] = useState<number | null>(null);
+  const [selectedCountry, setSelectedCountry] = useState<number | null>(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const c = params.get('country_id');
+      return c ? parseInt(c, 10) : null;
+    } catch {
+      return null;
+    }
+  });
   const [selectedRemote, setSelectedRemote] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const handleSelectCountry = (cId: number | null) => {
+    setSelectedCountry(cId);
+    setCurrentPage(1);
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (cId !== null) {
+        params.set('country_id', cId.toString());
+      } else {
+        params.delete('country_id');
+      }
+      const newQuery = params.toString();
+      const newUrl = `${window.location.pathname}${newQuery ? '?' + newQuery : ''}`;
+      window.history.replaceState(null, '', newUrl);
+    } catch {}
+  };
 
   // Jobs Data
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -125,7 +150,21 @@ export const App: React.FC = () => {
 
     const timer = setTimeout(fetchJobs, 250);
     return () => clearTimeout(timer);
-  }, [searchTerm, selectedCountry, selectedRemote, currentPage, user]);
+  }, [searchTerm, selectedCountry, selectedRemote, currentPage, user, refreshTrigger]);
+
+  const refreshCompaniesAndJobs = async () => {
+    try {
+      const [cList, compList] = await Promise.all([
+        api.getCountries(),
+        api.getCompanies(),
+      ]);
+      setCountries(cList);
+      setCompanies(compList);
+      setRefreshTrigger((prev) => prev + 1);
+    } catch (err) {
+      console.error('Failed to refresh companies & countries:', err);
+    }
+  };
 
   const handleOpenJob = async (jobId: number) => {
     try {
@@ -229,7 +268,7 @@ export const App: React.FC = () => {
                 searchTerm={searchTerm}
                 onSearchChange={(val) => { setSearchTerm(val); setCurrentPage(1); }}
                 selectedCountry={selectedCountry}
-                onSelectCountry={(cId) => { setSelectedCountry(cId); setCurrentPage(1); }}
+                onSelectCountry={handleSelectCountry}
                 countries={countries}
                 selectedRemote={selectedRemote}
                 onSelectRemote={(r) => { setSelectedRemote(r); setCurrentPage(1); }}
@@ -373,10 +412,8 @@ export const App: React.FC = () => {
         {activeTab === 'companies' && (
           <CompanyManagementView
             countries={countries}
-            onRefreshCountries={async () => {
-              const cList = await api.getCountries();
-              setCountries(cList);
-            }}
+            onRefreshCountries={refreshCompaniesAndJobs}
+            onCompanyUpdated={refreshCompaniesAndJobs}
           />
         )}
 

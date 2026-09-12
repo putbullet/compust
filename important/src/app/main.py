@@ -707,6 +707,7 @@ def get_job_detail(
         detail.match_score = match_res.score
         detail.positive_factors = match_res.positive_factors
         detail.missing_factors = match_res.missing_factors
+        detail.category_scores = match_res.category_scores
     return detail
 
 

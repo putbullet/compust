@@ -65,6 +65,18 @@ def update_company(
         countries = list(db.scalars(select(Country).where(Country.id.in_(country_ids))).all())
         company.countries = countries
 
+        # Re-evaluate existing jobs under this company based on their location text
+        from .countries import resolve_country_by_location
+        from ..models import Job
+        jobs = list(db.scalars(select(Job).where(Job.company_id == company_id)).all())
+        for j in jobs:
+            if j.location:
+                resolved = resolve_country_by_location(db, j.location)
+                if resolved:
+                    j.country_id = resolved.id
+                elif company.countries and j.country_id not in [c.id for c in company.countries]:
+                    j.country_id = company.countries[0].id
+
     db.commit()
     db.refresh(company)
     return company

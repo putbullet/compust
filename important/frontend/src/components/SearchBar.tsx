@@ -31,6 +31,12 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     { key: 'On-site', label: t.search.onsite },
   ];
 
+  // Top 6 primary quick filter countries
+  const topCountries = countries.slice(0, 6);
+  const selectedOutsideTop =
+    selectedCountry !== null && !topCountries.some((c) => c.id === selectedCountry);
+  const activeSelectedCountry = countries.find((c) => c.id === selectedCountry);
+
   return (
     <StyledSearchWrapper>
       {/* Main Search Input */}
@@ -63,7 +69,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             >
               {t.search.allCountries}
             </button>
-            {countries.map((c) => (
+            {topCountries.map((c) => (
               <button
                 key={c.id}
                 className={`pill ${selectedCountry === c.id ? 'active' : ''}`}
@@ -72,6 +78,36 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                 {c.name}
               </button>
             ))}
+            {selectedOutsideTop && activeSelectedCountry && (
+              <button
+                className="pill active"
+                onClick={() => onSelectCountry(null)}
+                title="Click to clear filter"
+              >
+                {activeSelectedCountry.name} ✕
+              </button>
+            )}
+            {countries.length > 6 && (
+              <div className="dropdown-pill-wrapper">
+                <select
+                  className="country-dropdown-select"
+                  value={selectedCountry || ''}
+                  onChange={(e) =>
+                    onSelectCountry(e.target.value ? parseInt(e.target.value, 10) : null)
+                  }
+                  aria-label="Filter by more countries"
+                >
+                  <option value="">More Countries ({countries.length})...</option>
+                  {[...countries]
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} ({c.code})
+                      </option>
+                    ))}
+                </select>
+              </div>
+            )}
           </div>
         </div>
 
@@ -220,6 +256,39 @@ const StyledSearchWrapper = styled.div`
       background: #2563eb;
       border-color: #3b82f6;
       box-shadow: 0 0 12px rgba(37, 99, 235, 0.4);
+    }
+  }
+
+  .dropdown-pill-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .country-dropdown-select {
+    padding: 4px 10px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border-radius: 14px;
+    color: #cbd5e1;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    outline: none;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    &:focus {
+      border-color: #3b82f6;
+    }
+
+    option {
+      background: #0f172a;
+      color: #f8fafc;
     }
   }
 `;

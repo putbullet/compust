@@ -116,6 +116,7 @@ class JobDetailRead(JobRead):
     skills: list[str] = []
     positive_factors: list[str] = []
     missing_factors: list[str] = []
+    category_scores: dict[str, int] = {}
 
 
 class JobTranslationRead(BaseModel):

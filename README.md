@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/compust_dashboard.jpg" alt="Compust Dashboard" width="100%" />
+  <img src="docs/screenshots/APP_screensht.png" alt="Compust Dashboard" width="100%" />
 </p>
 
 <p align="center">

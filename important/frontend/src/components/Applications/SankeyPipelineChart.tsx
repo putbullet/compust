@@ -67,8 +67,8 @@ export const SankeyPipelineChart: React.FC<SankeyPipelineChartProps> = ({
       return null;
     }
 
-    const svgWidth = 1100;
-    const svgHeight = 560;
+    const svgWidth = 1200;
+    const svgHeight = 700;
     const nodeWidth = 9;
 
     // Filter nodes that actually exist in links or have positive count
@@ -93,9 +93,9 @@ export const SankeyPipelineChart: React.FC<SankeyPipelineChartProps> = ({
 
     // X positions across the canvas
     // Left margin 160px for the "Applications" label on the left
-    // Right margin 160px for terminal labels on the right
-    const startX = 140;
-    const availableW = svgWidth - startX - 180;
+    // Right margin 180px for terminal labels on the right
+    const startX = 145;
+    const availableW = svgWidth - startX - 200;
     const colCount = Math.max(stages.length - 1, 1);
     const colStep = availableW / colCount;
 
@@ -103,8 +103,8 @@ export const SankeyPipelineChart: React.FC<SankeyPipelineChartProps> = ({
     const rootNode = activeNodes.find((n) => n.id === 'stage_applications') || activeNodes[0];
     const totalVal = Math.max(rootNode ? rootNode.count : data.total, 1);
 
-    // Height of Applications root bar: about 320px on a 560px canvas
-    const maxBarHeight = 300;
+    // Height of Applications root bar: about 370px on a 700px canvas
+    const maxBarHeight = 370;
     const minNodeHeight = 4;
     const scale = maxBarHeight / totalVal;
 
@@ -146,7 +146,7 @@ export const SankeyPipelineChart: React.FC<SankeyPipelineChartProps> = ({
 
     // 1. Position Root Node (Applications)
     const rootH = Math.max(totalVal * scale, 36);
-    const rootY = 175; // Vertically centered
+    const rootY = 165; // Vertically centered
     const rootX = startX;
 
     computedNodes['stage_applications'] = {
@@ -182,13 +182,16 @@ export const SankeyPipelineChart: React.FC<SankeyPipelineChartProps> = ({
       // - No Answer: curves down to bottom (~315px)
       let y = currentRootOutY;
       if (targetId === 'stage_1st_interview') {
-        y = 45;
+        // Pin 1st Interviews near the top
+        y = 40;
       } else if (targetId === 'stage_rejected_init') {
-        y = 165;
+        // Push Rejected well below the interview chain (needs clear gap from 1st Interview bar + ribbon)
+        y = 260;
       } else if (targetId === 'stage_no_answer') {
-        y = 315;
+        // Push No Answer toward the bottom
+        y = 450;
       } else if (targetId === 'stage_withdrawn_init') {
-        y = 445;
+        y = 590;
       }
 
       const nodeH = Math.max(link.value * scale, minNodeHeight);
@@ -218,8 +221,8 @@ export const SankeyPipelineChart: React.FC<SankeyPipelineChartProps> = ({
 
     const cascadeChain = [
       { id: 'stage_2nd_interview', yOffset: 0 },
-      { id: 'stage_3rd_interview', yOffset: 8 },
-      { id: 'stage_4th_interview', yOffset: 16 },
+      { id: 'stage_3rd_interview', yOffset: 6 },
+      { id: 'stage_4th_interview', yOffset: 12 },
     ];
 
     cascadeChain.forEach(({ id, yOffset }) => {
@@ -258,7 +261,7 @@ export const SankeyPipelineChart: React.FC<SankeyPipelineChartProps> = ({
     const offersNode = activeNodes.find((n) => n.id === 'stage_offers');
     if (offersNode) {
       const x = startX + offersNode.stage_index * colStep;
-      const y = Math.max(prevY - 35, 18); // Curves up toward the top
+      const y = Math.max(prevY - 40, 18); // Curves up toward the top
       const nodeH = Math.max(offersNode.count * scale, minNodeHeight);
 
       computedNodes['stage_offers'] = {
@@ -279,7 +282,7 @@ export const SankeyPipelineChart: React.FC<SankeyPipelineChartProps> = ({
     const finalRejNode = activeNodes.find((n) => n.id === 'stage_rejected_final');
     if (finalRejNode) {
       const x = startX + finalRejNode.stage_index * colStep;
-      const y = prevY + 55; // Curves down toward rejections
+      const y = prevY + 75; // Curves down toward final rejections (more separation)
       const nodeH = Math.max(finalRejNode.count * scale, minNodeHeight);
 
       computedNodes['stage_rejected_final'] = {
@@ -324,7 +327,7 @@ export const SankeyPipelineChart: React.FC<SankeyPipelineChartProps> = ({
         const inL = inLinks[n.id]?.[0];
         const srcPos = inL ? computedNodes[inL.source] : null;
         const x = startX + n.stage_index * colStep;
-        const y = srcPos ? srcPos.y + 45 : 200;
+        const y = srcPos ? srcPos.y + 60 : 200;
         const nodeH = Math.max(n.count * scale, minNodeHeight);
 
         computedNodes[n.id] = {

@@ -205,7 +205,15 @@ def list_jobs(
     if search:
         from ..scraper.search import expand_search_query
 
-        expanded_terms = expand_search_query(search)
+        raw_search = search.strip()
+        expanded_terms = expand_search_query(raw_search)
+        if raw_search not in expanded_terms:
+            expanded_terms.insert(0, raw_search)
+
+        for word in raw_search.split():
+            if len(word) > 1 and word not in expanded_terms:
+                expanded_terms.append(word)
+
         search_clauses = []
         for term in expanded_terms:
             pattern = f"%{term}%"

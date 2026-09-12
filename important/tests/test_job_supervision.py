@@ -163,3 +163,75 @@ def test_job_supervision_api_endpoints(test_setup):
     del_resp = client.delete("/api/v1/admin/jobs/101", headers=headers)
     assert del_resp.status_code == 200
     assert del_resp.json()["status"] == "deleted"
+
+
+def test_job_search_by_company_name(test_setup):
+    _, client = test_setup
+
+    # Search by company name "Acme"
+    resp = client.get("/api/v1/jobs?search=Acme&active_only=false")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total"] == 2
+    assert any(j["id"] == 101 for j in data["items"])
+    assert any(j["id"] == 102 for j in data["items"])
+    assert all(j["company_name"] == "Acme Corp" for j in data["items"])
+
+    # Search for nonexistent company
+    resp_none = client.get("/api/v1/jobs?search=NonExistentCompany999&active_only=false")
+    assert resp_none.status_code == 200
+    assert resp_none.json()["total"] == 0
+
+
+def test_job_supervision_bulk_delete_api(test_setup):
+    session_factory, client = test_setup
+
+    reg_resp = client.post(
+        "/api/v1/auth/register",
+        json={"email": "bulk_supervisor@test.com", "password": "Password123!"},
+    )
+    assert reg_resp.status_code == 201
+    token = reg_resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Add application to job 101 so 101 is soft-deactivated and 102 is hard-deleted
+    with session_factory() as session:
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        user = User(id=99, email="candidate@test.com", password_hash="pw", is_active=True, created_at=now, updated_at=now)
+        session.add(user)
+        session.flush()
+        app_entry = UserApplication(id=99, user_id=99, job_id=101, status="applied", created_at=now, updated_at=now)
+        session.add(app_entry)
+        session.commit()
+
+    # Bulk delete [101, 102] with force=False
+    bulk_resp = client.post(
+        "/api/v1/admin/jobs/bulk-delete",
+        headers=headers,
+        json={"job_ids": [101, 102], "force": False},
+    )
+    assert bulk_resp.status_code == 200
+    res = bulk_resp.json()
+    assert res["status"] == "success"
+    assert res["deleted_count"] == 1  # job 102 hard-deleted
+    assert res["deactivated_count"] == 1  # job 101 soft-deactivated
+    assert res["total_requested"] == 2
+
+    with session_factory() as session:
+        j102 = session.query(Job).filter(Job.id == 102).first()
+        assert j102 is None
+        j101 = session.query(Job).filter(Job.id == 101).first()
+        assert j101 is not None
+        assert j101.active is False
+
+    # Now force bulk delete [101]
+    force_resp = client.post(
+        "/api/v1/admin/jobs/bulk-delete",
+        headers=headers,
+        json={"job_ids": [101], "force": True},
+    )
+    assert force_resp.status_code == 200
+    assert force_resp.json()["deleted_count"] == 1
+
+    with session_factory() as session:
+        assert session.query(Job).filter(Job.id == 101).first() is None

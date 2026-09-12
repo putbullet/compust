@@ -84,3 +84,35 @@ def delete_job_safely(db: Session, job_id: int, force: bool = False) -> bool:
     db.delete(job)
     db.commit()
     return True
+
+
+def bulk_delete_jobs_safely(db: Session, job_ids: list[int], force: bool = False) -> tuple[int, int]:
+    """
+    Safely delete multiple job candidates in batch.
+    Returns (deleted_count, deactivated_count).
+    """
+    if not job_ids:
+        return 0, 0
+
+    deleted_count = 0
+    deactivated_count = 0
+    for job_id in job_ids:
+        job = db.scalar(select(Job).where(Job.id == job_id))
+        if not job:
+            continue
+
+        has_apps = db.scalar(select(UserApplication.id).where(UserApplication.job_id == job_id).limit(1))
+        if has_apps and not force:
+            job.active = False
+            deactivated_count += 1
+        else:
+            db.execute(delete(JobSkill).where(JobSkill.job_id == job_id))
+            db.execute(delete(JobTranslation).where(JobTranslation.job_id == job_id))
+            if force and has_apps:
+                db.execute(delete(UserApplication).where(UserApplication.job_id == job_id))
+            db.delete(job)
+            deleted_count += 1
+
+    db.commit()
+    return deleted_count, deactivated_count
+

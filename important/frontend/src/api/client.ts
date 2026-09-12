@@ -50,6 +50,8 @@ export interface Job {
   salary_period: string | null;
   description?: string | null;
   match_score?: number | null;
+  company_name?: string | null;
+  country_name?: string | null;
 }
 
 export interface JobDetail extends Job {
@@ -972,6 +974,15 @@ export const api = {
     request<{ status: string; job_id: number; forced: boolean }>(`/admin/jobs/${jobId}?force=${force}`, {
       method: 'DELETE',
     }),
+
+  superviseBulkDeleteJobs: (jobIds: number[], force: boolean = false) =>
+    request<{ status: string; deleted_count: number; deactivated_count: number; total_requested: number }>(
+      '/admin/jobs/bulk-delete',
+      {
+        method: 'POST',
+        body: JSON.stringify({ job_ids: jobIds, force }),
+      }
+    ),
 
   getAllScrapingRuns: (limit: number = 50) =>
     request<ScrapingRunItem[]>(`/admin/scraping-runs?limit=${limit}`),

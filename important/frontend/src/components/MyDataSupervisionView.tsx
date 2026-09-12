@@ -44,6 +44,12 @@ export const MyDataSupervisionView: React.FC = () => {
   const [deletingJobId, setDeletingJobId] = useState<number | null>(null);
   const [forceDelete, setForceDelete] = useState(false);
 
+  // Bulk selection & deletion state
+  const [selectedJobIds, setSelectedJobIds] = useState<Set<number>>(new Set());
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [bulkForceDelete, setBulkForceDelete] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
   // Scraping runs state
   const [runs, setRuns] = useState<ScrapingRunItem[]>([]);
   const [loadingRuns, setLoadingRuns] = useState(false);
@@ -123,10 +129,67 @@ export const MyDataSupervisionView: React.FC = () => {
     try {
       await api.superviseDeleteJob(deletingJobId, forceDelete);
       setJobs((prev) => prev.filter((j) => j.id !== deletingJobId));
+      setSelectedJobIds((prev) => {
+        const next = new Set(prev);
+        next.delete(deletingJobId);
+        return next;
+      });
       setDeletingJobId(null);
       setForceDelete(false);
     } catch (err) {
       console.error('Failed to delete job:', err);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedJobIds.size === 0) return;
+    try {
+      setIsBulkDeleting(true);
+      await api.superviseBulkDeleteJobs(Array.from(selectedJobIds), bulkForceDelete);
+      setSelectedJobIds(new Set());
+      setShowBulkDeleteModal(false);
+      setBulkForceDelete(false);
+      await fetchJobs();
+    } catch (err) {
+      console.error('Failed to bulk delete jobs:', err);
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedJobIds((prev) => {
+        const next = new Set(prev);
+        jobs.forEach((j) => next.add(j.id));
+        return next;
+      });
+    } else {
+      setSelectedJobIds((prev) => {
+        const next = new Set(prev);
+        jobs.forEach((j) => next.delete(j.id));
+        return next;
+      });
+    }
+  };
+
+  const handleToggleSelectJob = (id: number, checked: boolean) => {
+    setSelectedJobIds((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+      return next;
+    });
+  };
+
+  const handleSearchSubmit = () => {
+    if (page === 1) {
+      fetchJobs();
+    } else {
+      setPage(1);
     }
   };
 
@@ -193,16 +256,37 @@ export const MyDataSupervisionView: React.FC = () => {
               <Search size={16} />
               <input
                 type="text"
-                placeholder="Filter by title, location, or department..."
+                placeholder="Filter by title, company, location, or department..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && fetchJobs()}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearchSubmit()}
               />
             </div>
+            <button className="search-btn" onClick={handleSearchSubmit} title="Search">
+              Search
+            </button>
             <button className="refresh-btn" onClick={fetchJobs} title="Refresh">
               <RefreshCw size={16} className={loadingJobs ? 'spin' : ''} />
             </button>
           </FilterBar>
+
+          {selectedJobIds.size > 0 && (
+            <BulkActionBar>
+              <div className="bulk-info">
+                <span className="bulk-count">{selectedJobIds.size}</span>
+                <span>job{selectedJobIds.size > 1 ? 's' : ''} selected</span>
+              </div>
+              <div className="bulk-actions">
+                <button className="clear-btn" onClick={() => setSelectedJobIds(new Set())}>
+                  Deselect All
+                </button>
+                <button className="bulk-delete-btn" onClick={() => setShowBulkDeleteModal(true)}>
+                  <Trash2 size={14} />
+                  <span>Delete Selected ({selectedJobIds.size})</span>
+                </button>
+              </div>
+            </BulkActionBar>
+          )}
 
           {loadingJobs ? (
             <LoadingBox>
@@ -214,7 +298,16 @@ export const MyDataSupervisionView: React.FC = () => {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Title & Location</th>
+                    <th style={{ width: '42px', textAlign: 'center' }}>
+                      <input
+                        type="checkbox"
+                        className="row-checkbox"
+                        title={jobs.length > 0 && jobs.every((j) => selectedJobIds.has(j.id)) ? 'Deselect all on this page' : 'Select all on this page'}
+                        checked={jobs.length > 0 && jobs.every((j) => selectedJobIds.has(j.id))}
+                        onChange={(e) => handleSelectAll(e.target.checked)}
+                      />
+                    </th>
+                    <th>Title & Company</th>
                     <th>Source</th>
                     <th>Type / Mode</th>
                     <th>Status</th>
@@ -224,11 +317,30 @@ export const MyDataSupervisionView: React.FC = () => {
                 </thead>
                 <tbody>
                   {jobs.map((job) => (
-                    <tr key={job.id} className={!job.active ? 'inactive-row' : ''}>
+                    <tr
+                      key={job.id}
+                      className={`${!job.active ? 'inactive-row' : ''} ${selectedJobIds.has(job.id) ? 'selected-row' : ''}`}
+                    >
+                      <td style={{ width: '42px', textAlign: 'center' }}>
+                        <input
+                          type="checkbox"
+                          className="row-checkbox"
+                          checked={selectedJobIds.has(job.id)}
+                          onChange={(e) => handleToggleSelectJob(job.id, e.target.checked)}
+                        />
+                      </td>
                       <td>
                         <div className="job-title-col">
                           <span className="title-text">{job.title}</span>
-                          <span className="loc-text">{job.location || 'Location Unspecified'}</span>
+                          <div className="company-loc-row">
+                            <span className="company-text">{job.company_name || `Company #${job.company_id}`}</span>
+                            {job.location && (
+                              <>
+                                <span className="dot-sep">•</span>
+                                <span className="loc-text">{job.location}</span>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </td>
                       <td>
@@ -625,6 +737,50 @@ export const MyDataSupervisionView: React.FC = () => {
           </ModalContent>
         </ModalOverlay>
       )}
+
+      {/* Bulk Delete Job Confirmation Modal */}
+      {showBulkDeleteModal && (
+        <ModalOverlay onClick={() => !isBulkDeleting && setShowBulkDeleteModal(false)}>
+          <ModalContent onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <ShieldAlert className="warning-icon" size={24} />
+              <h3>Confirm Bulk Opportunity Removal</h3>
+            </div>
+
+            <p className="confirm-p">
+              Are you sure you want to remove <strong>{selectedJobIds.size}</strong> selected job{selectedJobIds.size > 1 ? 's' : ''}? By default, if user applications exist, they will be soft-deactivated to preserve your history.
+            </p>
+
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={bulkForceDelete}
+                onChange={(e) => setBulkForceDelete(e.target.checked)}
+                disabled={isBulkDeleting}
+              />
+              <span>Force hard deletion (also removes related applications)</span>
+            </label>
+
+            <div className="modal-actions">
+              <button
+                className="cancel-btn"
+                onClick={() => setShowBulkDeleteModal(false)}
+                disabled={isBulkDeleting}
+              >
+                Cancel
+              </button>
+              <button
+                className="danger-btn"
+                onClick={handleBulkDelete}
+                disabled={isBulkDeleting}
+              >
+                {isBulkDeleting ? <Loader2 size={15} className="spin" /> : <Trash2 size={15} />}
+                <span>Confirm Delete ({selectedJobIds.size})</span>
+              </button>
+            </div>
+          </ModalContent>
+        </ModalOverlay>
+      )}
     </Container>
   );
 };
@@ -729,6 +885,22 @@ const FilterBar = styled.div`
     }
   }
 
+  .search-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 16px;
+    border-radius: 10px;
+    background: #2563eb;
+    border: 1px solid #3b82f6;
+    color: #ffffff;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    &:hover { background: #1d4ed8; }
+  }
+
   .refresh-btn {
     display: flex;
     align-items: center;
@@ -743,6 +915,75 @@ const FilterBar = styled.div`
   }
 `;
 
+const BulkActionBar = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 10px;
+  margin-bottom: 12px;
+
+  .bulk-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: #93c5fd;
+
+    .bulk-count {
+      font-weight: 700;
+      background: #2563eb;
+      color: #ffffff;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+    }
+  }
+
+  .bulk-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    .clear-btn {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 0.8rem;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 6px;
+      &:hover {
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.05);
+      }
+    }
+
+    .bulk-delete-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 8px;
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #f87171;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+
+      &:hover {
+        background: rgba(239, 68, 68, 0.35);
+        color: #ffffff;
+        border-color: #ef4444;
+      }
+    }
+  }
+`;
+
 const TableWrap = styled.div`
   background: rgba(15, 23, 42, 0.7);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -753,6 +994,13 @@ const TableWrap = styled.div`
     width: 100%;
     border-collapse: collapse;
     font-size: 0.85rem;
+
+    .row-checkbox {
+      cursor: pointer;
+      accent-color: #3b82f6;
+      width: 15px;
+      height: 15px;
+    }
 
     th {
       text-align: left;
@@ -777,6 +1025,10 @@ const TableWrap = styled.div`
     tr.inactive-row td {
       opacity: 0.55;
     }
+
+    tr.selected-row td {
+      background: rgba(59, 130, 246, 0.08);
+    }
   }
 
   .job-title-col {
@@ -788,9 +1040,27 @@ const TableWrap = styled.div`
       font-weight: 600;
       color: #f8fafc;
     }
-    .loc-text {
+
+    .company-loc-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
       font-size: 0.75rem;
-      color: #64748b;
+      flex-wrap: wrap;
+
+      .company-text {
+        font-weight: 500;
+        color: #60a5fa;
+      }
+
+      .dot-sep {
+        color: #475569;
+        font-size: 0.7rem;
+      }
+
+      .loc-text {
+        color: #94a3b8;
+      }
     }
   }
 

@@ -99,6 +99,18 @@ class JobSupervisionUpdate(BaseModel):
     active: bool | None = None
 
 
+class BulkJobDeleteRequest(BaseModel):
+    job_ids: list[int]
+    force: bool = False
+
+
+class BulkJobDeleteResponse(BaseModel):
+    status: str
+    deleted_count: int
+    deactivated_count: int
+    total_requested: int
+
+
 class ScraperDiagnosticRequest(BaseModel):
     url: str
     strategy: str | None = None

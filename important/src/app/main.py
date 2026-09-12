@@ -90,6 +90,8 @@ from .schemas_ai_resume import (
     AIProviderRead,
     AISettingsUpdate,
     AIStatusResponse,
+    BulkJobDeleteRequest,
+    BulkJobDeleteResponse,
     CustomizedResumeRead,
     JobSupervisionUpdate,
     ResumeRead,
@@ -1531,6 +1533,23 @@ def supervise_delete_job(
     if not deleted:
         raise HTTPException(status_code=404, detail="Job not found.")
     return {"status": "deleted", "job_id": job_id, "forced": force}
+
+
+@app.post("/api/v1/admin/jobs/bulk-delete", response_model=BulkJobDeleteResponse, tags=["admin"])
+def supervise_bulk_delete_jobs(
+    req: BulkJobDeleteRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> BulkJobDeleteResponse:
+    from .repositories.job_supervision import bulk_delete_jobs_safely
+
+    deleted, deactivated = bulk_delete_jobs_safely(db, req.job_ids, force=req.force)
+    return BulkJobDeleteResponse(
+        status="success",
+        deleted_count=deleted,
+        deactivated_count=deactivated,
+        total_requested=len(req.job_ids),
+    )
 
 
 # --- Scraper Diagnostic Testing Endpoints ---

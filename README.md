@@ -1,4 +1,12 @@
-# Compust — Career Intelligence & Verified Vacancy Directory
+<p align="center">
+  <img src="docs/logo-transparent.png" alt="Compust Logo" width="100" />
+</p>
+
+<h1 align="center">Compust</h1>
+
+<p align="center">
+  <em>Local-First Career Intelligence & Verified Vacancy Directory</em>
+</p>
 
 <p align="center">
   <img src="docs/screenshots/compust_dashboard.jpg" alt="Compust Dashboard" width="100%" />

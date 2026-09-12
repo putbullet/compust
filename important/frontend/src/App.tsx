@@ -390,8 +390,8 @@ export const App: React.FC = () => {
       <footer className="app-footer">
         <div className="footer-content">
           <div className="footer-brand">
-            <span className="f-dot" />
-            <span className="f-name">COMPUST</span>
+            <img src="/logo-transparent.png" alt="Compust Logo" className="f-logo" />
+            <span className="f-name">Compust</span>
             <span className="f-tag">Local-First Career Intelligence</span>
           </div>
           <div className="footer-compliance">
@@ -698,18 +698,19 @@ const StyledApp = styled.div`
     gap: 8px;
   }
 
-  .f-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #3b82f6;
+  .f-logo {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+    filter: drop-shadow(0 0 6px rgba(0, 240, 255, 0.4));
   }
 
   .f-name {
     font-family: var(--font-heading);
     font-weight: 800;
     font-size: 1rem;
-    letter-spacing: 0.1em;
+    letter-spacing: -0.01em;
+    color: #ffffff;
   }
 
   .f-tag {

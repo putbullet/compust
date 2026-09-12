@@ -51,8 +51,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             }
           }}
         >
-          <span className="brand-dot" />
-          <span className="brand-name">COMPUST</span>
+          <img src="/logo-transparent.png" alt="Compust Logo" className="brand-logo" />
+          <span className="brand-name">Compust</span>
         </div>
 
         {/* Navigation Items with Tooltips */}
@@ -254,23 +254,25 @@ const StyledNav = styled.header`
     user-select: none;
   }
 
-  .brand-dot {
-    width: 10px;
-    height: 10px;
-    background: #3b82f6;
-    border-radius: 50%;
-    box-shadow: 0 0 10px #3b82f6;
-    animation: pulse 2s infinite;
+  .brand-logo {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+    filter: drop-shadow(0 0 8px rgba(0, 240, 255, 0.4));
+    transition: transform 0.25s ease, filter 0.25s ease;
+  }
+
+  .brand:hover .brand-logo {
+    transform: scale(1.08);
+    filter: drop-shadow(0 0 12px rgba(124, 58, 237, 0.6));
   }
 
   .brand-name {
     font-family: var(--font-heading);
     font-weight: 800;
-    font-size: 1.15rem;
-    letter-spacing: 0.15em;
-    background: linear-gradient(135deg, #ffffff 40%, #94a3b8);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    font-size: 1.25rem;
+    letter-spacing: -0.02em;
+    color: #ffffff;
   }
 
   .nav-items {

@@ -58,6 +58,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
           <X size={18} />
         </button>
 
+        {/* Brand Header */}
+        <div className="auth-brand-badge">
+          <img src="/logo-transparent.png" alt="Compust Logo" className="auth-logo" />
+          <span className="auth-brand-name">Compust</span>
+        </div>
+
         {/* Tab Switcher */}
         <div className="tab-switcher">
           <button
@@ -198,6 +204,29 @@ const StyledAuthBackdrop = styled.div`
       color: #ffffff;
       background: rgba(255, 255, 255, 0.1);
     }
+  }
+
+  .auth-brand-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .auth-logo {
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
+    filter: drop-shadow(0 0 10px rgba(0, 240, 255, 0.4));
+  }
+
+  .auth-brand-name {
+    font-family: var(--font-heading);
+    font-size: 1.35rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #ffffff;
   }
 
   .tab-switcher {

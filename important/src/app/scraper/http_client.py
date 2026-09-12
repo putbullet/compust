@@ -20,17 +20,24 @@ class FetchedSource:
     fetched_at: datetime
 
 
+from ..config import get_settings
+
+
 def fetch_source(
     url: str,
     *,
-    timeout_seconds: float = 20.0,
+    timeout_seconds: float | None = None,
     client: httpx.Client | None = None,
+    user_agent: str | None = None,
 ) -> FetchedSource:
     owns_client = client is None
+    settings = get_settings()
+    timeout = timeout_seconds if timeout_seconds is not None else settings.scraper_request_timeout
+    ua = user_agent or settings.scraper_user_agent
     http_client = client or httpx.Client(
         follow_redirects=True,
-        timeout=timeout_seconds,
-        headers={"User-Agent": "Compust/0.1 (+local career research)"},
+        timeout=timeout,
+        headers={"User-Agent": ua},
     )
     try:
         try:

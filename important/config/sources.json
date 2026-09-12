@@ -1,0 +1,26 @@
+[
+  {
+    "source_id": "orange_maroc",
+    "name": "Orange Maroc",
+    "strategy_name": "orange",
+    "domains": ["orange.jobs"],
+    "target_types": ["orange", "orange.jobs", "html_rel_next"],
+    "source_name": "orange.jobs"
+  },
+  {
+    "source_id": "capgemini_maroc",
+    "name": "Capgemini Maroc",
+    "strategy_name": "capgemini",
+    "domains": ["capgemini.com"],
+    "target_types": ["capgemini", "capgemini_api", "json_api"],
+    "source_name": "capgemini.com"
+  },
+  {
+    "source_id": "inwi_maroc",
+    "name": "Inwi Maroc",
+    "strategy_name": "inwi",
+    "domains": ["jobs.inwi.ma", "inwi.ma"],
+    "target_types": ["inwi", "turbo_stream"],
+    "source_name": "jobs.inwi.ma"
+  }
+]

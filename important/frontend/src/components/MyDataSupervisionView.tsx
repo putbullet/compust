@@ -50,7 +50,7 @@ export const MyDataSupervisionView: React.FC = () => {
 
   // Scraper Test Diagnostic state
   const [testUrl, setTestUrl] = useState('https://www.deloitte.com/fr/fr/careers/content/job/results.html');
-  const [testStrategy, setTestStrategy] = useState<'auto' | 'universal' | 'deloitte' | 'greenhouse' | 'lever'>('auto');
+  const [testStrategy, setTestStrategy] = useState<string>('auto');
   const [runningTest, setRunningTest] = useState(false);
   const [testResult, setTestResult] = useState<ScraperDiagnosticResponse | null>(null);
   const [testError, setTestError] = useState<string | null>(null);
@@ -405,9 +405,16 @@ export const MyDataSupervisionView: React.FC = () => {
                 >
                   <option value="auto">Automatic (Tiered Platform/Universal)</option>
                   <option value="universal">Universal Parser (JSON-LD + Semantic Cards)</option>
-                  <option value="deloitte">Deloitte Custom Parser</option>
+                  <option value="ashby">Ashby Platform Adapter</option>
+                  <option value="workable">Workable Platform Adapter</option>
                   <option value="greenhouse">Greenhouse Adapter</option>
                   <option value="lever">Lever Adapter</option>
+                  <option value="smartrecruiters">SmartRecruiters Adapter</option>
+                  <option value="workday">Workday Adapter</option>
+                  <option value="deloitte">Deloitte Custom Parser</option>
+                  <option value="orange">Orange Parser</option>
+                  <option value="capgemini">Capgemini Parser</option>
+                  <option value="inwi">Inwi Parser</option>
                 </select>
               </div>
 
@@ -436,6 +443,12 @@ export const MyDataSupervisionView: React.FC = () => {
                       {testResult.status}
                     </span>
                     <span className="time-tag">{testResult.execution_time_seconds}s execution</span>
+                    {testResult.rendering_mode && (
+                      <span className="time-tag">Mode: {testResult.rendering_mode}</span>
+                    )}
+                    {testResult.discovery_method && (
+                      <span className="time-tag">Discovery: {testResult.discovery_method}</span>
+                    )}
                   </div>
 
                   <div className="metrics-cluster">
@@ -461,6 +474,13 @@ export const MyDataSupervisionView: React.FC = () => {
                     </div>
                   </div>
                 </div>
+
+                {testResult.failure_reason && (
+                  <div className="diagnostic-error" style={{ margin: '12px 0 0 0', borderRadius: '8px' }}>
+                    <AlertTriangle size={16} />
+                    <span><strong>Diagnosis:</strong> {testResult.failure_reason}</span>
+                  </div>
+                )}
 
                 {testResult.errors.length > 0 && (
                   <div className="report-errors">

@@ -1,0 +1,1554 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name='robots' content='index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1' />
+<style>
+        .hero-image {
+            position: relative;
+            width: 100%;
+            height: auto;
+            }
+
+            .hero-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            }
+    </style>		<script src="https://consent.trustarc.com/autoblockasset/core.min.js?domain=ma-capgemini.com"></script>
+		<script src="https://consent.trustarc.com/autoblockoptout?domain=ma-capgemini.com"></script>
+
+		<script>
+		(function(){
+			'use strict';
+
+			var NOTICE_SEL  = 'script[src*="consent.truste.com/notice"],script[src*="consent.trustarc.com/notice"]';
+			var CONSENT_RE  = /(notice_preferences|notice_gdpr_prefs|cmapi_cookie_privacy|consentUUID|truste\.consent)=/i;
+
+			function hasConsent(){ return CONSENT_RE.test(document.cookie); }
+			function removeNoticeScripts(){ document.querySelectorAll(NOTICE_SEL).forEach(function(n){ try{ n.remove(); }catch(e){} }); }
+			function appendScriptNode(node) {
+				var parent = document.head || document.body || document.documentElement;
+				parent.appendChild(node);
+			}
+			function styledPresent(){
+				var el = document.getElementById('truste-consent-track');
+				if (!el) return false;
+				var cs = window.getComputedStyle(el);
+				var hasButtons = !!document.getElementById('truste-consent-buttons') || !!document.getElementById('truste-consent-button');
+				return (cs.position === 'fixed' || cs.position === 'sticky') && hasButtons;
+			}
+			function hideBannerNow(){
+				var b = document.getElementById('truste-consent-track');
+				if (b && b.parentNode) { try { b.parentNode.removeChild(b); } catch(e){} }
+				removeNoticeScripts();
+			}
+			function loadNotice(url, cb){
+				var s = document.createElement('script');
+				s.async = true; s.crossOrigin = ''; s.src = url;
+				s.onload  = function(){ setTimeout(function(){ cb && cb(null); }, 700); };
+				s.onerror = function(){ cb && cb(new Error('load failed')); };
+				appendScriptNode(s);
+			}
+
+			var query   = "domain=ma-capgemini.com&c=teconsent&js=bb&noticeType=bb&language=en&cookieLink=https%3A%2F%2Fwww.capgemini.com%2Fcookie-policy&privacypolicylink=https%3A%2F%2Fwww.capgemini.com%2Fprivacy-notice&country=ma";
+			var hosts   = ["consent.trustarc.com","consent.truste.com"];
+			var domains = ["ma-capgemini.com","mx-capgemini.com","us-capgemini.com"];
+
+			(function(){
+				function hasReal() {
+					return !!(window.truste && window.truste.eu && typeof window.truste.eu.clickListener === 'function' && !window.truste.eu.clickListener.__shim);
+				}
+				function loadTA(cb){
+					var src = '//' + 'consent.trustarc.com' + '/notice?' + query;
+					document.querySelectorAll('script[src*="consent.trustarc.com/notice"],script[src*="consent.truste.com/notice"]').forEach(function(n){ try{ n.remove(); }catch(e){} });
+					var s = document.createElement('script');
+					s.async = true; s.crossOrigin = ''; s.src = src;
+					s.onload = function(){ setTimeout(function(){ cb && cb(); }, 300); };
+					appendScriptNode(s);
+				}
+
+				function openPrefs(){
+					if (hasReal()) { try { window.truste.eu.clickListener(); } catch(e){} return; }
+					loadTA(function(){ if (hasReal()) { try { window.truste.eu.clickListener(); } catch(e){} } });
+				}
+				if (!window.truste) window.truste = {};
+				if (!window.truste.eu) window.truste.eu = {};
+				if (!hasReal()){
+					var shim = function(){ openPrefs(); };
+					shim.__shim = true;
+					window.truste.eu.clickListener = shim;
+					window.taOpenCookiePreferences = openPrefs;
+				}
+			})();
+
+			// Inject if banner not there yet and no consent yet
+			if (!hasConsent()){
+				removeNoticeScripts();
+
+				(function tryNext(i, j){
+					if (i >= hosts.length) return;
+					if (j >= domains.length) return tryNext(i+1, 0);
+
+					var u = '//' + hosts[i] + '/notice?' + query.replace(/(^|&)domain=[^&]*/,'$1domain=' + encodeURIComponent(domains[j]));
+					removeNoticeScripts();
+					loadNotice(u, function(){
+						if (styledPresent() || hasConsent()) return;
+						tryNext(i, j+1);
+					});
+				})(0,0);
+			} else {
+				hideBannerNow();
+			}
+
+			// Hide the banner after consent is given (ASAP)
+			document.addEventListener('click', function(ev){
+				var id = (ev.target && ev.target.id) || '';
+				if (/^(truste\-consent\-button|truste\-consent\-required|truste\-accept|truste\-reject|truste\-show\-consent)$/i.test(id)) {
+					var t0 = Date.now();
+					var iv = setInterval(function(){
+						if (hasConsent()){ clearInterval(iv); hideBannerNow(); }
+						else if (Date.now() - t0 > 5000){ clearInterval(iv); }
+					}, 100);
+				}
+			}, true);
+
+			// Defensive repair while banner should be visible
+			var repaired = false;
+			var mo = new MutationObserver(function(){
+				if (hasConsent()){
+					try { mo.disconnect(); } catch(e){}
+					hideBannerNow();
+					return;
+				}
+				if (!repaired && !styledPresent()){
+					repaired = true;
+					removeNoticeScripts();
+					var first = '//' + hosts[0] + '/notice?' + query.replace(/(^|&)domain=[^&]*/,'$1domain=' + encodeURIComponent(domains[0]));
+					loadNotice(first);
+				}
+			});
+			try { mo.observe(document.documentElement, {childList:true, subtree:true}); } catch(e){}
+			setTimeout(function(){ if (hasConsent()){ try{mo.disconnect();}catch(e){} hideBannerNow(); } }, 1200);
+
+			// Preference Manager (PM) URL tweaks ONLY (no CSS inside iframe)
+			var FORCE_TEST_PM    = false;
+			var APPEND_MODE_DARK = true;
+			var PM_SITE_TEST     = 'test.cm-capgemini.com';
+
+			function isDarkModeOn(){
+				if (!APPEND_MODE_DARK) return false;
+				if (document.documentElement.getAttribute('data-theme') === 'dark') return true;
+				try {
+					var p = new URLSearchParams(location.search);
+					return (p.get('mode') || '').toLowerCase() === 'dark';
+				} catch(e){ return false; }
+			}
+			function patchPMIframe(node){
+				if (!node || node.tagName !== 'IFRAME') return;
+				if (!/truste_popframe/i.test(node.className)) return;
+				if (node.dataset.taPatched === '1') return;
+				try {
+					var u = new URL(node.src, location.href), qs = u.searchParams, changed = false;
+					if (FORCE_TEST_PM && qs.get('site') !== PM_SITE_TEST){ qs.set('site', PM_SITE_TEST); changed = true; }
+					if (isDarkModeOn() && qs.get('mode') !== 'dark'){ qs.set('mode','dark'); changed = true; }
+					if (changed){ node.dataset.taPatched = '1'; node.src = u.toString(); } else { node.dataset.taPatched = '1'; }
+				} catch(e){}
+			}
+			function scanPM(root){ (root||document).querySelectorAll('iframe.truste_popframe').forEach(patchPMIframe); }
+
+			var pmMO = new MutationObserver(function(muts){
+				for (var i=0;i<muts.length;i++){
+					var m = muts[i];
+					for (var j=0;j<m.addedNodes.length;j++){
+						var n = m.addedNodes[j];
+						if (n && n.nodeType === 1){
+							if (n.tagName === 'IFRAME') patchPMIframe(n);
+							scanPM(n);
+						}
+					}
+				}
+			});
+			try { pmMO.observe(document.documentElement, {childList:true, subtree:true}); } catch(e){}
+			setTimeout(function(){ scanPM(document); }, 600);
+		})();
+		</script>
+		
+	<!-- This site is optimized with the Yoast SEO Premium plugin v27.7 (Yoast SEO v27.8) - https://yoast.com/product/yoast-seo-premium-wordpress/ -->
+	<meta name="description" content="Looking for a new job in consulting, technology services and digital transformation? Find open positions and search for jobs with Capgemini Group here." />
+	<meta property="og:locale" content="en_US" />
+	<meta property="og:type" content="article" />
+	<meta property="og:title" content="Job search" />
+	<meta property="og:description" content="Looking for a new job in consulting, technology services and digital transformation? Find open positions and search for jobs with Capgemini Group here." />
+	<meta property="og:url" content="https://www.capgemini.com/ma-en/job-search/" />
+	<meta property="og:site_name" content="Capgemini Morocco" />
+	<meta property="article:modified_time" content="2026-07-14T13:56:43+00:00" />
+	<meta name="twitter:card" content="summary_large_image" />
+	<meta name="twitter:image" content="https://www.capgemini.com/ma-en/wp-content/uploads/sites/45/2024/02/GettyImages-522999872.jpg" />
+	<meta name="twitter:label1" content="Est. reading time" />
+	<meta name="twitter:data1" content="1 minute" />
+	<script type="application/ld+json" class="yoast-schema-graph">{"@context":"https:\/\/schema.org","@graph":[{"@type":"WebPage","@id":"https:\/\/www.capgemini.com\/ma-en\/job-search\/","url":"https:\/\/www.capgemini.com\/ma-en\/job-search\/","name":"Join Us | Careers at Capgemini","isPartOf":{"@id":"https:\/\/www.capgemini.com\/ma-en\/#website"},"primaryImageOfPage":{"@id":"https:\/\/www.capgemini.com\/ma-en\/job-search\/#primaryimage"},"image":{"@id":"https:\/\/www.capgemini.com\/ma-en\/job-search\/#primaryimage"},"thumbnailUrl":"https:\/\/www.capgemini.com\/ma-en\/wp-content\/uploads\/sites\/45\/2024\/02\/GettyImages-522999872.jpg","datePublished":"2024-02-08T09:29:08+00:00","dateModified":"2026-07-14T13:56:43+00:00","description":"Looking for a new job in consulting, technology services and digital transformation? Find open positions and search for jobs with Capgemini Group here.","breadcrumb":{"@id":"https:\/\/www.capgemini.com\/ma-en\/job-search\/#breadcrumb"},"inLanguage":"en-US","potentialAction":[{"@type":"ReadAction","target":["https:\/\/www.capgemini.com\/ma-en\/job-search\/"]}]},{"@type":"ImageObject","inLanguage":"en-US","@id":"https:\/\/www.capgemini.com\/ma-en\/job-search\/#primaryimage","url":"https:\/\/www.capgemini.com\/ma-en\/wp-content\/uploads\/sites\/45\/2024\/02\/GettyImages-522999872.jpg","contentUrl":"https:\/\/www.capgemini.com\/ma-en\/wp-content\/uploads\/sites\/45\/2024\/02\/GettyImages-522999872.jpg","width":5760,"height":3840},{"@type":"BreadcrumbList","@id":"https:\/\/www.capgemini.com\/ma-en\/job-search\/#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https:\/\/www.capgemini.com\/ma-en\/"},{"@type":"ListItem","position":2,"name":"Job search"}]},{"@type":"WebSite","@id":"https:\/\/www.capgemini.com\/ma-en\/#website","url":"https:\/\/www.capgemini.com\/ma-en\/","name":"Capgemini Morocco","description":"Capgemini Morocco","potentialAction":[{"@type":"SearchAction","target":{"@type":"EntryPoint","urlTemplate":"https:\/\/www.capgemini.com\/ma-en\/?s={search_term_string}"},"query-input":{"@type":"PropertyValueSpecification","valueRequired":true,"valueName":"search_term_string"}}],"inLanguage":"en-US"}]}</script>
+	<!-- / Yoast SEO Premium plugin. -->
+
+
+<title>Join Us | Careers at Capgemini</title>
+<link rel='dns-prefetch' href='//cdn.parsely.com' />
+<link rel='dns-prefetch' href='//static.elfsight.com' />
+<link rel="alternate" type="application/rss+xml" title="Capgemini Morocco &raquo; Feed" href="https://www.capgemini.com/ma-en/feed/" />
+<link rel="alternate" type="application/rss+xml" title="Capgemini Morocco &raquo; Comments Feed" href="https://www.capgemini.com/ma-en/comments/feed/" />
+        
+        <!-- All other sites including .com  -->
+        <!-- Triggers on PARDOT having "consulting" in its URL -->
+        <script type="text/javascript">
+            piAId = '96412';
+            piCId = '5239';
+            piHostname = 'pi.pardot.com';
+            
+            (function() {
+                function async_load() {
+                    var s = document.createElement('script');
+                    s.type = 'text/javascript';
+                    s.src = ('https:' == document.location.protocol ? 'https://pi' : 'http://cdn') + '.pardot.com/pd.js';
+                    var c = document.getElementsByTagName('script')[0];
+                    c.parentNode.insertBefore(s, c);
+                }
+                if(window.attachEvent) {
+                    window.attachEvent('onload', async_load);
+                } else {
+                    window.addEventListener('load', async_load, false);
+                }
+            })();
+            </script>
+
+        <!-- All other sites including .com  -->
+        <!-- Triggers on all PARDOT except consulting -->
+        <script type="text/javascript">
+            piAId = '96412';
+            piCId = '1366';
+            piHostname = 'pi.pardot.com';
+        
+            (function() {
+                function async_load() {
+                    var s = document.createElement('script');
+                    s.type = 'text/javascript';
+                    s.src = ('https:' == document.location.protocol ? 'https://pi' : 'http://cdn') + '.pardot.com/pd.js';
+                    var c = document.getElementsByTagName('script')[0];
+                    c.parentNode.insertBefore(s, c);
+                }
+                if(window.attachEvent) {
+                    window.attachEvent('onload', async_load);
+                } else {
+                    window.addEventListener('load', async_load, false);
+                }
+            })();
+                </script>
+    <link rel="alternate" title="oEmbed (JSON)" type="application/json+oembed" href="https://www.capgemini.com/ma-en/wp-json/oembed/1.0/embed?url=https%3A%2F%2Fwww.capgemini.com%2Fma-en%2Fjob-search%2F" />
+<link rel="alternate" title="oEmbed (XML)" type="text/xml+oembed" href="https://www.capgemini.com/ma-en/wp-json/oembed/1.0/embed?url=https%3A%2F%2Fwww.capgemini.com%2Fma-en%2Fjob-search%2F&#038;format=xml" />
+<style id="wp-img-auto-sizes-contain-inline-css">
+img:is([sizes=auto i],[sizes^="auto," i]){contain-intrinsic-size:3000px 1500px}
+/*# sourceURL=wp-img-auto-sizes-contain-inline-css */
+</style>
+<link rel='stylesheet' id='formidable-css' href='https://www.capgemini.com/ma-en/wp-admin/admin-ajax.php?action=frmpro_css&#038;ver=5191728' media='all' />
+<style id="wp-block-group-inline-css">
+.wp-block-group{box-sizing:border-box}:where(.wp-block-group.wp-block-group-is-layout-constrained){position:relative}
+/*# sourceURL=https://www.capgemini.com/ma-en/wp-includes/blocks/group/style.min.css */
+</style>
+<style id="cg-blocks-social-media-style-inline-css">
+.wp-block-cg-blocks-social-media.social-media-block{margin-bottom:1.5rem;margin-top:1.5rem}@media(min-width:992px){.wp-block-cg-blocks-social-media.social-media-block{margin-bottom:3rem;margin-top:3rem}}.wp-block-cg-blocks-social-media.social-media-block{background-color:var(--zodiak-surface-azur-heavy);color:var(--zodiak-text-always-white);padding-bottom:1.5rem;padding-top:1.5rem}.wp-block-cg-blocks-social-media.social-media-block.is-style-default{background-color:var(--zodiak-text-always-white);color:var(--zodiak-text-always-white)}.wp-block-cg-blocks-social-media.social-media-block.is-style-default h3{color:var(--zodiak-text-always-white)}.wp-block-cg-blocks-social-media.social-media-block.is-style-cg-blue,.wp-block-cg-blocks-social-media.social-media-block.is-style-cg-purple,.wp-block-cg-blocks-social-media.social-media-block.is-style-cg-sapphire1{background-color:var(--zodiak-surface-azur-heavy);color:var(--zodiak-text-always-white)}.wp-block-cg-blocks-social-media.social-media-block .social-media-block-content-wrapper{align-items:center;display:flex;justify-content:center}@media(min-width:768px){.wp-block-cg-blocks-social-media.social-media-block .social-media-block-content-wrapper{justify-content:space-between}}.wp-block-cg-blocks-social-media.social-media-block h3{display:none}@media(min-width:768px){.wp-block-cg-blocks-social-media.social-media-block h3{color:var(--zodiak-text-always-white)!important;display:block;font-family:Ubuntu,sans-serif;font-size:1.5rem;font-weight:300;letter-spacing:.3px;line-height:1.25}}@media(min-width:992px){.wp-block-cg-blocks-social-media.social-media-block h3{color:var(--zodiak-text-always-white)!important;font-family:Ubuntu,sans-serif;font-size:2rem;font-weight:300;letter-spacing:0;line-height:1.25}}.wp-block-cg-blocks-social-media.social-media-block ul{display:flex;flex-wrap:wrap;list-style:none;margin:0;padding:0}@media(max-width:767.98px){.wp-block-cg-blocks-social-media.social-media-block ul{display:grid;gap:10px;grid-template-columns:repeat(4,1fr)}}.wp-block-cg-blocks-social-media.social-media-block ul li{align-items:center;display:flex;height:40px;justify-content:center;width:40px}.wp-block-cg-blocks-social-media.social-media-block ul li:not(:last-child){margin-right:.5rem}.wp-block-cg-blocks-social-media.social-media-block ul li a{color:var(--zodiak-text-always-white);font-size:24px!important;height:27.33px;line-height:24px!important}.wp-block-cg-blocks-social-media.social-media-block ul li a .icon-li:before{content:""}.wp-block-cg-blocks-social-media.social-media-block ul li a .icon-fb:before{content:""}.wp-block-cg-blocks-social-media.social-media-block ul li a .icon-yt:before{content:"";display:block;font-size:18px;height:24px;line-height:24px;text-align:center;width:24.25px}.wp-block-cg-blocks-social-media.social-media-block ul li a .icon-sc:before{content:""}.wp-block-cg-blocks-social-media.social-media-block ul li a .icon-in:before{content:""}.wp-block-cg-blocks-social-media.social-media-block ul li a .icon-ss:before{content:""}.wp-block-cg-blocks-social-media.social-media-block ul li a .ico-gd{background:none;font-style:normal;height:unset;width:unset}.wp-block-cg-blocks-social-media.social-media-block ul li a .ico-gd:before{content:"";font-family:zodiak-icons}@media(min-width:992px){.wp-block-cg-blocks-social-media.social-media-block ul li{height:42px;width:42px}.wp-block-cg-blocks-social-media.social-media-block ul li:not(:last-child){margin-right:2rem}.wp-block-cg-blocks-social-media.social-media-block ul li a{color:var(--zodiak-text-always-white);font-size:2rem;line-height:1}.wp-block-cg-blocks-social-media.social-media-block ul li .icon-tw:before{display:none;height:2rem;width:2rem}}.wp-block-cg-blocks-social-media.social-media-block ul li:has(.icon-tw){display:none}
+
+/*# sourceURL=https://www.capgemini.com/ma-en/wp-content/plugins/capgemini-blocks/build/cg-block-social-media/style-index.css */
+</style>
+<style id="wp-block-post-content-inline-css">
+.wp-block-post-content{display:flow-root}
+/*# sourceURL=https://www.capgemini.com/ma-en/wp-includes/blocks/post-content/style.min.css */
+</style>
+<style id="wp-emoji-styles-inline-css">
+
+	img.wp-smiley, img.emoji {
+		display: inline !important;
+		border: none !important;
+		box-shadow: none !important;
+		height: 1em !important;
+		width: 1em !important;
+		margin: 0 0.07em !important;
+		vertical-align: -0.1em !important;
+		background: none !important;
+		padding: 0 !important;
+	}
+/*# sourceURL=wp-emoji-styles-inline-css */
+</style>
+<style id="wp-block-library-inline-css">
+:root{--wp-block-synced-color:#7a00df;--wp-block-synced-color--rgb:122,0,223;--wp-bound-block-color:var(--wp-block-synced-color);--wp-editor-canvas-background:#ddd;--wp-admin-theme-color:#007cba;--wp-admin-theme-color--rgb:0,124,186;--wp-admin-theme-color-darker-10:#006ba1;--wp-admin-theme-color-darker-10--rgb:0,107,160.5;--wp-admin-theme-color-darker-20:#005a87;--wp-admin-theme-color-darker-20--rgb:0,90,135;--wp-admin-border-width-focus:2px}@media (min-resolution:192dpi){:root{--wp-admin-border-width-focus:1.5px}}.wp-element-button{cursor:pointer}:root .has-very-light-gray-background-color{background-color:#eee}:root .has-very-dark-gray-background-color{background-color:#313131}:root .has-very-light-gray-color{color:#eee}:root .has-very-dark-gray-color{color:#313131}:root .has-vivid-green-cyan-to-vivid-cyan-blue-gradient-background{background:linear-gradient(135deg,#00d084,#0693e3)}:root .has-purple-crush-gradient-background{background:linear-gradient(135deg,#34e2e4,#4721fb 50%,#ab1dfe)}:root .has-hazy-dawn-gradient-background{background:linear-gradient(135deg,#faaca8,#dad0ec)}:root .has-subdued-olive-gradient-background{background:linear-gradient(135deg,#fafae1,#67a671)}:root .has-atomic-cream-gradient-background{background:linear-gradient(135deg,#fdd79a,#004a59)}:root .has-nightshade-gradient-background{background:linear-gradient(135deg,#330968,#31cdcf)}:root .has-midnight-gradient-background{background:linear-gradient(135deg,#020381,#2874fc)}:root{--wp--preset--font-size--normal:16px;--wp--preset--font-size--huge:42px}.has-regular-font-size{font-size:1em}.has-larger-font-size{font-size:2.625em}.has-normal-font-size{font-size:var(--wp--preset--font-size--normal)}.has-huge-font-size{font-size:var(--wp--preset--font-size--huge)}:root .has-text-align-center{text-align:center}:root .has-text-align-left{text-align:left}:root .has-text-align-right{text-align:right}.has-fit-text{white-space:nowrap!important}#end-resizable-editor-section{display:none}.aligncenter{clear:both}.items-justified-left{justify-content:flex-start}.items-justified-center{justify-content:center}.items-justified-right{justify-content:flex-end}.items-justified-space-between{justify-content:space-between}.screen-reader-text{word-wrap:normal!important;border:0;clip-path:inset(50%);height:1px;margin:-1px;overflow:hidden;padding:0;position:absolute;width:1px}.screen-reader-text:focus{background-color:#ddd;clip-path:none;color:#444;display:block;font-size:1em;height:auto;left:5px;line-height:normal;padding:15px 23px 14px;text-decoration:none;top:5px;width:auto;z-index:100000}html :where(.has-border-color){border-style:solid}html :where([style*=border-color]){border-style:solid}html :where([style*=border-top-color]){border-top-style:solid}html :where([style*=border-right-color]){border-right-style:solid}html :where([style*=border-bottom-color]){border-bottom-style:solid}html :where([style*=border-left-color]){border-left-style:solid}html :where([style*=border-width]){border-style:solid}html :where([style*=border-top-width]){border-top-style:solid}html :where([style*=border-right-width]){border-right-style:solid}html :where([style*=border-bottom-width]){border-bottom-style:solid}html :where([style*=border-left-width]){border-left-style:solid}html :where(img[class*=wp-image-]){height:auto;max-width:100%}:where(figure){margin:0 0 1em}html :where(.is-position-sticky){--wp-admin--admin-bar--position-offset:var(--wp-admin--admin-bar--height,0px)}@media screen and (max-width:600px){html :where(.is-position-sticky){--wp-admin--admin-bar--position-offset:0px}}
+/*# sourceURL=/wp-includes/css/dist/block-library/common.min.css */
+</style>
+<style id="global-styles-inline-css">
+:root{--wp--preset--aspect-ratio--square: 1;--wp--preset--aspect-ratio--4-3: 4/3;--wp--preset--aspect-ratio--3-4: 3/4;--wp--preset--aspect-ratio--3-2: 3/2;--wp--preset--aspect-ratio--2-3: 2/3;--wp--preset--aspect-ratio--16-9: 16/9;--wp--preset--aspect-ratio--9-16: 9/16;--wp--preset--color--black: #000000;--wp--preset--color--cyan-bluish-gray: #abb8c3;--wp--preset--color--white: #ffffff;--wp--preset--color--pale-pink: #f78da7;--wp--preset--color--vivid-red: #cf2e2e;--wp--preset--color--luminous-vivid-orange: #ff6900;--wp--preset--color--luminous-vivid-amber: #fcb900;--wp--preset--color--light-green-cyan: #7bdcb5;--wp--preset--color--vivid-green-cyan: #00d084;--wp--preset--color--pale-cyan-blue: #8ed1fc;--wp--preset--color--vivid-cyan-blue: #0693e3;--wp--preset--color--vivid-purple: #9b51e0;--wp--preset--color--zodiak-page-background: var(--zodiak-page-background);--wp--preset--color--zodiak-surface-fog-lite: var(--zodiak-surface-fog-lite);--wp--preset--color--zodiak-surface-ink-heavy: var(--zodiak-surface-ink-heavy);--wp--preset--color--zodiak-surface-marine-heavy: var(--zodiak-surface-marine-heavy);--wp--preset--color--zodiak-surface-cloud-lite: var(--zodiak-surface-cloud-lite);--wp--preset--color--zodiak-surface-caribbean-lite: var(--zodiak-surface-caribbean-lite);--wp--preset--color--zodiak-surface-caribbean-lite-inverse: var(--zodiak-surface-caribbean-lite-inverse);--wp--preset--color--zodiak-text-primary: var(--zodiak-text-primary);--wp--preset--color--zodiak-text-secondary: var(--zodiak-text-secondary);--wp--preset--color--zodiak-text-inverse: var(--zodiak-text-inverse);--wp--preset--color--zodiak-text-link: var(--zodiak-text-link);--wp--preset--color--zodiak-text-link-inverse: var(--zodiak-text-link-inverse);--wp--preset--color--zodiak-border-primary: var(--zodiak-border-primary);--wp--preset--color--zodiak-border-secondary: var(--zodiak-border-secondary);--wp--preset--color--zodiak-action-active: var(--zodiak-action-active);--wp--preset--color--zodiak-action-primary-hover-on-lite: var(--zodiak-action-primary-hover-on-lite);--wp--preset--color--zodiak-action-disabled: var(--zodiak-action-disabled);--wp--preset--color--zodiak-negative-on-lite: var(--zodiak-negative-on-lite);--wp--preset--color--zodiak-surface-positive: var(--zodiak-surface-positive);--wp--preset--color--zodiak-surface-negative: var(--zodiak-surface-negative);--wp--preset--color--zodiak-overlay-photo-style: var(--zodiak-overlay-photo-style);--wp--preset--gradient--vivid-cyan-blue-to-vivid-purple: linear-gradient(135deg,rgb(6,147,227) 0%,rgb(155,81,224) 100%);--wp--preset--gradient--light-green-cyan-to-vivid-green-cyan: linear-gradient(135deg,rgb(122,220,180) 0%,rgb(0,208,130) 100%);--wp--preset--gradient--luminous-vivid-amber-to-luminous-vivid-orange: linear-gradient(135deg,rgb(252,185,0) 0%,rgb(255,105,0) 100%);--wp--preset--gradient--luminous-vivid-orange-to-vivid-red: linear-gradient(135deg,rgb(255,105,0) 0%,rgb(207,46,46) 100%);--wp--preset--gradient--very-light-gray-to-cyan-bluish-gray: linear-gradient(135deg,rgb(238,238,238) 0%,rgb(169,184,195) 100%);--wp--preset--gradient--cool-to-warm-spectrum: linear-gradient(135deg,rgb(74,234,220) 0%,rgb(151,120,209) 20%,rgb(207,42,186) 40%,rgb(238,44,130) 60%,rgb(251,105,98) 80%,rgb(254,248,76) 100%);--wp--preset--gradient--blush-light-purple: linear-gradient(135deg,rgb(255,206,236) 0%,rgb(152,150,240) 100%);--wp--preset--gradient--blush-bordeaux: linear-gradient(135deg,rgb(254,205,165) 0%,rgb(254,45,45) 50%,rgb(107,0,62) 100%);--wp--preset--gradient--luminous-dusk: linear-gradient(135deg,rgb(255,203,112) 0%,rgb(199,81,192) 50%,rgb(65,88,208) 100%);--wp--preset--gradient--pale-ocean: linear-gradient(135deg,rgb(255,245,203) 0%,rgb(182,227,212) 50%,rgb(51,167,181) 100%);--wp--preset--gradient--electric-grass: linear-gradient(135deg,rgb(202,248,128) 0%,rgb(113,206,126) 100%);--wp--preset--gradient--midnight: linear-gradient(135deg,rgb(2,3,129) 0%,rgb(40,116,252) 100%);--wp--preset--font-size--small: 13px;--wp--preset--font-size--medium: 20px;--wp--preset--font-size--large: 36px;--wp--preset--font-size--x-large: 42px;--wp--preset--font-family--body: "Ubuntu", sans-serif;--wp--preset--font-family--heading: "Ubuntu", sans-serif;--wp--preset--font-family--heading-mono: "Ubuntu Mono", monospace;--wp--preset--spacing--20: 0.44rem;--wp--preset--spacing--30: 0.67rem;--wp--preset--spacing--40: 1rem;--wp--preset--spacing--50: 1.5rem;--wp--preset--spacing--60: 2.25rem;--wp--preset--spacing--70: 3.38rem;--wp--preset--spacing--80: 5.06rem;--wp--preset--shadow--natural: 6px 6px 9px rgba(0, 0, 0, 0.2);--wp--preset--shadow--deep: 12px 12px 50px rgba(0, 0, 0, 0.4);--wp--preset--shadow--sharp: 6px 6px 0px rgba(0, 0, 0, 0.2);--wp--preset--shadow--outlined: 6px 6px 0px -3px rgb(255, 255, 255), 6px 6px rgb(0, 0, 0);--wp--preset--shadow--crisp: 6px 6px 0px rgb(0, 0, 0);}.wp-block-button .wp-block-button__link{--wp--preset--font-size--small: 14px;--wp--preset--font-size--medium: 16px;--wp--preset--font-size--large: 16px;}.wp-block-cover{--wp--preset--color--zodiak-page-background: var(--zodiak-page-background);--wp--preset--color--zodiak-surface-fog-lite: var(--zodiak-surface-fog-lite);--wp--preset--color--zodiak-surface-ink-heavy: var(--zodiak-surface-ink-heavy);--wp--preset--color--zodiak-surface-marine-heavy: var(--zodiak-surface-marine-heavy);--wp--preset--color--zodiak-surface-cloud-lite: var(--zodiak-surface-cloud-lite);--wp--preset--color--zodiak-surface-caribbean-lite: var(--zodiak-surface-caribbean-lite);--wp--preset--color--zodiak-surface-caribbean-lite-inverse: var(--zodiak-surface-caribbean-lite-inverse);--wp--preset--color--zodiak-text-primary: var(--zodiak-text-primary);--wp--preset--color--zodiak-text-secondary: var(--zodiak-text-secondary);--wp--preset--color--zodiak-text-inverse: var(--zodiak-text-inverse);--wp--preset--color--zodiak-text-link: var(--zodiak-text-link);--wp--preset--color--zodiak-text-link-inverse: var(--zodiak-text-link-inverse);--wp--preset--color--zodiak-border-primary: var(--zodiak-border-primary);--wp--preset--color--zodiak-border-secondary: var(--zodiak-border-secondary);--wp--preset--color--zodiak-action-active: var(--zodiak-action-active);--wp--preset--color--zodiak-action-primary-hover-on-lite: var(--zodiak-action-primary-hover-on-lite);--wp--preset--color--zodiak-action-disabled: var(--zodiak-action-disabled);--wp--preset--color--zodiak-negative-on-lite: var(--zodiak-negative-on-lite);--wp--preset--color--zodiak-surface-positive: var(--zodiak-surface-positive);--wp--preset--color--zodiak-surface-negative: var(--zodiak-surface-negative);--wp--preset--color--zodiak-overlay-photo-style: var(--zodiak-overlay-photo-style);}:root { --wp--style--global--content-size: var(--bs-container-width-current);--wp--style--global--wide-size: 100%; }:where(body) { margin: 0; }.wp-site-blocks { padding-top: var(--wp--style--root--padding-top); padding-bottom: var(--wp--style--root--padding-bottom); }.has-global-padding { padding-right: var(--wp--style--root--padding-right); padding-left: var(--wp--style--root--padding-left); }.has-global-padding > .alignfull { margin-right: calc(var(--wp--style--root--padding-right) * -1); margin-left: calc(var(--wp--style--root--padding-left) * -1); }.has-global-padding :where(:not(.alignfull.is-layout-flow) > .has-global-padding:not(.wp-block-block, .alignfull)) { padding-right: 0; padding-left: 0; }.has-global-padding :where(:not(.alignfull.is-layout-flow) > .has-global-padding:not(.wp-block-block, .alignfull)) > .alignfull { margin-left: 0; margin-right: 0; }.wp-site-blocks > .alignleft { float: left; margin-right: 2em; }.wp-site-blocks > .alignright { float: right; margin-left: 2em; }.wp-site-blocks > .aligncenter { justify-content: center; margin-left: auto; margin-right: auto; }:where(.wp-site-blocks) > * { margin-block-start: 0; margin-block-end: 0; }:where(.wp-site-blocks) > :first-child { margin-block-start: 0; }:where(.wp-site-blocks) > :last-child { margin-block-end: 0; }:root { --wp--style--block-gap: 0; }:root :where(.is-layout-flow) > :first-child{margin-block-start: 0;}:root :where(.is-layout-flow) > :last-child{margin-block-end: 0;}:root :where(.is-layout-flow) > *{margin-block-start: 0;margin-block-end: 0;}:root :where(.is-layout-constrained) > :first-child{margin-block-start: 0;}:root :where(.is-layout-constrained) > :last-child{margin-block-end: 0;}:root :where(.is-layout-constrained) > *{margin-block-start: 0;margin-block-end: 0;}:root :where(.is-layout-flex){gap: 0;}:root :where(.is-layout-grid){gap: 0;}.is-layout-flow > .alignleft{float: left;margin-inline-start: 0;margin-inline-end: 2em;}.is-layout-flow > .alignright{float: right;margin-inline-start: 2em;margin-inline-end: 0;}.is-layout-flow > .aligncenter{margin-left: auto !important;margin-right: auto !important;}.is-layout-constrained > .alignleft{float: left;margin-inline-start: 0;margin-inline-end: 2em;}.is-layout-constrained > .alignright{float: right;margin-inline-start: 2em;margin-inline-end: 0;}.is-layout-constrained > .aligncenter{margin-left: auto !important;margin-right: auto !important;}.is-layout-constrained > :where(:not(.alignleft):not(.alignright):not(.alignfull)){max-width: var(--wp--style--global--content-size);margin-left: auto !important;margin-right: auto !important;}.is-layout-constrained > .alignwide{max-width: var(--wp--style--global--wide-size);}body .is-layout-flex{display: flex;}.is-layout-flex{flex-wrap: wrap;align-items: center;}.is-layout-flex > :is(*, div){margin: 0;}body .is-layout-grid{display: grid;}.is-layout-grid > :is(*, div){margin: 0;}body{background-color: var(--zodiak-page-background);color: var(--zodiak-text-primary);font-family: Ubuntu, sans-serif;font-size: 16px;font-style: normal;font-weight: 300;letter-spacing: 0.24px;line-height: 26px;--wp--style--root--padding-top: 0px;--wp--style--root--padding-right: 0px;--wp--style--root--padding-bottom: 0px;--wp--style--root--padding-left: 0px;}a:where(:not(.wp-element-button)){color: var(--zodiak-text-link);text-decoration: none;}h1{color: var(--zodiak-text-primary);font-family: Ubuntu, sans-serif;font-size: 40px;font-weight: 300;letter-spacing: -0.2px;line-height: 50px;}h2{color: var(--zodiak-text-primary);font-family: Ubuntu, sans-serif;font-size: 32px;font-weight: 300;letter-spacing: -0.2px;line-height: 40px;}h3{color: var(--zodiak-text-primary);font-family: Ubuntu, sans-serif;font-size: 24px;font-weight: 400;letter-spacing: 0.2px;line-height: 30px;}h4{color: var(--zodiak-text-primary);font-family: Ubuntu, sans-serif;font-size: 24px;font-weight: 400;letter-spacing: 0.2px;line-height: 30px;}h5{color: var(--zodiak-text-primary);font-family: Ubuntu, sans-serif;font-size: 20px;font-weight: 400;letter-spacing: 0.1px;line-height: 28px;}h6{color: var(--zodiak-text-primary);font-family: Ubuntu, sans-serif;font-size: 14px;font-weight: 400;letter-spacing: 0.168px;line-height: 18px;}:root :where(.wp-element-button, .wp-block-button__link){background-color: #32373c;border-width: 0;color: #fff;font-family: inherit;font-size: inherit;font-style: inherit;font-weight: inherit;letter-spacing: inherit;line-height: inherit;padding-top: calc(0.667em + 2px);padding-right: calc(1.333em + 2px);padding-bottom: calc(0.667em + 2px);padding-left: calc(1.333em + 2px);text-decoration: none;text-transform: inherit;}.has-black-color{color: var(--wp--preset--color--black) !important;}.has-cyan-bluish-gray-color{color: var(--wp--preset--color--cyan-bluish-gray) !important;}.has-white-color{color: var(--wp--preset--color--white) !important;}.has-pale-pink-color{color: var(--wp--preset--color--pale-pink) !important;}.has-vivid-red-color{color: var(--wp--preset--color--vivid-red) !important;}.has-luminous-vivid-orange-color{color: var(--wp--preset--color--luminous-vivid-orange) !important;}.has-luminous-vivid-amber-color{color: var(--wp--preset--color--luminous-vivid-amber) !important;}.has-light-green-cyan-color{color: var(--wp--preset--color--light-green-cyan) !important;}.has-vivid-green-cyan-color{color: var(--wp--preset--color--vivid-green-cyan) !important;}.has-pale-cyan-blue-color{color: var(--wp--preset--color--pale-cyan-blue) !important;}.has-vivid-cyan-blue-color{color: var(--wp--preset--color--vivid-cyan-blue) !important;}.has-vivid-purple-color{color: var(--wp--preset--color--vivid-purple) !important;}.has-zodiak-page-background-color{color: var(--wp--preset--color--zodiak-page-background) !important;}.has-zodiak-surface-fog-lite-color{color: var(--wp--preset--color--zodiak-surface-fog-lite) !important;}.has-zodiak-surface-ink-heavy-color{color: var(--wp--preset--color--zodiak-surface-ink-heavy) !important;}.has-zodiak-surface-marine-heavy-color{color: var(--wp--preset--color--zodiak-surface-marine-heavy) !important;}.has-zodiak-surface-cloud-lite-color{color: var(--wp--preset--color--zodiak-surface-cloud-lite) !important;}.has-zodiak-surface-caribbean-lite-color{color: var(--wp--preset--color--zodiak-surface-caribbean-lite) !important;}.has-zodiak-surface-caribbean-lite-inverse-color{color: var(--wp--preset--color--zodiak-surface-caribbean-lite-inverse) !important;}.has-zodiak-text-primary-color{color: var(--wp--preset--color--zodiak-text-primary) !important;}.has-zodiak-text-secondary-color{color: var(--wp--preset--color--zodiak-text-secondary) !important;}.has-zodiak-text-inverse-color{color: var(--wp--preset--color--zodiak-text-inverse) !important;}.has-zodiak-text-link-color{color: var(--wp--preset--color--zodiak-text-link) !important;}.has-zodiak-text-link-inverse-color{color: var(--wp--preset--color--zodiak-text-link-inverse) !important;}.has-zodiak-border-primary-color{color: var(--wp--preset--color--zodiak-border-primary) !important;}.has-zodiak-border-secondary-color{color: var(--wp--preset--color--zodiak-border-secondary) !important;}.has-zodiak-action-active-color{color: var(--wp--preset--color--zodiak-action-active) !important;}.has-zodiak-action-primary-hover-on-lite-color{color: var(--wp--preset--color--zodiak-action-primary-hover-on-lite) !important;}.has-zodiak-action-disabled-color{color: var(--wp--preset--color--zodiak-action-disabled) !important;}.has-zodiak-negative-on-lite-color{color: var(--wp--preset--color--zodiak-negative-on-lite) !important;}.has-zodiak-surface-positive-color{color: var(--wp--preset--color--zodiak-surface-positive) !important;}.has-zodiak-surface-negative-color{color: var(--wp--preset--color--zodiak-surface-negative) !important;}.has-zodiak-overlay-photo-style-color{color: var(--wp--preset--color--zodiak-overlay-photo-style) !important;}.has-black-background-color{background-color: var(--wp--preset--color--black) !important;}.has-cyan-bluish-gray-background-color{background-color: var(--wp--preset--color--cyan-bluish-gray) !important;}.has-white-background-color{background-color: var(--wp--preset--color--white) !important;}.has-pale-pink-background-color{background-color: var(--wp--preset--color--pale-pink) !important;}.has-vivid-red-background-color{background-color: var(--wp--preset--color--vivid-red) !important;}.has-luminous-vivid-orange-background-color{background-color: var(--wp--preset--color--luminous-vivid-orange) !important;}.has-luminous-vivid-amber-background-color{background-color: var(--wp--preset--color--luminous-vivid-amber) !important;}.has-light-green-cyan-background-color{background-color: var(--wp--preset--color--light-green-cyan) !important;}.has-vivid-green-cyan-background-color{background-color: var(--wp--preset--color--vivid-green-cyan) !important;}.has-pale-cyan-blue-background-color{background-color: var(--wp--preset--color--pale-cyan-blue) !important;}.has-vivid-cyan-blue-background-color{background-color: var(--wp--preset--color--vivid-cyan-blue) !important;}.has-vivid-purple-background-color{background-color: var(--wp--preset--color--vivid-purple) !important;}.has-zodiak-page-background-background-color{background-color: var(--wp--preset--color--zodiak-page-background) !important;}.has-zodiak-surface-fog-lite-background-color{background-color: var(--wp--preset--color--zodiak-surface-fog-lite) !important;}.has-zodiak-surface-ink-heavy-background-color{background-color: var(--wp--preset--color--zodiak-surface-ink-heavy) !important;}.has-zodiak-surface-marine-heavy-background-color{background-color: var(--wp--preset--color--zodiak-surface-marine-heavy) !important;}.has-zodiak-surface-cloud-lite-background-color{background-color: var(--wp--preset--color--zodiak-surface-cloud-lite) !important;}.has-zodiak-surface-caribbean-lite-background-color{background-color: var(--wp--preset--color--zodiak-surface-caribbean-lite) !important;}.has-zodiak-surface-caribbean-lite-inverse-background-color{background-color: var(--wp--preset--color--zodiak-surface-caribbean-lite-inverse) !important;}.has-zodiak-text-primary-background-color{background-color: var(--wp--preset--color--zodiak-text-primary) !important;}.has-zodiak-text-secondary-background-color{background-color: var(--wp--preset--color--zodiak-text-secondary) !important;}.has-zodiak-text-inverse-background-color{background-color: var(--wp--preset--color--zodiak-text-inverse) !important;}.has-zodiak-text-link-background-color{background-color: var(--wp--preset--color--zodiak-text-link) !important;}.has-zodiak-text-link-inverse-background-color{background-color: var(--wp--preset--color--zodiak-text-link-inverse) !important;}.has-zodiak-border-primary-background-color{background-color: var(--wp--preset--color--zodiak-border-primary) !important;}.has-zodiak-border-secondary-background-color{background-color: var(--wp--preset--color--zodiak-border-secondary) !important;}.has-zodiak-action-active-background-color{background-color: var(--wp--preset--color--zodiak-action-active) !important;}.has-zodiak-action-primary-hover-on-lite-background-color{background-color: var(--wp--preset--color--zodiak-action-primary-hover-on-lite) !important;}.has-zodiak-action-disabled-background-color{background-color: var(--wp--preset--color--zodiak-action-disabled) !important;}.has-zodiak-negative-on-lite-background-color{background-color: var(--wp--preset--color--zodiak-negative-on-lite) !important;}.has-zodiak-surface-positive-background-color{background-color: var(--wp--preset--color--zodiak-surface-positive) !important;}.has-zodiak-surface-negative-background-color{background-color: var(--wp--preset--color--zodiak-surface-negative) !important;}.has-zodiak-overlay-photo-style-background-color{background-color: var(--wp--preset--color--zodiak-overlay-photo-style) !important;}.has-black-border-color{border-color: var(--wp--preset--color--black) !important;}.has-cyan-bluish-gray-border-color{border-color: var(--wp--preset--color--cyan-bluish-gray) !important;}.has-white-border-color{border-color: var(--wp--preset--color--white) !important;}.has-pale-pink-border-color{border-color: var(--wp--preset--color--pale-pink) !important;}.has-vivid-red-border-color{border-color: var(--wp--preset--color--vivid-red) !important;}.has-luminous-vivid-orange-border-color{border-color: var(--wp--preset--color--luminous-vivid-orange) !important;}.has-luminous-vivid-amber-border-color{border-color: var(--wp--preset--color--luminous-vivid-amber) !important;}.has-light-green-cyan-border-color{border-color: var(--wp--preset--color--light-green-cyan) !important;}.has-vivid-green-cyan-border-color{border-color: var(--wp--preset--color--vivid-green-cyan) !important;}.has-pale-cyan-blue-border-color{border-color: var(--wp--preset--color--pale-cyan-blue) !important;}.has-vivid-cyan-blue-border-color{border-color: var(--wp--preset--color--vivid-cyan-blue) !important;}.has-vivid-purple-border-color{border-color: var(--wp--preset--color--vivid-purple) !important;}.has-zodiak-page-background-border-color{border-color: var(--wp--preset--color--zodiak-page-background) !important;}.has-zodiak-surface-fog-lite-border-color{border-color: var(--wp--preset--color--zodiak-surface-fog-lite) !important;}.has-zodiak-surface-ink-heavy-border-color{border-color: var(--wp--preset--color--zodiak-surface-ink-heavy) !important;}.has-zodiak-surface-marine-heavy-border-color{border-color: var(--wp--preset--color--zodiak-surface-marine-heavy) !important;}.has-zodiak-surface-cloud-lite-border-color{border-color: var(--wp--preset--color--zodiak-surface-cloud-lite) !important;}.has-zodiak-surface-caribbean-lite-border-color{border-color: var(--wp--preset--color--zodiak-surface-caribbean-lite) !important;}.has-zodiak-surface-caribbean-lite-inverse-border-color{border-color: var(--wp--preset--color--zodiak-surface-caribbean-lite-inverse) !important;}.has-zodiak-text-primary-border-color{border-color: var(--wp--preset--color--zodiak-text-primary) !important;}.has-zodiak-text-secondary-border-color{border-color: var(--wp--preset--color--zodiak-text-secondary) !important;}.has-zodiak-text-inverse-border-color{border-color: var(--wp--preset--color--zodiak-text-inverse) !important;}.has-zodiak-text-link-border-color{border-color: var(--wp--preset--color--zodiak-text-link) !important;}.has-zodiak-text-link-inverse-border-color{border-color: var(--wp--preset--color--zodiak-text-link-inverse) !important;}.has-zodiak-border-primary-border-color{border-color: var(--wp--preset--color--zodiak-border-primary) !important;}.has-zodiak-border-secondary-border-color{border-color: var(--wp--preset--color--zodiak-border-secondary) !important;}.has-zodiak-action-active-border-color{border-color: var(--wp--preset--color--zodiak-action-active) !important;}.has-zodiak-action-primary-hover-on-lite-border-color{border-color: var(--wp--preset--color--zodiak-action-primary-hover-on-lite) !important;}.has-zodiak-action-disabled-border-color{border-color: var(--wp--preset--color--zodiak-action-disabled) !important;}.has-zodiak-negative-on-lite-border-color{border-color: var(--wp--preset--color--zodiak-negative-on-lite) !important;}.has-zodiak-surface-positive-border-color{border-color: var(--wp--preset--color--zodiak-surface-positive) !important;}.has-zodiak-surface-negative-border-color{border-color: var(--wp--preset--color--zodiak-surface-negative) !important;}.has-zodiak-overlay-photo-style-border-color{border-color: var(--wp--preset--color--zodiak-overlay-photo-style) !important;}.has-vivid-cyan-blue-to-vivid-purple-gradient-background{background: var(--wp--preset--gradient--vivid-cyan-blue-to-vivid-purple) !important;}.has-light-green-cyan-to-vivid-green-cyan-gradient-background{background: var(--wp--preset--gradient--light-green-cyan-to-vivid-green-cyan) !important;}.has-luminous-vivid-amber-to-luminous-vivid-orange-gradient-background{background: var(--wp--preset--gradient--luminous-vivid-amber-to-luminous-vivid-orange) !important;}.has-luminous-vivid-orange-to-vivid-red-gradient-background{background: var(--wp--preset--gradient--luminous-vivid-orange-to-vivid-red) !important;}.has-very-light-gray-to-cyan-bluish-gray-gradient-background{background: var(--wp--preset--gradient--very-light-gray-to-cyan-bluish-gray) !important;}.has-cool-to-warm-spectrum-gradient-background{background: var(--wp--preset--gradient--cool-to-warm-spectrum) !important;}.has-blush-light-purple-gradient-background{background: var(--wp--preset--gradient--blush-light-purple) !important;}.has-blush-bordeaux-gradient-background{background: var(--wp--preset--gradient--blush-bordeaux) !important;}.has-luminous-dusk-gradient-background{background: var(--wp--preset--gradient--luminous-dusk) !important;}.has-pale-ocean-gradient-background{background: var(--wp--preset--gradient--pale-ocean) !important;}.has-electric-grass-gradient-background{background: var(--wp--preset--gradient--electric-grass) !important;}.has-midnight-gradient-background{background: var(--wp--preset--gradient--midnight) !important;}.has-small-font-size{font-size: var(--wp--preset--font-size--small) !important;}.has-medium-font-size{font-size: var(--wp--preset--font-size--medium) !important;}.has-large-font-size{font-size: var(--wp--preset--font-size--large) !important;}.has-x-large-font-size{font-size: var(--wp--preset--font-size--x-large) !important;}.has-body-font-family{font-family: var(--wp--preset--font-family--body) !important;}.has-heading-font-family{font-family: var(--wp--preset--font-family--heading) !important;}.has-heading-mono-font-family{font-family: var(--wp--preset--font-family--heading-mono) !important;}.wp-block-button .wp-block-button__link.has-small-font-size{font-size: var(--wp--preset--font-size--small) !important;}.wp-block-button .wp-block-button__link.has-medium-font-size{font-size: var(--wp--preset--font-size--medium) !important;}.wp-block-button .wp-block-button__link.has-large-font-size{font-size: var(--wp--preset--font-size--large) !important;}.wp-block-cover.has-zodiak-page-background-color{color: var(--wp--preset--color--zodiak-page-background) !important;}.wp-block-cover.has-zodiak-surface-fog-lite-color{color: var(--wp--preset--color--zodiak-surface-fog-lite) !important;}.wp-block-cover.has-zodiak-surface-ink-heavy-color{color: var(--wp--preset--color--zodiak-surface-ink-heavy) !important;}.wp-block-cover.has-zodiak-surface-marine-heavy-color{color: var(--wp--preset--color--zodiak-surface-marine-heavy) !important;}.wp-block-cover.has-zodiak-surface-cloud-lite-color{color: var(--wp--preset--color--zodiak-surface-cloud-lite) !important;}.wp-block-cover.has-zodiak-surface-caribbean-lite-color{color: var(--wp--preset--color--zodiak-surface-caribbean-lite) !important;}.wp-block-cover.has-zodiak-surface-caribbean-lite-inverse-color{color: var(--wp--preset--color--zodiak-surface-caribbean-lite-inverse) !important;}.wp-block-cover.has-zodiak-text-primary-color{color: var(--wp--preset--color--zodiak-text-primary) !important;}.wp-block-cover.has-zodiak-text-secondary-color{color: var(--wp--preset--color--zodiak-text-secondary) !important;}.wp-block-cover.has-zodiak-text-inverse-color{color: var(--wp--preset--color--zodiak-text-inverse) !important;}.wp-block-cover.has-zodiak-text-link-color{color: var(--wp--preset--color--zodiak-text-link) !important;}.wp-block-cover.has-zodiak-text-link-inverse-color{color: var(--wp--preset--color--zodiak-text-link-inverse) !important;}.wp-block-cover.has-zodiak-border-primary-color{color: var(--wp--preset--color--zodiak-border-primary) !important;}.wp-block-cover.has-zodiak-border-secondary-color{color: var(--wp--preset--color--zodiak-border-secondary) !important;}.wp-block-cover.has-zodiak-action-active-color{color: var(--wp--preset--color--zodiak-action-active) !important;}.wp-block-cover.has-zodiak-action-primary-hover-on-lite-color{color: var(--wp--preset--color--zodiak-action-primary-hover-on-lite) !important;}.wp-block-cover.has-zodiak-action-disabled-color{color: var(--wp--preset--color--zodiak-action-disabled) !important;}.wp-block-cover.has-zodiak-negative-on-lite-color{color: var(--wp--preset--color--zodiak-negative-on-lite) !important;}.wp-block-cover.has-zodiak-surface-positive-color{color: var(--wp--preset--color--zodiak-surface-positive) !important;}.wp-block-cover.has-zodiak-surface-negative-color{color: var(--wp--preset--color--zodiak-surface-negative) !important;}.wp-block-cover.has-zodiak-overlay-photo-style-color{color: var(--wp--preset--color--zodiak-overlay-photo-style) !important;}.wp-block-cover.has-zodiak-page-background-background-color{background-color: var(--wp--preset--color--zodiak-page-background) !important;}.wp-block-cover.has-zodiak-surface-fog-lite-background-color{background-color: var(--wp--preset--color--zodiak-surface-fog-lite) !important;}.wp-block-cover.has-zodiak-surface-ink-heavy-background-color{background-color: var(--wp--preset--color--zodiak-surface-ink-heavy) !important;}.wp-block-cover.has-zodiak-surface-marine-heavy-background-color{background-color: var(--wp--preset--color--zodiak-surface-marine-heavy) !important;}.wp-block-cover.has-zodiak-surface-cloud-lite-background-color{background-color: var(--wp--preset--color--zodiak-surface-cloud-lite) !important;}.wp-block-cover.has-zodiak-surface-caribbean-lite-background-color{background-color: var(--wp--preset--color--zodiak-surface-caribbean-lite) !important;}.wp-block-cover.has-zodiak-surface-caribbean-lite-inverse-background-color{background-color: var(--wp--preset--color--zodiak-surface-caribbean-lite-inverse) !important;}.wp-block-cover.has-zodiak-text-primary-background-color{background-color: var(--wp--preset--color--zodiak-text-primary) !important;}.wp-block-cover.has-zodiak-text-secondary-background-color{background-color: var(--wp--preset--color--zodiak-text-secondary) !important;}.wp-block-cover.has-zodiak-text-inverse-background-color{background-color: var(--wp--preset--color--zodiak-text-inverse) !important;}.wp-block-cover.has-zodiak-text-link-background-color{background-color: var(--wp--preset--color--zodiak-text-link) !important;}.wp-block-cover.has-zodiak-text-link-inverse-background-color{background-color: var(--wp--preset--color--zodiak-text-link-inverse) !important;}.wp-block-cover.has-zodiak-border-primary-background-color{background-color: var(--wp--preset--color--zodiak-border-primary) !important;}.wp-block-cover.has-zodiak-border-secondary-background-color{background-color: var(--wp--preset--color--zodiak-border-secondary) !important;}.wp-block-cover.has-zodiak-action-active-background-color{background-color: var(--wp--preset--color--zodiak-action-active) !important;}.wp-block-cover.has-zodiak-action-primary-hover-on-lite-background-color{background-color: var(--wp--preset--color--zodiak-action-primary-hover-on-lite) !important;}.wp-block-cover.has-zodiak-action-disabled-background-color{background-color: var(--wp--preset--color--zodiak-action-disabled) !important;}.wp-block-cover.has-zodiak-negative-on-lite-background-color{background-color: var(--wp--preset--color--zodiak-negative-on-lite) !important;}.wp-block-cover.has-zodiak-surface-positive-background-color{background-color: var(--wp--preset--color--zodiak-surface-positive) !important;}.wp-block-cover.has-zodiak-surface-negative-background-color{background-color: var(--wp--preset--color--zodiak-surface-negative) !important;}.wp-block-cover.has-zodiak-overlay-photo-style-background-color{background-color: var(--wp--preset--color--zodiak-overlay-photo-style) !important;}.wp-block-cover.has-zodiak-page-background-border-color{border-color: var(--wp--preset--color--zodiak-page-background) !important;}.wp-block-cover.has-zodiak-surface-fog-lite-border-color{border-color: var(--wp--preset--color--zodiak-surface-fog-lite) !important;}.wp-block-cover.has-zodiak-surface-ink-heavy-border-color{border-color: var(--wp--preset--color--zodiak-surface-ink-heavy) !important;}.wp-block-cover.has-zodiak-surface-marine-heavy-border-color{border-color: var(--wp--preset--color--zodiak-surface-marine-heavy) !important;}.wp-block-cover.has-zodiak-surface-cloud-lite-border-color{border-color: var(--wp--preset--color--zodiak-surface-cloud-lite) !important;}.wp-block-cover.has-zodiak-surface-caribbean-lite-border-color{border-color: var(--wp--preset--color--zodiak-surface-caribbean-lite) !important;}.wp-block-cover.has-zodiak-surface-caribbean-lite-inverse-border-color{border-color: var(--wp--preset--color--zodiak-surface-caribbean-lite-inverse) !important;}.wp-block-cover.has-zodiak-text-primary-border-color{border-color: var(--wp--preset--color--zodiak-text-primary) !important;}.wp-block-cover.has-zodiak-text-secondary-border-color{border-color: var(--wp--preset--color--zodiak-text-secondary) !important;}.wp-block-cover.has-zodiak-text-inverse-border-color{border-color: var(--wp--preset--color--zodiak-text-inverse) !important;}.wp-block-cover.has-zodiak-text-link-border-color{border-color: var(--wp--preset--color--zodiak-text-link) !important;}.wp-block-cover.has-zodiak-text-link-inverse-border-color{border-color: var(--wp--preset--color--zodiak-text-link-inverse) !important;}.wp-block-cover.has-zodiak-border-primary-border-color{border-color: var(--wp--preset--color--zodiak-border-primary) !important;}.wp-block-cover.has-zodiak-border-secondary-border-color{border-color: var(--wp--preset--color--zodiak-border-secondary) !important;}.wp-block-cover.has-zodiak-action-active-border-color{border-color: var(--wp--preset--color--zodiak-action-active) !important;}.wp-block-cover.has-zodiak-action-primary-hover-on-lite-border-color{border-color: var(--wp--preset--color--zodiak-action-primary-hover-on-lite) !important;}.wp-block-cover.has-zodiak-action-disabled-border-color{border-color: var(--wp--preset--color--zodiak-action-disabled) !important;}.wp-block-cover.has-zodiak-negative-on-lite-border-color{border-color: var(--wp--preset--color--zodiak-negative-on-lite) !important;}.wp-block-cover.has-zodiak-surface-positive-border-color{border-color: var(--wp--preset--color--zodiak-surface-positive) !important;}.wp-block-cover.has-zodiak-surface-negative-border-color{border-color: var(--wp--preset--color--zodiak-surface-negative) !important;}.wp-block-cover.has-zodiak-overlay-photo-style-border-color{border-color: var(--wp--preset--color--zodiak-overlay-photo-style) !important;}
+:root :where(.wp-block-group){margin-top: var(--bs-spacing-0);margin-right: auto;margin-bottom: var(--bs-spacing-0);margin-left: auto;padding-top: 0;padding-right: calc(var(--bs-gutter-x) * .5);padding-bottom: 0;padding-left: calc(var(--bs-gutter-x) * .5);}:root :where(.wp-block-group-is-layout-flow) > :first-child{margin-block-start: 0;}:root :where(.wp-block-group-is-layout-flow) > :last-child{margin-block-end: 0;}:root :where(.wp-block-group-is-layout-flow) > *{margin-block-start: 0;margin-block-end: 0;}:root :where(.wp-block-group-is-layout-constrained) > :first-child{margin-block-start: 0;}:root :where(.wp-block-group-is-layout-constrained) > :last-child{margin-block-end: 0;}:root :where(.wp-block-group-is-layout-constrained) > *{margin-block-start: 0;margin-block-end: 0;}:root :where(.wp-block-group-is-layout-flex){gap: 0;}:root :where(.wp-block-group-is-layout-grid){gap: 0;}
+/*# sourceURL=global-styles-inline-css */
+</style>
+<style id="core-block-supports-inline-css">
+.wp-elements-46ce7a5aa94a9e242254e383e62dc922 a:where(:not(.wp-element-button)){color:var(--wp--preset--color--contrast);}
+/*# sourceURL=core-block-supports-inline-css */
+</style>
+<style id="wp-block-template-skip-link-inline-css">
+/*! This file is auto-generated */
+.skip-link.screen-reader-text{border:0;clip-path:inset(50%);height:1px;margin:-1px;overflow:hidden;padding:0;position:absolute!important;width:1px;word-wrap:normal!important;word-break:normal!important}.skip-link.screen-reader-text:focus{background-color:#eee;clip-path:none;color:#444;display:block;font-size:1em;height:auto;left:5px;line-height:normal;padding:15px 23px 14px;text-decoration:none;top:5px;width:auto;z-index:100000}
+/*# sourceURL=/wp-includes/css/wp-block-template-skip-link.min.css */
+</style>
+<link rel='stylesheet' id='macs-cookies-css-css' href='https://www.capgemini.com/ma-en/wp-content/plugins/wp-cookie-consent/dist/css/macs-cookie-consent.min.css?ver=2.1.69' media='all' />
+<link rel='stylesheet' id='anchor-block-public-styles-css' href='https://www.capgemini.com/ma-en/wp-content/plugins/anchor-block/public/anchor-block.css?ver=7.0.4' media='all' />
+<link rel='stylesheet' id='frontend-css-css' href='https://www.capgemini.com/ma-en/wp-content/plugins/social-media-share/css/front.css?ver=1.0.0' media='all' />
+<link rel='stylesheet' id='capgemini-style-css' href='https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/public/dist/app.css?ver=1.0.1059' media='all' />
+<link rel='stylesheet' id='wp-macs-forms-css' href='https://www.capgemini.com/ma-en/wp-content/plugins/wp-macs-forms/dist/public/css/wp-macs-forms-front.min.css?ver=1.0.69' media='all' />
+<style id="block-visibility-screen-size-styles-inline-css">
+/* Large screens (desktops, 992px and up) */
+@media ( min-width: 992px ) {
+	.block-visibility-hide-large-screen {
+		display: none !important;
+	}
+}
+
+/* Medium screens (tablets, between 768px and 992px) */
+@media ( min-width: 768px ) and ( max-width: 991.98px ) {
+	.block-visibility-hide-medium-screen {
+		display: none !important;
+	}
+}
+
+/* Small screens (mobile devices, less than 768px) */
+@media ( max-width: 767.98px ) {
+	.block-visibility-hide-small-screen {
+		display: none !important;
+	}
+}
+/*# sourceURL=block-visibility-screen-size-styles-inline-css */
+</style>
+<script id="add-to-calendar-js-js" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/js/add_to_calendar.js?ver=2"></script>
+<script id="bootstrap_bundle_min-js" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/js/bootstrap.bundle.min.js?ver=1"></script>
+<script id="jquery-core-js" src="https://www.capgemini.com/ma-en/wp-includes/js/jquery/jquery.min.js?ver=3.7.1"></script>
+<script id="jquery-migrate-js" src="https://www.capgemini.com/ma-en/wp-includes/js/jquery/jquery-migrate.min.js?ver=3.4.1"></script>
+<script id="jquery-js-before">
+const jsVar = {"nonce":"11e85e10d9","pathName":"ma-en"};
+//# sourceURL=jquery-js-before
+</script>
+<script async id="elfsight-platform-js" src="https://static.elfsight.com/platform/platform.js"></script>
+<link rel="https://api.w.org/" href="https://www.capgemini.com/ma-en/wp-json/" /><link rel="alternate" title="JSON" type="application/json" href="https://www.capgemini.com/ma-en/wp-json/wp/v2/pages/629929" /><link rel="EditURI" type="application/rsd+xml" title="RSD" href="https://www.capgemini.com/ma-en/xmlrpc.php?rsd" />
+<link rel='shortlink' href='https://www.capgemini.com/ma-en/?p=629929' />
+			<script type="text/javascript" class="macs_cookies_gtm_statistics">
+				(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+				new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+				j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+				'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+				})(window,document,'script','dataLayer','GTM-TF6CWNB');
+			</script>
+					<script type="text/javascript" class="macs_cookies_gtm_necessary">
+				(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+				new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+				j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+				'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+				})(window,document,'script','dataLayer','GTM-WL2FG7L8');
+			</script>
+						<script type="text/javascript" class="macs_cookies_gtm_statistics">
+				(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+				new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+				j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+				'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+				})(window,document,'script','dataLayer','GTM-5KQJH4W2');
+			</script>
+						<script type="text/javascript" class="macs_cookies_gtm_targeting">
+				(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+				new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+				j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+				'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+				})(window,document,'script','dataLayer','GTM-PW7PCHLF');
+			</script>
+			<!-- Generated by Capgemini SEO Manager -->
+<link rel="alternate" href="https://www.capgemini.com/careers/join-us/" hreflang="en" />
+<link rel="alternate" href="https://www.capgemini.com/gb-en/careers/join-us/" hreflang="en-GB" />
+<link rel="alternate" href="https://www.capgemini.com/fr-fr/carrieres/nous-rejoindre/" hreflang="fr-FR" />
+<link rel="alternate" href="https://www.capgemini.com/at-de/karriere/jobs/" hreflang="de-AT" />
+<link rel="alternate" href="https://www.capgemini.com/de-de/karriere/jobs/" hreflang="de-DE" />
+<link rel="alternate" href="https://www.capgemini.com/dk-en/careers/join-us/" hreflang="en-DK" />
+<link rel="alternate" href="https://www.capgemini.com/ar-es/careers/join-us/" hreflang="es-AR" />
+<link rel="alternate" href="https://www.capgemini.com/au-en/careers/join-us/" hreflang="en-AU" />
+<link rel="alternate" href="https://www.capgemini.com/be-en/careers/join-us/" hreflang="en-BE" />
+<link rel="alternate" href="https://www.capgemini.com/it-it/carriere/lavora-con-noi/" hreflang="it-IT" />
+<link rel="alternate" href="https://www.capgemini.com/es-es/talento/join-us/" hreflang="es-ES" />
+<link rel="alternate" href="https://www.capgemini.com/ca-en/careers/join-us/" hreflang="en-CA" />
+<link rel="alternate" href="https://www.capgemini.com/se-en/careers/join-us/" hreflang="en-SE" />
+<link rel="alternate" href="https://www.capgemini.com/ca-fr/carrieres/nous-rejoindre/" hreflang="fr-CA" />
+<link rel="alternate" href="https://www.capgemini.com/jp-jp/join-us/" hreflang="ja-JP" />
+<link rel="alternate" href="https://www.capgemini.com/no-no/careers/join-us/" hreflang="no-NO" />
+<link rel="alternate" href="https://www.capgemini.com/ch-en/careers/join-us/" hreflang="en-CH" />
+<link rel="alternate" href="https://www.capgemini.com/co-es/careers/join-us/" hreflang="es-CO" />
+<link rel="alternate" href="https://www.capgemini.com/fi-en/careers/join-us/" hreflang="en-FI" />
+<link rel="alternate" href="https://www.capgemini.com/pl-pl/careers/join-us/" hreflang="pl-PL" />
+<link rel="alternate" href="https://www.capgemini.com/mx-es/careers/join-us/" hreflang="es-MX" />
+<link rel="alternate" href="https://www.capgemini.com/pt-en/careers/join-us/" hreflang="en-PT" />
+<link rel="alternate" href="https://www.capgemini.com/us-en/join-us/" hreflang="en-US" />
+<link rel="alternate" href="https://www.capgemini.com/cz-en/join-us/" hreflang="en-CZ" />
+<link rel="alternate" href="https://www.capgemini.com/hu-en/join-us/" hreflang="en-HU" />
+<link rel="alternate" href="https://www.capgemini.com/ro-en/join-us/" hreflang="en-RO" />
+<link rel="alternate" href="https://www.capgemini.com/nz-en/join-us/" hreflang="en-NZ" />
+<link rel="alternate" href="https://www.capgemini.com/gu-en/join-us/" hreflang="en-GT" />
+<link rel="alternate" href="https://www.capgemini.com/eg-en/jobs/" hreflang="en-EG" />
+<link rel="alternate" href="https://www.capgemini.com/in-en/careers/join-us/" hreflang="en-IN" />
+<link rel="canonical" href="https://www.capgemini.com/ma-en/job-search/" />
+<!-- End Capgemini SEO manager -->
+<script type="text/javascript">document.documentElement.className += " js";</script>
+	<style>img#wpstats{display:none}</style>
+		<meta name="parsely-title" content="Job search" />
+<meta name="parsely-link" content="https://www.capgemini.com/ma-en/job-search/" />
+<meta name="parsely-type" content="index" />
+<meta name="parsely-image-url" content="https://www.capgemini.com/ma-en/wp-content/uploads/sites/45/2024/02/GettyImages-522999872.jpg?w=150&amp;h=150&amp;crop=1" />
+<meta name="parsely-pub-date" content="2024-02-08T09:29:08Z" />
+<meta name="parsely-section" content="Uncategorized" />
+<meta name="color-scheme" content="dark light" />
+<meta property="og:image" content="https://www.capgemini.com/ma-en/wp-content/uploads/sites/45/2024/02/GettyImages-522999872.jpg" />
+	<meta property="og:image:width" content="5760" />
+	<meta property="og:image:height" content="3840" />
+	<meta property="og:image:type" content="image/jpeg" />
+<style class="wp-fonts-local">
+@font-face{font-family:Ubuntu;font-style:normal;font-weight:300;font-display:fallback;src:url('https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/fonts/ubuntu/Ubuntu-Light.ttf') format('truetype');font-stretch:normal;}
+@font-face{font-family:Ubuntu;font-style:italic;font-weight:300;font-display:fallback;src:url('https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/fonts/ubuntu/Ubuntu-LightItalic.ttf') format('truetype');font-stretch:normal;}
+@font-face{font-family:Ubuntu;font-style:normal;font-weight:400;font-display:fallback;src:url('https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/fonts/ubuntu/Ubuntu-Regular.ttf') format('truetype');font-stretch:normal;}
+@font-face{font-family:Ubuntu;font-style:italic;font-weight:400;font-display:fallback;src:url('https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/fonts/ubuntu/Ubuntu-Italic.ttf') format('truetype');font-stretch:normal;}
+@font-face{font-family:Ubuntu;font-style:normal;font-weight:500;font-display:fallback;src:url('https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/fonts/ubuntu/Ubuntu-Medium.ttf') format('truetype');font-stretch:normal;}
+@font-face{font-family:Ubuntu;font-style:italic;font-weight:500;font-display:fallback;src:url('https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/fonts/ubuntu/Ubuntu-MediumItalic.ttf') format('truetype');font-stretch:normal;}
+@font-face{font-family:Ubuntu;font-style:normal;font-weight:300;font-display:fallback;src:url('https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/fonts/ubuntu/Ubuntu-Light.ttf') format('truetype');font-stretch:normal;}
+@font-face{font-family:Ubuntu;font-style:italic;font-weight:300;font-display:fallback;src:url('https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/fonts/ubuntu/Ubuntu-LightItalic.ttf') format('truetype');font-stretch:normal;}
+@font-face{font-family:Ubuntu;font-style:normal;font-weight:400;font-display:swap;src:url('https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/fonts/ubuntu/Ubuntu-Regular.ttf') format('truetype');font-stretch:normal;}
+@font-face{font-family:Ubuntu;font-style:italic;font-weight:400;font-display:fallback;src:url('https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/fonts/ubuntu/Ubuntu-Italic.ttf') format('truetype');font-stretch:normal;}
+@font-face{font-family:Ubuntu;font-style:normal;font-weight:500;font-display:fallback;src:url('https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/fonts/ubuntu/Ubuntu-Medium.ttf') format('truetype');font-stretch:normal;}
+@font-face{font-family:Ubuntu;font-style:italic;font-weight:500;font-display:fallback;src:url('https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/fonts/ubuntu/Ubuntu-MediumItalic.ttf') format('truetype');font-stretch:normal;}
+@font-face{font-family:"Ubuntu Mono";font-style:normal;font-weight:400;font-display:fallback;src:url('https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/fonts/ubuntu-mono/UbuntuMono-Regular.ttf') format('truetype');font-stretch:normal;}
+@font-face{font-family:"Ubuntu Mono";font-style:italic;font-weight:400;font-display:fallback;src:url('https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/fonts/ubuntu-mono/UbuntuMono-Italic.ttf') format('truetype');font-stretch:normal;}
+@font-face{font-family:"Ubuntu Mono";font-style:normal;font-weight:700;font-display:fallback;src:url('https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/fonts/ubuntu-mono/UbuntuMono-Bold.ttf') format('truetype');font-stretch:normal;}
+@font-face{font-family:"Ubuntu Mono";font-style:italic;font-weight:700;font-display:fallback;src:url('https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/fonts/ubuntu-mono/UbuntuMono-Italic.ttf') format('truetype');font-stretch:normal;}
+</style>
+<link rel="icon" href="https://www.capgemini.com/ma-en/wp-content/uploads/sites/45/2026/07/cropped-Capgemini_spade_32x32.webp?w=32" sizes="32x32" />
+<link rel="icon" href="https://www.capgemini.com/ma-en/wp-content/uploads/sites/45/2026/07/cropped-Capgemini_spade_32x32.webp?w=192" sizes="192x192" />
+<link rel="apple-touch-icon" href="https://www.capgemini.com/ma-en/wp-content/uploads/sites/45/2026/07/cropped-Capgemini_spade_32x32.webp?w=180" />
+<meta name="msapplication-TileImage" content="https://www.capgemini.com/ma-en/wp-content/uploads/sites/45/2026/07/cropped-Capgemini_spade_32x32.webp?w=270" />
+		<style id="trustarc-theme-overrides">
+			#truste-consent-text, .truste-cookie-link {
+				color: var(--zodiak-text-primary) !important;
+				font-weight: 300 !important;
+    			font-size: 16px !important;
+			}
+			.ta-display-block#truste-consent-track,
+			#truste-consent-track.ta-display-block {
+				background: var(--zodiak-surface-cloud-lite) !important;
+				border-color: var(--zodiak-surface-cloud-lite) !important;
+				color: var(--zodiak-text-primary) !important;
+			}
+			.truste-manage-link {
+				color: var(--zodiak-text-primary) !important;
+				border-color: var(--zodiak-surface-azur-heavy) !important;
+			}
+			#truste-consent-button, #truste-consent-required, #truste-show-consent {
+				border-color: var(--zodiak-action-secondary-default-on-lite) !important;
+				color: var(--zodiak-action-secondary-default-on-lite) !important;
+			}
+			#truste-consent-button:hover,
+			#truste-consent-required:hover,
+			#truste-show-consent:hover {
+				background-color: var(--zodiak-action-secondary-default-on-lite) !important;
+				color: var(--zodiak-text-inverse) !important;
+			}
+
+
+
+		</style>
+	</head>
+
+<body class="wp-singular page-template-default page page-id-629929 wp-embed-responsive wp-theme-capgemini2025">
+
+<a class="skip-link screen-reader-text" id="wp-skip-link" href="#main-content">Skip to content</a><div class="wp-site-blocks">
+<div class="wp-block-group header-wrapper is-layout-flow wp-block-group-is-layout-flow">
+	<header class="wp-block-template-part">
+<div class="wp-block-group is-layout-flow wp-block-group-is-layout-flow">
+	<div>
+		<div class="body-overlay"></div>
+		<div class="body-overlay-on-lang"></div>
+		<!-- <a id='skip-nav' class='skip-to-main' href='#main-content'>
+					</a> -->
+		<!-- Header Navigation -->
+		<div class="header-mobile" role="navigation" aria-label="mobileNavigation">
+
+			<div class="header-mobile-bar">
+
+									<a role="link" class="logo" href="https://www.capgemini.com/ma-en">
+						<img decoding="async" loading="lazy" class="logo-light" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/capgeminiBlue.svg" alt="Capgemini" >
+						<img decoding="async" loading="lazy" class="logo-dark" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/capgeminiWhite.svg" alt="Capgemini" >
+					</a>
+				
+				<div class="header-mobile-right">
+					<button class="mobile-search-button header-search-open" aria-label="Search"></button>
+					<button class="mobile-search-button header-search-close" aria-label="close"></button>
+					<button class="mobile-nav-button" aria-label="Navigation"></button>
+				</div>
+			</div>
+
+			<div class="mobile-nav">
+				<div class="mobile-nav-inner">
+					<div class="mobile-menu-window">
+						<ul id="menu-main-menu" class="mobile-menu menu-l0"><li aria-label="Explore our global site: Submenu" class=""><a href="http://www.capgemini.com"><span>Explore our global site:</span></a></li>
+<li aria-label="Insights Submenu" class="menu-parent"><a href="https://www.capgemini.com/insights/"><span>Insights</span></a> <div class="menu-submenu menu-l1"><div class="menu-submenu-title-wrapper"><span class="menu-submenu-title"><button class="menu-submenu-back" aria-label="Insights Submenu" title="submenu">link</button><a href="https://www.capgemini.com/insights/">Insights</a></span><p>Explore the latest insights, ideas and thought leadership from around the Capgemini Group.</p><a aria-label="Insights learn more" class="more4" href="https://www.capgemini.com/insights/">Learn more</a></div>
+<ul class="">
+	<li aria-label="Leading sustainability Submenu" class=""><a href="https://www.capgemini.com/insights/leading-sustainability/"><span>Leading sustainability</span></a></li>
+	<li aria-label="Future of technology Submenu" class=""><a href="https://www.capgemini.com/insights/future-of-technology"><span>Future of technology</span></a></li>
+	<li aria-label="Marketing for customer experience Submenu" class=""><a href="https://www.capgemini.com/insights/marketing-for-customer-experience/"><span>Marketing for customer experience</span></a></li>
+	<li aria-label="Research library Submenu" class=""><a href="https://www.capgemini.com/insights/research-library/"><span>Research library</span></a></li>
+	<li aria-label="Expert perspectives Submenu" class=""><a href="https://www.capgemini.com/insights/expert-perspectives/"><span>Expert perspectives</span></a></li>
+
+</ul>
+</li>
+<li aria-label="Industries Submenu" class="menu-parent"><a href="https://www.capgemini.com/industries/"><span>Industries</span></a> <div class="menu-submenu menu-l1"><div class="menu-submenu-title-wrapper"><span class="menu-submenu-title"><button class="menu-submenu-back" aria-label="Industries Submenu" title="submenu">link</button><a href="https://www.capgemini.com/industries/">Industries</a></span><p>Learn about our worldwide presence and global scope across different industries.</p><a aria-label="Industries learn more" class="more4" href="https://www.capgemini.com/industries/">Learn more</a></div>
+<ul class="">
+	<li aria-label="Aerospace and defense Submenu" class=""><a href="https://www.capgemini.com/industries/aerospace-and-defense/"><span>Aerospace and defense</span></a></li>
+	<li aria-label="Automotive Submenu" class=""><a href="https://www.capgemini.com/industries/automotive/"><span>Automotive</span></a></li>
+	<li aria-label="Banking and capital markets Submenu" class=""><a href="https://www.capgemini.com/industries/banking-and-capital-markets/"><span>Banking and capital markets</span></a></li>
+	<li aria-label="Consumer products Submenu" class=""><a href="https://www.capgemini.com/industries/consumer-products/"><span>Consumer products</span></a></li>
+	<li aria-label="Energy and utilities Submenu" class=""><a href="https://www.capgemini.com/industries/energy-and-utilities/"><span>Energy and utilities</span></a></li>
+	<li aria-label="Healthcare Submenu" class=""><a href="https://www.capgemini.com/industries/healthcare/"><span>Healthcare</span></a></li>
+	<li aria-label="High tech Submenu" class=""><a href="https://www.capgemini.com/industries/high-tech/"><span>High tech</span></a></li>
+	<li aria-label="Hospitality travel Submenu" class=""><a href="https://www.capgemini.com/industries/hospitality-travel/"><span>Hospitality travel</span></a></li>
+	<li aria-label="Insurance Submenu" class=""><a href="https://www.capgemini.com/industries/insurance/"><span>Insurance</span></a></li>
+	<li aria-label="Life sciences Submenu" class=""><a href="https://www.capgemini.com/industries/life-sciences/"><span>Life sciences</span></a></li>
+	<li aria-label="Manufacturing Submenu" class=""><a href="https://www.capgemini.com/industries/manufacturing/"><span>Manufacturing</span></a></li>
+	<li aria-label="Media and entertainment Submenu" class=""><a href="https://www.capgemini.com/industries/media-and-entertainment/"><span>Media and entertainment</span></a></li>
+	<li aria-label="Public sector Submenu" class=""><a href="https://www.capgemini.com/industries/public-sector/"><span>Public sector</span></a></li>
+	<li aria-label="Retail Submenu" class=""><a href="https://www.capgemini.com/industries/retail/"><span>Retail</span></a></li>
+	<li aria-label="Telecommunications Submenu" class=""><a href="https://www.capgemini.com/industries/telecommunications/"><span>Telecommunications</span></a></li>
+
+</ul>
+</li>
+<li aria-label="Services Submenu" class="menu-parent"><a href="https://www.capgemini.com/services/"><span>Services</span></a> <div class="menu-submenu menu-l1"><div class="menu-submenu-title-wrapper"><span class="menu-submenu-title"><button class="menu-submenu-back" aria-label="Services Submenu" title="submenu">link</button><a href="https://www.capgemini.com/services/">Services</a></span><p>Discover the full range of services that we, as a global Group, offer our clients.</p><a aria-label="Services learn more" class="more4" href="https://www.capgemini.com/services/">Learn more</a></div>
+<ul class="">
+	<li aria-label="Cloud Submenu" class=""><a href="https://www.capgemini.com/services/cloud/"><span>Cloud</span></a></li>
+	<li aria-label="Customer first Submenu" class=""><a href="https://www.capgemini.com/services/customer-first/"><span>Customer first</span></a></li>
+	<li aria-label="Cybersecurity Submenu" class=""><a href="https://www.capgemini.com/services/cybersecurity/"><span>Cybersecurity</span></a></li>
+	<li aria-label="Data and AI Submenu" class=""><a href="https://www.capgemini.com/services/data-and-ai/"><span>Data and AI</span></a></li>
+	<li aria-label="Enterprise management Submenu" class=""><a href="https://www.capgemini.com/services/enterprise-management/"><span>Enterprise management</span></a></li>
+	<li aria-label="Intelligent industry Submenu" class=""><a href="https://www.capgemini.com/services/intelligent-industry/"><span>Intelligent industry</span></a></li>
+	<li aria-label="Sustainability Submenu" class=""><a href="https://www.capgemini.com/services/sustainability/"><span>Sustainability</span></a></li>
+
+</ul>
+</li>
+<li aria-label="Careers Submenu" class="menu-parent"><a href="https://www.capgemini.com/ma-en/careers/"><span>Careers</span></a> <div class="menu-submenu menu-l1"><div class="menu-submenu-title-wrapper"><span class="menu-submenu-title"><button class="menu-submenu-back" aria-label="Careers Submenu" title="submenu">link</button><a href="https://www.capgemini.com/ma-en/careers/">Careers</a></span><p>Find out what makes Capgemini so special – and what our Group can offer those who join us.</p><a aria-label="Careers learn more" class="more4" href="https://www.capgemini.com/ma-en/careers/">Learn more</a></div>
+<ul class="">
+	<li aria-label="Why join Capgemini Submenu" class=""><a href="https://www.capgemini.com/careers/why-join-capgemini/"><span>Why join Capgemini</span></a></li>
+	<li aria-label="Life at Capgemini Submenu" class=""><a href="https://www.capgemini.com/ma-en/careers/life-at-capgemini-morocco/"><span>Life at Capgemini</span></a></li>
+	<li aria-label="Meet our people Submenu" class=""><a href="https://www.capgemini.com/careers/meet-our-people/"><span>Meet our people</span></a></li>
+	<li aria-label="Career paths Submenu" class="menu-parent"><a href="https://www.capgemini.com/careers/career-paths/"><span>Career paths</span></a>
+	<ul class="menu-submenu menu-l2"><li class="menu-submenu-title-wrapper"><span class="menu-submenu-title"><button class="menu-submenu-back">Back</button><a href="https://www.capgemini.com/careers/career-paths/"><span>Career paths</span></a></span></li>
+		<li aria-label="Students and graduates Submenu" class=""><a href="https://www.capgemini.com/careers/career-paths/students-and-graduates/"><span>Students and graduates</span></a></li>
+		<li aria-label="Experienced professionals Submenu" class=""><a href="https://www.capgemini.com/careers/career-paths/experienced-professionals/"><span>Experienced professionals</span></a></li>
+		<li aria-label="Executives Submenu" class=""><a href="https://www.capgemini.com/careers/career-paths/executives/"><span>Executives</span></a></li>
+		<li aria-label="Professional communities Submenu" class=""><a href="https://www.capgemini.com/careers/career-paths/professional-communities/"><span>Professional communities</span></a></li>
+		<li aria-label="Careers at Capgemini Engineering Submenu" class=""><a href="https://www.capgemini.com/careers/career-paths/careers-at-capgemini-engineering/"><span>Careers at Capgemini Engineering</span></a></li>
+	
+</ul>
+</li>
+	<li aria-label="Join us Submenu" class=""><a href="https://www.capgemini.com/ma-en/job-search/#country_code=ma-fr&#038;size=15"><span>Join us</span></a></li>
+
+</ul>
+</li>
+<li aria-label="News Submenu" class="menu-parent"><a href="https://www.capgemini.com/news/"><span>News</span></a> <div class="menu-submenu menu-l1"><div class="menu-submenu-title-wrapper"><span class="menu-submenu-title"><button class="menu-submenu-back" aria-label="News Submenu" title="submenu">link</button><a href="https://www.capgemini.com/news/">News</a></span><p>See what people are saying about our Group – the press, the analysts, our clients, and our people.</p><a aria-label="News learn more" class="more4" href="https://www.capgemini.com/news/">Learn more</a></div>
+<ul class="">
+	<li aria-label="Press releases Submenu" class=""><a href="https://www.capgemini.com/ma-en/press-releases/"><span>Press releases</span></a></li>
+	<li aria-label="Analyst recognition Submenu" class=""><a href="https://www.capgemini.com/news/analyst-recognition/"><span>Analyst recognition</span></a></li>
+	<li aria-label="Client stories Submenu" class=""><a href="https://www.capgemini.com/news/client-stories/"><span>Client stories</span></a></li>
+	<li aria-label="Inside stories Submenu" class=""><a href="https://www.capgemini.com/news/inside-stories/"><span>Inside stories</span></a></li>
+	<li aria-label="Social media Submenu" class=""><a href="https://www.capgemini.com/news/social-media/"><span>Social media</span></a></li>
+	<li aria-label="Events Submenu" class=""><a href="https://www.capgemini.com/news/events/#events=upcoming"><span>Events</span></a></li>
+
+</ul>
+</li>
+<li aria-label="About us Submenu" class="menu-parent"><a href="https://www.capgemini.com/ma-en/about-us"><span>About us</span></a> <div class="menu-submenu menu-l1"><div class="menu-submenu-title-wrapper"><span class="menu-submenu-title"><button class="menu-submenu-back" aria-label="About us Submenu" title="submenu">link</button><a href="https://www.capgemini.com/ma-en/about-us">About us</a></span><p>Find out who we are, what we do, how we work – and what we’re passionate about.</p><a aria-label="About us learn more" class="more4" href="https://www.capgemini.com/ma-en/about-us">Learn more</a></div>
+<ul class="">
+	<li aria-label="Who we are Submenu" class="menu-parent"><a href="https://www.capgemini.com/about-us/who-we-are/"><span>Who we are</span></a>
+	<ul class="menu-submenu menu-l2"><li class="menu-submenu-title-wrapper"><span class="menu-submenu-title"><button class="menu-submenu-back">Back</button><a href="https://www.capgemini.com/about-us/who-we-are/"><span>Who we are</span></a></span></li>
+		<li aria-label="What we do Submenu" class=""><a href="https://www.capgemini.com/about-us/who-we-are/what-we-do/"><span>What we do</span></a></li>
+		<li aria-label="The way we work Submenu" class=""><a href="https://www.capgemini.com/about-us/who-we-are/the-way-we-work/"><span>The way we work</span></a></li>
+		<li aria-label="Values and ethics Submenu" class=""><a href="https://www.capgemini.com/about-us/who-we-are/values-and-ethics/"><span>Values and ethics</span></a></li>
+		<li aria-label="Innovation ecosystem Submenu" class=""><a href="https://www.capgemini.com/about-us/who-we-are/innovation-ecosystem/"><span>Innovation ecosystem</span></a></li>
+		<li aria-label="Our brands Submenu" class=""><a href="https://www.capgemini.com/about-us/who-we-are/our-brands/"><span>Our brands</span></a></li>
+		<li aria-label="Nobel International Partner Submenu" class=""><a href="https://www.capgemini.com/about-us/who-we-are/nobel-partner/"><span>Nobel International Partner</span></a></li>
+	
+</ul>
+</li>
+	<li aria-label="Management and governance Submenu" class="menu-parent"><a href="https://www.capgemini.com/about-us/management-and-governance/"><span>Management and governance</span></a>
+	<ul class="menu-submenu menu-l2"><li class="menu-submenu-title-wrapper"><span class="menu-submenu-title"><button class="menu-submenu-back">Back</button><a href="https://www.capgemini.com/about-us/management-and-governance/"><span>Management and governance</span></a></span></li>
+		<li aria-label="Board of directors Submenu" class=""><a href="https://www.capgemini.com/about-us/management-and-governance/board-of-directors/"><span>Board of directors</span></a></li>
+		<li aria-label="Management team Submenu" class=""><a href="https://www.capgemini.com/about-us/management-and-governance/management-team/"><span>Management team</span></a></li>
+		<li aria-label="Responsible business Submenu" class=""><a href="https://www.capgemini.com/about-us/management-and-governance/responsible-business/"><span>Responsible business</span></a></li>
+		<li aria-label="Policies Submenu" class=""><a href="https://www.capgemini.com/about-us/management-and-governance/policies/"><span>Policies</span></a></li>
+	
+</ul>
+</li>
+	<li aria-label="Environment, Social &amp; Governance Submenu" class=""><a href="https://www.capgemini.com/about-us/approach-to-esg/"><span>Environment, Social &#038; Governance</span></a></li>
+	<li aria-label="Corporate Social Responsibility Submenu" class="menu-parent"><a href="https://www.capgemini.com/ma-en/careers/csr/"><span>Corporate Social Responsibility</span></a>
+	<ul class="menu-submenu menu-l2"><li class="menu-submenu-title-wrapper"><span class="menu-submenu-title"><button class="menu-submenu-back">Back</button><a href="https://www.capgemini.com/ma-en/careers/csr/"><span>Corporate Social Responsibility</span></a></span></li>
+		<li aria-label="Environmental sustainability Submenu" class=""><a href="https://www.capgemini.com/about-us/csr/environmental-sustainability/"><span>Environmental sustainability</span></a></li>
+		<li aria-label="Diversity and inclusion Submenu" class=""><a href="https://www.capgemini.com/about-us/csr/diversity-and-inclusion/"><span>Diversity and inclusion</span></a></li>
+		<li aria-label="Digital inclusion Submenu" class=""><a href="https://www.capgemini.com/about-us/csr/digital-inclusion/"><span>Digital inclusion</span></a></li>
+		<li aria-label="Social response unit Submenu" class=""><a href="https://www.capgemini.com/about-us/csr/social-response-unit/"><span>Social response unit</span></a></li>
+	
+</ul>
+</li>
+	<li aria-label="Passion for sport Submenu" class="menu-parent"><a href="https://www.capgemini.com/about-us/passion-for-sport/"><span>Passion for sport</span></a>
+	<ul class="menu-submenu menu-l2"><li class="menu-submenu-title-wrapper"><span class="menu-submenu-title"><button class="menu-submenu-back">Back</button><a href="https://www.capgemini.com/about-us/passion-for-sport/"><span>Passion for sport</span></a></span></li>
+		<li aria-label="World Rugby Submenu" class=""><a href="https://www.capgemini.com/about-us/passion-for-sport/capgemini-and-world-rugby/"><span>World Rugby</span></a></li>
+		<li aria-label="Ryder Cup Submenu" class=""><a href="https://www.capgemini.com/about-us/passion-for-sport/ryder-cup/"><span>Ryder Cup</span></a></li>
+		<li aria-label="Peugeot Sport Submenu" class=""><a href="https://www.capgemini.com/about-us/passion-for-sport/peugeot-sport/"><span>Peugeot Sport</span></a></li>
+	
+</ul>
+</li>
+	<li aria-label="Technology partners Submenu" class=""><a href="https://www.capgemini.com/about-us/technology-partners/"><span>Technology partners</span></a></li>
+	<li aria-label="Locations Submenu" class=""><a href="https://www.capgemini.com/locations/"><span>Locations</span></a></li>
+
+</ul>
+</li>
+</ul>					</div>
+
+					<div class="mobile-nav-contact">
+						<a href="https://investors.capgemini.com/" target="_blank" class="btn-link-investors"><span class="text">Investors</span><i class="icon icon-zodiak-external-link"></i></a>
+						<a href="/ma-en/contact-us" class="btn-link-contact"><span class="text">Contact us<i class="icon icon-zodiak-arrow-right"></i></span></a>
+					</div>
+
+					<div class="mobile-nav-bottom">
+						<span class="lang-current header-lang-open">
+																<img decoding="async" loading="lazy" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-morocco.svg" alt="Morocco" class="globe-icons">							<!-- <img decoding="async" loading="lazy" class="lang-icon" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-morocco.svg" alt="Morocco"> -->
+							<span>
+								Morocco | EN							</span>
+						</span>
+						<!-- <button class="header-lang-open"></button> -->
+					<!-- <div class="header-dmlm-wrapper toggle-container mobile-header-dmlm">
+						<input
+							type="checkbox"
+							id="darkModeCheckboxMobile"
+							class="dark-mode-toggle toggle-input switch"
+							role="switch"
+							aria-checked="false"
+							aria-label="Toggle dark mode"
+						>
+						<label
+							for="darkModeCheckboxDesktop"
+							class="toggle-label"
+							tabindex="0"
+							role="switch"
+							aria-checked="false"
+							onkeydown="if(event.key === 'Enter' || event.key === ' ') { event.preventDefault(); document.getElementById('darkModeCheckboxDesktop').click(); }"
+						>
+							<span class="icon sun" aria-hidden="true">
+							<i class="icon icon-zodiak-sun"></i>
+							</span>
+							<span class="icon moon" aria-hidden="true">
+							<i class="icon icon-zodiak-moon"></i>
+							</span>
+							<span class="toggle-ball" aria-hidden="true"></span>
+						</label>
+					</div> -->
+<div class="header-dmlm-wrapper toggle-container">
+  <!-- Screen reader status announcement -->
+  <div id="darkModeStatusMobile" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+  <input
+    type="checkbox"
+    id="darkModeCheckboxMobile"
+    class="dark-mode-toggle toggle-input switch"
+    role="switch"
+    aria-checked="false"
+    aria-labelledby="darkModeLabelMobile"
+    aria-describedby="darkModeStatusMobile"
+  >
+
+  <label
+    for="darkModeCheckboxMobile"
+    id="darkModeLabelMobile"
+    class="toggle-label"
+    tabindex="0"
+    role="switch"
+    onkeydown="if(event.key === 'Enter' || event.key === ' ') { event.preventDefault(); document.getElementById('darkModeCheckboxMobile').click(); }"
+  >
+    <span id="modeStatusMobile" class="visually-hidden">Dark and light mode toggle, currently light mode</span>
+    <span class="icon sun" aria-hidden="true"><i class="icon icon-zodiak-sun"></i></span>
+    <span class="icon moon" aria-hidden="true"><i class="icon icon-zodiak-moon"></i></span>
+    <span class="toggle-ball" aria-hidden="true"></span>
+  </label>
+</div>
+
+					</div>
+										<!-- Header language Mobile -->
+					<div class="header-lang header_lang_menu_mobile d-block d-xl-none" role="navigation" aria-label="LocationSearch">
+						<div class="header-lang-inner">
+							<div class="header-lang-top">
+								<span>Your location</span>
+								<button class="header-lang-close" type="button" aria-label="Close site selection menu"><i class="icon icon-zodiak-menu-close"></i></button>
+							</div>
+							<div class="header-lang-middle">
+								<div class="lang-current-alignment">
+								<span class="lang-current">
+									<img decoding="async" loading="lazy" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-morocco.svg" alt="Morocco" class="">									Morocco | EN
+								</span>
+								<i class="icon icon-zodiak-tick"></i>
+								</div>
+								<div class="lang-search">
+									<input id="search-location-input_mobile" type="text" aria-label="location" name="location" placeholder="Search location…">
+								</div>
+							</div>
+							<div class="lang-list" tabindex="0">
+								<ul id="menu-location-menu-small" class="menu"><li class="lang-title">Worldwide<ul class="sub-menu"><li class="active"><a href="https://www.capgemini.com/"><span class="lang-globe-alignement"><i class=" icon icon-zodiak-globe"></i><span class="inner location-span">Global | EN</span></span></a></li></ul></li><li class="lang-title">Americas<ul class="sub-menu"><li class=""><a href="/ar-es/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-argentina.svg" alt="" /><span class="inner location-span">Argentina | ES</span></span></a></li><li class=""><a href="/br-pt/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-brazil.svg" alt="" /><span class="inner location-span">Brazil | PT</span></span></a></li><li class=""><a href="/ca-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-canada.svg" alt="" /><span class="inner location-span">Canada | EN</span></span></a></li><li class=""><a href="/ca-fr/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-canada.svg" alt="" /><span class="inner location-span">Canada | FR</span></span></a></li><li class=""><a href="/co-es/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-colombia.svg" alt="" /><span class="inner location-span">Colombia | ES</span></span></a></li><li class=""><a href="/gu-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-guatemala.svg" alt="" /><span class="inner location-span">Guatemala | EN</span></span></a></li><li class=""><a href="/mx-es/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-mexico.svg" alt="" /><span class="inner location-span">Mexico | ES</span></span></a></li><li class=""><a href="/us-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-united-states.svg" alt="" /><span class="inner location-span">United States | EN</span></span></a></li></ul></li><li class="lang-title">Asia Pacific<ul class="sub-menu"><li class=""><a href="/au-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-australia.svg" alt="" /><span class="inner location-span">Australia | EN</span></span></a></li><li class=""><a href="/cn-zh/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-china.svg" alt="" /><span class="inner location-span">China | ZH</span></span></a></li><li class=""><a href="/in-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-india.svg" alt="" /><span class="inner location-span">India | EN</span></span></a></li><li class=""><a href="/jp-jp/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-japan.svg" alt="" /><span class="inner location-span">Japan | JP</span></span></a></li><li class=""><a href="/nz-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-new-zealand.svg" alt="" /><span class="inner location-span">New Zealand | EN</span></span></a></li><li class=""><a href="/sg-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-singapore.svg" alt="" /><span class="inner location-span">Singapore | EN</span></span></a></li></ul></li><li class="lang-title">Europe,  Middle East &#038; Africa<ul class="sub-menu"><li class=""><a href="/at-de/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-austria.svg" alt="" /><span class="inner location-span">Austria | EN</span></span></a></li><li class=""><a href="/be-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-belgium.svg" alt="" /><span class="inner location-span">Belgium | EN</span></span></a></li><li class=""><a href="/cz-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-czech-republic.svg" alt="" /><span class="inner location-span">Czech Republic | EN</span></span></a></li><li class=""><a href="/dk-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-denmark.svg" alt="" /><span class="inner location-span">Denmark | EN</span></span></a></li><li class=""><a href="/eg-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-egypt.svg" alt="" /><span class="inner location-span">Egypt | EN</span></span></a></li><li class=""><a href="/fi-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-finland.svg" alt="" /><span class="inner location-span">Finland | EN</span></span></a></li><li class=""><a href="/fr-fr/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-france.svg" alt="" /><span class="inner location-span">France | FR</span></span></a></li><li class=""><a href="/de-de/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-germany.svg" alt="" /><span class="inner location-span">Germany | DE</span></span></a></li><li class=""><a href="/hu-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-hungary.svg" alt="" /><span class="inner location-span">Hungary | EN</span></span></a></li><li class="active"><a href="https://www.sogeti.ie/" target="_blank" rel="noopener noreferrer" title="Ireland | EN" aria-label="Ireland | EN (Ireland | EN)"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flags-ireland.svg" alt="" /><span class="inner location-span">Ireland | EN<i aria-hidden="true" class="icon icon-zodiak-external-link"></i></span></span></a></li><li class=""><a href="/it-it/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-italy.svg" alt="" /><span class="inner location-span">Italy | IT</span></span></a></li><li class="active"><a href="https://www.sogeti.lu/" target="_blank" rel="noopener noreferrer" title="Luxembourg | EN" aria-label="Luxembourg | EN (Luxembourg | EN)"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flags-luxemburg.svg" alt="" /><span class="inner location-span">Luxembourg | EN<i aria-hidden="true" class="icon icon-zodiak-external-link"></i></span></span></a></li><li class=""><a href="/ma-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-morocco.svg" alt="" /><span class="inner location-span">Morocco  | EN</span></span></a></li><li class=""><a href="/nl-nl/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-netherlands.svg" alt="" /><span class="inner location-span">Netherlands | NL</span></span></a></li><li class=""><a href="/no-no/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-norway.svg" alt="" /><span class="inner location-span">Norway | NO</span></span></a></li><li class=""><a href="/pl-pl/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-poland.svg" alt="" /><span class="inner location-span">Poland | PL</span></span></a></li><li class=""><a href="/pt-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-portugal.svg" alt="" /><span class="inner location-span">Portugal | EN</span></span></a></li><li class=""><a href="/ro-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-romania.svg" alt="" /><span class="inner location-span">Romania | EN</span></span></a></li><li class=""><a href="/sa-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-saudi-arabia.svg" alt="" /><span class="inner location-span">KSA | EN</span></span></a></li><li class=""><a href="/es-es/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-spain.svg" alt="" /><span class="inner location-span">Spain | ES</span></span></a></li><li class=""><a href="/se-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-sweden.svg" alt="" /><span class="inner location-span">Sweden | EN</span></span></a></li><li class=""><a href="/ch-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-switzerland.svg" alt="" /><span class="inner location-span">Switzerland | EN</span></span></a></li><li class=""><a href="/ae-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-uae.svg" alt="" /><span class="inner location-span">UAE | EN</span></span></a></li><li class=""><a href="/gb-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-united-kingdom.svg" alt="" /><span class="inner location-span">UK | EN</span></span></a></li></ul></li></ul>							</div>
+						</div>
+					</div>
+					<!-- / Header Language Mobile-->
+									</div>
+			</div>
+		</div>
+
+	<div class="header-topbar-wrapper" role="banner">
+
+			<div class="header-topbar  ">
+				<div class="header-top">
+					<nav class="header-nav" aria-label="navigation">
+						<ul>
+							<li><a href="/ma-en/contact-us"><span class="inner">Contact us</span></a></li>
+							<li class="icon-investors">
+								<a href="https://investors.capgemini.com/" target="_blank" title="Opens in a new window">
+									<span class="outer">
+										<span class="inner">Investors</span>
+									</span>
+									<i aria-hidden="true" class="icon icon-zodiak-external-link"></i>
+								</a>
+							</li>
+							<li class="header-lang-open">
+								<a href="#" role="button" aria-label="Select Country Website">
+									<span class="outer lang-current">
+										<span class="inner">
+											Morocco | EN
+										</span>
+									</span>
+								 <span class="img-wrapper"><img decoding="async" loading="lazy" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-morocco.svg" alt="Morocco" class=""></span>								</a>
+							</li>
+						</ul>
+					</nav>
+				</div>
+
+				<!-- Header language -->
+				<div class="header-lang header_lang_menu d-none d-xl-block" role="navigation" aria-label="LocationSearch">
+					<div class="header-lang-inner">
+						<div class="header-lang-top">
+							<span>Your location</span>
+							<button class="header-lang-close" type="button" aria-label="Close site selection menu"><i class="icon icon-zodiak-menu-close"></i></button>
+						</div>
+						<div class="header-lang-middle">
+							<div class="lang-current-alignment">
+									<span class="lang-current">
+										<img decoding="async" loading="lazy" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-morocco.svg" alt="Morocco">										Morocco | EN									</span>
+									<i class="icon icon-zodiak-tick"></i>
+							</div>
+							<div class="lang-search">
+								<input id="search-location-input" type="text" aria-label="location" name="location" placeholder="Search location…">
+							</div>
+						</div>
+						<div class="lang-list">
+							<ul id="menu-location-menu-1-large" class="menu"><li class="lang-title">Worldwide<ul class="sub-menu"><li class="active"><a href="https://www.capgemini.com/"><span class="lang-globe-alignement"><i class=" icon icon-zodiak-globe"></i><span class="inner location-span">Global | EN</span></span></a></li></ul></li><li class="lang-title">Americas<ul class="sub-menu"><li class=""><a href="/ar-es/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-argentina.svg" alt="" /><span class="inner location-span">Argentina | ES</span></span></a></li><li class=""><a href="/br-pt/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-brazil.svg" alt="" /><span class="inner location-span">Brazil | PT</span></span></a></li><li class=""><a href="/ca-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-canada.svg" alt="" /><span class="inner location-span">Canada | EN</span></span></a></li><li class=""><a href="/ca-fr/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-canada.svg" alt="" /><span class="inner location-span">Canada | FR</span></span></a></li><li class=""><a href="/co-es/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-colombia.svg" alt="" /><span class="inner location-span">Colombia | ES</span></span></a></li><li class=""><a href="/gu-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-guatemala.svg" alt="" /><span class="inner location-span">Guatemala | EN</span></span></a></li><li class=""><a href="/mx-es/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-mexico.svg" alt="" /><span class="inner location-span">Mexico | ES</span></span></a></li><li class=""><a href="/us-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-united-states.svg" alt="" /><span class="inner location-span">United States | EN</span></span></a></li></ul></li><li class="lang-title">Asia Pacific<ul class="sub-menu"><li class=""><a href="/au-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-australia.svg" alt="" /><span class="inner location-span">Australia | EN</span></span></a></li><li class=""><a href="/cn-zh/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-china.svg" alt="" /><span class="inner location-span">China | ZH</span></span></a></li><li class=""><a href="/in-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-india.svg" alt="" /><span class="inner location-span">India | EN</span></span></a></li><li class=""><a href="/jp-jp/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-japan.svg" alt="" /><span class="inner location-span">Japan | JP</span></span></a></li><li class=""><a href="/nz-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-new-zealand.svg" alt="" /><span class="inner location-span">New Zealand | EN</span></span></a></li><li class=""><a href="/sg-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-singapore.svg" alt="" /><span class="inner location-span">Singapore | EN</span></span></a></li></ul></li><li class="lang-title">Europe,  Middle East &#038; Africa<ul class="sub-menu"><li class=""><a href="/at-de/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-austria.svg" alt="" /><span class="inner location-span">Austria | EN</span></span></a></li><li class=""><a href="/be-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-belgium.svg" alt="" /><span class="inner location-span">Belgium | EN</span></span></a></li><li class=""><a href="/cz-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-czech-republic.svg" alt="" /><span class="inner location-span">Czech Republic | EN</span></span></a></li><li class=""><a href="/dk-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-denmark.svg" alt="" /><span class="inner location-span">Denmark | EN</span></span></a></li><li class=""><a href="/eg-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-egypt.svg" alt="" /><span class="inner location-span">Egypt | EN</span></span></a></li><li class=""><a href="/fi-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-finland.svg" alt="" /><span class="inner location-span">Finland | EN</span></span></a></li><li class=""><a href="/fr-fr/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-france.svg" alt="" /><span class="inner location-span">France | FR</span></span></a></li><li class=""><a href="/de-de/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-germany.svg" alt="" /><span class="inner location-span">Germany | DE</span></span></a></li><li class=""><a href="/hu-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-hungary.svg" alt="" /><span class="inner location-span">Hungary | EN</span></span></a></li><li class="active"><a href="https://www.sogeti.ie/" target="_blank" rel="noopener noreferrer" title="Ireland | EN" aria-label="Ireland | EN (Ireland | EN)"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flags-ireland.svg" alt="" /><span class="inner location-span">Ireland | EN<i aria-hidden="true" class="icon icon-zodiak-external-link"></i></span></span></a></li><li class=""><a href="/it-it/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-italy.svg" alt="" /><span class="inner location-span">Italy | IT</span></span></a></li><li class="active"><a href="https://www.sogeti.lu/" target="_blank" rel="noopener noreferrer" title="Luxembourg | EN" aria-label="Luxembourg | EN (Luxembourg | EN)"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flags-luxemburg.svg" alt="" /><span class="inner location-span">Luxembourg | EN<i aria-hidden="true" class="icon icon-zodiak-external-link"></i></span></span></a></li><li class=""><a href="/ma-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-morocco.svg" alt="" /><span class="inner location-span">Morocco  | EN</span></span></a></li><li class=""><a href="/nl-nl/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-netherlands.svg" alt="" /><span class="inner location-span">Netherlands | NL</span></span></a></li><li class=""><a href="/no-no/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-norway.svg" alt="" /><span class="inner location-span">Norway | NO</span></span></a></li><li class=""><a href="/pl-pl/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-poland.svg" alt="" /><span class="inner location-span">Poland | PL</span></span></a></li><li class=""><a href="/pt-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-portugal.svg" alt="" /><span class="inner location-span">Portugal | EN</span></span></a></li><li class=""><a href="/ro-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-romania.svg" alt="" /><span class="inner location-span">Romania | EN</span></span></a></li><li class=""><a href="/sa-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-saudi-arabia.svg" alt="" /><span class="inner location-span">KSA | EN</span></span></a></li><li class=""><a href="/es-es/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-spain.svg" alt="" /><span class="inner location-span">Spain | ES</span></span></a></li><li class=""><a href="/se-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-sweden.svg" alt="" /><span class="inner location-span">Sweden | EN</span></span></a></li><li class=""><a href="/ch-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-switzerland.svg" alt="" /><span class="inner location-span">Switzerland | EN</span></span></a></li><li class=""><a href="/ae-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-uae.svg" alt="" /><span class="inner location-span">UAE | EN</span></span></a></li><li class=""><a href="/gb-en/"><span class="lang-globe-alignement"><img decoding="async" loading="lazy" aria-hidden="true" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/fl/flag-united-kingdom.svg" alt="" /><span class="inner location-span">UK | EN</span></span></a></li></ul></li></ul>						</div>
+					</div>
+				</div>
+				<!-- / Header Language -->
+				 <!-- Logo -->
+								<div class="header-bottom">
+											<a role="link" class="logo" href="https://www.capgemini.com/ma-en">
+							<img decoding="async" loading="lazy" class="logo-light" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/capgeminiBlue.svg" alt="Capgemini" >
+							<img decoding="async" loading="lazy" class="logo-dark" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/capgeminiWhite.svg" alt="Capgemini" >
+						</a>
+									<!-- / Logo -->
+
+
+					<nav class="header-nav" aria-label="Menu">
+						<ul id="menu-main-menu-1" class="menu"><li aria-label="Explore our global site: Submenu" class=""><a aria-label="Explore our global site: menu" href="http://www.capgemini.com"><span><span>Explore our global site:</span></span></a></li>
+<li aria-label="Insights Submenu" class=""><a aria-label="Insights menu" href="https://www.capgemini.com/insights/" target="_blank"><span><span>Insights</span></span></a><button class="menu-arrow-down" aria-label="submenu" aria-expanded="false"></button> <div class="menu-submenu"><div class="menu-submenu-inner"><div class="menu-submenu-title-wrapper"><span class="menu-submenu-title">Insights</span><p>Explore the latest insights, ideas and thought leadership from around the Capgemini Group.</p><a aria-label="Insights Learn more link" class="more2" href="https://www.capgemini.com/insights/">Learn more</a></div>
+<nav aria-label="Insights SubMenu" class="menu-submenu-nav"><ul class="menu-l1">
+	<li aria-label="Leading sustainability Submenu" class=""><a aria-label="Leading sustainability menu" href="https://www.capgemini.com/insights/leading-sustainability/" target="_blank"><span><span>Leading sustainability</span></span></a></li>
+	<li aria-label="Future of technology Submenu" class=""><a aria-label="Future of technology menu" href="https://www.capgemini.com/insights/future-of-technology" target="_blank"><span><span>Future of technology</span></span></a></li>
+	<li aria-label="Marketing for customer experience Submenu" class=""><a aria-label="Marketing for customer experience menu" href="https://www.capgemini.com/insights/marketing-for-customer-experience/" target="_blank"><span><span>Marketing for customer experience</span></span></a></li>
+	<li aria-label="Research library Submenu" class=""><a aria-label="Research library menu" href="https://www.capgemini.com/insights/research-library/" target="_blank"><span><span>Research library</span></span></a></li>
+	<li aria-label="Expert perspectives Submenu" class=""><a aria-label="Expert perspectives menu" href="https://www.capgemini.com/insights/expert-perspectives/" target="_blank"><span><span>Expert perspectives</span></span></a></li>
+
+</ul></nav>
+</li>
+<li aria-label="Industries Submenu" class=""><a aria-label="Industries menu" href="https://www.capgemini.com/industries/" target="_blank"><span><span>Industries</span></span></a><button class="menu-arrow-down" aria-label="submenu" aria-expanded="false"></button> <div class="menu-submenu"><div class="menu-submenu-inner"><div class="menu-submenu-title-wrapper"><span class="menu-submenu-title">Industries</span><p>Learn about our worldwide presence and global scope across different industries.</p><a aria-label="Industries Learn more link" class="more2" href="https://www.capgemini.com/industries/">Learn more</a></div>
+<nav aria-label="Industries SubMenu" class="menu-submenu-nav--cols"><ul class="menu-l1">
+	<li aria-label="Aerospace and defense Submenu" class=""><a aria-label="Aerospace and defense menu" href="https://www.capgemini.com/industries/aerospace-and-defense/" target="_blank"><span><span>Aerospace and defense</span></span></a></li>
+	<li aria-label="Automotive Submenu" class=""><a aria-label="Automotive menu" href="https://www.capgemini.com/industries/automotive/" target="_blank"><span><span>Automotive</span></span></a></li>
+	<li aria-label="Banking and capital markets Submenu" class=""><a aria-label="Banking and capital markets menu" href="https://www.capgemini.com/industries/banking-and-capital-markets/" target="_blank"><span><span>Banking and capital markets</span></span></a></li>
+	<li aria-label="Consumer products Submenu" class=""><a aria-label="Consumer products menu" href="https://www.capgemini.com/industries/consumer-products/" target="_blank"><span><span>Consumer products</span></span></a></li>
+	<li aria-label="Energy and utilities Submenu" class=""><a aria-label="Energy and utilities menu" href="https://www.capgemini.com/industries/energy-and-utilities/" target="_blank"><span><span>Energy and utilities</span></span></a></li>
+	<li aria-label="Healthcare Submenu" class=""><a aria-label="Healthcare menu" href="https://www.capgemini.com/industries/healthcare/" target="_blank"><span><span>Healthcare</span></span></a></li>
+	<li aria-label="High tech Submenu" class=""><a aria-label="High tech menu" href="https://www.capgemini.com/industries/high-tech/" target="_blank"><span><span>High tech</span></span></a></li>
+	<li aria-label="Hospitality travel Submenu" class=""><a aria-label="Hospitality travel menu" href="https://www.capgemini.com/industries/hospitality-travel/" target="_blank"><span><span>Hospitality travel</span></span></a></li>
+	<li aria-label="Insurance Submenu" class=""><a aria-label="Insurance menu" href="https://www.capgemini.com/industries/insurance/" target="_blank"><span><span>Insurance</span></span></a></li>
+	<li aria-label="Life sciences Submenu" class=""><a aria-label="Life sciences menu" href="https://www.capgemini.com/industries/life-sciences/" target="_blank"><span><span>Life sciences</span></span></a></li>
+	<li aria-label="Manufacturing Submenu" class=""><a aria-label="Manufacturing menu" href="https://www.capgemini.com/industries/manufacturing/" target="_blank"><span><span>Manufacturing</span></span></a></li>
+	<li aria-label="Media and entertainment Submenu" class=""><a aria-label="Media and entertainment menu" href="https://www.capgemini.com/industries/media-and-entertainment/" target="_blank"><span><span>Media and entertainment</span></span></a></li>
+	<li aria-label="Public sector Submenu" class=""><a aria-label="Public sector menu" href="https://www.capgemini.com/industries/public-sector/" target="_blank"><span><span>Public sector</span></span></a></li>
+	<li aria-label="Retail Submenu" class=""><a aria-label="Retail menu" href="https://www.capgemini.com/industries/retail/" target="_blank"><span><span>Retail</span></span></a></li>
+	<li aria-label="Telecommunications Submenu" class=""><a aria-label="Telecommunications menu" href="https://www.capgemini.com/industries/telecommunications/" target="_blank"><span><span>Telecommunications</span></span></a></li>
+
+</ul></nav><div class="advertImageWrapper"><div class="imgSection"><a title="Industries at Capgemini Morocco:" href="/ma-en/about-us/"><div class="advertImg"><img decoding="async" loading="lazy" alt="Advert image" src="https://www.capgemini.com/ma-en/wp-content/uploads/sites/45/2023/09/DECOUVREZ-NOS-COLLABORATEURS-2880X1500.jpg?w=300&#038;quality=90"/></div></a><div class="advertImgInfo"><div class="advertContentWrapper"><strong><a title="Industries at Capgemini Morocco:" href="/ma-en/about-us/">Industries at Capgemini Morocco:</a></strong><p>Discover the industries we operate in</</div></div></div></div>
+</li>
+<li aria-label="Services Submenu" class=""><a aria-label="Services menu" href="https://www.capgemini.com/services/" target="_blank"><span><span>Services</span></span></a><button class="menu-arrow-down" aria-label="submenu" aria-expanded="false"></button> <div class="menu-submenu"><div class="menu-submenu-inner"><div class="menu-submenu-title-wrapper"><span class="menu-submenu-title">Services</span><p>Discover the full range of services that we, as a global Group, offer our clients.</p><a aria-label="Services Learn more link" class="more2" href="https://www.capgemini.com/services/">Learn more</a></div>
+<nav aria-label="Services SubMenu" class="menu-submenu-nav"><ul class="menu-l1">
+	<li aria-label="Cloud Submenu" class=""><a aria-label="Cloud menu" href="https://www.capgemini.com/services/cloud/" target="_blank"><span><span>Cloud</span></span></a></li>
+	<li aria-label="Customer first Submenu" class=""><a aria-label="Customer first menu" href="https://www.capgemini.com/services/customer-first/" target="_blank"><span><span>Customer first</span></span></a></li>
+	<li aria-label="Cybersecurity Submenu" class=""><a aria-label="Cybersecurity menu" href="https://www.capgemini.com/services/cybersecurity/" target="_blank"><span><span>Cybersecurity</span></span></a></li>
+	<li aria-label="Data and AI Submenu" class=""><a aria-label="Data and AI menu" href="https://www.capgemini.com/services/data-and-ai/" target="_blank"><span><span>Data and AI</span></span></a></li>
+	<li aria-label="Enterprise management Submenu" class=""><a aria-label="Enterprise management menu" href="https://www.capgemini.com/services/enterprise-management/" target="_blank"><span><span>Enterprise management</span></span></a></li>
+	<li aria-label="Intelligent industry Submenu" class=""><a aria-label="Intelligent industry menu" href="https://www.capgemini.com/services/intelligent-industry/" target="_blank"><span><span>Intelligent industry</span></span></a></li>
+	<li aria-label="Sustainability Submenu" class=""><a aria-label="Sustainability menu" href="https://www.capgemini.com/services/sustainability/" target="_blank"><span><span>Sustainability</span></span></a></li>
+
+</ul></nav><div class="advertImageWrapper"><div class="imgSection"><a title="Services at Capgemini Morocco:" href="/ma-en/about-us/"></a><div class="advertImgInfo"><div class="advertContentWrapper"><strong><a title="Services at Capgemini Morocco:" href="/ma-en/about-us/">Services at Capgemini Morocco:</a></strong><p>Discover the services we offer</p>
+</div></div></div></div>
+</li>
+<li aria-label="Careers Submenu" class=""><a aria-label="Careers menu" href="https://www.capgemini.com/ma-en/careers/"><span><span>Careers</span></span></a><button class="menu-arrow-down" aria-label="submenu" aria-expanded="false"></button> <div class="menu-submenu"><div class="menu-submenu-inner"><div class="menu-submenu-title-wrapper"><span class="menu-submenu-title">Careers</span><p>Find out what makes Capgemini so special – and what our Group can offer those who join us.</p><a aria-label="Careers Learn more link" class="more2" href="https://www.capgemini.com/ma-en/careers/">Learn more</a></div>
+<nav aria-label="Careers SubMenu" class="menu-submenu-nav"><ul class="menu-l1">
+	<li aria-label="Why join Capgemini Submenu" class=""><a aria-label="Why join Capgemini menu" href="https://www.capgemini.com/careers/why-join-capgemini/" target="_blank"><span><span>Why join Capgemini</span></span></a></li>
+	<li aria-label="Life at Capgemini Submenu" class=""><a aria-label="Life at Capgemini menu" href="https://www.capgemini.com/ma-en/careers/life-at-capgemini-morocco/" target="_blank"><span><span>Life at Capgemini</span></span></a></li>
+	<li aria-label="Meet our people Submenu" class=""><a aria-label="Meet our people menu" href="https://www.capgemini.com/careers/meet-our-people/" target="_blank"><span><span>Meet our people</span></span></a></li>
+	<li aria-label="Career paths Submenu" class="menu-parent"><a aria-label="Career paths menu" href="https://www.capgemini.com/careers/career-paths/" target="_blank"><span><span>Career paths</span></span></a>
+	<nav aria-label="Career paths SubMenu" class="menu-submenu-nav"><ul class="menu-l2">
+		<li aria-label="Students and graduates Submenu" class=""><a aria-label="Students and graduates menu" href="https://www.capgemini.com/careers/career-paths/students-and-graduates/" target="_blank"><span><span>Students and graduates</span></span></a></li>
+		<li aria-label="Experienced professionals Submenu" class=""><a aria-label="Experienced professionals menu" href="https://www.capgemini.com/careers/career-paths/experienced-professionals/" target="_blank"><span><span>Experienced professionals</span></span></a></li>
+		<li aria-label="Executives Submenu" class=""><a aria-label="Executives menu" href="https://www.capgemini.com/careers/career-paths/executives/" target="_blank"><span><span>Executives</span></span></a></li>
+		<li aria-label="Professional communities Submenu" class=""><a aria-label="Professional communities menu" href="https://www.capgemini.com/careers/career-paths/professional-communities/" target="_blank"><span><span>Professional communities</span></span></a></li>
+		<li aria-label="Careers at Capgemini Engineering Submenu" class=""><a aria-label="Careers at Capgemini Engineering menu" href="https://www.capgemini.com/careers/career-paths/careers-at-capgemini-engineering/" target="_blank"><span><span>Careers at Capgemini Engineering</span></span></a></li>
+	
+</ul></nav>
+</li>
+	<li aria-label="Join us Submenu" class=""><a aria-label="Join us menu" href="https://www.capgemini.com/ma-en/job-search/#country_code=ma-fr&#038;size=15"><span><span>Join us</span></span></a></li>
+
+</ul></nav><div class="advertImageWrapper"><div class="imgSection"><a title="Join Capgemini Morocco:" href="/ma-en/careers/"><div class="advertImg"><img decoding="async" loading="lazy" alt="Advert image" src="https://www.capgemini.com/ma-en/wp-content/uploads/sites/45/2024/03/GettyImages-1383485381.jpg?w=300&#038;quality=90"/></div></a><div class="advertImgInfo"><div class="advertContentWrapper"><strong><a title="Join Capgemini Morocco:" href="/ma-en/careers/">Join Capgemini Morocco:</a></strong><p>Discover careers with us</p>
+</div></div></div></div>
+</li>
+<li aria-label="News Submenu" class=""><a aria-label="News menu" href="https://www.capgemini.com/news/" target="_blank"><span><span>News</span></span></a><button class="menu-arrow-down" aria-label="submenu" aria-expanded="false"></button> <div class="menu-submenu"><div class="menu-submenu-inner"><div class="menu-submenu-title-wrapper"><span class="menu-submenu-title">News</span><p>See what people are saying about our Group – the press, the analysts, our clients, and our people.</p><a aria-label="News Learn more link" class="more2" href="https://www.capgemini.com/news/">Learn more</a></div>
+<nav aria-label="News SubMenu" class="menu-submenu-nav"><ul class="menu-l1">
+	<li aria-label="Press releases Submenu" class=""><a aria-label="Press releases menu" href="https://www.capgemini.com/ma-en/press-releases/" target="_blank"><span><span>Press releases</span></span></a></li>
+	<li aria-label="Analyst recognition Submenu" class=""><a aria-label="Analyst recognition menu" href="https://www.capgemini.com/news/analyst-recognition/" target="_blank"><span><span>Analyst recognition</span></span></a></li>
+	<li aria-label="Client stories Submenu" class=""><a aria-label="Client stories menu" href="https://www.capgemini.com/news/client-stories/" target="_blank"><span><span>Client stories</span></span></a></li>
+	<li aria-label="Inside stories Submenu" class=""><a aria-label="Inside stories menu" href="https://www.capgemini.com/news/inside-stories/" target="_blank"><span><span>Inside stories</span></span></a></li>
+	<li aria-label="Social media Submenu" class=""><a aria-label="Social media menu" href="https://www.capgemini.com/news/social-media/" target="_blank"><span><span>Social media</span></span></a></li>
+	<li aria-label="Events Submenu" class=""><a aria-label="Events menu" href="https://www.capgemini.com/news/events/#events=upcoming" target="_blank"><span><span>Events</span></span></a></li>
+
+</ul></nav>
+</li>
+<li aria-label="About us Submenu" class=""><a aria-label="About us menu" href="https://www.capgemini.com/ma-en/about-us" target="_blank"><span><span>About us</span></span></a><button class="menu-arrow-down" aria-label="submenu" aria-expanded="false"></button> <div class="menu-submenu"><div class="menu-submenu-inner"><div class="menu-submenu-title-wrapper"><span class="menu-submenu-title">About us</span><p>Find out who we are, what we do, how we work – and what we’re passionate about.</p><a aria-label="About us Learn more link" class="more2" href="https://www.capgemini.com/ma-en/about-us">Learn more</a></div>
+<nav aria-label="About us SubMenu" class="menu-submenu-nav"><ul class="menu-l1">
+	<li aria-label="Who we are Submenu" class="menu-parent"><a aria-label="Who we are menu" href="https://www.capgemini.com/about-us/who-we-are/" target="_blank"><span><span>Who we are</span></span></a>
+	<nav aria-label="Who we are SubMenu" class="menu-submenu-nav"><ul class="menu-l2">
+		<li aria-label="What we do Submenu" class=""><a aria-label="What we do menu" href="https://www.capgemini.com/about-us/who-we-are/what-we-do/" target="_blank"><span><span>What we do</span></span></a></li>
+		<li aria-label="The way we work Submenu" class=""><a aria-label="The way we work menu" href="https://www.capgemini.com/about-us/who-we-are/the-way-we-work/" target="_blank"><span><span>The way we work</span></span></a></li>
+		<li aria-label="Values and ethics Submenu" class=""><a aria-label="Values and ethics menu" href="https://www.capgemini.com/about-us/who-we-are/values-and-ethics/" target="_blank"><span><span>Values and ethics</span></span></a></li>
+		<li aria-label="Innovation ecosystem Submenu" class=""><a aria-label="Innovation ecosystem menu" href="https://www.capgemini.com/about-us/who-we-are/innovation-ecosystem/" target="_blank"><span><span>Innovation ecosystem</span></span></a></li>
+		<li aria-label="Our brands Submenu" class=""><a aria-label="Our brands menu" href="https://www.capgemini.com/about-us/who-we-are/our-brands/" target="_blank"><span><span>Our brands</span></span></a></li>
+		<li aria-label="Nobel International Partner Submenu" class=""><a aria-label="Nobel International Partner menu" href="https://www.capgemini.com/about-us/who-we-are/nobel-partner/" target="_blank"><span><span>Nobel International Partner</span></span></a></li>
+	
+</ul></nav>
+</li>
+	<li aria-label="Management and governance Submenu" class="menu-parent"><a aria-label="Management and governance menu" href="https://www.capgemini.com/about-us/management-and-governance/" target="_blank"><span><span>Management and governance</span></span></a>
+	<nav aria-label="Management and governance SubMenu" class="menu-submenu-nav"><ul class="menu-l2">
+		<li aria-label="Board of directors Submenu" class=""><a aria-label="Board of directors menu" href="https://www.capgemini.com/about-us/management-and-governance/board-of-directors/" target="_blank"><span><span>Board of directors</span></span></a></li>
+		<li aria-label="Management team Submenu" class=""><a aria-label="Management team menu" href="https://www.capgemini.com/about-us/management-and-governance/management-team/" target="_blank"><span><span>Management team</span></span></a></li>
+		<li aria-label="Responsible business Submenu" class=""><a aria-label="Responsible business menu" href="https://www.capgemini.com/about-us/management-and-governance/responsible-business/" target="_blank"><span><span>Responsible business</span></span></a></li>
+		<li aria-label="Policies Submenu" class=""><a aria-label="Policies menu" href="https://www.capgemini.com/about-us/management-and-governance/policies/" target="_blank"><span><span>Policies</span></span></a></li>
+	
+</ul></nav>
+</li>
+	<li aria-label="Environment, Social &amp; Governance Submenu" class=""><a aria-label="Environment, Social &amp; Governance menu" href="https://www.capgemini.com/about-us/approach-to-esg/" target="_blank"><span><span>Environment, Social &#038; Governance</span></span></a></li>
+	<li aria-label="Corporate Social Responsibility Submenu" class="menu-parent"><a aria-label="Corporate Social Responsibility menu" href="https://www.capgemini.com/ma-en/careers/csr/" target="_blank"><span><span>Corporate Social Responsibility</span></span></a>
+	<nav aria-label="Corporate Social Responsibility SubMenu" class="menu-submenu-nav"><ul class="menu-l2">
+		<li aria-label="Environmental sustainability Submenu" class=""><a aria-label="Environmental sustainability menu" href="https://www.capgemini.com/about-us/csr/environmental-sustainability/" target="_blank"><span><span>Environmental sustainability</span></span></a></li>
+		<li aria-label="Diversity and inclusion Submenu" class=""><a aria-label="Diversity and inclusion menu" href="https://www.capgemini.com/about-us/csr/diversity-and-inclusion/" target="_blank"><span><span>Diversity and inclusion</span></span></a></li>
+		<li aria-label="Digital inclusion Submenu" class=""><a aria-label="Digital inclusion menu" href="https://www.capgemini.com/about-us/csr/digital-inclusion/" target="_blank"><span><span>Digital inclusion</span></span></a></li>
+		<li aria-label="Social response unit Submenu" class=""><a aria-label="Social response unit menu" href="https://www.capgemini.com/about-us/csr/social-response-unit/" target="_blank"><span><span>Social response unit</span></span></a></li>
+	
+</ul></nav>
+</li>
+	<li aria-label="Passion for sport Submenu" class="menu-parent"><a aria-label="Passion for sport menu" href="https://www.capgemini.com/about-us/passion-for-sport/" target="_blank"><span><span>Passion for sport</span></span></a>
+	<nav aria-label="Passion for sport SubMenu" class="menu-submenu-nav"><ul class="menu-l2">
+		<li aria-label="World Rugby Submenu" class=""><a aria-label="World Rugby menu" href="https://www.capgemini.com/about-us/passion-for-sport/capgemini-and-world-rugby/" target="_blank"><span><span>World Rugby</span></span></a></li>
+		<li aria-label="Ryder Cup Submenu" class=""><a aria-label="Ryder Cup menu" href="https://www.capgemini.com/about-us/passion-for-sport/ryder-cup/" target="_blank"><span><span>Ryder Cup</span></span></a></li>
+		<li aria-label="Peugeot Sport Submenu" class=""><a aria-label="Peugeot Sport menu" href="https://www.capgemini.com/about-us/passion-for-sport/peugeot-sport/" target="_blank"><span><span>Peugeot Sport</span></span></a></li>
+	
+</ul></nav>
+</li>
+	<li aria-label="Technology partners Submenu" class=""><a aria-label="Technology partners menu" href="https://www.capgemini.com/about-us/technology-partners/" target="_blank"><span><span>Technology partners</span></span></a></li>
+	<li aria-label="Locations Submenu" class=""><a aria-label="Locations menu" href="https://www.capgemini.com/locations/" target="_blank"><span><span>Locations</span></span></a></li>
+
+</ul></nav><div class="advertImageWrapper"><div class="imgSection"><a title="Capgemini in Morocco:" href="/ma-en/about-us/"></a><div class="advertImgInfo"><div class="advertContentWrapper"><strong><a title="Capgemini in Morocco:" href="/ma-en/about-us/">Capgemini in Morocco:</a></strong><p>Discover our operations</p>
+</div></div></div></div>
+</li>
+</ul>
+
+					</nav>
+					<button class="header-search-button header-search-open">Search</button>
+					<!-- <div class="header-dmlm-wrapper toggle-container">
+						<input
+							type="checkbox"
+							id="darkModeCheckboxDesktop"
+							class="dark-mode-toggle toggle-input switch"
+							role="switch"
+							aria-checked="false"
+							aria-label="Toggle dark mode"
+						>
+
+						<label
+							for="darkModeCheckboxDesktop"
+							class="toggle-label"
+							tabindex="0"
+							role="switch"
+							aria-checked="false"
+							onkeydown="if(event.key === 'Enter' || event.key === ' ') { event.preventDefault(); document.getElementById('darkModeCheckboxDesktop').click(); }"
+						>
+							<span class="icon sun" aria-hidden="true">
+							<i class="icon icon-zodiak-sun"></i>
+							</span>
+							<span class="icon moon" aria-hidden="true">
+							<i class="icon icon-zodiak-moon"></i>
+							</span>
+							<span class="toggle-ball" aria-hidden="true"></span>
+						</label>
+					</div> -->
+					<div class="header-dmlm-wrapper toggle-container">
+						<!-- Screen reader status announcement -->
+						<div id="darkModeStatusDesktop" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+						<input
+							type="checkbox"
+							id="darkModeCheckboxDesktop"
+							class="dark-mode-toggle toggle-input switch"
+							role="switch"
+							aria-checked="false"
+							aria-labelledby="darkModeLabel"
+							aria-describedby="darkModeStatusDesktop"
+						>
+						<label
+							for="darkModeCheckboxDesktop"
+							id="darkModeLabel"
+							class="toggle-label"
+							tabindex="0"
+							role="switch"
+							onkeydown="if(event.key === 'Enter' || event.key === ' ') { event.preventDefault(); document.getElementById('darkModeCheckboxDesktop').click(); }"
+						>
+							<span id="modeStatus" class="visually-hidden">Dark and light mode toggle, currently light mode</span>
+							<span class="icon sun" aria-hidden="true">
+							<i class="icon icon-zodiak-sun"></i>
+							</span>
+							<span class="icon moon" aria-hidden="true">
+							<i class="icon icon-zodiak-moon"></i>
+							</span>
+							<span class="toggle-ball" aria-hidden="true"></span>
+						</label>
+						<div id="darkModeStatusDesktop2" class="visually-hidden" aria-live="polite" aria-atomic="true">
+							Currently in light mode
+						</div>
+						</div>
+
+
+
+				</div>
+
+			</div>
+		</div>
+		<!-- Header Search  -->
+		<div class="header-search" role="search">
+
+			<div class="header-search-inner">
+				<div class="header-search-top">
+					<div class="search-title">Search</div>
+					<div class="searchCloseWrapper">
+						<button class="header-search-close">Close <span class="closeIcon">X</span></button>
+												<div class="form--oneliner js-search-form search search-icon" id="searchform" role="search" aria-label="Header search" data-search-action="https://www.capgemini.com/ma-en/">
+							<div class="form-block">
+								<input type="text" onkeyup="fetch_search_result()" autocomplete="off" id="keyword" aria-label="search"
+									value="" name="s" placeholder="Start typing" class="archive_phrase_search noeffect-input common-top-search-input">
+								<div class="search-icon"> </div>
+								<button type="button" class="search-button common-top-search-button">Search</button>
+							</div>
+						</div>
+					</div>
+				</div>
+									<div class="header-search-bottom">
+						<span class="header-search-label">Most searched:</span>
+													<a href="https://www.capgemini.com/ma-en/?s=Cloud" aria-label="Cloud">
+								<p>Cloud</p>
+							</a>
+							<a href="https://www.capgemini.com/ma-en/?s=Management team" aria-label="Management team">
+								<p>Management team</p>
+							</a>
+							<a href="https://www.capgemini.com/ma-en/?s=Artificial intelligence" aria-label="Artificial intelligence">
+								<p>Artificial intelligence</p>
+							</a>
+											</div>
+								<div class="header-search-results">
+					<div class="header-search-results-inner" id="search_result">
+
+					</div>
+
+					<div class="header-search-results-bottom">
+												<a class="more2" href="javascript:void(0)">Show all results</a>
+					</div>
+				</div>
+			</div>
+		</div>
+		<!-- / Header Search -->
+		<!-- Breadcrumbs -->
+		<nav class="sub-navigation-wrapper" role="navigation"><div class="sub-navigation "><ul class="sub-navigation__list"><li><a href="https://www.capgemini.com/ma-en"><span class="mobile-home">Home</span></a></li><li><a href="/ma-en/job-search?page=1&#038;size=11&#038;country_code=ma-en" class="active"><span>Job search</span></a></li></ul></div></nav>		<!-- / Breadcrumbs -->
+	</div>
+</div>
+
+
+
+</header>
+</div>
+
+
+<main id="main-content">
+	<div class="entry-content wp-block-post-content is-layout-flow wp-block-post-content-is-layout-flow"><div id="cg-jobs-search-root"></div>
+
+
+
+<section class="wp-block-cg-blocks-social-media undefined is-style-cg-purple social-media-block"><div class="container"><div class="social-media-block-content-wrapper"><h3>Connect with us on social media</h3><ul><li><a href="https://www.facebook.com/Capgemini/" target="_blank" rel="noopener noreferrer" title="opens in a new window"><i aria-hidden="true" aria-label="Facebook" class="icon-fb"></i><span class="sr-only">Facebook</span></a></li><li><a href="https://www.linkedin.com/company/capgemini/" target="_blank" rel="noopener noreferrer" title="opens in a new window"><i aria-hidden="true" aria-label="Linkedin" class="icon-li"></i><span class="sr-only">Linkedin</span></a></li><li><a href="https://www.youtube.com/user/capgeminimedia" target="_blank" rel="noopener noreferrer" title="opens in a new window"><i aria-hidden="true" aria-label="Youtube" class="icon-yt"></i><span class="sr-only">Youtube</span></a></li><li><a href="https://www.instagram.com/capgemini/" target="_blank" rel="noopener noreferrer" title="opens in a new window"><i aria-hidden="true" aria-label="Instagram" class="icon-in"></i><span class="sr-only">Instagram</span></a></li></ul></div></div></section>
+</div>
+</main>
+
+
+
+<div class="wp-block-group is-layout-flow wp-block-group-is-layout-flow">
+ <footer class="wp-block-template-part">
+<div class="wp-block-group footer has-white-color has-text-color has-link-color has-small-font-size wp-elements-46ce7a5aa94a9e242254e383e62dc922 is-layout-flow wp-block-group-is-layout-flow">
+    <div class="wp-block-group footer-spacing wp-block-group-">
+<div class="wp-block-group is-layout-flow wp-block-group-is-layout-flow" tabindex="0">
+	<div class="container">
+
+					<a class="mobile-logo" href="#" tabindex="0">
+				<img decoding="async" loading="lazy" class="logo-light" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/footer-logo-new.svg" alt="Capgemini">
+				<img decoding="async" loading="lazy" class="logo-dark" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/footer-white-logo-new.svg" alt="Capgemini">
+			</a>
+		
+		<div class="row mobile-row">
+			<div class="col-md-8 footer-menu mobileMenu">
+				<div class="menu-mobile-menu-footer-container"><ul id="menu-mobile-menu-footer" class="menu"><li id="menu-item-628238" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-628238"><a href="https://www.capgemini.com/insights/">Insights</a></li>
+<li id="menu-item-628239" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-628239"><a href="https://www.capgemini.com/industries">Industries</a></li>
+<li id="menu-item-628240" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-628240"><a href="https://www.capgemini.com/services">Services</a></li>
+<li id="menu-item-628241" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-628241"><a href="https://www.capgemini.com/careers">Careers</a></li>
+<li id="menu-item-628242" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-628242"><a href="https://www.capgemini.com/about-us">About us</a></li>
+<li id="menu-item-628231" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-628231"><a target="_blank" href="https://investors.capgemini.com/en">Investors</a></li>
+<li id="menu-item-628232" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-628232"><a target="_blank" href="https://www.capgemini.com/terms-of-use/">Terms of use</a></li>
+<li id="menu-item-628233" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-628233"><a target="_blank" href="https://www.capgemini.com/accessibility/">Accessibility</a></li>
+<li id="menu-item-628234" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-628234"><a target="_blank" href="https://www.capgemini.com/privacy-policy/">Privacy policy</a></li>
+<li id="menu-item-628235" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-628235"><a target="_blank" href="https://www.capgemini.com/security-vulnerability-notification/">Security vulnerability notification</a></li>
+<li id="menu-item-628236" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-628236"><a target="_blank" href="https://www.capgemini.com/ma-en/cookie-settings/">Cookie settings</a></li>
+<li id="menu-item-628237" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-628237"><a target="_blank" href="https://www.capgemini.com/ma-encookie-policy/">Cookie policy</a></li>
+</ul></div>			</div>
+			<div class="col-md-4 mobile-row1">
+
+									<a class="logo" href="#">
+						<img decoding="async" loading="lazy" class="logo-light" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/footer-logo-new.svg" alt="Capgemini">
+						<img decoding="async" loading="lazy" class="logo-dark" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/footer-white-logo-new.svg" alt="Capgemini">
+					</a>
+				
+				<div class="footer-nav footer-nav-brands">
+					<p tabindex="0" aria-label="Our brands:">Our brands:</p>
+					<ul>
+													<li>
+																		<a tabindex="0" href="https://www.capgemini.com/about-us/who-we-are/our-brands/capgemini-engineering/ " target="_blank">
+											<img decoding="async" loading="lazy" class="logo-light capgeminiEngineeringLogoFooter" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/Logo_Capgemini_Engineering_new.svg" alt="Capgemini Engineering" style="margin-right: 0.4rem">
+											<img decoding="async" loading="lazy" class="logo-dark capgeminiEngineeringLogoFooter" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/Logo_Capgemini_Engineering_white_new.svg" alt="Capgemini Engineering" style="margin-right: 0.4rem">
+											<i aria-hidden="true" class="icon-outer" style="vertical-align: baseline"></i>
+										</a>
+																</li>
+							<li>
+																		<a tabindex="0" href="https://www.capgemini.com/about-us/who-we-are/our-brands/capgemini-invent/ " target="_blank">
+											<img decoding="async" loading="lazy" class="logo-light capgeminiInventLogoFooter" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/Logo_Capgemini_Invent_new.svg" alt="Capgemini Invent" style="margin-right: 0.4rem">
+											<img decoding="async" loading="lazy" class="logo-dark capgeminiInventLogoFooter" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/Logo_Capgemini_Invent_White_new.svg" alt="Capgemini Invent" style="margin-right: 0.4rem">
+											<i aria-hidden="true" class="icon-outer" style="vertical-align: baseline"></i>
+										</a>
+																</li>
+							<li>
+																		<a tabindex="0" href="https://www.capgemini.com/about-us/who-we-are/our-brands/sogeti/ " target="_blank">
+											<img decoding="async" loading="lazy" class="logo-light capgeminiSogetiLogoFooter" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/Logo_Sogeti.svg" alt="Sogeti" style="margin-right: 0.4rem">
+											<img decoding="async" loading="lazy" class="logo-dark capgeminiSogetiLogoFooter" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/images/Logo_Sogeti_white.svg" alt="Sogeti" style="margin-right: 0.4rem">
+											<i aria-hidden="true" class="icon-outer" style="vertical-align: baseline"></i>
+										</a>
+																</li>
+							<li>
+															</li>
+											</ul>
+				</div>
+			</div>
+			<div class="col-md-8 footer-menu desktopMenu">
+				<div class="menu-menu-footer-container"><ul id="menu-menu-footer" class="menu"><li id="menu-item-628154" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-has-children menu-item-628154"><a href="#" tabindex="0">Column1</a>
+<ul class="sub-menu">
+	<li id="menu-item-628145" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-628145"><a target="_blank" href="https://www.capgemini.com/insights/" tabindex="0">Insights</a></li>
+	<li id="menu-item-628146" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-628146"><a target="_blank" href="https://www.capgemini.com/industries/" tabindex="0">Industries</a></li>
+	<li id="menu-item-628147" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-628147"><a target="_blank" href="https://www.capgemini.com/services/" tabindex="0">Services</a></li>
+	<li id="menu-item-628148" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-628148"><a target="_blank" href="https://www.capgemini.com/careers/" tabindex="0">Careers</a></li>
+	<li id="menu-item-628149" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-628149"><a target="_blank" href="https://www.capgemini.com/news/" tabindex="0">News</a></li>
+	<li id="menu-item-628150" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-628150"><a target="_blank" href="https://www.capgemini.com/about-us/" tabindex="0">About us</a></li>
+	<li id="menu-item-628151" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-628151"><a target="_blank" href="https://www.capgemini.com/contact-us" tabindex="0">Contact us</a></li>
+	<li id="menu-item-628152" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-628152"><a target="_blank" href="https://investors.capgemini.com/en/" tabindex="0">Investors</a></li>
+</ul>
+</li>
+<li id="menu-item-628155" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-has-children menu-item-628155"><a href="#" tabindex="0">Column2</a>
+<ul class="sub-menu">
+	<li id="menu-item-628156" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-628156"><a target="_blank" href="https://www.capgemini.com/accessibility/" tabindex="0">Accessibility</a></li>
+	<li id="menu-item-628153" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-628153"><a target="_blank" href="https://www.capgemini.com/terms-of-use/" tabindex="0">Terms of use</a></li>
+	<li id="menu-item-628157" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-628157"><a target="_blank" href="https://www.capgemini.com/privacy-notice/" tabindex="0">Privacy notice</a></li>
+	<li id="menu-item-628158" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-628158"><a target="_blank" href="https://www.capgemini.com/security-vulnerability-notification/" tabindex="0">Security vulnerability notification</a></li>
+	<li id="menu-item-628159" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-628159"><a onclick="if (typeof window.taOpenCookiePreferences === &quot;function&quot;) { window.taOpenCookiePreferences(); } else if (window.truste &amp;&amp; window.truste.eu &amp;&amp; typeof window.truste.eu.clickListener === &quot;function&quot;) { window.truste.eu.clickListener(); } return false;" target="_blank" href="https://www.capgemini.com/ma-en/cookie-settings/" tabindex="0">Cookie settings</a></li>
+	<li id="menu-item-628160" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-628160"><a target="_blank" href="https://www.capgemini.com/ma-en/cookie-policy/" tabindex="0">Cookie policy</a></li>
+	<li id="menu-item-630176" class="menu-item menu-item-type-custom menu-item-object-custom menu-item-630176"><a href="https://www.capgemini.com/fraud-alert/" tabindex="0">Fraud alert</a></li>
+</ul>
+</li>
+</ul></div>			</div>
+		</div>
+		<div class="footer-bottom">
+			<small class="copyright desktop" tabindex="0">
+				&copy; Capgemini, 2026. All rights reserved.			</small>
+			<div class="social-nav-wrapper">
+
+				
+							<ul class="social-nav">
+															
+									<li>
+										<a tabindex="0"
+											href="https://www.linkedin.com/company/capgemini/posts/?feedView=all"
+											target="_blank"
+											class="footer-class"
+											rel="noopener noreferrer"
+											aria-label="LinkedIn — opens in a new window">
+											<i class="icon icon-zodiak-linkedin" ></i>											<span class="sr-only">LinkedIn</span>
+										</a>
+										<span aria-hidden="true" class="tooltip">LinkedIn</span>
+
+									</li>
+								
+															
+									<li>
+										<a tabindex="0"
+											href="https://twitter.com/Capgemini"
+											target="_blank"
+											class="footer-class"
+											rel="noopener noreferrer"
+											aria-label="Twitter — opens in a new window">
+											<i class="icon icon-zodiak-twitter" ></i>											<span class="sr-only">Twitter</span>
+										</a>
+										<span aria-hidden="true" class="tooltip">Twitter</span>
+
+									</li>
+								
+															
+									<li>
+										<a tabindex="0"
+											href="https://www.facebook.com/share/1BodQfVmsm/?mibextid=wwXIfr"
+											target="_blank"
+											class="footer-class"
+											rel="noopener noreferrer"
+											aria-label="Facebook — opens in a new window">
+											<i class="icon icon-zodiak-facebook" ></i>											<span class="sr-only">Facebook</span>
+										</a>
+										<span aria-hidden="true" class="tooltip">Facebook</span>
+
+									</li>
+								
+															
+									<li>
+										<a tabindex="0"
+											href="https://www.instagram.com/capgeminiengineeringma/"
+											target="_blank"
+											class="footer-class"
+											rel="noopener noreferrer"
+											aria-label="Instagram — opens in a new window">
+											<i class="icon icon-zodiak-instagram" ></i>											<span class="sr-only">Instagram</span>
+										</a>
+										<span aria-hidden="true" class="tooltip">Instagram</span>
+
+									</li>
+								
+														</ul>
+				
+							<ul class="social-nav">
+															
+									<li>
+										<a tabindex="0"
+											href="https://www.youtube.com/user/capgeminimedia"
+											target="_blank"
+											class="footer-class"
+											rel="noopener noreferrer"
+											aria-label="Youtube — opens in a new window">
+											<i class="icon icon-zodiak-youtube" ></i>											<span class="sr-only">Youtube</span>
+										</a>
+										<span aria-hidden="true" class="tooltip">Youtube</span>
+
+									</li>
+								
+															
+									<li>
+										<a tabindex="0"
+											href="https://www.glassdoor.com/Overview/Working-at-Capgemini-EI_IE3803.11,20.htm"
+											target="_blank"
+											class="footer-class"
+											rel="noopener noreferrer"
+											aria-label="Glassdoor — opens in a new window">
+											<i class="icon icon-zodiak-glassdoor" ></i>											<span class="sr-only">Glassdoor</span>
+										</a>
+										<span aria-hidden="true" class="tooltip">Glassdoor</span>
+
+									</li>
+								
+															
+									<li>
+										<a tabindex="0"
+											href=""
+											target="_blank"
+											class="footer-class"
+											rel="noopener noreferrer"
+											aria-label=" — opens in a new window">
+											<i class="generic-social-icon" ></i>											<span class="sr-only"></span>
+										</a>
+										<span aria-hidden="true" class="tooltip"></span>
+
+									</li>
+								
+										</div>
+			<small class="copyright mobile">&copy; Capgemini, 2026. All rights reserved.</small>
+		</div>
+	</div>
+</div>
+
+
+
+
+
+          
+    
+    <div class="wp-block-group footer-social-copyright has-global-padding is-layout-constrained wp-block-group-is-layout-constrained">
+     </div>
+     </div>
+     </div>
+     </footer>	
+</div>
+</div>
+<div id="consent_blackbar"></div><script type="speculationrules">
+{"prefetch":[{"source":"document","where":{"and":[{"href_matches":"/ma-en/*"},{"not":{"href_matches":["/ma-en/wp-*.php","/ma-en/wp-admin/*","/ma-en/wp-content/uploads/sites/45/*","/ma-en/wp-content/*","/ma-en/wp-content/plugins/*","/ma-en/wp-content/themes/capgemini2025/*","/ma-en/*\\?(.+)"]}},{"not":{"selector_matches":"a[rel~=\"nofollow\"]"}},{"not":{"selector_matches":".no-prefetch, .no-prefetch a"}}]},"eagerness":"conservative"}]}
+</script>
+		<style id="cg-rationalbi-consent-styles">
+		.rationalbi-consent-wrapper {
+			position: relative;
+			/*
+			 * Isolate the wrapper into its own stacking context so the consent
+			 * message's internal z-index values (10/11/12) stay local to the
+			 * wrapper instead of escaping to the root stacking context. Without
+			 * this, the pre-consent popup paints on top of the fixed breadcrumb
+			 * (.sub-navigation-wrapper), while the post-consent iframe correctly
+			 * sits behind it. Isolating keeps both states behind the breadcrumb.
+			 */
+			isolation: isolate;
+			width: 100%;
+			min-height: 300px;
+			background: var(--zodiak-page-background, #fff);
+			border: 1px solid var(--zodiak-border-color, #e5e3df);
+			border-radius: 8px;
+			overflow: hidden;
+			margin: 1rem 0;
+		}
+
+		.rationalbi-consent-message {
+			position: absolute;
+			top: 0;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			background: var(--zodiak-page-background, #fff);
+			z-index: 10;
+		}
+
+		.rationalbi-consent-overlay {
+			position: absolute;
+			top: 0;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			background: rgba(36, 83, 141, 0.1);
+			backdrop-filter: blur(5px);
+			z-index: 11;
+		}
+
+		.rationalbi-consent-content {
+			position: relative;
+			z-index: 12;
+			text-align: center;
+			padding: 2rem;
+			max-width: 420px;
+			background: var(--zodiak-page-background, #fff);
+			border-radius: 8px;
+			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+		}
+
+		.rationalbi-consent-content h3 {
+			margin: 0 0 0.5rem;
+			padding: 0;
+			color: var(--zodiak-text-primary, #333);
+			font-size: 1.25rem;
+			font-weight: 600;
+			font-family: var(--zodiak-font-family, sans-serif);
+		}
+
+		.rationalbi-consent-content p {
+			margin: 0 0 1.5rem;
+			color: var(--zodiak-text-secondary, #666);
+			font-size: 0.95rem;
+			line-height: 1.5;
+			font-family: var(--zodiak-font-family, sans-serif);
+		}
+
+		.rationalbi-consent-button {
+			display: inline-block;
+			background: var(--zodiak-action-primary-default-on-lite, #007cba);
+			color: var(--zodiak-text-inverse, #fff);
+			border: none;
+			border-radius: 25px;
+			padding: 0.75rem 2rem;
+			font-size: 1rem;
+			font-weight: 500;
+			cursor: pointer;
+			transition: background-color 0.2s ease;
+			font-family: var(--zodiak-font-family, sans-serif);
+			text-decoration: none;
+		}
+
+		.rationalbi-consent-button:hover {
+			background: var(--zodiak-action-primary-hover, #005a87);
+		}
+
+		.rationalbi-consent-button:focus {
+			outline: 2px solid var(--zodiak-action-primary-focus, #007cba);
+			outline-offset: 2px;
+		}
+
+		.rationalbi-embed-container {
+			position: relative;
+			width: 100%;
+			min-height: 400px;
+		}
+
+		.rationalbi-embed-container iframe {
+			width: 100%;
+			height: 100%;
+			border: none;
+		}
+
+		.rationalbi-loading {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			min-height: 400px;
+			color: var(--zodiak-text-secondary, #666);
+			font-family: var(--zodiak-font-family, sans-serif);
+		}
+
+		@media (max-width: 768px) {
+			.rationalbi-consent-content {
+				margin: 1rem;
+				padding: 1.5rem;
+			}
+
+			.rationalbi-consent-content h3 {
+				font-size: 1.1rem;
+			}
+
+			.rationalbi-consent-content p {
+				font-size: 0.9rem;
+			}
+
+			.rationalbi-consent-button {
+				width: 100%;
+				padding: 0.875rem 1.5rem;
+			}
+		}
+
+		@media (prefers-color-scheme: dark) {
+			.rationalbi-consent-wrapper,
+			.rationalbi-consent-message,
+			.rationalbi-consent-content {
+				background: var(--zodiak-page-background-dark, #1a1a1a);
+				border-color: var(--zodiak-border-color-dark, #333);
+			}
+
+			.rationalbi-consent-content h3 {
+				color: var(--zodiak-text-primary-dark, #fff);
+			}
+
+			.rationalbi-consent-content p {
+				color: var(--zodiak-text-secondary-dark, #ccc);
+			}
+		}
+		</style>
+			<script type="text/javascript">
+		var entityMap = {
+			'&': '&',
+			'<': '&lt;',
+			'>': '&gt;',
+			'"': '&quot;',
+			"'": "'",
+			'/': '&#x2F;',
+			'`': '&#x60;',
+			'=': '&#x3D;'
+		};
+
+		function escapeHtmlHeader(string) {
+			return String(string).replace(/[&<>"'`=\/]/g, function(s) {
+				return entityMap[s];
+			});
+		}
+		var noresult = '<h3><b>No results found</b></h3>';
+
+		function fetch_search_result() {
+			let paged = 1;
+			if (escapeHtmlHeader(jQuery('#searchform input:text').val())) {
+				jQuery('#searchform input:text').val(escapeHtmlHeader(jQuery('#searchform input:text').val()));
+				jQuery.ajax({
+					url: 'https://www.capgemini.com/ma-en/wp-json/wp/v2/search?allow_search_function',
+					type: 'GET',
+					data: {
+						search: escapeHtmlHeader(jQuery('#searchform input:text').val()),
+						paged: paged,
+						postperpage: 6
+					},
+					success: function(success) {
+						var html = "";
+						if (success.length > 0) {
+							success.forEach((data, index) => {
+								if (index < 5) {
+									var dateHtml = "";
+									if (data.type !== "post" && data.type !== "page") {
+										dateHtml = '<span class="box-date">' + data.formatted_date + '</span>';
+									}
+									html += '<div class="box"><span class="box-tag">' + data.post_type_name + '</span><a  href="' + data.post_link + '" class="box-title"><h4>' + data.title + '</h4></a>' + dateHtml + '</div>';
+								}
+							});
+						} else {
+							html += '<div class="box">' + noresult + '</div>';
+						}
+						jQuery('#search_result').html(html);
+					},
+					error: function(error) {
+						jQuery('#search_result').html("No results found");
+					}
+				});
+			}
+
+		}
+	</script>
+
+<script id="react-js" src="https://www.capgemini.com/ma-en/wp-includes/js/dist/vendor/react.min.js?ver=18.3.1.1"></script>
+<script id="react-dom-js" src="https://www.capgemini.com/ma-en/wp-includes/js/dist/vendor/react-dom.min.js?ver=18.3.1.1"></script>
+<script id="wp-escape-html-js" src="https://www.capgemini.com/ma-en/wp-includes/js/dist/escape-html.min.js?ver=3f093e5cca67aa0f8b56"></script>
+<script id="wp-element-js" src="https://www.capgemini.com/ma-en/wp-includes/js/dist/element.min.js?ver=15ba804677f72a8db97b"></script>
+<script id="wp-hooks-js" src="https://www.capgemini.com/ma-en/wp-includes/js/dist/hooks.min.js?ver=7496969728ca0f95732d"></script>
+<script id="wp-i18n-js" src="https://www.capgemini.com/ma-en/wp-includes/js/dist/i18n.min.js?ver=781d11515ad3d91786ec"></script>
+<script id="wp-i18n-js-after">
+wp.i18n.setLocaleData( { 'text direction\u0004ltr': [ 'ltr' ] } );
+wp.i18n.setLocaleData( { 'text direction\u0004ltr': [ 'ltr' ] } );
+//# sourceURL=wp-i18n-js-after
+</script>
+<script id="jobs_search_v2-js-extra">
+var cg_jobs_jobstream_url = "https://cg-jobstream-api.azurewebsites.net/api";
+var cg_jobs_banner_strikeout_text = "";
+var cg_jobs_banner_handwritten_text = "";
+var cg_jobs_explore_all_jobs_button_text = "";
+var cg_jobs_explore_all_jobs_url = "https://www.capgemini.com/ma-en/job-search/#country_code=ma-fr&size=15";
+var cg_jobs_banner_image_large_desktop = "";
+var cg_jobs_banner_image_small_desktop = "";
+var cg_jobs_banner_image_tablet = "";
+var cg_jobs_banner_image_mobile = "";
+var cg_jobs_banner_text = "";
+var cg_jobs_placeholder_text = "";
+var cg_jobs_noresult_text = "";
+var cg_jobs_country_code = "";
+var cg_jobs_get_filter_data = ["experience_level","professional_communities","location","contract_type","brand"];
+var cg_jobs_get_tags_data = ["professional_communities","contract_type","experience_level"];
+var cg_jobs_tranlsation_filters_selections = [];
+var cg_jobs_translated_filters = [];
+var cg_jobs_translated_labels = {"We found XX results matching your search":"","We found XX results":"","Close search results":""};
+var cg_jobs_es_var = {"pathName":"ma-en"};
+//# sourceURL=jobs_search_v2-js-extra
+</script>
+<script id="jobs_search_v2-js" src="https://www.capgemini.com/ma-en/wp-content/plugins/cg-jobs/inc/search/app/build/cg-jobs-search-frontend.build.js?ver=1.0.555"></script>
+<script id="jquery_cookie-js" src="https://www.capgemini.com/ma-en/wp-content/plugins/wp-cookie-consent/assets/js/jquery.cookie.min.js?ver=2.1.69"></script>
+<script id="lodash-js" src="https://www.capgemini.com/ma-en/wp-includes/js/dist/vendor/lodash.min.js?ver=4.18.1"></script>
+<script id="lodash-js-after">
+window.lodash = _.noConflict();
+//# sourceURL=lodash-js-after
+</script>
+<script id="macs-cookies-es5-js-extra">
+var MACS_COOKIES = {"cookiePolicyVersion":"1685640910","ID":"842766996","embedCookiesYtb":"\u003Ca href='#' onclick = 'ta_click();'\u003EPlease allow advertising cookies to see this Youtube embed\u003C/a\u003E","embedCookiesSnd":"\u003Ca href='#' onclick = 'ta_click();'\u003EPlease allow statistical cookies to see this Soundcloud embed\u003C/a\u003E"};
+//# sourceURL=macs-cookies-es5-js-extra
+</script>
+<script id="macs-cookies-es5-js" src="https://www.capgemini.com/ma-en/wp-content/plugins/wp-cookie-consent/dist/js/macs-cookies-es5.min.js?ver=2.1.69"></script>
+<script id="ta_click-js" src="https://www.capgemini.com/ma-en/wp-content/plugins/wp-cookie-consent/dist/js/ta-set-cookie.min.js?ver=2.1.69"></script>
+<script id="cg-rationalbi-consent-js-extra">
+var cgRationalBI = {"strings":{"acceptCookies":"Accept cookies","consentMessage":"to view the business intelligence charts and data visualizations.","openSettings":"Open cookie settings","loadingChart":"Loading chart..."}};
+//# sourceURL=cg-rationalbi-consent-js-extra
+</script>
+<script id="cg-rationalbi-consent-js" src="https://www.capgemini.com/ma-en/wp-content/client-mu-plugins/rationalbi-consent.js?ver=1.0.0"></script>
+<script id="anchor-block-public-scripts-js" src="https://www.capgemini.com/ma-en/wp-content/plugins/anchor-block/public/anchor-block.js?ver=1764589379"></script>
+<script id="frontend-js-js" src="https://www.capgemini.com/ma-en/wp-content/plugins/social-media-share/js/front.js?ver=1.0.0"></script>
+<script id="wp-parsely-loader-js-before">
+window.wpParselySiteId = 'capgemini.com';
+//# sourceURL=wp-parsely-loader-js-before
+</script>
+<script id="wp-parsely-loader-js" src="https://www.capgemini.com/ma-en/wp-content/mu-plugins/wp-parsely-3.24/build/loader.js?ver=ecf94842061bea03d54b"></script>
+<script id="parsely-cfg" data-parsely-site="capgemini.com" src="https://cdn.parsely.com/keys/capgemini.com/p.js?ver=3.24.1"></script>
+<script id="gsap-js" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/js/gsap-3.12.5/gsap.min.js?ver=3.12.5"></script>
+<script id="gsap/ScrollTrigger-js" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/assets/js/gsap-3.12.5/ScrollTrigger.min.js?ver=3.12.5"></script>
+<script id="capgemini-script-js-extra">
+var cgArchive = {"ajaxUrl":"https://www.capgemini.com/ma-en/wp-admin/admin-ajax.php","eventLocationNonce":"6c4f76119e"};
+//# sourceURL=capgemini-script-js-extra
+</script>
+<script id="capgemini-script-js" src="https://www.capgemini.com/ma-en/wp-content/themes/capgemini2025/public/dist/app.build.js?ver=1.0.1059"></script>
+<script id="jquery-ui-core-js" src="https://www.capgemini.com/ma-en/wp-includes/js/jquery/ui/core.min.js?ver=1.13.3"></script>
+<script id="jquery-ui-datepicker-js" src="https://www.capgemini.com/ma-en/wp-includes/js/jquery/ui/datepicker.min.js?ver=1.13.3"></script>
+<script id="jquery-ui-datepicker-js-after">
+jQuery(function(jQuery){jQuery.datepicker.setDefaults({"closeText":"Close","currentText":"Today","monthNames":["January","February","March","April","May","June","July","August","September","October","November","December"],"monthNamesShort":["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],"nextText":"Next","prevText":"Previous","dayNames":["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"],"dayNamesShort":["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],"dayNamesMin":["S","M","T","W","T","F","S"],"dateFormat":"MM d, yy","firstDay":1,"isRTL":false});});
+//# sourceURL=jquery-ui-datepicker-js-after
+</script>
+<script id="select-woo-js" src="https://www.capgemini.com/ma-en/wp-content/plugins/wp-macs-forms/dist/public/js/selectWoo.full.min.js?ver=4.0.3"></script>
+<script id="wp-macs-forms-js-extra">
+var MF = {"ajaxURL":"https://www.capgemini.com/ma-en/wp-admin/admin-ajax.php","ajaxNonce":"c57a3504a5","strings":{"remove_file":"Remove file","select_file":"Select file","uploading":"uploading...","file_selected":"File selected","default_error":"","required_error":"","email_error":"","date_format_error":"Please enter date in valid format!","valid_email_error":"Please enter a valid email address.","mandatory_field":"Mandatory field","email_format_error":"Please enter email address in the format name@example.com","capgemini_email_format_error":"Please enter email address in the format name@capgemini.com","required_field":"This field is required","no_letters":"This field must not contain letters","capgemini_email_error":"The email address is not in the format name@capgemini.com","example_email_error":"The email address is not in the format name@example.com","accept_terms":"Please accept the terms","agree_terms":"I agree to the terms","search":"Search","form_submitted_redirecting":"Form submitted successfully. Redirecting...","form_submitted":"Form submitted successfully.","check_fields":"Please check the following fields","no_result":"No results found"}};
+//# sourceURL=wp-macs-forms-js-extra
+</script>
+<script id="wp-macs-forms-js" src="https://www.capgemini.com/ma-en/wp-content/plugins/wp-macs-forms/dist/public/js/wp-macs-forms-front.min.js?ver=1.0.69"></script>
+<script id="jetpack-stats-js-before">
+_stq = window._stq || [];
+_stq.push([ "view", {"v":"ext","blog":"221389046","post":"629929","tz":"3","srv":"www.capgemini.com","hp":"vip","j":"1:16.1.3"} ]);
+_stq.push([ "clickTrackerInit", "221389046", "629929" ]);
+//# sourceURL=jetpack-stats-js-before
+</script>
+<script data-wp-strategy="defer" defer fetchpriority="low" id="jetpack-stats-js" src="https://stats.wp.com/e-202637.js"></script>
+<script id="wp-emoji-settings" type="application/json">
+{"baseUrl":"https://s.w.org/images/core/emoji/17.0.2/72x72/","ext":".png","svgUrl":"https://s.w.org/images/core/emoji/17.0.2/svg/","svgExt":".svg","source":{"concatemoji":"https://www.capgemini.com/ma-en/wp-includes/js/wp-emoji-release.min.js?ver=7.0.4"}}
+</script>
+<script type="module">
+/*! This file is auto-generated */
+var e="script#wp-emoji-settings",t=document.querySelector(e);if(!(t instanceof HTMLScriptElement))throw new Error("Element missing: "+e);const r=JSON.parse(t.text),s=(window._wpemojiSettings=r,"wpEmojiSettingsSupports"),o=["flag","emoji"];function i(e){try{var t={supportTests:e,timestamp:(new Date).valueOf()};sessionStorage.setItem(s,JSON.stringify(t))}catch(e){}}function c(e,t,n){e.clearRect(0,0,e.canvas.width,e.canvas.height),e.fillText(t,0,0);t=new Uint32Array(e.getImageData(0,0,e.canvas.width,e.canvas.height).data);e.clearRect(0,0,e.canvas.width,e.canvas.height),e.fillText(n,0,0);const r=new Uint32Array(e.getImageData(0,0,e.canvas.width,e.canvas.height).data);return t.every((e,t)=>e===r[t])}function p(e,t){e.clearRect(0,0,e.canvas.width,e.canvas.height),e.fillText(t,0,0);var n=e.getImageData(16,16,1,1);for(let e=0;e<n.data.length;e++)if(0!==n.data[e])return!1;return!0}function u(e,t,n,r){switch(t){case"flag":return n(e,"\ud83c\udff3\ufe0f\u200d\u26a7\ufe0f","\ud83c\udff3\ufe0f\u200b\u26a7\ufe0f")?!1:!n(e,"\ud83c\udde8\ud83c\uddf6","\ud83c\udde8\u200b\ud83c\uddf6")&&!n(e,"\ud83c\udff4\udb40\udc67\udb40\udc62\udb40\udc65\udb40\udc6e\udb40\udc67\udb40\udc7f","\ud83c\udff4\u200b\udb40\udc67\u200b\udb40\udc62\u200b\udb40\udc65\u200b\udb40\udc6e\u200b\udb40\udc67\u200b\udb40\udc7f");case"emoji":return!r(e,"\ud83e\u1fac8")}return!1}function f(e,t,n,r){let a;const s=(a="undefined"!=typeof WorkerGlobalScope&&self instanceof WorkerGlobalScope?new OffscreenCanvas(300,150):document.createElement("canvas")).getContext("2d",{willReadFrequently:!0}),o=(s.textBaseline="top",s.font="600 32px Arial",{});return e.forEach(e=>{o[e]=t(s,e,n,r)}),o}function a(e){var t=document.createElement("script");t.src=e,t.defer=!0,document.head.appendChild(t)}r.supports={everything:!0,everythingExceptFlag:!0},new Promise(t=>{let n=function(){try{var e=JSON.parse(sessionStorage.getItem(s));if("object"==typeof e&&"number"==typeof e.timestamp&&(new Date).valueOf()<e.timestamp+604800&&"object"==typeof e.supportTests)return e.supportTests}catch(e){}return null}();if(!n){if("undefined"!=typeof Worker&&"undefined"!=typeof OffscreenCanvas&&"undefined"!=typeof URL&&URL.createObjectURL&&"undefined"!=typeof Blob)try{var e="postMessage("+f.toString()+"("+[JSON.stringify(o),u.toString(),c.toString(),p.toString()].join(",")+"));",r=new Blob([e],{type:"text/javascript"});const a=new Worker(URL.createObjectURL(r),{name:"wpTestEmojiSupports"});return void(a.onmessage=e=>{i(n=e.data),a.terminate(),t(n)})}catch(e){}i(n=f(o,u,c,p))}t(n)}).then(e=>{for(const n in e)r.supports[n]=e[n],r.supports.everything=r.supports.everything&&r.supports[n],"flag"!==n&&(r.supports.everythingExceptFlag=r.supports.everythingExceptFlag&&r.supports[n]);var t;r.supports.everythingExceptFlag=r.supports.everythingExceptFlag&&!r.supports.flag,r.supports.everything||((t=r.source||{}).concatemoji?a(t.concatemoji):t.wpemoji&&t.twemoji&&(a(t.twemoji),a(t.wpemoji)))});
+//# sourceURL=https://www.capgemini.com/ma-en/wp-includes/js/wp-emoji-loader.min.js
+</script>
+</body>
+</html>

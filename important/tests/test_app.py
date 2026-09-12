@@ -42,7 +42,9 @@ def test_health_endpoint_uses_database_dependency(monkeypatch) -> None:
 
     app.dependency_overrides.clear()
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "database": "ok"}
+    assert response.json()["status"] == "ok"
+    assert response.json()["database"] == "ok"
+    assert "latency_ms" in response.json()
 
 
 def test_scrape_target_endpoints() -> None:

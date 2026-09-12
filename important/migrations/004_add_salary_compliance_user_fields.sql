@@ -1,0 +1,12 @@
+ALTER TABLE jobs ADD COLUMN salary_min DECIMAL(12,2) NULL;
+ALTER TABLE jobs ADD COLUMN salary_max DECIMAL(12,2) NULL;
+ALTER TABLE jobs ADD COLUMN salary_currency CHAR(3) NULL;
+ALTER TABLE jobs ADD COLUMN salary_period VARCHAR(20) NULL;
+
+ALTER TABLE user_preferences ADD COLUMN salary_currency CHAR(3) NULL;
+
+ALTER TABLE scrape_targets ADD COLUMN robots_txt_allowed BOOLEAN NULL;
+ALTER TABLE scrape_targets ADD COLUMN robots_txt_checked_at DATETIME NULL;
+
+ALTER TABLE users ADD COLUMN email_verified BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT TRUE;

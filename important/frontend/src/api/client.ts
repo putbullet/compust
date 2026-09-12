@@ -961,4 +961,9 @@ export interface ScraperDiagnosticResponse {
     employment_type?: string;
     skills_count?: number;
   }>;
+  http_status?: number | null;
+  content_type?: string | null;
+  rendering_mode?: string | null;
+  discovery_method?: string | null;
+  failure_reason?: string | null;
 }

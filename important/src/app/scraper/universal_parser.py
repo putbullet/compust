@@ -14,6 +14,7 @@ from .platforms.lever import LeverAdapter
 from .platforms.smartrecruiters import SmartRecruitersAdapter
 from .platforms.workday import WorkdayAdapter
 from .platforms.workable import WorkableAdapter
+from .platforms.teamtailor import TeamtailorAdapter
 from .sanitizer import sanitize_html, sanitize_plain_text
 from .url_normalizer import normalize_url
 from .vocabulary import normalize_employment_type, normalize_remote_type, SKILL_SYNONYMS
@@ -37,6 +38,11 @@ DISALLOWED_LINK_PATTERNS = [
     r"life[-_ ]?at|deloitte[-_ ]?life",
     r"notre[-_ ]?(?:engagement|culture|vision|histoire)",
     r"development/|cmp-teaser",
+    r"/departments?/",
+    r"/categories?/",
+    r"/teams?/",
+    r"/locations?/",
+    r"/connect(?:/|\b)",
 ]
 
 # Section headings to exclude from job candidate titles
@@ -50,12 +56,15 @@ EXCLUDED_SECTION_HEADINGS = [
     r"open\s+positions|current\s+openings|career\s+opportunities",
     r"frequently\s+asked\s+questions|faq",
     r"equal\s+opportunity|diversity\s+(?:&|and)\s+inclusion",
+    r"^\s*\d+\s+(?:open\s+)?(?:jobs?|positions?|vacancies|openings?|roles?|opportunities)",
+    r"all\s+(?:jobs?|positions?|vacancies|openings?|roles?)",
+    r"filter\s+by",
 ]
 
 CAREER_PATH_INDICATORS = [
-    r"job", r"career", r"vacancy", r"opening", r"position", r"opportunity",
-    r"emploi", r"offre", r"recrutement", r"poste",
-    r"karriere", r"stelle",
+    r"jobs?", r"careers?", r"vacanc(?:y|ies)", r"openings?", r"positions?", r"opportunit(?:y|ies)",
+    r"emplois?", r"offres?", r"recrutements?", r"postes?",
+    r"karriere", r"stellen?",
 ]
 
 COMMON_SKILLS = sorted(list(set(SKILL_SYNONYMS.values())))
@@ -64,6 +73,11 @@ COMMON_SKILLS = sorted(list(set(SKILL_SYNONYMS.values())))
 def is_plausible_job_link(href: str, text: str) -> bool:
     """Validate that an anchor link is plausibly a job detail link and not a policy/nav link."""
     if not href or href.startswith("#") or href.startswith("javascript:") or href.startswith("mailto:"):
+        return False
+
+    parsed_href = urlparse(href)
+    norm_path = parsed_href.path.rstrip("/").lower()
+    if norm_path in ("", "/jobs", "/careers", "/openings", "/positions", "/vacancies", "/emploi", "/offres"):
         return False
 
     combined = f"{href} {text}".lower()
@@ -80,6 +94,10 @@ def is_plausible_job_link(href: str, text: str) -> bool:
 
     # Check if text is just navigation numbers or arrows
     if re.match(r"^[\d\s><»«\-\|\.]+$", cleaned_text):
+        return False
+
+    # Reject number counter headers such as "5 jobs"
+    if re.match(r"^\d+\s+(?:jobs?|positions?|vacancies|openings?|roles?)$", cleaned_text, re.I):
         return False
 
     return True
@@ -402,6 +420,25 @@ def extract_html_card_jobs(soup: BeautifulSoup, source_url: str) -> list[JobCand
             cards = found
             break
 
+    # If standard class-based card selectors didn't match, look for list containers (li, tr)
+    # that each enclose a distinctive job URL anchor (/jobs/<id>, /careers/<slug>, etc.)
+    if not cards:
+        job_pattern = re.compile(r"/(?:jobs?|positions?|vacanc(?:y|ies)|careers?)/[a-zA-Z0-9_\-]+", re.I)
+        matched_containers = []
+        for a in soup.find_all("a", href=True):
+            href = a["href"]
+            p = urlparse(href).path.rstrip("/")
+            if p.lower() in ("", "/jobs", "/careers", "/openings", "/positions", "/vacancies"):
+                continue
+            if re.search(r"/(?:departments?|categories?|teams?|locations?)/", p, re.I):
+                continue
+            if job_pattern.search(p):
+                container = a.find_parent("li") or a.find_parent("tr")
+                if container and container not in matched_containers:
+                    matched_containers.append(container)
+        if len(matched_containers) >= 2:
+            cards = matched_containers
+
     if cards:
         for card in cards:
             link = card.select_one("a[href]")
@@ -428,9 +465,11 @@ def extract_html_card_jobs(soup: BeautifulSoup, source_url: str) -> list[JobCand
             seen_urls.add(full_url)
 
             location = None
-            loc_el = card.select_one("[class*='location'], [class*='city'], [class*='place'], [class*='lieu']")
-            if loc_el:
-                location = sanitize_plain_text(loc_el.get_text(" ", strip=True))
+            loc_el = card.select_one("[class*='location'], [class*='city'], [class*='place'], [class*='lieu'], div.text-md, [class*='text-sm'], [class*='sub']")
+            if loc_el and loc_el != link:
+                loc_cand = sanitize_plain_text(loc_el.get_text(" ", strip=True))
+                if loc_cand and loc_cand != title:
+                    location = loc_cand
 
             dept = None
             dept_el = card.select_one("[class*='dept'], [class*='department'], [class*='service'], [class*='team']")
@@ -576,6 +615,8 @@ def parse_universal_jobs(source: FetchedSource) -> ParseResult:
         return SmartRecruitersAdapter().parse(source)
     if WorkdayAdapter.can_handle_url(target_url):
         return WorkdayAdapter().parse(source)
+    if TeamtailorAdapter.can_handle_source(source):
+        return TeamtailorAdapter().parse(source)
 
     # Layer 2: Direct JSON response
     body_stripped = (source.body or "").strip()

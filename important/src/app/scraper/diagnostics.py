@@ -51,6 +51,8 @@ def detect_target_platform(url: str) -> str:
         return "inwi"
     if "deloitte.com" in url_lower:
         return "deloitte"
+    if "teamtailor.com" in url_lower or "teamtailor" in url_lower:
+        return "teamtailor"
     return "unknown"
 
 

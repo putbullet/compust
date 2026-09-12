@@ -72,6 +72,12 @@ def classify_portal(
         suggested_strategy = "greenhouse_api"
         recommendation = "Target uses Greenhouse. Use Greenhouse Job Board API: https://boards-api.greenhouse.io/v1/boards/{board}/jobs"
         api_endpoints.append("https://boards-api.greenhouse.io/v1/boards/{board}/jobs")
+    elif "teamtailor.com" in domain_and_path or "teamtailor" in html_lower or "careersite--" in html_lower or "app.teamtailor.com" in html_lower:
+        portal_type = "teamtailor"
+        pagination_style = "single_page"
+        suggested_strategy = "teamtailor"
+        recommendation = "Target uses Teamtailor ATS. Ingest vacancies via Teamtailor RSS or careersite DOM."
+        api_endpoints.append(f"{parsed.scheme}://{parsed.netloc}/jobs.rss")
     elif "taleo.net" in domain_and_path or "taleo" in html_lower:
         portal_type = "taleo"
         pagination_style = "page_param"

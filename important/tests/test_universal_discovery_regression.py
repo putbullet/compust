@@ -173,3 +173,50 @@ def test_live_riot_workable_discovery():
     assert report.platform_detected == "workable"
     assert report.jobs_discovered >= 15
     assert report.jobs_accepted >= 15
+
+
+def test_redsift_teamtailor_fixture_parsing():
+    from src.app.scraper.platforms.teamtailor import TeamtailorAdapter
+    from bs4 import BeautifulSoup
+
+    html_path = FIXTURES_DIR / "redsift_careers.html"
+    assert html_path.exists(), "Red Sift HTML fixture must exist"
+    html_text = html_path.read_text(encoding="utf-8")
+
+    # 1. Test DOM-based extraction
+    soup = BeautifulSoup(html_text, "html.parser")
+    dom_jobs = TeamtailorAdapter.parse_html(soup, "https://careers.redsift.com/jobs")
+    assert len(dom_jobs) == 5, f"Expected 5 jobs from DOM, got {len(dom_jobs)}"
+    dom_titles = {j.title for j in dom_jobs}
+    assert "Sales Development Representative (SDR)" in dom_titles
+    assert "IAM Product Engineer" in dom_titles
+    assert "Business Automation Manager" in dom_titles
+
+    # 2. Test RSS XML extraction
+    rss_path = FIXTURES_DIR / "redsift_jobs.rss"
+    assert rss_path.exists(), "Red Sift RSS fixture must exist"
+    rss_text = rss_path.read_text(encoding="utf-8")
+    rss_jobs = TeamtailorAdapter.parse_rss(rss_text, "https://careers.redsift.com/jobs")
+    assert len(rss_jobs) == 5, f"Expected 5 jobs from RSS, got {len(rss_jobs)}"
+    for job in rss_jobs:
+        assert job.title
+        assert "careers.redsift.com/jobs/" in job.job_url
+        assert job.description and len(job.description) > 50
+
+    # 3. Test Universal Strategy parsing on Red Sift source
+    source = make_source("https://careers.redsift.com/jobs", html_text, "text/html; charset=utf-8")
+    strategy = UniversalScraperStrategy()
+    result = strategy.parse(source)
+    assert len(result.jobs) == 5, f"Expected 5 jobs from UniversalScraperStrategy, got {len(result.jobs)}"
+
+
+def test_live_redsift_discovery():
+    report = run_scraper_diagnostics("https://careers.redsift.com/jobs", max_pages=1)
+    assert report.status in ("SUCCESS", "PARTIAL_SUCCESS"), f"Expected success, got {report.status} with errors {report.errors}"
+    assert report.jobs_discovered == 5, f"Expected 5 jobs, discovered {report.jobs_discovered}"
+    assert report.jobs_accepted == 5
+    assert report.jobs_rejected == 0
+    titles = [j["title"] for j in report.sample_jobs]
+    assert "Sales Development Representative (SDR)" in titles
+    assert "IAM Product Engineer" in titles
+    assert "Business Automation Manager" in titles

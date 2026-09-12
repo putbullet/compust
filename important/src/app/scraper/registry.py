@@ -15,6 +15,7 @@ from .platforms.ashby import AshbyAdapter
 from .platforms.greenhouse import GreenhouseAdapter
 from .platforms.lever import LeverAdapter
 from .platforms.smartrecruiters import SmartRecruitersAdapter
+from .platforms.teamtailor import TeamtailorAdapter
 from .platforms.workday import WorkdayAdapter
 from .platforms.workable import WorkableAdapter
 from .source_config import SourceConfig, load_source_configs
@@ -232,6 +233,27 @@ class WorkableScraperStrategy:
         return self.adapter.find_next_page_url(source)
 
 
+class TeamtailorScraperStrategy:
+    name: str = "teamtailor"
+    source_name: str = "teamtailor.com"
+
+    def __init__(self):
+        self.adapter = TeamtailorAdapter()
+
+    def can_handle(self, target: ScrapeTarget, company: Company | None = None) -> bool:
+        target_type = (target.type or "").lower()
+        if target_type in ("teamtailor", "teamtailor_rss"):
+            return True
+        target_url = target.url or (company.careers_url if company else "") or ""
+        return TeamtailorAdapter.can_handle_url(target_url)
+
+    def parse(self, source: FetchedSource) -> ParseResult:
+        return self.adapter.parse(source)
+
+    def find_next_page_url(self, source: FetchedSource) -> str | None:
+        return None
+
+
 class UniversalScraperStrategy:
     name: str = "universal"
     source_name: str = "universal"
@@ -273,6 +295,7 @@ _PLATFORM_STRATEGIES: list[ScraperStrategy] = [
     LeverScraperStrategy(),
     SmartRecruitersScraperStrategy(),
     WorkdayScraperStrategy(),
+    TeamtailorScraperStrategy(),
 ]
 
 _UNIVERSAL_STRATEGY = UniversalScraperStrategy()

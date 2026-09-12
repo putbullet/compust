@@ -164,10 +164,28 @@ def run_scraper_diagnostics(
                 elif "Iframe detected" in err:
                     failure_reason = "Iframe detected on page. Job listings might be embedded in an external frame or ATS widget."
                     break
+                elif "Cloudflare WAF challenge" in err:
+                    failure_reason = (
+                        "Cloudflare anti-bot protection is active on this page. The site requires "
+                        "JavaScript execution in a real browser (challenge-response) to access job listings. "
+                        "Standard HTTP scraping is permanently blocked by the WAF. "
+                        "Suggestion: check whether the company hosts an ATS on a separate subdomain "
+                        "(e.g., jobs.ashbyhq.com, boards.greenhouse.io, apply.workable.com) and add "
+                        "that URL as the scrape target instead."
+                    )
+                    break
+                elif "HTTP 403" in err or "source restricted" in err:
+                    failure_reason = (
+                        "HTTP 403 Forbidden. The server is blocking automated requests. "
+                        "The site may enforce bot protection, require authentication, or use a WAF. "
+                        "Try adding a direct ATS link (e.g., Greenhouse, Lever, Workable, Ashby) instead of the company's own careers page."
+                    )
+                    break
             if not failure_reason and errors:
                 failure_reason = errors[0]
             elif not failure_reason:
                 failure_reason = "Universal parser found 0 job listings matching semantic structures or cards in static HTML."
+
 
         return DiagnosticReport(
             target_url=url,
@@ -189,6 +207,25 @@ def run_scraper_diagnostics(
         )
     except SourceFetchError as exc:
         duration = round(time.time() - start_time, 3)
+        exc_msg = str(exc)
+        # Derive a helpful failure_reason from the error text
+        if "Cloudflare WAF challenge" in exc_msg:
+            fetch_failure_reason = (
+                "Cloudflare anti-bot protection is active on this page. The site requires "
+                "JavaScript execution in a real browser (challenge-response) to access job listings. "
+                "Standard HTTP scraping is permanently blocked by the WAF. "
+                "Suggestion: check whether the company hosts an ATS on a separate subdomain "
+                "(e.g., jobs.ashbyhq.com, boards.greenhouse.io, apply.workable.com) and add "
+                "that URL as the scrape target instead."
+            )
+        elif exc.status_code == 403 or "403" in exc_msg or "source restricted" in exc_msg:
+            fetch_failure_reason = (
+                "HTTP 403 Forbidden. The server is blocking automated requests. "
+                "The site may enforce bot protection, require authentication, or use a WAF. "
+                "Try adding a direct ATS link (e.g., Greenhouse, Lever, Workable, Ashby) instead of the company's own careers page."
+            )
+        else:
+            fetch_failure_reason = f"Network fetch error: {exc_msg}"
         return DiagnosticReport(
             target_url=url,
             strategy_used=strategy.name,
@@ -199,9 +236,10 @@ def run_scraper_diagnostics(
             jobs_rejected=0,
             confidence_score=0.0,
             status="SCRAPE_FAILED",
-            errors=[f"Network fetch error: {exc}"],
-            failure_reason=f"Network fetch error: {exc}",
+            errors=[f"Network fetch error: {exc_msg}"],
+            failure_reason=fetch_failure_reason,
         )
+
     except Exception as exc:
         duration = round(time.time() - start_time, 3)
         return DiagnosticReport(

@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="YOUR_GOOGLE_DRIVE_VIDEO_LINK">
+  <a href="https://drive.google.com/file/d/1V1UkAwfKErwvKLdZK2VN0cH_suhf8MGZ/view?usp=sharing">
     <strong>🎥 Google Drive Video Demo</strong>
   </a>
 </p>

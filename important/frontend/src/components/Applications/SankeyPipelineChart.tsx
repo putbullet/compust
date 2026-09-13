@@ -70,14 +70,21 @@ export const SankeyPipelineChart: React.FC<SankeyPipelineChartProps> = ({
     const svgWidth = 1200;
     const svgHeight = 700;
     const nodeWidth = 9;
+    const minNodeHeight = 4;
 
-    // Filter nodes that actually exist in links or have positive count
+    // ── Guaranteed whitespace between each stage-1 ribbon band ───────────────
+    // Every flow from Applications is separated from its neighbours by this many
+    // px of blank space, preventing thick ribbons from colliding.
+    const GAP_BETWEEN_FLOWS = 55;
+    const TOP_MARGIN = 40;
+    const BOTTOM_MARGIN = 80;
+
+    // Filter active nodes
     const activeNodeIds = new Set<string>();
     data.links.forEach((l) => {
       activeNodeIds.add(l.source);
       activeNodeIds.add(l.target);
     });
-
     const activeNodes = data.nodes.filter((n) => activeNodeIds.has(n.id));
 
     // Group nodes by stage_index
@@ -86,37 +93,21 @@ export const SankeyPipelineChart: React.FC<SankeyPipelineChartProps> = ({
       stageCols[n.stage_index] = stageCols[n.stage_index] || [];
       stageCols[n.stage_index].push(n);
     });
+    const stages = Object.keys(stageCols).map(Number).sort((a, b) => a - b);
 
-    const stages = Object.keys(stageCols)
-      .map(Number)
-      .sort((a, b) => a - b);
-
-    // X positions across the canvas
-    // Left margin 160px for the "Applications" label on the left
-    // Right margin 180px for terminal labels on the right
+    // X layout
     const startX = 145;
     const availableW = svgWidth - startX - 200;
     const colCount = Math.max(stages.length - 1, 1);
     const colStep = availableW / colCount;
 
-    // Calculate vertical scaling
+    // Root node
     const rootNode = activeNodes.find((n) => n.id === 'stage_applications') || activeNodes[0];
     const totalVal = Math.max(rootNode ? rootNode.count : data.total, 1);
 
-    // Height of Applications root bar: about 370px on a 700px canvas
-    const maxBarHeight = 370;
-    const minNodeHeight = 4;
-    const scale = maxBarHeight / totalVal;
-
-    // Map out links: in_links and out_links per node
+    // Build link maps
     const outLinks: Record<string, SankeyLink[]> = {};
     const inLinks: Record<string, SankeyLink[]> = {};
-
-    // Sort links by target priority:
-    // For Applications: 1st Interviews on top, Rejected in middle, No Answer at bottom
-    const stage1Order = ['stage_1st_interview', 'stage_rejected_init', 'stage_no_answer', 'stage_withdrawn_init'];
-    const finalStageOrder = ['stage_offers', 'stage_rejected_final', 'stage_in_progress_final'];
-
     data.links.forEach((l) => {
       outLinks[l.source] = outLinks[l.source] || [];
       outLinks[l.source].push(l);
@@ -124,7 +115,9 @@ export const SankeyPipelineChart: React.FC<SankeyPipelineChartProps> = ({
       inLinks[l.target].push(l);
     });
 
-    // Custom sort order for links leaving Applications
+    // Sort stage-1 links: Interviews → Rejected → No Answer → Withdrawn
+    const stage1Order = ['stage_1st_interview', 'stage_rejected_init', 'stage_no_answer', 'stage_withdrawn_init'];
+    const finalStageOrder = ['stage_offers', 'stage_rejected_final', 'stage_in_progress_final'];
     if (outLinks['stage_applications']) {
       outLinks['stage_applications'].sort((a, b) => {
         const idxA = stage1Order.indexOf(a.target);
@@ -132,8 +125,6 @@ export const SankeyPipelineChart: React.FC<SankeyPipelineChartProps> = ({
         return (idxA >= 0 ? idxA : 99) - (idxB >= 0 ? idxB : 99);
       });
     }
-
-    // Custom sort order for links leaving 4th / Final Interview
     if (outLinks['stage_4th_interview']) {
       outLinks['stage_4th_interview'].sort((a, b) => {
         const idxA = finalStageOrder.indexOf(a.target);
@@ -142,60 +133,27 @@ export const SankeyPipelineChart: React.FC<SankeyPipelineChartProps> = ({
       });
     }
 
+    // ── DYNAMIC SCALE ────────────────────────────────────────────────────────
+    // Compute scale so ALL ribbon bands + all inter-band gaps fit the canvas.
+    // This prevents thick ribbons from overrunning bands below them.
+    const stage1Links = outLinks['stage_applications'] || [];
+    const numGaps = Math.max(stage1Links.length - 1, 0);
+    const totalGapH = numGaps * GAP_BETWEEN_FLOWS;
+    const availableForBars = svgHeight - TOP_MARGIN - BOTTOM_MARGIN - totalGapH;
+    const scale = Math.max(availableForBars / totalVal, 2);
+
     const computedNodes: Record<string, ComputedNode> = {};
 
-    // 1. Position Root Node (Applications)
-    const rootH = Math.max(totalVal * scale, 36);
-    const rootY = 165; // Vertically centered
-    const rootX = startX;
-
-    computedNodes['stage_applications'] = {
-      id: 'stage_applications',
-      label: rootNode.label || 'Applications',
-      stage_index: 0,
-      count: totalVal,
-      color: NODE_COLORS['stage_applications'] || '#f97316',
-      x: rootX,
-      y: rootY,
-      width: nodeWidth,
-      height: rootH,
-      alignLeftLabel: true,
-    };
-
-    // 2. Position downstream nodes based on their incoming ribbon offsets
-    // First, track current Y-offset on the root bar
-    let currentRootOutY = rootY;
-    const rootLinks = outLinks['stage_applications'] || [];
-
-    rootLinks.forEach((link) => {
-      const linkH = Math.max(link.value * scale, minNodeHeight);
+    // ── STAGE-1 NODES: stack top-to-bottom with explicit gap ─────────────────
+    // Each node's Y is placed immediately after the previous band's bottom + GAP.
+    // This guarantees zero ribbon collision regardless of data proportions.
+    let stageY = TOP_MARGIN;
+    stage1Links.forEach((link) => {
       const targetId = link.target;
       const targetNode = activeNodes.find((n) => n.id === targetId);
       if (!targetNode) return;
-
-      const colIdx = targetNode.stage_index;
-      const x = startX + colIdx * colStep;
-
-      // Vertical position for Stage 1 nodes:
-      // - 1st Interviews: curves up to near top (~45px)
-      // - Rejected: sits in middle (~165px)
-      // - No Answer: curves down to bottom (~315px)
-      let y = currentRootOutY;
-      if (targetId === 'stage_1st_interview') {
-        // Pin 1st Interviews near the top
-        y = 40;
-      } else if (targetId === 'stage_rejected_init') {
-        // Push Rejected well below the interview chain (needs clear gap from 1st Interview bar + ribbon)
-        y = 260;
-      } else if (targetId === 'stage_no_answer') {
-        // Push No Answer toward the bottom
-        y = 450;
-      } else if (targetId === 'stage_withdrawn_init') {
-        y = 590;
-      }
-
       const nodeH = Math.max(link.value * scale, minNodeHeight);
-
+      const x = startX + targetNode.stage_index * colStep;
       computedNodes[targetId] = {
         id: targetId,
         label: targetNode.label,
@@ -203,144 +161,113 @@ export const SankeyPipelineChart: React.FC<SankeyPipelineChartProps> = ({
         count: link.value,
         color: NODE_COLORS[targetId] || targetNode.color || '#64748b',
         x,
-        y,
+        y: stageY,
         width: nodeWidth,
         height: nodeH,
         alignLeftLabel: false,
       };
-
-      currentRootOutY += linkH;
+      stageY += nodeH + GAP_BETWEEN_FLOWS;
     });
 
-    // 3. Position Stage 2, 3, 4, 5, 6 nodes cascading horizontally from 1st Interviews
-    // - 2nd Interviews horizontally from 1st
-    // - 3rd Interviews horizontally
-    // - 4th Interviews horizontally
-    // - Offers curves upward, rejections curve downward
-    // - Accepted horizontally from Offers
+    // ── ROOT (APPLICATIONS) BAR: centered on the full stage-1 stack ──────────
+    // rootH = sum of all band heights (no gaps). stackTotalH includes the gaps.
+    // We vertically center rootH within stackTotalH so bezier curves are smooth.
+    const rootH = Math.max(totalVal * scale, 36);
+    const stackTotalH = rootH + totalGapH;
+    const stackCenterY = TOP_MARGIN + stackTotalH / 2;
+    const rootY = Math.max(stackCenterY - rootH / 2, TOP_MARGIN);
 
+    computedNodes['stage_applications'] = {
+      id: 'stage_applications',
+      label: rootNode.label || 'Applications',
+      stage_index: 0,
+      count: totalVal,
+      color: NODE_COLORS['stage_applications'] || '#f97316',
+      x: startX,
+      y: rootY,
+      width: nodeWidth,
+      height: rootH,
+      alignLeftLabel: true,
+    };
+
+    // ── CASCADE CHAIN (2nd → 3rd → 4th interviews) ───────────────────────────
+    // Runs horizontally to the right of 1st Interview, aligned to its Y.
     const cascadeChain = [
       { id: 'stage_2nd_interview', yOffset: 0 },
       { id: 'stage_3rd_interview', yOffset: 6 },
       { id: 'stage_4th_interview', yOffset: 12 },
     ];
-
     cascadeChain.forEach(({ id, yOffset }) => {
       const nodeObj = activeNodes.find((n) => n.id === id);
       if (!nodeObj) return;
-
       const inL = inLinks[id]?.[0];
       const prevNode = inL ? computedNodes[inL.source] : null;
-      const baseY = prevNode ? prevNode.y + yOffset : 45 + yOffset;
+      const baseY = prevNode ? prevNode.y + yOffset : TOP_MARGIN + yOffset;
       const nodeH = Math.max(nodeObj.count * scale, minNodeHeight);
       const x = startX + nodeObj.stage_index * colStep;
-
       computedNodes[id] = {
-        id,
-        label: nodeObj.label,
-        stage_index: nodeObj.stage_index,
-        count: nodeObj.count,
-        color: NODE_COLORS[id] || nodeObj.color,
-        x,
-        y: baseY,
-        width: nodeWidth,
-        height: nodeH,
+        id, label: nodeObj.label, stage_index: nodeObj.stage_index, count: nodeObj.count,
+        color: NODE_COLORS[id] || nodeObj.color, x, y: baseY, width: nodeWidth, height: nodeH,
         alignLeftLabel: false,
       };
     });
 
-    // Offers & Final Rejections from 4th Interviews (or previous interview stage)
-    const prevToOffers = activeNodes.find((n) => n.id === 'stage_4th_interview')
-      || activeNodes.find((n) => n.id === 'stage_3rd_interview')
-      || activeNodes.find((n) => n.id === 'stage_2nd_interview')
-      || activeNodes.find((n) => n.id === 'stage_1st_interview');
+    // ── TERMINAL NODES (Offers, Final Rejections, Accepted) ──────────────────
+    const prevToOffers =
+      activeNodes.find((n) => n.id === 'stage_4th_interview') ||
+      activeNodes.find((n) => n.id === 'stage_3rd_interview') ||
+      activeNodes.find((n) => n.id === 'stage_2nd_interview') ||
+      activeNodes.find((n) => n.id === 'stage_1st_interview');
+    const prevNodeComputed = prevToOffers ? computedNodes[prevToOffers.id] : null;
+    const prevY = prevNodeComputed ? prevNodeComputed.y : TOP_MARGIN;
+    const prevNodeH = prevNodeComputed ? prevNodeComputed.height : 0;
 
-    const prevY = prevToOffers && computedNodes[prevToOffers.id] ? computedNodes[prevToOffers.id].y : 60;
-
-    // Offers
     const offersNode = activeNodes.find((n) => n.id === 'stage_offers');
     if (offersNode) {
       const x = startX + offersNode.stage_index * colStep;
-      const y = Math.max(prevY - 40, 18); // Curves up toward the top
-      const nodeH = Math.max(offersNode.count * scale, minNodeHeight);
-
+      const y = Math.max(prevY - 40, 10);
       computedNodes['stage_offers'] = {
-        id: 'stage_offers',
-        label: offersNode.label,
-        stage_index: offersNode.stage_index,
-        count: offersNode.count,
-        color: NODE_COLORS['stage_offers'] || '#facc15',
-        x,
-        y,
-        width: nodeWidth,
-        height: nodeH,
+        id: 'stage_offers', label: offersNode.label, stage_index: offersNode.stage_index,
+        count: offersNode.count, color: NODE_COLORS['stage_offers'] || '#facc15',
+        x, y, width: nodeWidth, height: Math.max(offersNode.count * scale, minNodeHeight),
         alignLeftLabel: false,
       };
     }
-
-    // Final Rejections
     const finalRejNode = activeNodes.find((n) => n.id === 'stage_rejected_final');
     if (finalRejNode) {
       const x = startX + finalRejNode.stage_index * colStep;
-      const y = prevY + 75; // Curves down toward final rejections (more separation)
-      const nodeH = Math.max(finalRejNode.count * scale, minNodeHeight);
-
+      const y = prevY + prevNodeH + 70;
       computedNodes['stage_rejected_final'] = {
-        id: 'stage_rejected_final',
-        label: finalRejNode.label,
-        stage_index: finalRejNode.stage_index,
-        count: finalRejNode.count,
-        color: NODE_COLORS['stage_rejected_final'] || '#2dd4bf',
-        x,
-        y,
-        width: nodeWidth,
-        height: nodeH,
+        id: 'stage_rejected_final', label: finalRejNode.label, stage_index: finalRejNode.stage_index,
+        count: finalRejNode.count, color: NODE_COLORS['stage_rejected_final'] || '#2dd4bf',
+        x, y, width: nodeWidth, height: Math.max(finalRejNode.count * scale, minNodeHeight),
         alignLeftLabel: false,
       };
     }
-
-    // Accepted (Stage 6)
     const acceptedNode = activeNodes.find((n) => n.id === 'stage_accepted');
     if (acceptedNode) {
       const offersComputed = computedNodes['stage_offers'];
       const x = startX + acceptedNode.stage_index * colStep;
-      const y = offersComputed ? offersComputed.y : 18; // Aligns horizontally with Offers
-      const nodeH = Math.max(acceptedNode.count * scale, minNodeHeight);
-
+      const y = offersComputed ? offersComputed.y : TOP_MARGIN;
       computedNodes['stage_accepted'] = {
-        id: 'stage_accepted',
-        label: acceptedNode.label,
-        stage_index: acceptedNode.stage_index,
-        count: acceptedNode.count,
-        color: NODE_COLORS['stage_accepted'] || '#38bdf8',
-        x,
-        y,
-        width: nodeWidth,
-        height: nodeH,
+        id: 'stage_accepted', label: acceptedNode.label, stage_index: acceptedNode.stage_index,
+        count: acceptedNode.count, color: NODE_COLORS['stage_accepted'] || '#38bdf8',
+        x, y, width: nodeWidth, height: Math.max(acceptedNode.count * scale, minNodeHeight),
         alignLeftLabel: false,
       };
     }
 
-    // Any other auxiliary nodes (e.g. intermediate rejections or in-progress)
+    // ── AUXILIARY NODES (in-progress, pending-offer, declined, etc.) ─────────
     activeNodes.forEach((n) => {
       if (!computedNodes[n.id]) {
         const inL = inLinks[n.id]?.[0];
         const srcPos = inL ? computedNodes[inL.source] : null;
         const x = startX + n.stage_index * colStep;
-        const y = srcPos ? srcPos.y + 60 : 200;
-        const nodeH = Math.max(n.count * scale, minNodeHeight);
-
+        const y = srcPos ? srcPos.y + srcPos.height + 60 : 200;
         computedNodes[n.id] = {
-          id: n.id,
-          label: n.label,
-          stage_index: n.stage_index,
-          count: n.count,
-          color: NODE_COLORS[n.id] || n.color,
-          x,
-          y,
-          width: nodeWidth,
-          height: nodeH,
-          alignLeftLabel: false,
+          id: n.id, label: n.label, stage_index: n.stage_index, count: n.count,
+          color: NODE_COLORS[n.id] || n.color, x, y, width: nodeWidth,
+          height: Math.max(n.count * scale, minNodeHeight), alignLeftLabel: false,
         };
       }
     });

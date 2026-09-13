@@ -29,7 +29,8 @@ import {
   GITHUB_REPO_URL,
   GITHUB_ISSUES_URL,
   GITHUB_DISCUSSIONS_URL,
-  DEMO_VIDEO_PATH,
+  GOOGLE_DRIVE_DEMO_URL,
+  DEMO_PREVIEW_IMAGE_PATH,
   GUIDE_SECTIONS,
 } from '../../config/guideConfig';
 
@@ -276,40 +277,52 @@ export const GuideView: React.FC = () => {
                     <span className="browser-dot yellow" />
                     <span className="browser-dot green" />
                   </div>
-                  <span className="browser-title">Compust Platform Demo • Local In-App Playback</span>
-                  <span className="browser-badge">Native HTML5</span>
+                  <span className="browser-title">Compust Platform Demo • Interactive Walkthrough</span>
+                  <span className="browser-badge">Google Drive Demo</span>
                 </div>
 
                 <div className="video-wrapper">
                   {!videoError ? (
-                    <video
-                      className="guide-html5-video"
-                      controls
-                      playsInline
-                      preload="metadata"
-                      onError={() => setVideoError(true)}
-                      aria-label="Compust Interactive Walkthrough Video"
+                    <a
+                      href={GOOGLE_DRIVE_DEMO_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="guide-demo-preview-link"
+                      aria-label="Open Compust demo video on Google Drive in a new tab"
                     >
-                      <source src={DEMO_VIDEO_PATH} type="video/mp4" />
-                      Your browser does not support the video tag.
-                    </video>
+                      <img
+                        src={DEMO_PREVIEW_IMAGE_PATH}
+                        alt="Compust Walkthrough Demo - Click here to see the demo"
+                        className="guide-demo-preview-img"
+                        onError={() => setVideoError(true)}
+                      />
+                      <div className="guide-demo-overlay-badge">
+                        <Play size={16} fill="#ffffff" color="#ffffff" />
+                        <span>Watch Demo</span>
+                        <ExternalLink size={14} />
+                      </div>
+                    </a>
                   ) : (
                     <div className="video-fallback-card">
                       <AlertTriangle size={36} color="#f59e0b" />
-                      <h4>Product Demo Video Unavailable</h4>
+                      <h4>Product Demo Video</h4>
                       <p>
-                        The local video asset could not be loaded. Please refer to the written step-by-step
-                        walkthroughs below to explore portal configuration and scraping workflows.
+                        Click below to watch the complete product walkthrough directly on Google Drive.
                       </p>
-                      <a href="#getting-started" className="step-action-tag">
-                        Jump to Getting Started Guide
+                      <a
+                        href={GOOGLE_DRIVE_DEMO_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="step-action-tag"
+                      >
+                        Watch on Google Drive
                       </a>
                     </div>
                   )}
                 </div>
               </div>
               <p style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '10px', textAlign: 'center' }}>
-                Note: The video above is an embedded developer placeholder demonstrating application workflows. You can easily replace it by updating <code>public/demo.mp4</code>.
+                Click the preview image above to watch the full HD Compust walkthrough and workflow demonstration on Google Drive.
               </p>
             </div>
           </section>

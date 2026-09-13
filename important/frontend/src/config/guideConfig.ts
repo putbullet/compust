@@ -9,10 +9,19 @@ export const GITHUB_ISSUES_URL = 'https://github.com/putbullet/compust/issues';
 export const GITHUB_DISCUSSIONS_URL = 'https://github.com/putbullet/compust/discussions';
 
 /**
- * Local public path for the embedded product demo video.
- * Set to standard public asset URL '/demo.mp4' (resolved by Vite).
+ * Google Drive link for full product walkthrough video.
  */
-export const DEMO_VIDEO_PATH = '/demo.mp4';
+export const GOOGLE_DRIVE_DEMO_URL = 'https://drive.google.com/file/d/1V1UkAwfKErwvKLdZK2VN0cH_suhf8MGZ/view';
+
+/**
+ * Public preview image path displaying "Click here to see the demo".
+ */
+export const DEMO_PREVIEW_IMAGE_PATH = '/DEMO_COMPUST.png';
+
+/**
+ * Local public path or external URL for product demo video.
+ */
+export const DEMO_VIDEO_PATH = GOOGLE_DRIVE_DEMO_URL;
 
 /**
  * Official project donation / support URL.
@@ -31,7 +40,7 @@ export interface GuideSectionMeta {
 export const GUIDE_SECTIONS: GuideSectionMeta[] = [
   { id: 'welcome', title: 'Welcome to Compust', description: 'Overview and high-transparency employment intelligence.' },
   { id: 'important-notice', title: 'Please Read Before Using', badge: 'Critical', description: 'Essential expectations, non-replacement of job boards, and current limitations.' },
-  { id: 'demo-video', title: 'See Compust in Action', badge: 'Video', description: 'Interactive embedded product walkthrough video.' },
+  { id: 'demo-video', title: 'See Compust in Action', badge: 'Demo', description: 'Interactive product walkthrough demonstration on Google Drive.' },
   { id: 'how-it-works', title: 'How Compust Works', description: 'Data flow from company source down to matched application.' },
   { id: 'scraper-architecture', title: 'Scraper Architecture & Live Pipeline', description: 'Interactive diagram with animated data-flow arrows and fallback layers.' },
   { id: 'getting-started', title: 'Getting Started: A-to-Z Workflow', description: '20 practical steps from zero to active job opportunities.' },

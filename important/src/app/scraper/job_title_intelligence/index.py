@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import threading
 import time
 from pathlib import Path
@@ -57,10 +58,14 @@ class JobTitleIndex:
         self.json_path = self._resolve_path(json_path)
         self.exact_titles: set[str] = set()
         self.first_word_index: dict[str, set[str]] = {}
+        self.internship_titles: list[str] = []
+        self.token_to_intern_titles: dict[str, set[str]] = {}
+        self.token_to_titles: dict[str, set[str]] = {}
         self.total_titles: int = 0
         self.unique_titles: int = 0
         self.load_time_ms: float = 0.0
         self._load_and_index()
+
 
     @staticmethod
     def _resolve_path(custom_path: str | Path | None = None) -> Path:
@@ -132,6 +137,21 @@ class JobTitleIndex:
                     self.first_word_index[first] = set()
                 self.first_word_index[first].add(norm)
 
+            # Token indexing
+            tokens = set(re.findall(r"\b[a-z0-9]{3,}\b", norm))
+            for tok in tokens:
+                if tok not in self.token_to_titles:
+                    self.token_to_titles[tok] = set()
+                self.token_to_titles[tok].add(norm)
+
+            is_intern = bool(re.search(r"\b(intern|internship|trainee|apprentice|co-op)\b", norm))
+            if is_intern:
+                self.internship_titles.append(norm)
+                for tok in tokens:
+                    if tok not in self.token_to_intern_titles:
+                        self.token_to_intern_titles[tok] = set()
+                    self.token_to_intern_titles[tok].add(norm)
+
             # Also index variants like 'front end' <-> 'frontend'
             for variant in generate_normalized_variants(item):
                 self.exact_titles.add(variant)
@@ -145,18 +165,69 @@ class JobTitleIndex:
         self.unique_titles = len(self.exact_titles)
         self.load_time_ms = round((time.perf_counter() - t0) * 1000, 2)
         logger.info(
-            f"Job title intelligence index built in {self.load_time_ms}ms with {self.unique_titles} unique normalized titles.",
+            f"Job title intelligence index built in {self.load_time_ms}ms with {self.unique_titles} unique normalized titles ({len(self.internship_titles)} internship titles).",
             extra={
                 "event": "JOB_TITLES_INDEX_READY",
                 "load_time_ms": self.load_time_ms,
                 "total_titles": self.total_titles,
                 "unique_titles": self.unique_titles,
+                "internship_titles": len(self.internship_titles),
             },
         )
 
     def is_known_title(self, normalized_text: str) -> bool:
         """Check whether normalized_text is in the title index."""
         return normalized_text in self.exact_titles
+
+    def find_related_internship_titles(self, field_or_keyword: str, limit: int = 20) -> list[str]:
+        """
+        Identify job titles from the dataset that relate to the given field or query.
+        Returns a ranked list of relevant internship and domain titles.
+        """
+        if not field_or_keyword:
+            return []
+
+        norm_query = normalize_title(field_or_keyword)
+        query_tokens = [t for t in re.findall(r"\b[a-z0-9]{3,}\b", norm_query) if t not in {"intern", "internship", "job", "jobs", "summer"}]
+
+        matched_intern_titles: dict[str, float] = {}
+
+        # Search in pre-indexed internship titles
+        for tok in query_tokens:
+            for title in self.token_to_intern_titles.get(tok, set()):
+                title_tokens = set(title.split())
+                overlap = len(set(query_tokens) & title_tokens)
+                matched_intern_titles[title] = max(matched_intern_titles.get(title, 0.0), overlap * 2.0)
+
+        # Additional semantic handles for security/cyber
+        if "cyber" in norm_query or "security" in norm_query:
+            for t in ["cyber", "security"]:
+                for title in self.token_to_intern_titles.get(t, set()):
+                    matched_intern_titles[title] = max(matched_intern_titles.get(title, 0.0), 1.5)
+
+        # Domain title fallback for technical roles
+        domain_titles: dict[str, float] = {}
+        for tok in query_tokens:
+            for title in self.token_to_titles.get(tok, set()):
+                if len(title.split()) <= 4:
+                    overlap = len(set(query_tokens) & set(title.split()))
+                    domain_titles[title] = max(domain_titles.get(title, 0.0), float(overlap))
+
+        sorted_intern = sorted(matched_intern_titles.items(), key=lambda x: (-x[1], len(x[0])))
+        results = [t[0].title() for t in sorted_intern]
+
+        if len(results) < limit:
+            sorted_domain = sorted(domain_titles.items(), key=lambda x: (-x[1], len(x[0])))
+            for dt, score in sorted_domain:
+                if score >= 1.0:
+                    cand = f"{dt.title()} Intern"
+                    if cand not in results and dt.title() not in results:
+                        results.append(cand)
+                if len(results) >= limit:
+                    break
+
+        return results[:limit]
+
 
     def get_specificity(self, title: str) -> float:
         """

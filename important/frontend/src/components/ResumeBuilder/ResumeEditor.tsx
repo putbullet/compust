@@ -24,6 +24,7 @@ import type {
   ResumeProjectEntry,
   ResumeLanguageEntry,
 } from '../../api/client';
+import { DEFAULT_SECTION_TITLES } from './ResumeRenderer';
 import './ResumeEditor.css';
 
 interface ResumeEditorProps {
@@ -43,6 +44,51 @@ const PRESET_COLORS = [
   { name: 'Slate', hex: '#334155' },
 ];
 
+interface SectionTitleEditorRowProps {
+  sectionId: string;
+  settings: ResumeSettings;
+  onChangeTitle: (id: string, val: string) => void;
+}
+
+const SectionTitleEditorRow: React.FC<SectionTitleEditorRowProps> = ({
+  sectionId,
+  settings,
+  onChangeTitle,
+}) => {
+  const defaultTitle = DEFAULT_SECTION_TITLES[sectionId] || sectionId;
+  const customVal = settings.section_titles?.[sectionId] ?? '';
+
+  return (
+    <div className="section-title-editor-row">
+      <div className="title-editor-info">
+        <label className="title-editor-label">Section Heading Display Title</label>
+        <span className="title-editor-hint">
+          Custom text shown on resume preview & PDF export. Default is &quot;{defaultTitle}&quot;.
+        </span>
+      </div>
+      <div className="title-editor-controls">
+        <input
+          type="text"
+          className="editor-input title-editor-input"
+          placeholder={defaultTitle}
+          value={customVal}
+          onChange={(e) => onChangeTitle(sectionId, e.target.value)}
+        />
+        {customVal.trim() !== '' && (
+          <button
+            type="button"
+            className="reset-title-btn"
+            title="Reset to default title"
+            onClick={() => onChangeTitle(sectionId, '')}
+          >
+            Reset
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export const ResumeEditor: React.FC<ResumeEditorProps> = ({
   data,
   settings,
@@ -53,6 +99,17 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
   const [activeTab, setActiveTab] = useState<
     'settings' | 'profile' | 'experience' | 'education' | 'skills' | 'projects' | 'certifications' | 'languages'
   >('profile');
+
+  const handleSectionTitleChange = (sectionId: string, customTitle: string) => {
+    onChangeSettings({
+      ...settings,
+      section_titles: {
+        ...(settings.section_titles || {}),
+        [sectionId]: customTitle,
+      },
+    });
+  };
+
 
   // Personal Info helpers
   const handleProfileChange = (field: keyof typeof data.profile, value: string) => {
@@ -412,7 +469,13 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
               </div>
             </div>
 
-            <div className="form-group full-width" style={{ marginTop: '16px' }}>
+            <SectionTitleEditorRow
+              sectionId="summary"
+              settings={settings}
+              onChangeTitle={handleSectionTitleChange}
+            />
+
+            <div className="form-group full-width" style={{ marginTop: '4px' }}>
               <label>Professional Summary</label>
               <textarea
                 className="editor-textarea"
@@ -449,6 +512,13 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
                 </button>
               </div>
             </div>
+
+            <SectionTitleEditorRow
+              sectionId="experience"
+              settings={settings}
+              onChangeTitle={handleSectionTitleChange}
+            />
+
 
             {(!data.experience || data.experience.length === 0) ? (
               <div className="empty-state-box">
@@ -645,6 +715,13 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
               </div>
             </div>
 
+            <SectionTitleEditorRow
+              sectionId="education"
+              settings={settings}
+              onChangeTitle={handleSectionTitleChange}
+            />
+
+
             {(!data.education || data.education.length === 0) ? (
               <div className="empty-state-box">
                 <GraduationCap size={28} className="empty-icon" />
@@ -762,6 +839,13 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
               </button>
             </div>
 
+            <SectionTitleEditorRow
+              sectionId="skills"
+              settings={settings}
+              onChangeTitle={handleSectionTitleChange}
+            />
+
+
             {/* Quick Add Bar */}
             <div className="skill-add-bar">
               <input
@@ -825,6 +909,13 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
                 <span>Add Project</span>
               </button>
             </div>
+
+            <SectionTitleEditorRow
+              sectionId="projects"
+              settings={settings}
+              onChangeTitle={handleSectionTitleChange}
+            />
+
 
             {(!data.projects || data.projects.length === 0) ? (
               <div className="empty-state-box">
@@ -918,6 +1009,13 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
                 <span>Import from Profile</span>
               </button>
             </div>
+
+            <SectionTitleEditorRow
+              sectionId="languages"
+              settings={settings}
+              onChangeTitle={handleSectionTitleChange}
+            />
+
 
             <div className="skill-add-bar">
               <input
@@ -1084,7 +1182,17 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
 
                   return (
                     <div key={secKey} className={`sec-order-row ${!isVis ? 'disabled' : ''}`}>
-                      <span className="sec-order-name">{secLabel}</span>
+                      <div className="sec-order-title-group">
+                        <span className="sec-order-name">{secLabel}</span>
+                        <input
+                          type="text"
+                          className="editor-input sec-order-custom-input"
+                          placeholder={DEFAULT_SECTION_TITLES[secKey] || secLabel}
+                          value={settings.section_titles?.[secKey] ?? ''}
+                          onChange={(e) => handleSectionTitleChange(secKey, e.target.value)}
+                          title={`Custom heading title for ${secLabel}`}
+                        />
+                      </div>
                       <div className="sec-order-controls">
                         <button
                           type="button"

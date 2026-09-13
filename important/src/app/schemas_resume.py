@@ -92,6 +92,36 @@ class StructuredResumeData(BaseModel):
 ResumeTemplateType = Literal["modern", "classic", "minimal", "technical"]
 
 
+DEFAULT_SECTION_TITLES: dict[str, str] = {
+    "summary": "Professional Summary",
+    "experience": "Professional Experience",
+    "education": "Education & Academic Background",
+    "skills": "Technical & Core Skills",
+    "projects": "Featured Projects",
+    "certifications": "Certifications & Accreditations",
+    "languages": "Languages",
+    "custom_sections": "Additional Information",
+}
+
+
+def resolve_section_title(section_id: str, custom_title: str | None = None) -> str:
+    """Resolve the display title for a resume section.
+
+    If custom_title is non-empty and not whitespace-only, return it stripped.
+    Otherwise, fall back to the default title for that section identifier.
+    """
+    if custom_title and isinstance(custom_title, str) and custom_title.strip():
+        return custom_title.strip()
+    return DEFAULT_SECTION_TITLES.get(section_id, section_id.replace("_", " ").title())
+
+
+class ResumeSectionTitleItem(BaseModel):
+    id: str
+    default_title: str = ""
+    custom_title: str = ""
+    resolved_title: str = ""
+
+
 class ResumeSettings(BaseModel):
     template: ResumeTemplateType = "modern"
     theme_color: str = "#2563eb"
@@ -123,6 +153,11 @@ class ResumeSettings(BaseModel):
             "custom_sections": True,
         }
     )
+    section_titles: dict[str, str] = Field(
+        default_factory=dict,
+        description="Map of internal section IDs to user-customized display titles",
+    )
+
 
 
 class StructuredResumeCreate(BaseModel):

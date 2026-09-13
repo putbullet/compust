@@ -477,6 +477,57 @@
   object-fit: cover;
 }
 
+.guide-demo-preview-link {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  text-decoration: none;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.guide-demo-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), filter 0.3s ease;
+}
+
+.guide-demo-preview-link:hover .guide-demo-preview-img {
+  transform: scale(1.02);
+  filter: brightness(1.06);
+}
+
+.guide-demo-overlay-badge {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  color: #f8fafc;
+  padding: 8px 18px;
+  border-radius: 30px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  transition: all 0.25s ease;
+  z-index: 2;
+}
+
+.guide-demo-preview-link:hover .guide-demo-overlay-badge {
+  background: rgba(14, 165, 233, 0.95);
+  border-color: rgba(255, 255, 255, 0.6);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(14, 165, 233, 0.4);
+}
+
 /* Fallback card if video cannot load */
 .video-fallback-card {
   width: 100%;

@@ -212,7 +212,9 @@ export interface ResumeSettings {
   document_size: 'A4' | 'LETTER';
   section_order: string[];
   section_visibility: Record<string, boolean>;
+  section_titles?: Record<string, string>;
 }
+
 
 export interface StructuredResumeItem {
   id: number;
@@ -992,7 +994,14 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  searchInternships: (params: InternshipSearchParams) =>
+    request<InternshipSearchResponse>('/internships/search', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    }),
 };
+
 
 export interface CompanyCreate {
   name: string;
@@ -1166,3 +1175,50 @@ export interface ScraperDiagnosticResponse {
   discovery_method?: string | null;
   failure_reason?: string | null;
 }
+
+export interface InternshipOpportunity {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  country: string;
+  description: string;
+  requirements: string[];
+  qualifications: string[];
+  internship_type: string;
+  duration?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  application_deadline?: string | null;
+  publication_date?: string | null;
+  source_url: string;
+  application_url: string;
+  source_domain: string;
+  language: string;
+  confidence_score: number;
+  is_year_match: boolean;
+}
+
+export interface InternshipSearchDiagnostics {
+  queries_executed: string[];
+  sources_discovered: number;
+  sources_checked: number;
+  sources_unavailable: number;
+  sources_rejected_non_job: number;
+  valid_opportunities_found: number;
+  execution_time_ms: number;
+}
+
+export interface InternshipSearchResponse {
+  opportunities: InternshipOpportunity[];
+  diagnostics: InternshipSearchDiagnostics;
+  related_titles: string[];
+}
+
+export interface InternshipSearchParams {
+  field: string;
+  country?: string | null;
+  year?: number | string | null;
+  max_results?: number;
+}
+

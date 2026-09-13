@@ -225,6 +225,19 @@ The Vite dev server will launch at:
 
 ---
 
+### Optional: One-Click Desktop Launcher (Windows)
+
+For a streamlined experience on Windows without having to manually open multiple terminal windows every time:
+
+1. **One-Time Setup**: After completing the initial setup above, run the setup script **once** from the project root:
+   - Double-click `setup_shortcut.bat` (or run `python launcher\create_shortcut.py` in your terminal).
+   - This automatically generates a desktop shortcut named **Compust** featuring the official logo.
+2. **Launching the Platform**: Whenever you want to use Compust, simply **double-click the Compust desktop shortcut** instead of manually opening terminals.
+3. **Database Requirement**: Your configured **MySQL/Compust database must already be running on the project's configured database port** (default `3306`), whether running via the **XAMPP Control Panel** or another MySQL installation.
+4. **Automated Launch Sequence**: The launcher detects and checks your database connection first, starts both the backend and frontend servers, and opens the application in your default browser.
+
+---
+
 ## Scraping & Source Management
 
 Compust includes administrative tools to onboard, inspect, and scrape career portals safely:

@@ -2,6 +2,25 @@ import React from 'react';
 import type { StructuredResumeData, ResumeSettings } from '../../api/client';
 import './ResumeRenderer.css';
 
+export const DEFAULT_SECTION_TITLES: Record<string, string> = {
+  summary: 'Professional Summary',
+  experience: 'Professional Experience',
+  education: 'Education & Academic Background',
+  skills: 'Technical & Core Skills',
+  projects: 'Featured Projects',
+  certifications: 'Certifications & Accreditations',
+  languages: 'Languages',
+  custom_sections: 'Additional Information',
+};
+
+export function resolveSectionTitle(sectionKey: string, customTitles?: Record<string, string>): string {
+  const custom = customTitles?.[sectionKey];
+  if (typeof custom === 'string' && custom.trim().length > 0) {
+    return custom.trim();
+  }
+  return DEFAULT_SECTION_TITLES[sectionKey] || sectionKey.charAt(0).toUpperCase() + sectionKey.slice(1);
+}
+
 interface ResumeRendererProps {
   data: StructuredResumeData;
   settings: ResumeSettings;
@@ -12,6 +31,7 @@ export const ResumeRenderer: React.FC<ResumeRendererProps> = ({ data, settings }
   const { template, theme_color, font_size, section_order, section_visibility } = settings;
 
   const isVisible = (sectionKey: string) => section_visibility[sectionKey] !== false;
+  const secTitle = (sectionKey: string) => resolveSectionTitle(sectionKey, settings.section_titles);
 
   const baseFontSize = `${font_size || '10.5'}pt`;
 
@@ -75,7 +95,7 @@ export const ResumeRenderer: React.FC<ResumeRendererProps> = ({ data, settings }
             case 'summary':
               return profile.summary ? (
                 <section key="summary" className="resume-section section-summary">
-                  <h2 className="section-title">Professional Summary</h2>
+                  <h2 className="section-title">{secTitle('summary')}</h2>
                   <p className="summary-text">{profile.summary}</p>
                 </section>
               ) : null;
@@ -83,7 +103,7 @@ export const ResumeRenderer: React.FC<ResumeRendererProps> = ({ data, settings }
             case 'skills':
               return skills && skills.length > 0 ? (
                 <section key="skills" className="resume-section section-skills">
-                  <h2 className="section-title">Technical & Core Skills</h2>
+                  <h2 className="section-title">{secTitle('skills')}</h2>
                   <div className="skills-grid">
                     {skills.map((skill) => (
                       <div key={skill.id} className="skill-item">
@@ -100,7 +120,7 @@ export const ResumeRenderer: React.FC<ResumeRendererProps> = ({ data, settings }
             case 'experience':
               return experience && experience.length > 0 ? (
                 <section key="experience" className="resume-section section-experience">
-                  <h2 className="section-title">Professional Experience</h2>
+                  <h2 className="section-title">{secTitle('experience')}</h2>
                   <div className="experience-list">
                     {experience.map((exp) => (
                       <div key={exp.id} className="exp-item">
@@ -133,7 +153,7 @@ export const ResumeRenderer: React.FC<ResumeRendererProps> = ({ data, settings }
             case 'education':
               return education && education.length > 0 ? (
                 <section key="education" className="resume-section section-education">
-                  <h2 className="section-title">Education & Academic Background</h2>
+                  <h2 className="section-title">{secTitle('education')}</h2>
                   <div className="education-list">
                     {education.map((edu) => (
                       <div key={edu.id} className="edu-item">
@@ -161,7 +181,7 @@ export const ResumeRenderer: React.FC<ResumeRendererProps> = ({ data, settings }
             case 'projects':
               return projects && projects.length > 0 ? (
                 <section key="projects" className="resume-section section-projects">
-                  <h2 className="section-title">Featured Projects</h2>
+                  <h2 className="section-title">{secTitle('projects')}</h2>
                   <div className="projects-list">
                     {projects.map((proj) => (
                       <div key={proj.id} className="project-item">
@@ -193,7 +213,7 @@ export const ResumeRenderer: React.FC<ResumeRendererProps> = ({ data, settings }
             case 'certifications':
               return certifications && certifications.length > 0 ? (
                 <section key="certifications" className="resume-section section-certifications">
-                  <h2 className="section-title">Certifications & Accreditations</h2>
+                  <h2 className="section-title">{secTitle('certifications')}</h2>
                   <ul className="cert-list item-bullets">
                     {certifications.map((cert) => (
                       <li key={cert.id}>
@@ -209,7 +229,7 @@ export const ResumeRenderer: React.FC<ResumeRendererProps> = ({ data, settings }
             case 'languages':
               return languages && languages.length > 0 ? (
                 <section key="languages" className="resume-section section-languages">
-                  <h2 className="section-title">Languages</h2>
+                  <h2 className="section-title">{secTitle('languages')}</h2>
                   <div className="languages-pills">
                     {languages.map((l) => (
                       <span key={l.id} className="lang-tag">
@@ -225,7 +245,7 @@ export const ResumeRenderer: React.FC<ResumeRendererProps> = ({ data, settings }
                 <div key="custom_sections">
                   {custom_sections.map((cSec) => (
                     <section key={cSec.id} className="resume-section section-custom">
-                      <h2 className="section-title">{cSec.title || 'Additional Information'}</h2>
+                      <h2 className="section-title">{cSec.title || secTitle('custom_sections')}</h2>
                       <ul className="item-bullets">
                         {cSec.items.map((it, idx) => (
                           <li key={idx}>{it}</li>
@@ -235,6 +255,7 @@ export const ResumeRenderer: React.FC<ResumeRendererProps> = ({ data, settings }
                   ))}
                 </div>
               ) : null;
+
 
             default:
               return null;

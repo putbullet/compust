@@ -23,6 +23,7 @@ import { ApplicationsView } from './components/ApplicationsView';
 import { CompanyManagementView } from './components/CompanyManagementView';
 import { MyDataSupervisionView } from './components/MyDataSupervisionView';
 import { GuideView } from './components/Guide/GuideView';
+import { InternshipScraperView } from './components/Internships/InternshipScraperView';
 import { FloatingHelpControls } from './components/Guide/FloatingHelpControls';
 import { AISettingsModal } from './components/AISettingsModal';
 import { AIAssistantWidget } from './components/AIAssistantWidget';
@@ -34,11 +35,11 @@ export const App: React.FC = () => {
   const { t } = useTranslation();
 
   // Navigation & View
-  const [activeTab, setActiveTab] = useState<'directory' | 'profile' | 'scraper' | 'applications' | 'companies' | 'supervision' | 'guide'>(() => {
+  const [activeTab, setActiveTab] = useState<'directory' | 'profile' | 'scraper' | 'applications' | 'companies' | 'supervision' | 'guide' | 'internships'>(() => {
     try {
       const params = new URLSearchParams(window.location.search);
       const tab = params.get('tab');
-      if (tab && ['directory', 'profile', 'scraper', 'applications', 'companies', 'supervision', 'guide'].includes(tab)) {
+      if (tab && ['directory', 'profile', 'scraper', 'applications', 'companies', 'supervision', 'guide', 'internships'].includes(tab)) {
         return tab as any;
       }
       if (window.location.hash.startsWith('#guide')) {
@@ -415,6 +416,11 @@ export const App: React.FC = () => {
               </div>
             )}
           </div>
+        )}
+
+        {/* VIEW: INTERNSHIP INTELLIGENCE */}
+        {activeTab === 'internships' && (
+          <InternshipScraperView availableCountries={countries} />
         )}
 
         {/* VIEW 4: SCRAPER DASHBOARD */}

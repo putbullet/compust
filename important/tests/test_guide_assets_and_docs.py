@@ -6,20 +6,23 @@ IMPORTANT_DIR = REPO_ROOT / "important"
 FRONTEND_DIR = IMPORTANT_DIR / "frontend"
 
 
-def test_demo_video_asset_exists():
-    """Verify demo.mp4 is correctly placed in frontend public directory and is valid."""
-    public_video = FRONTEND_DIR / "public" / "demo.mp4"
-    assert public_video.exists(), f"Expected video at {public_video}"
-    assert public_video.stat().st_size > 1_000_000, "demo.mp4 should be non-empty and > 1MB"
+def test_demo_screenshot_asset_exists():
+    """Verify DEMO_COMPUST.png is present in docs/screenshots and frontend public directory."""
+    docs_screenshot = REPO_ROOT / "docs" / "screenshots" / "DEMO_COMPUST.png"
+    public_screenshot = FRONTEND_DIR / "public" / "DEMO_COMPUST.png"
+    assert docs_screenshot.exists(), f"Expected screenshot at {docs_screenshot}"
+    assert docs_screenshot.stat().st_size > 50_000, "DEMO_COMPUST.png should be a valid image > 50KB"
+    assert public_screenshot.exists(), f"Expected public screenshot at {public_screenshot}"
 
 
 def test_guide_config_integrity():
-    """Verify guideConfig.ts specifies the official GitHub repository and video path."""
+    """Verify guideConfig.ts specifies the official GitHub repository, demo preview image, and Google Drive URL."""
     config_file = FRONTEND_DIR / "src" / "config" / "guideConfig.ts"
     assert config_file.exists(), "guideConfig.ts must exist"
     content = config_file.read_text(encoding="utf-8")
     assert "https://github.com/putbullet/compust" in content
-    assert "'/demo.mp4'" in content or '"/demo.mp4"' in content
+    assert "https://drive.google.com/file/d/1V1UkAwfKErwvKLdZK2VN0cH_suhf8MGZ/view" in content
+    assert "DEMO_COMPUST.png" in content
 
 
 def test_root_readme_has_required_sections():

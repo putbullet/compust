@@ -12,13 +12,14 @@ import {
   Bot,
   Database,
   BookOpen,
+  GraduationCap,
 } from 'lucide-react';
 import type { UserProfile } from '../api/client';
 import { useTranslation } from '../i18n';
 
 interface NavbarProps {
-  activeTab: 'directory' | 'profile' | 'scraper' | 'applications' | 'companies' | 'supervision' | 'guide';
-  setActiveTab: (tab: 'directory' | 'profile' | 'scraper' | 'applications' | 'companies' | 'supervision' | 'guide') => void;
+  activeTab: 'directory' | 'profile' | 'scraper' | 'applications' | 'companies' | 'supervision' | 'guide' | 'internships';
+  setActiveTab: (tab: 'directory' | 'profile' | 'scraper' | 'applications' | 'companies' | 'supervision' | 'guide' | 'internships') => void;
   user: UserProfile | null;
   onOpenAuth: () => void;
   onLogout: () => void;
@@ -74,6 +75,24 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <Briefcase size={20} />
             <div className="tooltip">{t.nav.opportunities}</div>
+          </div>
+
+          <div
+            className={`nav-item ${activeTab === 'internships' ? 'active' : ''}`}
+            onClick={() => setActiveTab('internships')}
+            role="tab"
+            tabIndex={0}
+            aria-selected={activeTab === 'internships'}
+            aria-label={language === 'fr' ? 'Stages & Alternances' : 'Internships'}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setActiveTab('internships');
+              }
+            }}
+          >
+            <GraduationCap size={20} />
+            <div className="tooltip">{language === 'fr' ? 'Stages & Alternances' : 'Internships'}</div>
           </div>
 
           <div

@@ -19,3 +19,10 @@ important/data/processed/
 important/scratch/
 important/storage/resumes/*.pdf
 important/storage/resumes/*.docx
+
+# Runtime, logs, and shortcuts
+.compust_pids.json
+logs/
+*.log
+*.lnk
+*.mp4

@@ -9,6 +9,8 @@ from docx import Document
 from docx.shared import Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
+from ..schemas_resume import resolve_section_title
+
 
 class ResumeExportError(Exception):
     pass
@@ -195,20 +197,24 @@ def render_template_pdf(
         else:
             story.append(HRFlowable(width="100%", thickness=1.5, color=primary_color, spaceBefore=2, spaceAfter=6))
 
+    section_titles = settings.get("section_titles") or {}
+
     # Render sections according to section_order
     for sec_key in order:
         if not visibility.get(sec_key, True):
             continue
 
+        resolved_heading = resolve_section_title(sec_key, section_titles.get(sec_key)).upper()
+
         if sec_key == "summary" and profile.get("summary"):
-            story.append(Paragraph("PROFESSIONAL SUMMARY", section_heading_style))
+            story.append(Paragraph(resolved_heading, section_heading_style))
             story.append(Paragraph(profile["summary"].replace("\n", "<br/>"), body_style))
             story.append(Spacer(1, 4))
 
         elif sec_key == "skills" and structured_data.get("skills"):
             skills = structured_data["skills"]
             if skills:
-                story.append(Paragraph("TECHNICAL & CORE SKILLS", section_heading_style))
+                story.append(Paragraph(resolved_heading, section_heading_style))
                 # Group by category if available
                 categories: dict[str, list[str]] = {}
                 for s in skills:
@@ -228,7 +234,7 @@ def render_template_pdf(
         elif sec_key == "experience" and structured_data.get("experience"):
             experiences = structured_data["experience"]
             if experiences:
-                story.append(Paragraph("PROFESSIONAL TENURE & EXPERIENCE", section_heading_style))
+                story.append(Paragraph(resolved_heading, section_heading_style))
                 for exp in experiences:
                     title = exp.get("title", "")
                     company = exp.get("company", "")
@@ -268,7 +274,7 @@ def render_template_pdf(
         elif sec_key == "education" and structured_data.get("education"):
             educations = structured_data["education"]
             if educations:
-                story.append(Paragraph("EDUCATION & ACADEMIC BACKGROUND", section_heading_style))
+                story.append(Paragraph(resolved_heading, section_heading_style))
                 for edu in educations:
                     inst = edu.get("institution", "")
                     degree = edu.get("degree", "")
@@ -290,7 +296,7 @@ def render_template_pdf(
         elif sec_key == "projects" and structured_data.get("projects"):
             projects = structured_data["projects"]
             if projects:
-                story.append(Paragraph("FEATURED PROJECTS", section_heading_style))
+                story.append(Paragraph(resolved_heading, section_heading_style))
                 for proj in projects:
                     name = proj.get("name", "")
                     techs = proj.get("technologies", "")
@@ -298,9 +304,9 @@ def render_template_pdf(
                     title_line = f"<b>{name}</b>"
                     if techs:
                         title_line += f" ({techs})"
-                    if url:
-                        title_line += f" — {url}"
                     story.append(Paragraph(title_line, item_title_style))
+                    if url:
+                        story.append(Paragraph(f"<u>{url}</u>", item_meta_style))
                     if proj.get("description"):
                         story.append(Paragraph(proj["description"], body_style))
                     story.append(Spacer(1, 3))
@@ -308,7 +314,7 @@ def render_template_pdf(
         elif sec_key == "certifications" and structured_data.get("certifications"):
             certs = structured_data["certifications"]
             if certs:
-                story.append(Paragraph("CERTIFICATIONS & ACCREDITATIONS", section_heading_style))
+                story.append(Paragraph(resolved_heading, section_heading_style))
                 for cert in certs:
                     name = cert.get("name", "")
                     issuer = cert.get("issuer", "")
@@ -324,7 +330,7 @@ def render_template_pdf(
         elif sec_key == "languages" and structured_data.get("languages"):
             langs = structured_data["languages"]
             if langs:
-                story.append(Paragraph("LANGUAGES", section_heading_style))
+                story.append(Paragraph(resolved_heading, section_heading_style))
                 lang_items = [f"{l.get('language', '')} ({l.get('proficiency', 'Fluent')})" for l in langs if l.get("language")]
                 story.append(Paragraph(" • ".join(lang_items), body_style))
                 story.append(Spacer(1, 3))
@@ -332,7 +338,7 @@ def render_template_pdf(
         elif sec_key == "custom_sections" and structured_data.get("custom_sections"):
             custom_sections = structured_data["custom_sections"]
             for c_sec in custom_sections:
-                title = c_sec.get("title", "").strip().upper()
+                title = (c_sec.get("title") or resolved_heading).strip().upper()
                 items = c_sec.get("items", [])
                 if title and items:
                     story.append(Paragraph(title, section_heading_style))
@@ -340,6 +346,7 @@ def render_template_pdf(
                         if it and it.strip():
                             story.append(Paragraph(f"• {it.strip()}", bullet_style))
                     story.append(Spacer(1, 3))
+    story.append(Spacer(1, 3))
 
     doc.build(story)
     validate_pdf_file(dest_path)
@@ -391,23 +398,27 @@ def render_template_docx(
             r_con.font.size = Pt(9.5)
             r_con.font.color.rgb = RGBColor(100, 116, 139)
 
+    section_titles = settings.get("section_titles") or {}
+
     for sec_key in order:
         if not visibility.get(sec_key, True):
             continue
 
+        resolved_heading = resolve_section_title(sec_key, section_titles.get(sec_key)).upper()
+
         if sec_key == "summary" and profile.get("summary"):
-            sh = doc.add_heading("PROFESSIONAL SUMMARY", level=1)
+            sh = doc.add_heading(resolved_heading, level=1)
             sh.runs[0].font.color.rgb = theme_rgb
             doc.add_paragraph(profile["summary"])
 
         elif sec_key == "skills" and structured_data.get("skills"):
-            sh = doc.add_heading("TECHNICAL & CORE SKILLS", level=1)
+            sh = doc.add_heading(resolved_heading, level=1)
             sh.runs[0].font.color.rgb = theme_rgb
             skill_names = [s.get("name") for s in structured_data["skills"] if s.get("name")]
             doc.add_paragraph(", ".join(skill_names))
 
         elif sec_key == "experience" and structured_data.get("experience"):
-            sh = doc.add_heading("PROFESSIONAL TENURE & EXPERIENCE", level=1)
+            sh = doc.add_heading(resolved_heading, level=1)
             sh.runs[0].font.color.rgb = theme_rgb
             for exp in structured_data["experience"]:
                 title = exp.get("title", "")
@@ -427,7 +438,7 @@ def render_template_docx(
                         doc.add_paragraph(hl.strip(), style="List Bullet")
 
         elif sec_key == "education" and structured_data.get("education"):
-            sh = doc.add_heading("EDUCATION & ACADEMIC BACKGROUND", level=1)
+            sh = doc.add_heading(resolved_heading, level=1)
             sh.runs[0].font.color.rgb = theme_rgb
             for edu in structured_data["education"]:
                 p_edu = doc.add_paragraph()
@@ -439,7 +450,7 @@ def render_template_docx(
                     doc.add_paragraph(edu["description"])
 
         elif sec_key == "projects" and structured_data.get("projects"):
-            sh = doc.add_heading("FEATURED PROJECTS", level=1)
+            sh = doc.add_heading(resolved_heading, level=1)
             sh.runs[0].font.color.rgb = theme_rgb
             for proj in structured_data["projects"]:
                 p_proj = doc.add_paragraph()
@@ -450,16 +461,17 @@ def render_template_docx(
                     doc.add_paragraph(proj["description"])
 
         elif sec_key == "certifications" and structured_data.get("certifications"):
-            sh = doc.add_heading("CERTIFICATIONS", level=1)
+            sh = doc.add_heading(resolved_heading, level=1)
             sh.runs[0].font.color.rgb = theme_rgb
             for cert in structured_data["certifications"]:
                 text = f"{cert.get('name', '')} — {cert.get('issuer', '')} ({cert.get('issue_date', '')})"
                 doc.add_paragraph(text, style="List Bullet")
 
         elif sec_key == "languages" and structured_data.get("languages"):
-            sh = doc.add_heading("LANGUAGES", level=1)
+            sh = doc.add_heading(resolved_heading, level=1)
             sh.runs[0].font.color.rgb = theme_rgb
             items = [f"{l.get('language')} ({l.get('proficiency')})" for l in structured_data["languages"] if l.get("language")]
             doc.add_paragraph(", ".join(items))
+
 
     doc.save(str(dest_path))

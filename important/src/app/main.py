@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 import time
+from pydantic import BaseModel, Field
 from fastapi import Body, Depends, FastAPI, File, HTTPException, Path, Query, Response, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select, text
@@ -198,9 +199,14 @@ app.add_middleware(
 @app.get("/health", response_model=HealthRead, tags=["system"])
 def health(db: Session = Depends(get_db)) -> HealthRead:
     start = time.perf_counter()
-    db.execute(text("SELECT 1"))
+    try:
+        db.execute(text("SELECT 1"))
+        db_status = "ok"
+    except Exception:
+        db_status = "error"
     latency_ms = round((time.perf_counter() - start) * 1000, 2)
-    return HealthRead(status="ok", database="ok", latency_ms=latency_ms)
+    return HealthRead(status="ok" if db_status == "ok" else "degraded", database=db_status, latency_ms=latency_ms)
+
 
 
 @app.get("/api/v1/countries", response_model=list[CountryRead], tags=["countries"])
@@ -1588,4 +1594,25 @@ def test_scraper_target_diagnostic(
     )
 
 
+# --- Internship Intelligence Scraper Endpoints ---
 
+
+class InternshipSearchRequest(BaseModel):
+    field: str = Field(..., min_length=1, max_length=150, description="Technical field or role keywords (e.g. Cybersecurity, Software Engineering)")
+    country: str | None = Field(default=None, max_length=80, description="Optional target country. Omit for worldwide mode.")
+    year: int | str | None = Field(default=None, description="Target internship year (e.g. 2026, 2027)")
+    max_results: int = Field(default=20, ge=1, le=50)
+
+
+@app.post("/api/v1/internships/search", tags=["internships"])
+def search_internships_endpoint(
+    payload: InternshipSearchRequest = Body(...),
+):
+    from .scraper.internship_scraper import InternshipIntelligenceScraper
+    scraper = InternshipIntelligenceScraper()
+    return scraper.search_and_extract(
+        field=payload.field,
+        country=payload.country,
+        year=payload.year,
+        max_results=payload.max_results,
+    )

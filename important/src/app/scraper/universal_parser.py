@@ -2,7 +2,7 @@ import json
 import re
 from datetime import datetime, timezone
 from typing import Any
-from urllib.parse import urljoin, urlparse
+from urllib.parse import parse_qs, urlencode, urljoin, urlparse, urlunparse
 
 from bs4 import BeautifulSoup
 
@@ -18,6 +18,17 @@ from .platforms.teamtailor import TeamtailorAdapter
 from .sanitizer import sanitize_html, sanitize_plain_text
 from .url_normalizer import normalize_url
 from .vocabulary import normalize_employment_type, normalize_remote_type, SKILL_SYNONYMS
+
+# Multilingual action button patterns that represent application actions or links, not job titles
+ACTION_BUTTON_PATTERNS = re.compile(
+    r"^\s*(?:"
+    r"apply(?:\s+now)?|view(?:\s+(?:job|offer|details|position|role))?|read\s+more|learn\s+more|see\s+more|"
+    r"voir\s+l['’]offre|voir\s+le\s+poste|en\s+savoir\s+plus|postuler|candidater|d[eé]tails?(?:\s+de\s+l['’]offre)?|consulter|"
+    r"jetzt\s+bewerben|bewerben|mehr\s+erfahren|zur\s+stelle|stellenanzeige(?:\s+ansehen)?|details|mehr\s+lesen|"
+    r"share|partager|teilen|sauvegarder|speichern|save|senden|envoyer"
+    r")\s*$",
+    re.IGNORECASE,
+)
 
 # Multilingual keywords for non-job link filtering
 DISALLOWED_LINK_PATTERNS = [
@@ -58,16 +69,83 @@ EXCLUDED_SECTION_HEADINGS = [
     r"equal\s+opportunity|diversity\s+(?:&|and)\s+inclusion",
     r"^\s*\d+\s+(?:open\s+)?(?:jobs?|positions?|vacancies|openings?|roles?|opportunities)",
     r"all\s+(?:jobs?|positions?|vacancies|openings?|roles?)",
-    r"filter\s+by",
+    r"filter\s+by|filtres?|filter",
+    r"(?:nos\s+)?offres(?:\s+d['’]emploi)?",
+    r"postes\s+(?:disponibles|ouverts|vacants)",
+    r"offene\s+stellen(?:angebote)?|aktuelle\s+stellenangebote",
+    r"unsere\s+stellenangebote",
+    r"r[eé]sultats?(?:\s+de\s+la\s+recherche)?",
+    r"ergebnisse(?:\s+der\s+suche)?",
 ]
 
 CAREER_PATH_INDICATORS = [
-    r"jobs?", r"careers?", r"vacanc(?:y|ies)", r"openings?", r"positions?", r"opportunit(?:y|ies)",
-    r"emplois?", r"offres?", r"recrutements?", r"postes?",
-    r"karriere", r"stellen?",
+    r"/jobs?/",
+    r"/careers?/",
+    r"/vacanc(?:y|ies)/",
+    r"/openings?/",
+    r"/positions?/",
+    r"/opportunit(?:y|ies)/",
+    r"/emplois?/",
+    r"/offres?/",
+    r"/recrutements?/",
+    r"/postes?/",
+    r"/karriere/",
+    r"/stellen?/",
+]
+
+CAREER_PATH_REGEX = re.compile(
+    r"/(?:jobs?|careers?|vacanc(?:y|ies)|openings?|positions?|opportunit(?:y|ies)|"
+    r"emplois?|offres?|recrutements?|postes?|"
+    r"karriere|stellen?)(?:/|[?#]|$)",
+    re.IGNORECASE,
+)
+
+RESULT_COUNT_PATTERNS: list[re.Pattern] = [
+    re.compile(r"(\d+[\d\s,.]*)\s*(?:r[eé]sultats?|offres?(?:\s+d['’]emploi)?|postes?(?:\s+disponibles?)?|opportunit[eé]s?)", re.IGNORECASE),
+    re.compile(r"(\d+[\d\s,.]*)\s*(?:ergebnisse?|stellenangebote?|offene\s+stellen|stellen|treffer|jobs?)", re.IGNORECASE),
+    re.compile(r"(\d+[\d\s,.]*)\s*(?:results?|jobs?|openings?|positions?|vacancies|opportunities)", re.IGNORECASE),
+    re.compile(r"(?:total|of|sur|von)\s+(\d+[\d\s,.]*)\s*(?:results?|jobs?|offres?|stellen?)?", re.IGNORECASE),
 ]
 
 COMMON_SKILLS = sorted(list(set(SKILL_SYNONYMS.values())))
+
+
+def extract_detected_result_count(soup: BeautifulSoup) -> int | None:
+    """Detect published job collection result count on the page."""
+    selectors = [
+        "[class*='total-results']",
+        "[class*='result-count']",
+        "[class*='results-count']",
+        "[class*='job-count']",
+        "[class*='search-count']",
+        "[id*='total-results']",
+        "[id*='result-count']",
+        ".attrax-pagination__total-results",
+    ]
+    for sel in selectors:
+        for el in soup.select(sel):
+            txt = el.get_text(" ", strip=True)
+            for pat in RESULT_COUNT_PATTERNS:
+                m = pat.search(txt)
+                if m:
+                    num_str = re.sub(r"[^\d]", "", m.group(1))
+                    if num_str:
+                        return int(num_str)
+
+    for el in soup.find_all(["h1", "h2", "h3", "h4", "h5", "p", "span", "div"]):
+        txt = el.get_text(" ", strip=True)
+        if len(txt) > 80:
+            continue
+        c_or_id = f"{' '.join(el.get('class', []))} {el.get('id', '')}".lower()
+        if any(k in c_or_id for k in ("result", "count", "pagination", "search", "total")):
+            for pat in RESULT_COUNT_PATTERNS:
+                m = pat.search(txt)
+                if m:
+                    num_str = re.sub(r"[^\d]", "", m.group(1))
+                    if num_str and int(num_str) > 0:
+                        return int(num_str)
+
+    return None
 
 
 def is_plausible_job_link(href: str, text: str) -> bool:
@@ -77,7 +155,7 @@ def is_plausible_job_link(href: str, text: str) -> bool:
 
     parsed_href = urlparse(href)
     norm_path = parsed_href.path.rstrip("/").lower()
-    if norm_path in ("", "/jobs", "/careers", "/openings", "/positions", "/vacancies", "/emploi", "/offres"):
+    if norm_path in ("", "/jobs", "/careers", "/openings", "/positions", "/vacancies", "/emploi", "/offres", "/stellen"):
         return False
 
     combined = f"{href} {text}".lower()
@@ -87,8 +165,12 @@ def is_plausible_job_link(href: str, text: str) -> bool:
         if re.search(pattern, combined):
             return False
 
-    # Title / link text length check
+    # Reject pure action button text masquerading as title
     cleaned_text = re.sub(r"\s+", " ", text).strip()
+    if ACTION_BUTTON_PATTERNS.match(cleaned_text):
+        return False
+
+    # Title / link text length check
     if len(cleaned_text) < 3 or len(cleaned_text) > 160:
         return False
 
@@ -407,50 +489,99 @@ def extract_html_card_jobs(soup: BeautifulSoup, source_url: str) -> list[JobCand
 
     card_selectors = [
         "article",
+        "[class*='vacancy-tile']",
+        "div[class*='vacancy-tile']",
+        "div[class*='job-tile']",
+        "div[class*='job-item']",
+        "div[class*='job-card']",
+        "div[class*='job_card']",
+        "div[class*='career-card']",
+        "div[class*='position-card']",
+        "div[class*='search-result']",
+        "div[class*='listing-item']",
+        "div[class*='vacancy']",
         "li[class*='job']", "li[class*='career']", "li[class*='vacancy']", "li[class*='posting']",
-        "div[class*='job-item']", "div[class*='job-card']", "div[class*='job_card']",
-        "div[class*='vacancy']", "div[class*='career-card']", "div[class*='position-card']",
         "tr[class*='job']", "tr[class*='posting']",
     ]
 
     cards = []
     for sel in card_selectors:
         found = soup.select(sel)
-        if len(found) >= 2:
-            cards = found
-            break
+        valid_found = []
+        for el in found:
+            c_str = " ".join(el.get("class", [])).lower() if hasattr(el, "get") else ""
+            if any(f in c_str for f in ("filter", "search-box", "pagination", "facet", "breadcrumb", "teaser")):
+                continue
+            if el.select_one("a[href]"):
+                valid_found.append(el)
+        if len(valid_found) >= 2:
+            # Retain outer candidate cards (drop nested sub-elements that matched the same selector)
+            outer_cards = []
+            for el in valid_found:
+                if not any(other != el and other in el.parents for other in valid_found):
+                    outer_cards.append(el)
+            if len(outer_cards) >= 2:
+                cards = outer_cards
+                break
 
-    # If standard class-based card selectors didn't match, look for list containers (li, tr)
+    # If standard class-based card selectors didn't match, look for list containers (li, tr, div)
     # that each enclose a distinctive job URL anchor (/jobs/<id>, /careers/<slug>, etc.)
     if not cards:
-        job_pattern = re.compile(r"/(?:jobs?|positions?|vacanc(?:y|ies)|careers?)/[a-zA-Z0-9_\-]+", re.I)
         matched_containers = []
         for a in soup.find_all("a", href=True):
             href = a["href"]
             p = urlparse(href).path.rstrip("/")
-            if p.lower() in ("", "/jobs", "/careers", "/openings", "/positions", "/vacancies"):
+            if p.lower() in ("", "/jobs", "/careers", "/openings", "/positions", "/vacancies", "/emploi", "/offres", "/stellen"):
                 continue
             if re.search(r"/(?:departments?|categories?|teams?|locations?)/", p, re.I):
                 continue
-            if job_pattern.search(p):
-                container = a.find_parent("li") or a.find_parent("tr")
+            if CAREER_PATH_REGEX.search(p + "/"):
+                container = a.find_parent("li") or a.find_parent("tr") or a.find_parent("article") or a.find_parent("div")
                 if container and container not in matched_containers:
-                    matched_containers.append(container)
+                    if getattr(container, "name", "") not in ("body", "html", "main"):
+                        matched_containers.append(container)
         if len(matched_containers) >= 2:
-            cards = matched_containers
+            outer_containers = []
+            for el in matched_containers:
+                if not any(other != el and other in el.parents for other in matched_containers):
+                    outer_containers.append(el)
+            if len(outer_containers) >= 2:
+                cards = outer_containers
 
     if cards:
         for card in cards:
-            link = card.select_one("a[href]")
-            if not link:
+            all_links = card.select("a[href]")
+            if not all_links:
                 continue
-            href = link.get("href", "")
-            raw_text = card.get_text(" ", strip=True)
-            link_text = link.get_text(" ", strip=True)
-            title = link_text or (card.select_one("h1, h2, h3, h4, h5, [class*='title']") or link).get_text(" ", strip=True)
 
+            # Prioritize title links over action button links ("VOIR L'OFFRE", "APPLY")
+            title_link = None
+            for a in all_links:
+                t = a.get_text(" ", strip=True)
+                if not t or ACTION_BUTTON_PATTERNS.match(t):
+                    continue
+                if a.get("role") == "heading" or any("title" in c.lower() for c in a.get("class", [])) or a.find_parent(["h1", "h2", "h3", "h4", "h5", "h6"]):
+                    title_link = a
+                    break
+            if not title_link:
+                for a in all_links:
+                    t = a.get_text(" ", strip=True)
+                    if t and not ACTION_BUTTON_PATTERNS.match(t):
+                        title_link = a
+                        break
+
+            link = title_link or all_links[0]
+            href = link.get("href", "")
+
+            heading = card.select_one("h1, h2, h3, h4, h5, [class*='title'], [role='heading']")
+            candidate_title = heading.get_text(" ", strip=True) if heading else ""
+            if not candidate_title or ACTION_BUTTON_PATTERNS.match(candidate_title):
+                candidate_title = link.get_text(" ", strip=True)
+            title = candidate_title
+
+            raw_text = card.get_text(" ", strip=True)
             classes_str = " ".join(card.get("class", [])) if hasattr(card, "get") else ""
-            if "cmp-teaser" in classes_str or "teaser" in classes_str or "editorial" in classes_str:
+            if "cmp-teaser" in classes_str or "editorial" in classes_str:
                 continue
 
             if not is_plausible_job_link(href, title):
@@ -469,12 +600,15 @@ def extract_html_card_jobs(soup: BeautifulSoup, source_url: str) -> list[JobCand
             if loc_el and loc_el != link:
                 loc_cand = sanitize_plain_text(loc_el.get_text(" ", strip=True))
                 if loc_cand and loc_cand != title:
+                    loc_cand = re.sub(r"^(?:localisation|location|lieu|standort)\s*:?\s*", "", loc_cand, flags=re.I)
                     location = loc_cand
 
             dept = None
-            dept_el = card.select_one("[class*='dept'], [class*='department'], [class*='service'], [class*='team']")
+            dept_el = card.select_one("[class*='dept'], [class*='department'], [class*='service'], [class*='team'], [class*='metier'], [class*='métier']")
             if dept_el:
-                dept = sanitize_plain_text(dept_el.get_text(" ", strip=True))
+                dept_cand = sanitize_plain_text(dept_el.get_text(" ", strip=True))
+                dept_cand = re.sub(r"^(?:métiers?|metiers?|department|service|team)\s*:?\s*", "", dept_cand, flags=re.I)
+                dept = dept_cand
 
             id_match = re.search(r"/(?:job|jobs|position|vacancy|offre|postes?)/([a-zA-Z0-9_\-]+)", href)
             if id_match:
@@ -514,8 +648,7 @@ def extract_html_card_jobs(soup: BeautifulSoup, source_url: str) -> list[JobCand
             text = a.get_text(" ", strip=True)
 
             path_lower = urlparse(href).path.lower()
-            has_career_path = any(re.search(rf"\b{re.escape(p)}\b", path_lower) for p in CAREER_PATH_INDICATORS)
-            if not has_career_path:
+            if not CAREER_PATH_REGEX.search(path_lower + "/"):
                 continue
 
             if not is_plausible_job_link(href, text):
@@ -549,41 +682,80 @@ def extract_html_card_jobs(soup: BeautifulSoup, source_url: str) -> list[JobCand
     return candidates
 
 
-def find_universal_next_page_url(soup: BeautifulSoup, current_url: str) -> str | None:
+def _build_page_url(current_url: str, page_num: int) -> str:
+    """Safely construct or update a query-string pagination URL with the specified page number."""
+    parsed = urlparse(current_url)
+    qs = parse_qs(parsed.query, keep_blank_values=True)
+    page_param = "page"
+    for cand in ("page", "p", "pageNumber", "pageIndex", "pg"):
+        if cand in qs:
+            page_param = cand
+            break
+    qs[page_param] = [str(page_num)]
+    new_query = urlencode(qs, doseq=True)
+    return urlunparse(parsed._replace(query=new_query))
+
+
+def find_universal_next_page_url(soup: BeautifulSoup | str, current_url: str) -> str | None:
     """Discover next page pagination link using semantic tags, rel='next', and pagination anchors."""
+    if isinstance(soup, str):
+        soup = BeautifulSoup(soup, "html.parser")
+
     # 1. Standard rel="next"
     next_link = soup.select_one("a[rel*='next'], link[rel*='next']")
     if next_link and next_link.get("href"):
-        return urljoin(current_url, next_link["href"])
+        href = next_link["href"]
+        if not href.startswith("javascript:") and not href.startswith("#"):
+            return urljoin(current_url, href)
 
-    # 2. Text-based pagination buttons
+    # 2. Text-based pagination buttons (English, French, German, Spanish)
     next_patterns = [
         r"^(?:next|suivant|suivante|weiter|siguiente|suivant\s*»|next\s*>|»|>)$",
-        r"\b(?:next\s+page|page\s+suivante|n[aä]chste\s+seite)\b",
+        r"\b(?:next\s+page|page\s+suivante|n[aä]chste\s+seite|folgende\s+seite)\b",
     ]
 
-    for a in soup.select("a[href]"):
+    for a in soup.select("a[href], button"):
         text = a.get_text(" ", strip=True).lower()
         aria = (a.get("aria-label") or "").lower()
         combined = f"{text} {aria}".strip()
         for pat in next_patterns:
             if re.search(pat, combined):
-                href = a.get("href")
+                href = a.get("href", "")
                 if href and not href.startswith("#") and not href.startswith("javascript:"):
                     return urljoin(current_url, href)
+                # Check for javascript pagination call e.g. javascript:pagination(2)
+                m = re.search(r"(?:pagination|gotopage|page)\s*\(\s*['\"]?(\d+)['\"]?\s*\)", href, re.I)
+                if m:
+                    target_page = int(m.group(1))
+                    return _build_page_url(current_url, target_page)
 
     # 3. Numeric pagination: find active page and take the next number
-    active_page = soup.select_one(".active, .current, [aria-current='page']")
+    active_page = soup.select_one(".active, .current, [aria-current='page'], [class*='--current']")
     if active_page:
-        parent = active_page.find_parent("ul") or active_page.find_parent("nav") or active_page.parent
-        if parent:
+        parent = active_page.find_parent("ul") or active_page.find_parent("nav") or getattr(active_page, "parent", None)
+        if parent and hasattr(parent, "select"):
             all_page_links = parent.select("a[href]")
-            for a in all_page_links:
-                href = a.get("href", "")
-                text = a.get_text(strip=True)
-                if text.isdigit() and active_page.get_text(strip=True).isdigit():
-                    if int(text) == int(active_page.get_text(strip=True)) + 1:
-                        return urljoin(current_url, href)
+            active_text = active_page.get_text(strip=True)
+            if active_text.isdigit():
+                next_num = int(active_text) + 1
+                for a in all_page_links:
+                    href = a.get("href", "")
+                    text = a.get_text(strip=True)
+                    if text == str(next_num):
+                        if href and not href.startswith("#") and not href.startswith("javascript:"):
+                            return urljoin(current_url, href)
+                        m = re.search(r"(?:pagination|gotopage|page)\s*\(\s*['\"]?(\d+)['\"]?\s*\)", href, re.I)
+                        if m and int(m.group(1)) == next_num:
+                            return _build_page_url(current_url, next_num)
+                        return _build_page_url(current_url, next_num)
+
+    # 4. Check attrax pagination widget next link specifically
+    attrax_next = soup.select_one(".attrax-pagination__next a[href]")
+    if attrax_next:
+        href = attrax_next.get("href", "")
+        m = re.search(r"(?:pagination|gotopage|page)\s*\(\s*['\"]?(\d+)['\"]?\s*\)", href, re.I)
+        if m:
+            return _build_page_url(current_url, int(m.group(1)))
 
     return None
 
@@ -598,6 +770,7 @@ def parse_universal_jobs(source: FetchedSource) -> ParseResult:
     4. Embedded application state (Next.js __NEXT_DATA__, window.__INITIAL_STATE__)
     5. Semantic heading + action card heuristics (resolves custom company sites like Rankly Media)
     6. Repeated container HTML card heuristics
+    7. Job Title Intelligence Discovery fallback
     """
     errors: list[str] = []
     target_url = source.requested_url or source.final_url
@@ -650,6 +823,7 @@ def parse_universal_jobs(source: FetchedSource) -> ParseResult:
 
     # Parse HTML DOM
     soup = BeautifulSoup(source.body, "html.parser")
+    detected_result_count = extract_detected_result_count(soup)
 
     # Layer 3: Schema.org JSON-LD
     jobs = extract_json_ld_jobs(soup, source.final_url)
@@ -696,4 +870,4 @@ def parse_universal_jobs(source: FetchedSource) -> ParseResult:
         else:
             errors.append("Static HTML received. Evaluated JSON-LD, embedded state, semantic heading cards, anchor links, and job-title intelligence, but 0 qualifying job candidates were discovered.")
 
-    return ParseResult(jobs=validated_jobs, errors=errors)
+    return ParseResult(jobs=validated_jobs, errors=errors, detected_result_count=detected_result_count)

@@ -18,23 +18,44 @@ COMPOUND_REPLACEMENTS: list[tuple[re.Pattern, str]] = [
     (re.compile(r"\bsys[-_ ]?admin\b", re.IGNORECASE), "sysadmin"),
 ]
 
+def unaccent(text: str) -> str:
+    """Strip accents and diacritics for phonetic/loose comparison (e.g. développeur -> developpeur)."""
+    if not text:
+        return ""
+    s = text.replace("ß", "ss")
+    nfkd = unicodedata.normalize("NFKD", s)
+    return "".join(c for c in nfkd if not unicodedata.combining(c))
+
+
 # Patterns for parenthetical or suffixed noise commonly attached to job titles
 NOISE_PATTERNS: list[re.Pattern] = [
-    # Gender tags e.g. (m/f/d), (h/f), (m/w/d), (all genders)
-    re.compile(r"\s*[\(\[\{]\s*(?:m/f/d|h/f|m/w/d|f/m/d|all\s+genders|w/m/d|h/f/x|m/f)\s*[\)\]\}]", re.IGNORECASE),
+    # Gender tags e.g. (m/f/d), (h/f), (m/w/d), (f/m/d), (all genders), (w/m/d), (h/f/x), (m/f), (d/m/w)
+    re.compile(r"\s*[\(\[\{]\s*(?:m/f/d|h/f/d|h/f|f/h|m/w/d|f/m/d|all\s+genders|w/m/d|w/m/div|h/f/x|m/f|d/m/w)\s*[\)\]\}]", re.IGNORECASE),
+    # Standalone or suffixed gender tags e.g. " H/F", " - H/F", " M/W/D", " (H/F/D)"
+    re.compile(r"(?:^|\s+|[-–—|/]\s*)(?:h/f/d|h/f/x|h/f|f/h|m/w/d|w/m/d|w/m/div|m/f/d|f/m/d|m/f|d/m/w)(?:$|\s+|[-–—|/])", re.IGNORECASE),
+    # Gendered suffixes e.g. (e), (e/se), (se), (in), (trice), (euse)
+    re.compile(r"\s*[\(\[\{]\s*(?:e|se|te|trice|euse|in)\s*[\)\]\}]", re.IGNORECASE),
+    # Slashed gender suffixes e.g. /e, /se, /te, /trice, /euse, /in
+    re.compile(r"/(?:e|se|te|trice|euse|in)\b", re.IGNORECASE),
+    # Hyphenated gender suffixes e.g. -e, -se, -trice
+    re.compile(r"-(?:e|se|te|trice|euse)\b", re.IGNORECASE),
     # Work mode tags e.g. (remote), [hybrid], (on-site), (wfh)
-    re.compile(r"\s*[\(\[\{]\s*(?:remote|hybrid|on[- ]?site|telework|t[eé]l[eé]travail|wfh)\s*[\)\]\}]", re.IGNORECASE),
+    re.compile(r"\s*[\(\[\{]\s*(?:remote|hybrid|on[- ]?site|telework|t[eé]l[eé]travail|wfh|home[- ]?office)\s*[\)\]\}]", re.IGNORECASE),
     # Contract type tags e.g. (full-time), (cdi), (cdd), (internship), (stage)
-    re.compile(r"\s*[\(\[\{]\s*(?:full[- ]?time|part[- ]?time|contract|permanent|cdi|cdd|internship|stage|pfe|freelance)\s*[\)\]\}]", re.IGNORECASE),
-    # Job requisition IDs e.g. (#1234), (req-1234), (id: 4321)
-    re.compile(r"\s*[\(\[\{]\s*(?:req(?:uisition)?|id|ref)?[- :]*\d+\s*[\)\]\}]", re.IGNORECASE),
+    re.compile(r"\s*[\(\[\{]\s*(?:full[- ]?time|part[- ]?time|contract|permanent|cdi|cdd|internship|stage|pfe|freelance|alternance|apprentissage|praktikum|werkstudent|ausbildung|trainee)\s*[\)\]\}]", re.IGNORECASE),
+    # Job requisition IDs e.g. (#1234), (req-1234), (id: 4321), (jid-1509)
+    re.compile(r"\s*[\(\[\{]\s*(?:req(?:uisition)?|id|ref|jid)?[- :]*\d+\s*[\)\]\}]", re.IGNORECASE),
     # Leading requisition numbers e.g. "REQ-1234: ", "#1234 - "
-    re.compile(r"^\s*(?:req(?:uisition)?|ref)?[- :]*\d+\s*[-:–—]\s*", re.IGNORECASE),
+    re.compile(r"^\s*(?:req(?:uisition)?|ref|jid)?[- :]*\d+\s*[-:–—]\s*", re.IGNORECASE),
 ]
 
 # Suffixes after dash or pipe specifying locations or job types
 LOCATION_OR_MODE_SUFFIX = re.compile(
-    r"\s*[-–—|/]\s*(?:remote|hybrid|on[- ]?site|cdi|cdd|full[- ]?time|part[- ]?time|contract|morocco|maroc|casablanca|rabat|paris|london|france|uk|usa?|dubai|berlin|new york)\s*$",
+    r"\s*[-–—|/]\s*(?:remote|hybrid|on[- ]?site|cdi|cdd|full[- ]?time|part[- ]?time|contract|"
+    r"morocco|maroc|casablanca|rabat|paris|london|france|uk|usa?|dubai|berlin|new york|"
+    r"toulouse|colomiers|courbevoie|montreuil|rennes|lille|nantes|bordeaux|lyon|marseille|"
+    r"idf|ile[- ]?de[- ]?france|münchen|munich|frankfurt|hamburg|stuttgart|düsseldorf|cologne|"
+    r"germany|deutschland|all sectors|cs group|sopra steria)\s*$",
     re.IGNORECASE,
 )
 
@@ -134,6 +155,12 @@ def generate_normalized_variants(text: str) -> list[str]:
                     variants.append(c)
                 if h not in variants:
                     variants.append(h)
+
+    # Append unaccented versions of variants for accent-agnostic matching
+    for v in list(variants):
+        u = unaccent(v)
+        if u and u not in variants:
+            variants.append(u)
 
     return variants
 

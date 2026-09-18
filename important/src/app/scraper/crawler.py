@@ -22,6 +22,7 @@ class CrawlResult:
     errors: list[str]
     pages_crawled: int
     initial_source: FetchedSource | None = None
+    detected_result_count: int | None = None
 
 
 def crawl_pages(
@@ -64,6 +65,7 @@ def crawl_pages(
     all_errors: list[str] = []
     pages_crawled = 0
     initial_source: FetchedSource | None = None
+    detected_result_count: int | None = None
     actual_fetcher = fetcher or fetch_source
     actual_rendered_fetcher = rendered_fetcher or fetch_rendered_source
 
@@ -138,6 +140,9 @@ def crawl_pages(
             # All job IDs on this page were already seen
             break
 
+        if result.detected_result_count is not None and detected_result_count is None:
+            detected_result_count = result.detected_result_count
+
         for job in result.jobs:
             if not job.external_job_id or job.external_job_id not in seen_job_ids:
                 if job.external_job_id:
@@ -157,5 +162,11 @@ def crawl_pages(
 
         current_url = next_url
 
-    return CrawlResult(jobs=all_jobs, errors=all_errors, pages_crawled=pages_crawled, initial_source=initial_source)
+    return CrawlResult(
+        jobs=all_jobs,
+        errors=all_errors,
+        pages_crawled=pages_crawled,
+        initial_source=initial_source,
+        detected_result_count=detected_result_count,
+    )
 

@@ -1,9 +1,12 @@
 from datetime import datetime
 from typing import Any, Literal
-from pydantic import BaseModel, ConfigDict, Field
+import uuid
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ResumeProfileSchema(BaseModel):
+    model_config = ConfigDict(coerce_numbers_to_str=True, extra="ignore")
+
     full_name: str = ""
     headline: str = ""
     email: str = ""
@@ -14,8 +17,18 @@ class ResumeProfileSchema(BaseModel):
     linkedin: str = ""
     summary: str = ""
 
+    @field_validator(
+        "full_name", "headline", "email", "phone", "location", "website", "github", "linkedin", "summary",
+        mode="before"
+    )
+    @classmethod
+    def _clean_str(cls, v: Any) -> str:
+        return "" if v is None else str(v)
+
 
 class ResumeExperienceItem(BaseModel):
+    model_config = ConfigDict(coerce_numbers_to_str=True, extra="ignore")
+
     id: str
     company: str = ""
     title: str = ""
@@ -27,8 +40,32 @@ class ResumeExperienceItem(BaseModel):
     description: str = ""
     highlights: list[str] = Field(default_factory=list)
 
+    @field_validator("id", mode="before")
+    @classmethod
+    def _clean_id(cls, v: Any) -> str:
+        return str(v) if v is not None else str(uuid.uuid4())[:8]
+
+    @field_validator("company", "title", "location", "employment_type", "start_date", "end_date", "description", mode="before")
+    @classmethod
+    def _clean_str(cls, v: Any) -> str:
+        return "" if v is None else str(v)
+
+    @field_validator("is_current", mode="before")
+    @classmethod
+    def _clean_bool(cls, v: Any) -> bool:
+        return bool(v) if v is not None else False
+
+    @field_validator("highlights", mode="before")
+    @classmethod
+    def _clean_highlights(cls, v: Any) -> list[str]:
+        if not v or not isinstance(v, list):
+            return []
+        return [str(x) for x in v if x is not None]
+
 
 class ResumeEducationItem(BaseModel):
+    model_config = ConfigDict(coerce_numbers_to_str=True, extra="ignore")
+
     id: str
     institution: str = ""
     degree: str = ""
@@ -39,15 +76,54 @@ class ResumeEducationItem(BaseModel):
     gpa: str = ""
     description: str = ""
 
+    @field_validator("id", mode="before")
+    @classmethod
+    def _clean_id(cls, v: Any) -> str:
+        return str(v) if v is not None else str(uuid.uuid4())[:8]
+
+    @field_validator("institution", "degree", "field", "location", "start_date", "end_date", "gpa", "description", mode="before")
+    @classmethod
+    def _clean_str(cls, v: Any) -> str:
+        return "" if v is None else str(v)
+
 
 class ResumeSkillItem(BaseModel):
+    model_config = ConfigDict(coerce_numbers_to_str=True, extra="ignore")
+
     id: str
     name: str = ""
     category: str = "Technical"
-    proficiency: str = "Intermediate"
+    proficiency: str | None = None
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def _clean_id(cls, v: Any) -> str:
+        return str(v) if v is not None else str(uuid.uuid4())[:8]
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def _clean_name(cls, v: Any) -> str:
+        return "" if v is None else str(v)
+
+    @field_validator("category", mode="before")
+    @classmethod
+    def _clean_cat(cls, v: Any) -> str:
+        return "Technical" if v is None else str(v)
+
+    @field_validator("proficiency", mode="before")
+    @classmethod
+    def _clean_proficiency(cls, v: Any) -> str | None:
+        if v is None:
+            return None
+        s = str(v).strip()
+        if s.upper() in ("", "NONE", "NO_LABEL", "NO LABEL", "NULL", "UNDEFINED", "BLANK"):
+            return None
+        return s
 
 
 class ResumeProjectItem(BaseModel):
+    model_config = ConfigDict(coerce_numbers_to_str=True, extra="ignore")
+
     id: str
     name: str = ""
     description: str = ""
@@ -56,8 +132,20 @@ class ResumeProjectItem(BaseModel):
     start_date: str = ""
     end_date: str = ""
 
+    @field_validator("id", mode="before")
+    @classmethod
+    def _clean_id(cls, v: Any) -> str:
+        return str(v) if v is not None else str(uuid.uuid4())[:8]
+
+    @field_validator("name", "description", "technologies", "url", "start_date", "end_date", mode="before")
+    @classmethod
+    def _clean_str(cls, v: Any) -> str:
+        return "" if v is None else str(v)
+
 
 class ResumeCertificationItem(BaseModel):
+    model_config = ConfigDict(coerce_numbers_to_str=True, extra="ignore")
+
     id: str
     name: str = ""
     issuer: str = ""
@@ -65,20 +153,73 @@ class ResumeCertificationItem(BaseModel):
     expiration_date: str = ""
     url: str = ""
 
+    @field_validator("id", mode="before")
+    @classmethod
+    def _clean_id(cls, v: Any) -> str:
+        return str(v) if v is not None else str(uuid.uuid4())[:8]
+
+    @field_validator("name", "issuer", "issue_date", "expiration_date", "url", mode="before")
+    @classmethod
+    def _clean_str(cls, v: Any) -> str:
+        return "" if v is None else str(v)
+
 
 class ResumeLanguageItem(BaseModel):
+    model_config = ConfigDict(coerce_numbers_to_str=True, extra="ignore")
+
     id: str
     language: str = ""
-    proficiency: str = "Fluent"
+    proficiency: str | None = None
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def _clean_id(cls, v: Any) -> str:
+        return str(v) if v is not None else str(uuid.uuid4())[:8]
+
+    @field_validator("language", mode="before")
+    @classmethod
+    def _clean_lang(cls, v: Any) -> str:
+        return "" if v is None else str(v)
+
+    @field_validator("proficiency", mode="before")
+    @classmethod
+    def _clean_proficiency(cls, v: Any) -> str | None:
+        if v is None:
+            return None
+        s = str(v).strip()
+        if s.upper() in ("", "NONE", "NO_LABEL", "NO LABEL", "NULL", "UNDEFINED", "BLANK"):
+            return None
+        return s
 
 
 class ResumeCustomSectionItem(BaseModel):
+    model_config = ConfigDict(coerce_numbers_to_str=True, extra="ignore")
+
     id: str
     title: str = ""
     items: list[str] = Field(default_factory=list)
 
+    @field_validator("id", mode="before")
+    @classmethod
+    def _clean_id(cls, v: Any) -> str:
+        return str(v) if v is not None else str(uuid.uuid4())[:8]
+
+    @field_validator("title", mode="before")
+    @classmethod
+    def _clean_str(cls, v: Any) -> str:
+        return "" if v is None else str(v)
+
+    @field_validator("items", mode="before")
+    @classmethod
+    def _clean_items(cls, v: Any) -> list[str]:
+        if not v or not isinstance(v, list):
+            return []
+        return [str(x) for x in v if x is not None]
+
 
 class StructuredResumeData(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     profile: ResumeProfileSchema = Field(default_factory=ResumeProfileSchema)
     experience: list[ResumeExperienceItem] = Field(default_factory=list)
     education: list[ResumeEducationItem] = Field(default_factory=list)
@@ -104,15 +245,16 @@ DEFAULT_SECTION_TITLES: dict[str, str] = {
 }
 
 
-def resolve_section_title(section_id: str, custom_title: str | None = None) -> str:
+def resolve_section_title(section_id: str, custom_title: str | None = None, lang: str = "en") -> str:
     """Resolve the display title for a resume section.
 
     If custom_title is non-empty and not whitespace-only, return it stripped.
-    Otherwise, fall back to the default title for that section identifier.
+    Otherwise, fall back to the default title for that section identifier and language.
     """
     if custom_title and isinstance(custom_title, str) and custom_title.strip():
         return custom_title.strip()
-    return DEFAULT_SECTION_TITLES.get(section_id, section_id.replace("_", " ").title())
+    from src.app.services.resume_localization import resolve_localized_section_title
+    return resolve_localized_section_title(section_id, custom_title, lang)
 
 
 class ResumeSectionTitleItem(BaseModel):
@@ -123,11 +265,14 @@ class ResumeSectionTitleItem(BaseModel):
 
 
 class ResumeSettings(BaseModel):
-    template: ResumeTemplateType = "modern"
+    model_config = ConfigDict(extra="ignore")
+
+    template: str = "modern"
+    language: str = "en"
     theme_color: str = "#2563eb"
     font_family: str = "Inter"
     font_size: str = "10.5"
-    document_size: Literal["A4", "LETTER"] = "A4"
+    document_size: str = "A4"
     section_order: list[str] = Field(
         default_factory=lambda: [
             "summary",
@@ -159,8 +304,9 @@ class ResumeSettings(BaseModel):
     )
 
 
-
 class StructuredResumeCreate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     title: str = Field(default="My Resume", min_length=1, max_length=255)
     is_default: bool = False
     structured_data: StructuredResumeData | None = None
@@ -170,6 +316,8 @@ class StructuredResumeCreate(BaseModel):
 
 
 class StructuredResumeUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     title: str | None = None
     is_default: bool | None = None
     structured_data: StructuredResumeData | None = None

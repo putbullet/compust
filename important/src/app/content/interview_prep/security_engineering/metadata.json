@@ -1,0 +1,18 @@
+{
+  "id": "security_engineering",
+  "title": "Security Engineering",
+  "short_title": "Security Eng",
+  "tagline": "SOC analysis, penetration testing, network perimeter defense, application security, PKI, and incident response.",
+  "description": "Master defense-in-depth security principles across entry-level, intermediate, and experienced roles. Covers threat modeling, OWASP Top 10, TCP/IP attacks, cryptographic ciphers, SIEM analytics, micro-segmentation, and enterprise system hardening.",
+  "hero_illustration": "/illustrations/security_engineering_hero.png",
+  "educational_diagrams": [
+    "/illustrations/Cyber_Security_Job_Roles.png",
+    "/illustrations/diagram_oauth_pkce_flow.svg"
+  ],
+  "source_repository": "https://github.com/abhinavkakku/Cyber_Security_Interview_Questions",
+  "source_commit": "f42c7bf5340b1d7077bde24663148a0504ecb7ec",
+  "source_license": "Public Open Source (GitHub Terms of Service)",
+  "source_url": "https://github.com/abhinavkakku/Cyber_Security_Interview_Questions",
+  "total_categories": 6,
+  "total_questions": 65
+}

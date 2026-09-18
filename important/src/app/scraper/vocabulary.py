@@ -10,18 +10,18 @@ class ParsedLocation(TypedDict):
 
 # Canonical mappings for employment types
 EMPLOYMENT_TYPE_PATTERNS: list[tuple[re.Pattern, str]] = [
-    (re.compile(r"\b(cdi|full[- ]?time|permanent|temps plein|regular|indéterminée)\b", re.IGNORECASE), "full_time"),
-    (re.compile(r"\b(cdd|contract|fixed[- ]?term|temporaire|temporary|déterminée)\b", re.IGNORECASE), "contract"),
-    (re.compile(r"\b(stage|internship|intern|pfe|alternance|apprentissage|stagiaire)\b", re.IGNORECASE), "internship"),
-    (re.compile(r"\b(temps partiel|part[- ]?time)\b", re.IGNORECASE), "part_time"),
-    (re.compile(r"\b(freelance|ind[eé]pendant|contractor|consultant)\b", re.IGNORECASE), "freelance"),
+    (re.compile(r"\b(cdi|full[- ]?time|permanent|temps plein|regular|ind[eé]termin[eé]\w*|vollzeit|festanstellung|unbefristet\w*)\b", re.IGNORECASE), "full_time"),
+    (re.compile(r"\b(cdd|contract|fixed[- ]?term|temporaire|temporary|d[eé]termin[eé]\w*|befristet\w*|zeitarbeit)\b", re.IGNORECASE), "contract"),
+    (re.compile(r"\b(stage|internship|intern|pfe|alternance|apprentissage|stagiaire|apprenti[e]?|praktikum|praktikant(?:in)?|werkstudent(?:in)?|ausbildung|trainee|berufseinsteiger|training)\b", re.IGNORECASE), "internship"),
+    (re.compile(r"\b(temps partiel|part[- ]?time|teilzeit)\b", re.IGNORECASE), "part_time"),
+    (re.compile(r"\b(freelance|ind[eé]pendant|contractor|consultant|freiberufler|freiberuflich)\b", re.IGNORECASE), "freelance"),
 ]
 
 # Canonical mappings for work / remote modes
 REMOTE_TYPE_PATTERNS: list[tuple[re.Pattern, str]] = [
-    (re.compile(r"\b(remote|t[eé]l[eé]travail( complet| total)?|100% remote|distanciel|work from home|wfh)\b", re.IGNORECASE), "remote"),
-    (re.compile(r"\b(hybrid|hybride|partiel|flexible)\b", re.IGNORECASE), "hybrid"),
-    (re.compile(r"\b(on[- ]?site|sur site|pr[eé]sentiel|office|in[- ]?office)\b", re.IGNORECASE), "onsite"),
+    (re.compile(r"\b(hybrid|hybride|partiel|flexible|teilweise homeoffice|home[- ]?office\s+m[oö]glich|t[eé]l[eé]travail\s+partiel|remote\s+partiel|partial\s+remote)\b", re.IGNORECASE), "hybrid"),
+    (re.compile(r"\b(remote|t[eé]l[eé]travail( complet| total)?|100% remote|distanciel|work from home|wfh|home[- ]?office|mobiles arbeiten)\b", re.IGNORECASE), "remote"),
+    (re.compile(r"\b(on[- ]?site|sur site|pr[eé]sentiel|office|in[- ]?office|vor ort)\b", re.IGNORECASE), "onsite"),
 ]
 
 # Tech skill canonicalization dictionary
@@ -139,6 +139,8 @@ CITY_TO_COUNTRY: dict[str, str] = {
     "Düsseldorf": "Germany", "Dusseldorf": "Germany", "Dortmund": "Germany", "Essen": "Germany",
     "Leipzig": "Germany", "Bremen": "Germany", "Dresden": "Germany", "Hanover": "Germany",
     "Hannover": "Germany", "Nuremberg": "Germany", "Nürnberg": "Germany", "Bonn": "Germany",
+    "Karlsruhe": "Germany", "Mannheim": "Germany", "Heidelberg": "Germany", "Wiesbaden": "Germany",
+    "Darmstadt": "Germany", "Freiburg": "Germany", "Ulm": "Germany",
     # United Kingdom
     "London": "United Kingdom", "Manchester": "United Kingdom", "Birmingham": "United Kingdom",
     "Leeds": "United Kingdom", "Glasgow": "United Kingdom", "Edinburgh": "United Kingdom",
@@ -159,6 +161,9 @@ CITY_TO_COUNTRY: dict[str, str] = {
     "Paris": "France", "Lyon": "France", "Marseille": "France", "Toulouse": "France",
     "Nantes": "France", "Lille": "France", "Bordeaux": "France", "Strasbourg": "France",
     "Rennes": "France", "Nice": "France", "Montpellier": "France", "Grenoble": "France",
+    "Colomiers": "France", "Courbevoie": "France", "Le Plessis-Robinson": "France",
+    "Montreuil": "France", "Cesson-Sévigné": "France", "Cesson-Sevigne": "France",
+    "Villeneuve-d'Ascq": "France", "Aix-en-Provence": "France", "Sophia Antipolis": "France",
     # Spain
     "Madrid": "Spain", "Barcelona": "Spain", "Valencia": "Spain", "Seville": "Spain",
     "Sevilla": "Spain", "Malaga": "Spain", "Málaga": "Spain", "Bilbao": "Spain",

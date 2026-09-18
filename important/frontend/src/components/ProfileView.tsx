@@ -18,6 +18,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Search,
+  BrainCircuit,
+  ArrowRight,
 } from 'lucide-react';
 import { api } from '../api/client';
 import type { UserProfile, Country, ResumeItem } from '../api/client';
@@ -26,10 +28,27 @@ import { ResumeBuilderView } from './ResumeBuilder/ResumeBuilderView';
 interface ProfileViewProps {
   user: UserProfile;
   onUpdate: (updated: UserProfile) => void;
+  initialJobTarget?: { role: string; description: string; companyName: string } | null;
+  onClearJobTarget?: () => void;
+  onNavigateToApplications?: () => void;
+  onNavigateToInterviewPrep?: () => void;
 }
 
-export const ProfileView: React.FC<ProfileViewProps> = ({ user, onUpdate }) => {
+export const ProfileView: React.FC<ProfileViewProps> = ({
+  user,
+  onUpdate,
+  initialJobTarget,
+  onClearJobTarget,
+  onNavigateToApplications,
+  onNavigateToInterviewPrep,
+}) => {
   const [activeTab, setActiveTab] = useState<'profile' | 'builder'>('profile');
+
+  useEffect(() => {
+    if (initialJobTarget) {
+      setActiveTab('builder');
+    }
+  }, [initialJobTarget]);
   const [preferredWorkMode, setPreferredWorkMode] = useState(
     user.preferences?.preferred_work_mode || 'Hybrid'
   );
@@ -348,12 +367,57 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, onUpdate }) => {
           <span>Resume Builder Studio</span>
           <span className="studio-pill">Interactive</span>
         </button>
+        {onNavigateToInterviewPrep && (
+          <button
+            type="button"
+            className="profile-tab-btn interview-prep-nav-tab"
+            onClick={onNavigateToInterviewPrep}
+            title="Prepare for technical and behavioral interviews"
+          >
+            <BrainCircuit size={16} />
+            <span>Interview Prep</span>
+            <span className="prep-pill">Knowledge Center</span>
+          </button>
+        )}
       </div>
 
       {activeTab === 'builder' ? (
-        <ResumeBuilderView currentUser={user} />
+        <ResumeBuilderView
+          currentUser={user}
+          initialJobTarget={initialJobTarget}
+          onClearJobTarget={onClearJobTarget}
+          onNavigateToApplications={onNavigateToApplications}
+        />
       ) : (
         <>
+          {/* Interview Preparation Entry Banner */}
+          <div className="interview-prep-banner glass-panel">
+            <div className="prep-banner-main">
+              <div className="prep-banner-badge">
+                <BrainCircuit size={22} />
+              </div>
+              <div className="prep-banner-content">
+                <div className="prep-banner-heading">
+                  <h3>Interview Preparation Knowledge Center</h3>
+                  <span className="prep-lang-badge">Multilingual: EN • FR • DE</span>
+                </div>
+                <p>
+                  Prepare for technical engineering rounds and behavioral HR assessments using the STAR method, structured answer frameworks, and domain-specific knowledge banks.
+                </p>
+              </div>
+            </div>
+            {onNavigateToInterviewPrep && (
+              <button
+                type="button"
+                className="open-prep-cta-btn"
+                onClick={onNavigateToInterviewPrep}
+              >
+                <span>Open Interview Prep</span>
+                <ArrowRight size={16} />
+              </button>
+            )}
+          </div>
+
           <div className="profile-grid">
         {/* Match Preferences Column */}
         <div className="card-box glass-panel">
@@ -997,6 +1061,113 @@ const StyledProfileContainer = styled.div<{ $isBuilder?: boolean }>`
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+  }
+
+  .prep-pill {
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+  }
+
+  .interview-prep-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 20px 24px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.85) 0%, rgba(30, 27, 75, 0.6) 100%);
+    border: 1px solid rgba(139, 92, 246, 0.25);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+
+    @media (max-width: 768px) {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+
+  .prep-banner-main {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .prep-banner-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.25), rgba(59, 130, 246, 0.25));
+    border: 1px solid rgba(139, 92, 246, 0.4);
+    color: #c084fc;
+    flex-shrink: 0;
+  }
+
+  .prep-banner-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    p {
+      margin: 0;
+      font-size: 0.88rem;
+      color: #94a3b8;
+      line-height: 1.5;
+      max-width: 680px;
+    }
+  }
+
+  .prep-banner-heading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+
+    h3 {
+      margin: 0;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #ffffff;
+    }
+  }
+
+  .prep-lang-badge {
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: rgba(139, 92, 246, 0.18);
+    border: 1px solid rgba(139, 92, 246, 0.35);
+    color: #d8b4fe;
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+
+  .open-prep-cta-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border: none;
+    color: #ffffff;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
+
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(99, 102, 241, 0.45);
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    }
   }
 
   .studio-shortcut-btn {

@@ -8,7 +8,7 @@ from typing import Any
 
 from ...config import get_settings
 from ...logging import get_logger
-from .normalizer import generate_normalized_variants, normalize_title
+from .normalizer import generate_normalized_variants, normalize_title, unaccent
 
 logger = get_logger("scraper.job_title_intelligence.index")
 
@@ -50,7 +50,8 @@ GENERIC_SINGLE_WORD_TITLES: set[str] = {
 
 class JobTitleIndex:
     """
-    In-memory indexed representation of the 73,000+ job title dictionary.
+    In-memory indexed representation of the 73,000+ job title dictionary
+    augmented with multilingual occupational knowledge.
     Loaded once as a thread-safe process-level singleton.
     """
 
@@ -61,6 +62,8 @@ class JobTitleIndex:
         self.internship_titles: list[str] = []
         self.token_to_intern_titles: dict[str, set[str]] = {}
         self.token_to_titles: dict[str, set[str]] = {}
+        self.title_to_canonical: dict[str, str] = {}
+        self.title_to_family: dict[str, str] = {}
         self.total_titles: int = 0
         self.unique_titles: int = 0
         self.load_time_ms: float = 0.0
@@ -104,6 +107,64 @@ class JobTitleIndex:
         # Fallback to default expected path even if non-existent yet (e.g. for testing mocks)
         return candidate_paths[0]
 
+    def _index_single_title(
+        self,
+        raw_title: str,
+        is_intern: bool = False,
+        canonical: str | None = None,
+        family: str | None = None,
+    ) -> None:
+        norm = normalize_title(raw_title)
+        if not norm:
+            return
+        self.exact_titles.add(norm)
+        if canonical:
+            self.title_to_canonical[norm] = canonical
+        if family:
+            self.title_to_family[norm] = family
+
+        unacc = unaccent(norm)
+        if unacc:
+            self.exact_titles.add(unacc)
+            if canonical:
+                self.title_to_canonical[unacc] = canonical
+            if family:
+                self.title_to_family[unacc] = family
+
+        words = norm.split()
+        if words:
+            first = words[0]
+            if first not in self.first_word_index:
+                self.first_word_index[first] = set()
+            self.first_word_index[first].add(norm)
+
+        tokens = set(re.findall(r"\b[a-z0-9]{3,}\b", norm))
+        for tok in tokens:
+            if tok not in self.token_to_titles:
+                self.token_to_titles[tok] = set()
+            self.token_to_titles[tok].add(norm)
+
+        check_intern = is_intern or bool(
+            re.search(
+                r"\b(intern|internship|trainee|apprentice|co-op|stage|stagiaire|alternance|apprentissage|praktikum|werkstudent|ausbildung)\b",
+                norm,
+            )
+        )
+        if check_intern:
+            if norm not in self.internship_titles:
+                self.internship_titles.append(norm)
+            for tok in tokens:
+                if tok not in self.token_to_intern_titles:
+                    self.token_to_intern_titles[tok] = set()
+                self.token_to_intern_titles[tok].add(norm)
+
+        for variant in generate_normalized_variants(raw_title):
+            self.exact_titles.add(variant)
+            if canonical:
+                self.title_to_canonical[variant] = canonical
+            if family:
+                self.title_to_family[variant] = family
+
     def _load_and_index(self) -> None:
         t0 = time.perf_counter()
         if not self.json_path.exists():
@@ -124,43 +185,31 @@ class JobTitleIndex:
         self.total_titles = len(raw_list)
 
         for item in raw_list:
-            if not isinstance(item, str):
-                continue
-            norm = normalize_title(item)
-            if not norm:
-                continue
-            self.exact_titles.add(norm)
-            words = norm.split()
-            if words:
-                first = words[0]
-                if first not in self.first_word_index:
-                    self.first_word_index[first] = set()
-                self.first_word_index[first].add(norm)
+            if isinstance(item, str):
+                self._index_single_title(item)
 
-            # Token indexing
-            tokens = set(re.findall(r"\b[a-z0-9]{3,}\b", norm))
-            for tok in tokens:
-                if tok not in self.token_to_titles:
-                    self.token_to_titles[tok] = set()
-                self.token_to_titles[tok].add(norm)
-
-            is_intern = bool(re.search(r"\b(intern|internship|trainee|apprentice|co-op)\b", norm))
-            if is_intern:
-                self.internship_titles.append(norm)
-                for tok in tokens:
-                    if tok not in self.token_to_intern_titles:
-                        self.token_to_intern_titles[tok] = set()
-                    self.token_to_intern_titles[tok].add(norm)
-
-            # Also index variants like 'front end' <-> 'frontend'
-            for variant in generate_normalized_variants(item):
-                self.exact_titles.add(variant)
-                v_words = variant.split()
-                if v_words:
-                    v_first = v_words[0]
-                    if v_first not in self.first_word_index:
-                        self.first_word_index[v_first] = set()
-                    self.first_word_index[v_first].add(variant)
+        # Load multilingual knowledge base if available
+        multi_path = Path(__file__).resolve().parent / "multilingual_titles.json"
+        if multi_path.exists():
+            try:
+                with open(multi_path, "r", encoding="utf-8") as f:
+                    multi_data = json.load(f)
+                if isinstance(multi_data, list):
+                    for fam in multi_data:
+                        canon = fam.get("canonical_title", "")
+                        family_name = fam.get("family", "")
+                        is_intern = fam.get("is_internship", False)
+                        for v in fam.get("variants", []):
+                            v_title = v.get("title", "") if isinstance(v, dict) else str(v)
+                            if v_title:
+                                self._index_single_title(
+                                    v_title,
+                                    is_intern=is_intern,
+                                    canonical=canon,
+                                    family=family_name,
+                                )
+            except Exception as e:
+                logger.warning(f"Failed to load multilingual titles dataset: {e}")
 
         self.unique_titles = len(self.exact_titles)
         self.load_time_ms = round((time.perf_counter() - t0) * 1000, 2)
@@ -176,8 +225,44 @@ class JobTitleIndex:
         )
 
     def is_known_title(self, normalized_text: str) -> bool:
-        """Check whether normalized_text is in the title index."""
-        return normalized_text in self.exact_titles
+        """Check whether normalized_text is in the title index (accent-insensitive)."""
+        if normalized_text in self.exact_titles:
+            return True
+        unacc = unaccent(normalized_text)
+        if unacc in self.exact_titles:
+            return True
+        if "-" in normalized_text or any(c.isupper() for c in normalized_text):
+            norm = normalize_title(normalized_text)
+            if norm in self.exact_titles or unaccent(norm) in self.exact_titles:
+                return True
+        return False
+
+    def contains_exact(self, normalized_text: str) -> bool:
+        """Alias for is_known_title."""
+        return self.is_known_title(normalized_text)
+
+    def get_canonical_title(self, normalized_text: str) -> str | None:
+        """Retrieve canonical title for a normalized variant if available."""
+        return self.title_to_canonical.get(normalized_text) or self.title_to_canonical.get(unaccent(normalized_text))
+
+    def get_title_family(self, normalized_text: str) -> str | None:
+        """Retrieve occupational family for a title if available."""
+        return self.title_to_family.get(normalized_text) or self.title_to_family.get(unaccent(normalized_text))
+
+    def lookup_canonical(self, text: str) -> Any | None:
+        """Look up canonical title and occupational family for given title string."""
+        norm = normalize_title(text)
+        canon = self.get_canonical_title(norm)
+        family = self.get_title_family(norm)
+        if canon or family:
+            from dataclasses import dataclass
+            @dataclass(frozen=True)
+            class CanonicalMatch:
+                canonical_title: str
+                family: str | None
+
+            return CanonicalMatch(canonical_title=canon or text, family=family)
+        return None
 
     def find_related_internship_titles(self, field_or_keyword: str, limit: int = 20) -> list[str]:
         """

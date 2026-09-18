@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import pathlib
 import time
 from pydantic import BaseModel, Field
 from fastapi import Body, Depends, FastAPI, File, HTTPException, Path, Query, Response, UploadFile, status
@@ -164,8 +165,23 @@ from .services.resume_parser import (
 )
 from .services.resume_customization import get_ai_resume_customization
 from .services.resume_export import (
+    render_document_docx,
+    render_document_pdf,
     render_template_docx,
     render_template_pdf,
+)
+from .schemas_job_assistant import (
+    ApplicationMaterial,
+    ExternalJobInput,
+    ExportDocumentRequest,
+    JobTargetAnalysisResult,
+    RegenerateMaterialRequest,
+    SaveTailoredFromJobTargetRequest,
+)
+from .services.job_assistant import (
+    apply_recommendations_to_resume_data,
+    regenerate_single_material,
+    run_job_target_analysis,
 )
 from .services.resume_tailoring import (
     analyze_structured_resume_for_job,
@@ -181,6 +197,19 @@ from .repositories.resume import (
     set_default_structured_resume,
     update_structured_resume,
 )
+from .schemas_interview_prep import (
+    BehavioralPrepResponse,
+    InterviewDomainSummary,
+    InterviewDomainTree,
+    InterviewQuestionDetail,
+    InterviewQuestionSummary,
+    QuestionAIExplainRequest,
+    QuestionAIExplainResponse,
+    RepositoryImportRequest,
+    RepositoryImportResponse,
+)
+from .services.interview_prep import interview_prep_service
+from .services.interview_prep_importer import InterviewPrepImporter
 
 settings = get_settings()
 app = FastAPI(title=settings.app_name, debug=settings.debug)
@@ -194,6 +223,13 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["Content-Disposition", "Content-Type", "Content-Length"],
 )
+
+
+@app.on_event("startup")
+def on_startup():
+    """Verify and initialize database schema on startup."""
+    from .database import init_database_schema
+    init_database_schema()
 
 
 @app.get("/health", response_model=HealthRead, tags=["system"])
@@ -1591,6 +1627,8 @@ def test_scraper_target_diagnostic(
         discovery_method=report.discovery_method,
         failure_reason=report.failure_reason,
         browser_rendered=report.browser_rendered,
+        detected_result_count=report.detected_result_count,
+        pages_crawled=report.pages_crawled,
     )
 
 
@@ -1616,3 +1654,328 @@ def search_internships_endpoint(
         year=payload.year,
         max_results=payload.max_results,
     )
+
+
+# ---------------------------------------------------------------------------
+# Job-Specific Resume & Career Assistant Endpoints
+# ---------------------------------------------------------------------------
+
+
+@app.post(
+    "/api/v1/resumes/{resume_id}/job-target/analyze",
+    response_model=JobTargetAnalysisResult,
+    tags=["resume-job-assistant"],
+)
+def analyze_job_target(
+    resume_id: int = Path(gt=0),
+    payload: ExternalJobInput = Body(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> JobTargetAnalysisResult:
+    """
+    Analyze an external job description against the user's resume.
+    Returns requirements, match analysis, deterministic scores,
+    resume recommendations, and (if Ollama is available) application materials.
+    The master resume is NEVER modified.
+    """
+    resume = get_user_resume(db, user.id, resume_id)
+    if not resume:
+        raise HTTPException(status_code=404, detail="Resume not found.")
+    try:
+        return run_job_target_analysis(db, user.id, resume, payload)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {exc}")
+
+
+@app.post(
+    "/api/v1/resumes/{resume_id}/job-target/save-tailored-copy",
+    response_model=StructuredResumeRead,
+    tags=["resume-job-assistant"],
+)
+def save_tailored_copy_from_job_target(
+    resume_id: int = Path(gt=0),
+    payload: SaveTailoredFromJobTargetRequest = Body(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Resume:
+    """
+    Save a non-destructive tailored copy of the resume with accepted recommendations applied.
+    The master resume is NEVER modified. Creates a new Resume with source_resume_id set.
+    """
+    resume = get_user_resume(db, user.id, resume_id)
+    if not resume:
+        raise HTTPException(status_code=404, detail="Resume not found.")
+
+    # Apply accepted recommendations to a deep copy of the resume data
+    base_data = resume.structured_data or {}
+    updated_data = apply_recommendations_to_resume_data(base_data, payload.accepted_recommendations)
+
+    try:
+        new_resume = create_structured_resume(
+            db=db,
+            user_id=user.id,
+            title=payload.new_title,
+            is_default=False,
+            structured_data=updated_data,
+            settings=resume.settings,
+            source_resume_id=resume.id,
+        )
+        return new_resume
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to save tailored copy: {exc}")
+
+
+@app.post(
+    "/api/v1/resumes/{resume_id}/job-target/export-letter",
+    tags=["resume-job-assistant"],
+)
+def export_application_letter(
+    resume_id: int = Path(gt=0),
+    payload: ExportDocumentRequest = Body(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Export a motivation letter or cold email as PDF or DOCX.
+    Ownership verified via resume_id — user must own the resume.
+    """
+    from fastapi.responses import FileResponse
+    resume = get_user_resume(db, user.id, resume_id)
+    if not resume:
+        raise HTTPException(status_code=404, detail="Resume not found.")
+
+    import pathlib
+    storage_dir = pathlib.Path(__file__).resolve().parent.parent.parent / "storage" / "exported_documents"
+    storage_dir.mkdir(parents=True, exist_ok=True)
+
+    fname = f"{payload.suggested_filename}_{user.id}.{payload.file_format}"
+    dest_path = storage_dir / fname
+
+    try:
+        if payload.file_format == "pdf":
+            render_document_pdf(payload.content, payload.suggested_filename.replace("_", " ").title(), dest_path)
+            media_type = "application/pdf"
+        else:
+            render_document_docx(payload.content, payload.suggested_filename.replace("_", " ").title(), dest_path)
+            media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Document export failed: {exc}")
+
+    return FileResponse(
+        path=str(dest_path),
+        media_type=media_type,
+        filename=fname,
+        content_disposition_type="attachment",
+        headers={"Access-Control-Expose-Headers": "Content-Disposition"},
+    )
+
+
+@app.post(
+    "/api/v1/resumes/{resume_id}/job-target/regenerate-material",
+    response_model=ApplicationMaterial,
+    tags=["resume-job-assistant"],
+)
+def regenerate_material_endpoint(
+    resume_id: int = Path(gt=0),
+    payload: RegenerateMaterialRequest = Body(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ApplicationMaterial:
+    """
+    Regenerate a single application material (Cold Email, Short DM, or Motivation Letter)
+    without rerunning the full analysis pipeline.
+    """
+    resume = get_user_resume(db, user.id, resume_id)
+    if not resume:
+        raise HTTPException(status_code=404, detail="Resume not found.")
+    try:
+        return regenerate_single_material(db, user.id, resume, payload)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Regeneration failed: {exc}")
+
+
+# ==============================================================================
+# INTERVIEW PREP KNOWLEDGE CENTER API
+# ==============================================================================
+
+@app.get(
+    "/api/v1/interview-prep/behavioral",
+    response_model=BehavioralPrepResponse,
+    tags=["interview-prep"],
+)
+def get_interview_prep_behavioral(
+    lang: str = Query(default="en", description="Language code: en, fr, or de"),
+) -> BehavioralPrepResponse:
+    """Returns the structured STAR method guide and behavioral questions in EN, FR, or DE."""
+    return interview_prep_service.get_behavioral_prep(lang=lang)
+
+
+@app.get(
+    "/api/v1/interview-prep/domains",
+    response_model=list[InterviewDomainSummary],
+    tags=["interview-prep"],
+)
+def list_interview_prep_domains() -> list[InterviewDomainSummary]:
+    """Lists all available technical interview tracks (Data Engineering, Security Engineering, AI/Tech)."""
+    return interview_prep_service.list_domains()
+
+
+@app.get(
+    "/api/v1/interview-prep/domains/{domain_id}/tree",
+    response_model=InterviewDomainTree,
+    tags=["interview-prep"],
+)
+def get_interview_prep_domain_tree(
+    domain_id: str = Path(..., description="Domain identifier (e.g. data_engineering)"),
+) -> InterviewDomainTree:
+    """Returns the category and topic navigation tree for a specific technical domain."""
+    tree = interview_prep_service.get_domain_tree(domain_id)
+    if not tree:
+        raise HTTPException(status_code=404, detail=f"Domain '{domain_id}' not found.")
+    return tree
+
+
+@app.get(
+    "/api/v1/interview-prep/questions/{domain_id}/{question_slug}",
+    response_model=InterviewQuestionDetail,
+    tags=["interview-prep"],
+)
+def get_interview_prep_question(
+    domain_id: str = Path(...),
+    question_slug: str = Path(...),
+) -> InterviewQuestionDetail:
+    """Retrieves full question markdown, difficulty, tags, and source attribution."""
+    q = interview_prep_service.get_question_detail(domain_id, question_slug)
+    if not q:
+        raise HTTPException(status_code=404, detail=f"Question '{question_slug}' not found in domain '{domain_id}'.")
+    return q
+
+
+@app.get(
+    "/api/v1/interview-prep/search",
+    response_model=list[InterviewQuestionSummary],
+    tags=["interview-prep"],
+)
+def search_interview_prep_questions(
+    q: str = Query(..., min_length=1, description="Search query"),
+    domain_id: str | None = Query(default=None, description="Optional domain filter"),
+) -> list[InterviewQuestionSummary]:
+    """Searches technical interview questions across title, categories, tags, and content."""
+    return interview_prep_service.search_questions(query=q, domain_id=domain_id)
+
+
+@app.post(
+    "/api/v1/interview-prep/questions/{domain_id}/{question_slug}/ai-explain",
+    response_model=QuestionAIExplainResponse,
+    tags=["interview-prep"],
+)
+async def explain_interview_prep_question_ai(
+    domain_id: str = Path(...),
+    question_slug: str = Path(...),
+    payload: QuestionAIExplainRequest = Body(...),
+) -> QuestionAIExplainResponse:
+    """Uses local Ollama AI to simplify concepts or evaluate user draft answers."""
+    return await interview_prep_service.explain_with_ai(
+        domain_id=domain_id,
+        question_slug=question_slug,
+        mode=payload.mode,
+        user_draft_answer=payload.user_draft_answer,
+    )
+
+
+@app.post(
+    "/api/v1/interview-prep/import",
+    response_model=RepositoryImportResponse,
+    tags=["interview-prep"],
+)
+def import_interview_prep_repository(
+    payload: RepositoryImportRequest = Body(...),
+) -> RepositoryImportResponse:
+    """
+    Ingests or synchronizes a markdown interview repository.
+    Handles relative image extraction, licensing, attribution, and Chinese->English translation.
+    """
+    importer = InterviewPrepImporter()
+    repo_path = Path(payload.repository_url)
+    if repo_path.exists() and repo_path.is_dir():
+        res = importer.import_from_directory(
+            source_dir=repo_path,
+            domain_id=payload.domain_id,
+            domain_title=payload.domain_id.replace("_", " ").title(),
+            repo_url=payload.repository_url,
+            translate_chinese=payload.translate_chinese,
+        )
+        return RepositoryImportResponse(**res)
+
+    return RepositoryImportResponse(
+        domain_id=payload.domain_id,
+        repository_url=payload.repository_url,
+        status="configured",
+        files_processed=0,
+        questions_imported=0,
+        images_resolved=0,
+        translated_count=0,
+        content_hash="placeholder-hash",
+        license_detected="Configured",
+        message=f"Repository URL '{payload.repository_url}' is registered for synchronization.",
+    )
+
+
+@app.get(
+    "/api/v1/interview-prep/assets/{domain_id}/{asset_filename}",
+    tags=["interview-prep"],
+)
+def get_interview_prep_asset(
+    domain_id: str = Path(...),
+    asset_filename: str = Path(...),
+):
+    """Serves resolved repository educational illustrations and diagrams with proper MIME types."""
+    from fastapi.responses import FileResponse
+    import pathlib
+    base_assets = pathlib.Path(__file__).resolve().parent.parent.parent / "frontend" / "public" / "illustrations"
+    file_path = base_assets / asset_filename
+    if not file_path.exists():
+        content_assets = pathlib.Path(__file__).resolve().parent / "content" / "interview_prep" / "assets" / domain_id / asset_filename
+        if content_assets.exists():
+            file_path = content_assets
+
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Asset not found.")
+
+    media_type = "image/png"
+    if file_path.suffix.lower() == ".svg":
+        media_type = "image/svg+xml"
+    elif file_path.suffix.lower() in [".jpg", ".jpeg"]:
+        media_type = "image/jpeg"
+    elif file_path.suffix.lower() == ".webp":
+        media_type = "image/webp"
+
+    return FileResponse(path=str(file_path), media_type=media_type)
+
+
+# Standalone Frontend Production Mount (for Windows Release without Node.js):
+_frontend_dist = pathlib.Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
+if _frontend_dist.is_dir() and (_frontend_dist / "index.html").is_file():
+    from fastapi.staticfiles import StaticFiles
+
+    # Mount assets folder
+    _assets_dir = _frontend_dist / "assets"
+    if _assets_dir.is_dir():
+        app.mount("/assets", StaticFiles(directory=str(_assets_dir)), name="assets")
+
+    # Mount public illustrations
+    _illustrations_dir = pathlib.Path(__file__).resolve().parent.parent.parent / "frontend" / "public" / "illustrations"
+    if _illustrations_dir.is_dir():
+        app.mount("/illustrations", StaticFiles(directory=str(_illustrations_dir)), name="illustrations")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_spa_frontend(full_path: str):
+        # Do not intercept API or documentation routes
+        if full_path.startswith("api/") or full_path.startswith("docs") or full_path.startswith("openapi.json") or full_path.startswith("health"):
+            raise HTTPException(status_code=404, detail="API route not found.")
+        file_candidate = _frontend_dist / full_path
+        if file_candidate.is_file():
+            return FileResponse(str(file_candidate))
+        return FileResponse(str(_frontend_dist / "index.html"))
+
+

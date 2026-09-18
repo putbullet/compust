@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 460" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bronzeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#b45309" />
+      <stop offset="100%" stop-color="#78350f" />
+    </linearGradient>
+    <linearGradient id="silverGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#64748b" />
+      <stop offset="100%" stop-color="#334155" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#eab308" />
+      <stop offset="100%" stop-color="#ca8a04" />
+    </linearGradient>
+  </defs>
+
+  <rect width="960" height="460" rx="16" fill="#0b1120" stroke="#1e293b" stroke-width="1.5" />
+
+  <text x="480" y="38" text-anchor="middle" fill="#f8fafc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="20" font-weight="700">
+    The Lakehouse Medallion Architecture
+  </text>
+  <text x="480" y="62" text-anchor="middle" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13">
+    Multi-hop ACID storage pattern (Delta Lake, Apache Iceberg, Apache Hudi) combining lake cost with warehouse rigor
+  </text>
+
+  <!-- Sources -->
+  <g transform="translate(40, 95)">
+    <rect width="140" height="280" rx="10" fill="#0f172a" stroke="#334155" />
+    <rect x="0" y="0" width="140" height="34" rx="8" fill="#1e293b" />
+    <text x="70" y="22" text-anchor="middle" fill="#94a3b8" font-family="sans-serif" font-size="12" font-weight="700">RAW INGESTION</text>
+
+    <text x="70" y="80" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="11" font-weight="600">Event Streams</text>
+    <text x="70" y="98" text-anchor="middle" fill="#64748b" font-family="sans-serif" font-size="10">Kafka / Kinesis</text>
+
+    <line x1="20" y1="125" x2="120" y2="125" stroke="#334155" />
+
+    <text x="70" y="160" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="11" font-weight="600">Databases</text>
+    <text x="70" y="178" text-anchor="middle" fill="#64748b" font-family="sans-serif" font-size="10">CDC / Debezium</text>
+
+    <line x1="20" y1="205" x2="120" y2="205" stroke="#334155" />
+
+    <text x="70" y="240" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="11" font-weight="600">Files &amp; APIs</text>
+    <text x="70" y="258" text-anchor="middle" fill="#64748b" font-family="sans-serif" font-size="10">JSON / Parquet / S3</text>
+  </g>
+
+  <!-- Arrow to Bronze -->
+  <path d="M 185 235 L 225 235" stroke="#60a5fa" stroke-width="2" />
+  <polygon points="225,231 233,235 225,239" fill="#60a5fa" />
+
+  <!-- BRONZE LAYER -->
+  <g transform="translate(235, 95)">
+    <rect width="210" height="280" rx="10" fill="#0f172a" stroke="#d97706" stroke-width="1.2" />
+    <rect x="0" y="0" width="210" height="38" rx="8" fill="url(#bronzeGrad)" />
+    <text x="105" y="24" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="13" font-weight="800">BRONZE · Raw Lake</text>
+
+    <text x="105" y="65" text-anchor="middle" fill="#fbbf24" font-family="sans-serif" font-size="11" font-weight="700">Append-Only History</text>
+    <text x="20" y="95" fill="#cbd5e1" font-family="sans-serif" font-size="11" line-height="1.5">
+      <tspan x="20" dy="0">• Exact source replica</tspan>
+      <tspan x="20" dy="22">• Immutable audit trail</tspan>
+      <tspan x="20" dy="22">• Schema on read</tspan>
+      <tspan x="20" dy="22">• Ingestion timestamps</tspan>
+      <tspan x="20" dy="22">• Format: Parquet / Delta</tspan>
+    </text>
+
+    <rect x="15" y="225" width="180" height="40" rx="6" fill="#1e293b" />
+    <text x="105" y="242" text-anchor="middle" fill="#94a3b8" font-family="sans-serif" font-size="10">Never drop raw data</text>
+    <text x="105" y="256" text-anchor="middle" fill="#fcd34d" font-family="sans-serif" font-size="9.5">Enables full reprocessing</text>
+  </g>
+
+  <!-- Arrow to Silver -->
+  <path d="M 450 235 L 485 235" stroke="#94a3b8" stroke-width="2" />
+  <polygon points="485,231 493,235 485,239" fill="#94a3b8" />
+
+  <!-- SILVER LAYER -->
+  <g transform="translate(495, 95)">
+    <rect width="210" height="280" rx="10" fill="#0f172a" stroke="#94a3b8" stroke-width="1.2" />
+    <rect x="0" y="0" width="210" height="38" rx="8" fill="url(#silverGrad)" />
+    <text x="105" y="24" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="13" font-weight="800">SILVER · Curated</text>
+
+    <text x="105" y="65" text-anchor="middle" fill="#e2e8f0" font-family="sans-serif" font-size="11" font-weight="700">Cleaned &amp; Conformed</text>
+    <text x="20" y="95" fill="#cbd5e1" font-family="sans-serif" font-size="11">
+      <tspan x="20" dy="0">• Deduplicated records</tspan>
+      <tspan x="20" dy="22">• Data types enforced</tspan>
+      <tspan x="20" dy="22">• Joins &amp; lookup resolution</tspan>
+      <tspan x="20" dy="22">• Data quality checks (GE)</tspan>
+      <tspan x="20" dy="22">• Enterprise 360 views</tspan>
+    </text>
+
+    <rect x="15" y="225" width="180" height="40" rx="6" fill="#1e293b" />
+    <text x="105" y="242" text-anchor="middle" fill="#94a3b8" font-family="sans-serif" font-size="10">Core Engineering Tier</text>
+    <text x="105" y="256" text-anchor="middle" fill="#60a5fa" font-family="sans-serif" font-size="9.5">Standardized source of truth</text>
+  </g>
+
+  <!-- Arrow to Gold -->
+  <path d="M 710 235 L 745 235" stroke="#fcd34d" stroke-width="2" />
+  <polygon points="745,231 753,235 745,239" fill="#fcd34d" />
+
+  <!-- GOLD LAYER -->
+  <g transform="translate(755, 95)">
+    <rect width="170" height="280" rx="10" fill="#0f172a" stroke="#ca8a04" stroke-width="1.2" />
+    <rect x="0" y="0" width="170" height="38" rx="8" fill="url(#goldGrad)" />
+    <text x="85" y="24" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="13" font-weight="800">GOLD · Marts</text>
+
+    <text x="85" y="65" text-anchor="middle" fill="#fef08a" font-family="sans-serif" font-size="11" font-weight="700">Business Aggregate</text>
+    <text x="15" y="95" fill="#cbd5e1" font-family="sans-serif" font-size="11">
+      <tspan x="15" dy="0">• Kimball Star Schemas</tspan>
+      <tspan x="15" dy="22">• Facts &amp; Dimensions</tspan>
+      <tspan x="15" dy="22">• Aggregated metrics</tspan>
+      <tspan x="15" dy="22">• BI / Executive Dashboards</tspan>
+      <tspan x="15" dy="22">• Feature Store (ML)</tspan>
+    </text>
+
+    <rect x="12" y="225" width="146" height="40" rx="6" fill="#1e293b" />
+    <text x="85" y="242" text-anchor="middle" fill="#94a3b8" font-family="sans-serif" font-size="10">High Performance</text>
+    <text x="85" y="256" text-anchor="middle" fill="#34d399" font-family="sans-serif" font-size="9.5">Ready for SQL &amp; BI</text>
+  </g>
+
+  <!-- ACID Layer Band across the bottom -->
+  <rect x="235" y="388" width="690" height="28" rx="6" fill="#1e293b" stroke="#3b82f6" stroke-width="0.8" />
+  <text x="580" y="407" text-anchor="middle" fill="#93c5fd" font-family="sans-serif" font-size="11" font-weight="600">
+    ACID Transactions · Schema Evolution · Time Travel / Snapshot Isolation (Delta Lake / Iceberg / Hudi)
+  </text>
+
+  <text x="480" y="444" text-anchor="middle" fill="#64748b" font-family="sans-serif" font-size="11">
+    Interview Core: Solves the data swamp dilemma by coupling low-cost object storage (S3/GCS) with database ACID guarantees and schema enforcement.
+  </text>
+</svg>

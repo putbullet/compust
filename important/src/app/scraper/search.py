@@ -43,7 +43,7 @@ def strip_accents(text: str) -> str:
 
 
 def expand_search_query(query: str) -> list[str]:
-    """Expands a search query with bilingual French/English technical and job-title synonyms.
+    """Expands a search query with multilingual French/German/English technical and job-title synonyms.
 
     Returns a deduplicated list of search terms starting with the original query.
     """
@@ -51,21 +51,34 @@ def expand_search_query(query: str) -> list[str]:
     if not cleaned:
         return []
 
+    try:
+        from ..services.opportunities_search import prepare_search_plan
+        plan = prepare_search_plan(cleaned)
+        if plan.all_matching_terms:
+            # Ensure any legacy SYNONYMS_MAP terms are also included as fallback
+            terms = list(plan.all_matching_terms)
+            norm = strip_accents(cleaned.lower())
+            if norm in SYNONYMS_MAP:
+                for syn in SYNONYMS_MAP[norm]:
+                    if syn not in terms:
+                        terms.append(syn)
+            return list(dict.fromkeys(terms))
+    except Exception:
+        pass
+
+    # Fallback implementation
     terms = [cleaned]
     normalized = strip_accents(cleaned.lower())
 
-    # Check for whole phrase match
     if normalized in SYNONYMS_MAP:
         for syn in SYNONYMS_MAP[normalized]:
             if syn not in terms:
                 terms.append(syn)
 
-    # Check for token-level expansion
     tokens = re.findall(r"\b\w+\b", normalized)
     for token in tokens:
         if token in SYNONYMS_MAP:
             for syn in SYNONYMS_MAP[token]:
-                # Substitute token with synonym
                 expanded_phrase = re.sub(rf"\b{re.escape(token)}\b", syn, normalized)
                 if expanded_phrase not in terms:
                     terms.append(expanded_phrase)

@@ -33,6 +33,7 @@ class JobCandidate:
 class ParseResult:
     jobs: list[JobCandidate]
     errors: list[str]
+    detected_result_count: int | None = None
 
 
 def _parse_date(value: Any) -> datetime | None:

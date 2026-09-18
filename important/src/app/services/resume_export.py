@@ -10,6 +10,7 @@ from docx.shared import Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 from ..schemas_resume import resolve_section_title
+from .resume_localization import format_skill_display, format_language_display
 
 
 class ResumeExportError(Exception):
@@ -197,6 +198,7 @@ def render_template_pdf(
         else:
             story.append(HRFlowable(width="100%", thickness=1.5, color=primary_color, spaceBefore=2, spaceAfter=6))
 
+    lang = (settings.get("language") or "en").lower()
     section_titles = settings.get("section_titles") or {}
 
     # Render sections according to section_order
@@ -204,7 +206,7 @@ def render_template_pdf(
         if not visibility.get(sec_key, True):
             continue
 
-        resolved_heading = resolve_section_title(sec_key, section_titles.get(sec_key)).upper()
+        resolved_heading = resolve_section_title(sec_key, section_titles.get(sec_key), lang=lang).upper()
 
         if sec_key == "summary" and profile.get("summary"):
             story.append(Paragraph(resolved_heading, section_heading_style))
@@ -219,9 +221,9 @@ def render_template_pdf(
                 categories: dict[str, list[str]] = {}
                 for s in skills:
                     cat = s.get("category", "General") or "General"
-                    name = s.get("name", "").strip()
-                    if name:
-                        categories.setdefault(cat, []).append(name)
+                    formatted = format_skill_display(s.get("name", ""), s.get("proficiency"), lang=lang)
+                    if formatted:
+                        categories.setdefault(cat, []).append(formatted)
 
                 for cat, items in categories.items():
                     if len(categories) > 1 and cat != "General":
@@ -331,8 +333,14 @@ def render_template_pdf(
             langs = structured_data["languages"]
             if langs:
                 story.append(Paragraph(resolved_heading, section_heading_style))
-                lang_items = [f"{l.get('language', '')} ({l.get('proficiency', 'Fluent')})" for l in langs if l.get("language")]
-                story.append(Paragraph(" • ".join(lang_items), body_style))
+                lang_items = [
+                    format_language_display(l.get("language", ""), l.get("proficiency"), lang=lang)
+                    for l in langs
+                    if l.get("language")
+                ]
+                lang_items = [li for li in lang_items if li]
+                if lang_items:
+                    story.append(Paragraph(" • ".join(lang_items), body_style))
                 story.append(Spacer(1, 3))
 
         elif sec_key == "custom_sections" and structured_data.get("custom_sections"):
@@ -398,13 +406,14 @@ def render_template_docx(
             r_con.font.size = Pt(9.5)
             r_con.font.color.rgb = RGBColor(100, 116, 139)
 
+    lang = (settings.get("language") or "en").lower()
     section_titles = settings.get("section_titles") or {}
 
     for sec_key in order:
         if not visibility.get(sec_key, True):
             continue
 
-        resolved_heading = resolve_section_title(sec_key, section_titles.get(sec_key)).upper()
+        resolved_heading = resolve_section_title(sec_key, section_titles.get(sec_key), lang=lang).upper()
 
         if sec_key == "summary" and profile.get("summary"):
             sh = doc.add_heading(resolved_heading, level=1)
@@ -414,8 +423,13 @@ def render_template_docx(
         elif sec_key == "skills" and structured_data.get("skills"):
             sh = doc.add_heading(resolved_heading, level=1)
             sh.runs[0].font.color.rgb = theme_rgb
-            skill_names = [s.get("name") for s in structured_data["skills"] if s.get("name")]
-            doc.add_paragraph(", ".join(skill_names))
+            skill_items = [
+                format_skill_display(s.get("name", ""), s.get("proficiency"), lang=lang)
+                for s in structured_data["skills"]
+                if s.get("name")
+            ]
+            skill_items = [si for si in skill_items if si]
+            doc.add_paragraph(", ".join(skill_items))
 
         elif sec_key == "experience" and structured_data.get("experience"):
             sh = doc.add_heading(resolved_heading, level=1)
@@ -470,8 +484,115 @@ def render_template_docx(
         elif sec_key == "languages" and structured_data.get("languages"):
             sh = doc.add_heading(resolved_heading, level=1)
             sh.runs[0].font.color.rgb = theme_rgb
-            items = [f"{l.get('language')} ({l.get('proficiency')})" for l in structured_data["languages"] if l.get("language")]
+            items = [
+                format_language_display(l.get("language", ""), l.get("proficiency"), lang=lang)
+                for l in structured_data["languages"]
+                if l.get("language")
+            ]
+            items = [it for it in items if it]
             doc.add_paragraph(", ".join(items))
 
+
+    doc.save(str(dest_path))
+
+
+# ---------------------------------------------------------------------------
+# Document export helpers (motivation letter / cover letter)
+# Reuse existing ReportLab + python-docx infrastructure. No new dependencies.
+# ---------------------------------------------------------------------------
+
+def render_document_pdf(content: str, title: str, dest_path: Path) -> None:
+    """
+    Render plain text content as a cleanly formatted PDF document.
+    Used for motivation letters, cold emails, and other generated materials.
+    """
+    dest_path.parent.mkdir(parents=True, exist_ok=True)
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        "DocTitle",
+        parent=styles["Heading1"],
+        fontSize=16,
+        spaceAfter=16,
+        textColor=colors.HexColor("#1e3a5f"),
+        fontName="Helvetica-Bold",
+    )
+    body_style = ParagraphStyle(
+        "DocBody",
+        parent=styles["Normal"],
+        fontSize=11,
+        leading=17,
+        spaceAfter=10,
+        textColor=colors.HexColor("#1a1a2e"),
+        fontName="Helvetica",
+    )
+
+    doc = SimpleDocTemplate(
+        str(dest_path),
+        pagesize=A4,
+        topMargin=54,
+        bottomMargin=54,
+        leftMargin=60,
+        rightMargin=60,
+    )
+
+    story = []
+    if title:
+        story.append(Paragraph(title, title_style))
+        story.append(Spacer(1, 8))
+
+    for para in content.split("\n\n"):
+        para = para.strip()
+        if not para:
+            story.append(Spacer(1, 6))
+            continue
+        # Escape XML special chars for ReportLab
+        safe = para.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        # Preserve single newlines as <br/>
+        safe = safe.replace("\n", "<br/>")
+        story.append(Paragraph(safe, body_style))
+        story.append(Spacer(1, 4))
+
+    doc.build(story)
+    validate_pdf_file(dest_path)
+
+
+def render_document_docx(content: str, title: str, dest_path: Path) -> None:
+    """
+    Render plain text content as a cleanly formatted DOCX document.
+    Used for motivation letters, cold emails, and other generated materials.
+    """
+    dest_path.parent.mkdir(parents=True, exist_ok=True)
+    from docx import Document
+    from docx.shared import Pt, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+
+    doc = Document()
+
+    # Title
+    if title:
+        h = doc.add_heading(title, level=1)
+        h.runs[0].font.color.rgb = RGBColor(0x1e, 0x3a, 0x5f)
+        h.runs[0].font.size = Pt(16)
+        doc.add_paragraph("")
+
+    # Body paragraphs
+    for para in content.split("\n\n"):
+        para = para.strip()
+        if not para:
+            doc.add_paragraph("")
+            continue
+        p = doc.add_paragraph()
+        for i, line in enumerate(para.split("\n")):
+            if i > 0:
+                p.add_run("\n")
+            run = p.add_run(line)
+            run.font.size = Pt(11)
+            run.font.color.rgb = RGBColor(0x1a, 0x1a, 0x2e)
 
     doc.save(str(dest_path))

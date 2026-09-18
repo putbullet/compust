@@ -325,6 +325,7 @@ def ensure_backend_running(repo_root: Path, host: str = "127.0.0.1", port: int =
         host,
         "--port",
         str(port),
+        "--reload",
     ]
 
     try:
@@ -358,54 +359,80 @@ def ensure_backend_running(repo_root: Path, host: str = "127.0.0.1", port: int =
         return False
 
 
-def ensure_frontend_running(repo_root: Path, host: str = "127.0.0.1", port: int = 5173) -> bool:
-    """Ensure Vite React frontend is running."""
-    frontend_url = f"http://{host}:{port}"
-    logger.info(f"Checking frontend status at {frontend_url}...")
+def ensure_frontend_running(repo_root: Path, host: str = "127.0.0.1", port: int = 5173) -> tuple[bool, str]:
+    """
+    Ensure React frontend is available.
+    Supports either:
+    1. Standalone production mode: FastAPI backend serves compiled frontend/dist directly at port 8000.
+    2. Developer mode: Vite dev server running on port 5173 via npm.
+    """
+    # Check if developer Vite dev server is already running
+    frontend_dev_url = f"http://{host}:{port}"
+    if is_http_alive(frontend_dev_url):
+        logger.info("Vite React development server is already active on port 5173.")
+        return True, frontend_dev_url
 
-    if is_http_alive(frontend_url):
-        logger.info("React frontend is already alive and responding.")
-        return True
-
-    logger.info("Starting React frontend development server...")
-    frontend_dir = repo_root / "important" / "frontend"
-    logs_dir = repo_root / "logs"
-    logs_dir.mkdir(parents=True, exist_ok=True)
-    frontend_log_file = open(logs_dir / "frontend.log", "a", encoding="utf-8")
-
-    creation_flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
-    npm_cmd = "npm.cmd" if os.name == "nt" else "npm"
-
+    # Check if compiled production build exists
+    dist_index = repo_root / "important" / "frontend" / "dist" / "index.html"
+    has_npm = False
     try:
-        proc = subprocess.Popen(
-            [npm_cmd, "run", "dev"],
-            cwd=str(frontend_dir),
-            creationflags=creation_flags,
-            shell=True if os.name == "nt" else False,
-            stdout=frontend_log_file,
-            stderr=frontend_log_file,
-        )
-        _SPAWNED_PROCESSES.append(("Frontend", proc))
-        pids = load_tracked_pids(repo_root)
-        pids["frontend"] = proc.pid
-        save_tracked_pids(repo_root, pids)
-        logger.info(f"Spawned frontend process (PID: {proc.pid}). Waiting for ready check...")
+        npm_probe = "where npm" if os.name == "nt" else "which npm"
+        subprocess.check_output(npm_probe, shell=True, stderr=subprocess.DEVNULL)
+        has_npm = True
+    except Exception:
+        has_npm = False
 
-        # Poll frontend for up to 20 seconds
-        for _ in range(40):
-            time.sleep(0.5)
-            if is_http_alive(frontend_url):
-                logger.info(f"Frontend is ready and responsive at {frontend_url}.")
-                return True
-            if proc.poll() is not None:
-                logger.error(f"Frontend process terminated unexpectedly (code {proc.returncode}). See logs/frontend.log")
-                return False
+    if dist_index.is_file() and not has_npm:
+        logger.info("Compiled production frontend (dist) detected and Node.js is not installed.")
+        logger.info("FastAPI backend serves the application directly on port 8000.")
+        return True, f"http://{host}:8000"
 
-        logger.warning("Frontend did not respond within 20 seconds. Check logs/frontend.log")
-        return False
-    except Exception as exc:
-        logger.error(f"Failed to start frontend dev server: {exc}")
-        return False
+    # If Node.js / npm is available, start Vite dev server
+    if has_npm:
+        logger.info("Starting React frontend development server (npm run dev)...")
+        frontend_dir = repo_root / "important" / "frontend"
+        logs_dir = repo_root / "logs"
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        frontend_log_file = open(logs_dir / "frontend.log", "a", encoding="utf-8")
+
+        creation_flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
+        npm_cmd = "npm.cmd" if os.name == "nt" else "npm"
+
+        try:
+            proc = subprocess.Popen(
+                [npm_cmd, "run", "dev"],
+                cwd=str(frontend_dir),
+                creationflags=creation_flags,
+                shell=True if os.name == "nt" else False,
+                stdout=frontend_log_file,
+                stderr=frontend_log_file,
+            )
+            _SPAWNED_PROCESSES.append(("Frontend", proc))
+            pids = load_tracked_pids(repo_root)
+            pids["frontend"] = proc.pid
+            save_tracked_pids(repo_root, pids)
+            logger.info(f"Spawned frontend dev process (PID: {proc.pid}). Waiting for ready check...")
+
+            # Poll frontend for up to 20 seconds
+            for _ in range(40):
+                time.sleep(0.5)
+                if is_http_alive(frontend_dev_url):
+                    logger.info(f"Frontend is ready and responsive at {frontend_dev_url}.")
+                    return True, frontend_dev_url
+                if proc.poll() is not None:
+                    logger.warning(f"Frontend dev process ended (code {proc.returncode}). Checking for dist fallback...")
+                    break
+
+        except Exception as exc:
+            logger.warning(f"Could not start npm dev server: {exc}")
+
+    # Fallback to backend serving dist if available
+    if dist_index.is_file():
+        logger.info("Using compiled production frontend served by backend at port 8000.")
+        return True, f"http://{host}:8000"
+
+    logger.error("Neither Vite dev server nor compiled dist build is available. Check logs/frontend.log.")
+    return False, ""
 
 
 def launch_compust(keep_alive: bool = True) -> int:
@@ -423,34 +450,39 @@ def launch_compust(keep_alive: bool = True) -> int:
 
     # 1. Duplicate instance check
     backend_url = "http://127.0.0.1:8000/health"
-    frontend_url = "http://127.0.0.1:5173"
+    frontend_dev_url = "http://127.0.0.1:5173"
     backend_up = is_http_alive(backend_url)
-    frontend_up = is_http_alive(frontend_url)
+    frontend_dev_up = is_http_alive(frontend_dev_url)
 
-    if backend_up and frontend_up:
+    if backend_up and frontend_dev_up:
         logger.info("All Compust services are already active and healthy.")
         logger.info("Preventing duplicate instances: Opening application in browser...")
-        webbrowser.open(frontend_url)
+        webbrowser.open(frontend_dev_url)
         logger.info("Browser opened. Launcher exiting cleanly.")
         return 0
 
-    # 2. Detect & check configured database connection first
+    # 2. Detect & check configured database connection
     db_host, db_port = get_configured_db_host_port(repo_root)
-    ensure_mysql_running(repo_root, host=db_host, port=db_port)
+    mysql_active = ensure_mysql_running(repo_root, host=db_host, port=db_port)
+    if not mysql_active:
+        logger.info("MySQL service is not running. Compust will automatically utilize the embedded SQLite database.")
 
     # 3. Ensure Backend is running
     backend_ok = backend_up or ensure_backend_running(repo_root, host="127.0.0.1", port=8000)
+    if not backend_ok:
+        logger.error("FastAPI backend failed to start. Aborting launch. Check logs/backend.log.")
+        return 1
 
-    # 4. Ensure Frontend is running
-    frontend_ok = frontend_up or ensure_frontend_running(repo_root, host="127.0.0.1", port=5173)
+    # 4. Ensure Frontend is available (either dev server or production dist)
+    frontend_ok, target_url = ensure_frontend_running(repo_root, host="127.0.0.1", port=5173)
 
-    if not frontend_ok:
-        logger.error("Frontend service is unavailable. Aborting browser launch. Check logs/frontend.log.")
+    if not frontend_ok or not target_url:
+        logger.error("Frontend is unavailable. Aborting browser launch. Check logs/frontend.log.")
         return 1
 
     # 5. Open browser
-    logger.info(f"Opening browser at: {frontend_url}")
-    webbrowser.open(frontend_url)
+    logger.info(f"Opening browser at: {target_url}")
+    webbrowser.open(target_url)
     logger.info("=" * 60)
     logger.info("Compust is now running successfully!")
     logger.info(f"  -> Frontend: {frontend_url}")

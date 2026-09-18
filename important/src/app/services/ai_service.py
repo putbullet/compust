@@ -100,7 +100,7 @@ def generate_completion(
     system_prompt: str | None = None,
     model: str | None = None,
     temperature: float = 0.2,
-    timeout_seconds: float = 20.0,
+    timeout_seconds: float = 45.0,
 ) -> str:
     url = get_configured_ollama_url()
     target_model = model or get_selected_model()
@@ -118,8 +118,10 @@ def generate_completion(
         "model": target_model,
         "prompt": prompt,
         "stream": False,
+        "think": False,
         "options": {
             "temperature": temperature,
+            "num_ctx": 2048,
         },
     }
     if system_prompt:

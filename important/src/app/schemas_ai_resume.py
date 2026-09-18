@@ -114,7 +114,7 @@ class BulkJobDeleteResponse(BaseModel):
 class ScraperDiagnosticRequest(BaseModel):
     url: str
     strategy: str | None = None
-    max_pages: int = 1
+    max_pages: int = 3
 
 
 class ScraperDiagnosticResponse(BaseModel):
@@ -135,3 +135,5 @@ class ScraperDiagnosticResponse(BaseModel):
     discovery_method: str | None = None
     failure_reason: str | None = None
     browser_rendered: bool = False
+    detected_result_count: int | None = None
+    pages_crawled: int = 1

@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 480" width="100%" height="100%">
+  <defs>
+    <linearGradient id="qGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#1d4ed8" />
+    </linearGradient>
+    <linearGradient id="kGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6" />
+      <stop offset="100%" stop-color="#6d28d9" />
+    </linearGradient>
+    <linearGradient id="vGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#047857" />
+    </linearGradient>
+    <linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+  </defs>
+
+  <rect width="960" height="480" rx="16" fill="#0b1120" stroke="#1e293b" stroke-width="1.5" />
+
+  <text x="480" y="38" text-anchor="middle" fill="#f8fafc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="20" font-weight="700">
+    Scaled Dot-Product Self-Attention Architecture
+  </text>
+  <text x="480" y="62" text-anchor="middle" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13">
+    How Transformers dynamically route context weights across token sequences: Attention(Q, K, V) = softmax(Q · K^T / √d_k) · V
+  </text>
+
+  <!-- Formula Highlight Banner -->
+  <rect x="260" y="80" width="440" height="34" rx="8" fill="#1e293b" stroke="#334155" />
+  <text x="480" y="103" text-anchor="middle" fill="#fbbf24" font-family="'Courier New', Courier, monospace" font-size="14" font-weight="700">
+    Attention(Q, K, V) = softmax( (Q · Kᵀ) / √dₖ ) · V
+  </text>
+
+  <!-- Step 1: Input & Linear Projections -->
+  <g transform="translate(40, 130)">
+    <rect width="240" height="300" rx="10" fill="#0f172a" stroke="#334155" />
+    <text x="120" y="30" text-anchor="middle" fill="#f8fafc" font-family="sans-serif" font-size="13" font-weight="700">1. Linear Projections</text>
+
+    <rect x="25" y="48" width="190" height="38" rx="6" fill="#1e293b" />
+    <text x="120" y="72" text-anchor="middle" fill="#cbd5e1" font-family="sans-serif" font-size="11">Input Embeddings (X) + Pos</text>
+
+    <!-- Q -->
+    <rect x="25" y="105" width="190" height="42" rx="6" fill="url(#qGrad)" />
+    <text x="120" y="128" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="12" font-weight="700">Query (Q) = X · W_Q</text>
+    <text x="120" y="142" text-anchor="middle" fill="#bfdbfe" font-family="sans-serif" font-size="9.5">"What am I looking for?"</text>
+
+    <!-- K -->
+    <rect x="25" y="165" width="190" height="42" rx="6" fill="url(#kGrad)" />
+    <text x="120" y="188" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="12" font-weight="700">Key (K) = X · W_K</text>
+    <text x="120" y="202" text-anchor="middle" fill="#ddd6fe" font-family="sans-serif" font-size="9.5">"What do I contain?"</text>
+
+    <!-- V -->
+    <rect x="25" y="225" width="190" height="42" rx="6" fill="url(#vGrad)" />
+    <text x="120" y="248" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="12" font-weight="700">Value (V) = X · W_V</text>
+    <text x="120" y="262" text-anchor="middle" fill="#bbf7d0" font-family="sans-serif" font-size="9.5">"What information do I pass?"</text>
+  </g>
+
+  <!-- Step 2: Dot Product & Scaling -->
+  <g transform="translate(320, 130)">
+    <rect width="320" height="300" rx="10" fill="#0f172a" stroke="#334155" />
+    <text x="160" y="30" text-anchor="middle" fill="#f8fafc" font-family="sans-serif" font-size="13" font-weight="700">2. Similarity &amp; Probability</text>
+
+    <!-- MatMul Q * K^T -->
+    <rect x="30" y="55" width="260" height="50" rx="6" fill="#1e293b" stroke="#3b82f6" />
+    <text x="160" y="80" text-anchor="middle" fill="#93c5fd" font-family="sans-serif" font-size="12" font-weight="700">MatMul: Q · Kᵀ</text>
+    <text x="160" y="96" text-anchor="middle" fill="#94a3b8" font-family="sans-serif" font-size="10">Raw unscaled pairwise affinity scores</text>
+
+    <!-- Scale by sqrt(d_k) -->
+    <rect x="30" y="125" width="260" height="50" rx="6" fill="#1e293b" stroke="#f59e0b" />
+    <text x="160" y="148" text-anchor="middle" fill="#fcd34d" font-family="sans-serif" font-size="12" font-weight="700">Scale: ÷ √d_k</text>
+    <text x="160" y="165" text-anchor="middle" fill="#94a3b8" font-family="sans-serif" font-size="10">Prevents vanishing gradients at high dim</text>
+
+    <!-- Softmax -->
+    <rect x="30" y="195" width="260" height="65" rx="6" fill="url(#scoreGrad)" />
+    <text x="160" y="222" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="13" font-weight="800">Softmax Normalization</text>
+    <text x="160" y="238" text-anchor="middle" fill="#fef3c7" font-family="sans-serif" font-size="10.5">Transforms scores to probabilities (sum = 1)</text>
+    <text x="160" y="252" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="9.5">Attention Weight Matrix (A)</text>
+  </g>
+
+  <!-- Step 3: Weighted Sum Output -->
+  <g transform="translate(680, 130)">
+    <rect width="240" height="300" rx="10" fill="#0f172a" stroke="#10b981" stroke-width="1.2" />
+    <text x="120" y="30" text-anchor="middle" fill="#34d399" font-family="sans-serif" font-size="13" font-weight="700">3. Context Representation</text>
+
+    <rect x="25" y="65" width="190" height="60" rx="6" fill="#1e293b" stroke="#10b981" />
+    <text x="120" y="92" text-anchor="middle" fill="#a7f3d0" font-family="sans-serif" font-size="12" font-weight="700">MatMul: Attention · V</text>
+    <text x="120" y="112" text-anchor="middle" fill="#94a3b8" font-family="sans-serif" font-size="10">Weighted sum of token values</text>
+
+    <rect x="25" y="150" width="190" height="60" rx="6" fill="#1e293b" />
+    <text x="120" y="176" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="11.5" font-weight="600">Multi-Head Concat</text>
+    <text x="120" y="196" text-anchor="middle" fill="#94a3b8" font-family="sans-serif" font-size="10">Concat(Head_1 ... Head_h) · W_O</text>
+
+    <rect x="20" y="235" width="200" height="42" rx="6" fill="#0b1120" stroke="#334155" />
+    <text x="120" y="254" text-anchor="middle" fill="#38bdf8" font-family="sans-serif" font-size="11" font-weight="700">Enriched Token State</text>
+    <text x="120" y="268" text-anchor="middle" fill="#94a3b8" font-family="sans-serif" font-size="9">Forward to FFN &amp; LayerNorm</text>
+  </g>
+
+  <!-- Arrows connecting stages -->
+  <path d="M 285 280 L 315 280" stroke="#8b5cf6" stroke-width="2" />
+  <polygon points="315,276 323,280 315,284" fill="#8b5cf6" />
+
+  <path d="M 645 280 L 675 280" stroke="#10b981" stroke-width="2" />
+  <polygon points="675,276 683,280 675,284" fill="#10b981" />
+
+  <text x="480" y="460" text-anchor="middle" fill="#64748b" font-family="sans-serif" font-size="11">
+    Why divide by √d_k? For large dimensions d_k, dot products grow large in magnitude, pushing the softmax function into regions with tiny gradients.
+  </text>
+</svg>

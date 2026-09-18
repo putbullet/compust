@@ -64,12 +64,15 @@ def is_spa_shell(content: str | BeautifulSoup) -> bool:
             s["src"] for s in scripts if _SCRIPT_CHUNK_REGEX.search(s.get("src", ""))
         ]
         if len(bundle_scripts) >= 1:
-            # Check visible non-script text length
-            text_nodes = [
-                text for text in body.stripped_strings
-                if text.parent and text.parent.name not in ("script", "style", "noscript")
-            ]
-            visible_text = " ".join(text_nodes)
+            # Check visible non-script text length safely
+            visible_text_parts = []
+            for s in body.strings:
+                p = getattr(s, "parent", None)
+                if p and getattr(p, "name", "") not in ("script", "style", "noscript"):
+                    cleaned = str(s).strip()
+                    if cleaned:
+                        visible_text_parts.append(cleaned)
+            visible_text = " ".join(visible_text_parts)
             if len(visible_text) < 350:
                 return True
 

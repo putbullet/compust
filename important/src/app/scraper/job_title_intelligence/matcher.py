@@ -47,6 +47,24 @@ EMPLOYMENT_MODALITY_TAGS = {
 }
 
 
+ACTION_BUTTON_PATTERNS = re.compile(
+    r"^\s*(?:"
+    r"apply(?:\s+now)?|view(?:\s+(?:job|offer|details|position|role))?|read\s+more|learn\s+more|see\s+more|"
+    r"voir\s+l['’]offre|voir\s+le\s+poste|en\s+savoir\s+plus|postuler|candidater|d[eé]tails?(?:\s+de\s+l['’]offre)?|d[eé]couvrir(?:\s+l['’]offre)?|consulter|"
+    r"jetzt\s+bewerben|bewerben|mehr\s+erfahren|zur\s+stelle|stellenanzeige(?:\s+ansehen)?|details|mehr\s+lesen|"
+    r"details|link"
+    r")\s*$",
+    re.IGNORECASE,
+)
+
+
+def is_action_or_button_text(text: str) -> bool:
+    """Return True if text is a common CTA / action button label rather than a title."""
+    if not text:
+        return False
+    return bool(ACTION_BUTTON_PATTERNS.search(text.strip()))
+
+
 class JobTitleMatcher:
     """
     Context-aware matcher that evaluates DOM elements against the JobTitleIndex.
@@ -67,6 +85,9 @@ class JobTitleMatcher:
 
         clean = text.strip()
         if len(clean) < 3 or len(clean) > 140:
+            return None
+
+        if ACTION_BUTTON_PATTERNS.match(clean):
             return None
 
         # Exclude boilerplate section headings (e.g. "Open Positions", "Join our team")
@@ -140,3 +161,12 @@ class JobTitleMatcher:
                             )
 
         return None
+ 
+ 
+def is_job_title_candidate(text: str) -> bool:
+    """Check if text matches known job titles or canonical occupational taxonomy."""
+    if not text or is_action_or_button_text(text):
+        return False
+    matcher = JobTitleMatcher()
+    dummy = Tag(name="span")
+    return matcher.match_text(text, dummy) is not None

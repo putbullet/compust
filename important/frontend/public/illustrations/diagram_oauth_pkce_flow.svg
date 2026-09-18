@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 520" width="100%" height="100%">
+  <defs>
+    <linearGradient id="clientGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#1d4ed8" />
+    </linearGradient>
+    <linearGradient id="authGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6" />
+      <stop offset="100%" stop-color="#6d28d9" />
+    </linearGradient>
+    <linearGradient id="apiGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#047857" />
+    </linearGradient>
+    <marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <polygon points="0 0, 8 4, 0 8" fill="#94a3b8" />
+    </marker>
+    <marker id="arrBlue" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <polygon points="0 0, 8 4, 0 8" fill="#60a5fa" />
+    </marker>
+    <marker id="arrGreen" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <polygon points="0 0, 8 4, 0 8" fill="#34d399" />
+    </marker>
+  </defs>
+
+  <rect width="960" height="520" rx="16" fill="#0b1120" stroke="#1e293b" stroke-width="1.5" />
+
+  <text x="480" y="38" text-anchor="middle" fill="#f8fafc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="19" font-weight="700">
+    OAuth 2.0 Authorization Code Flow with PKCE
+  </text>
+  <text x="480" y="60" text-anchor="middle" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12.5">
+    Proof Key for Code Exchange (RFC 7636) prevents authorization code interception attacks on public clients
+  </text>
+
+  <!-- Lifelines -->
+  <!-- Entity 1: Client App (SPA / Mobile) -->
+  <g transform="translate(140, 80)">
+    <rect x="-80" y="0" width="160" height="38" rx="8" fill="url(#clientGrad)" />
+    <text x="0" y="24" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="12.5" font-weight="700">Client (SPA/App)</text>
+    <line x1="0" y1="38" x2="0" y2="400" stroke="#334155" stroke-width="2" stroke-dasharray="6 4" />
+  </g>
+
+  <!-- Entity 2: Authorization Server -->
+  <g transform="translate(480, 80)">
+    <rect x="-95" y="0" width="190" height="38" rx="8" fill="url(#authGrad)" />
+    <text x="0" y="24" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="12.5" font-weight="700">Authorization Server (IdP)</text>
+    <line x1="0" y1="38" x2="0" y2="400" stroke="#334155" stroke-width="2" stroke-dasharray="6 4" />
+  </g>
+
+  <!-- Entity 3: Resource Server (API) -->
+  <g transform="translate(820, 80)">
+    <rect x="-85" y="0" width="170" height="38" rx="8" fill="url(#apiGrad)" />
+    <text x="0" y="24" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="12.5" font-weight="700">Resource Server (API)</text>
+    <line x1="0" y1="38" x2="0" y2="400" stroke="#334155" stroke-width="2" stroke-dasharray="6 4" />
+  </g>
+
+  <!-- Flow Steps -->
+  <!-- Step 0: Generate PKCE -->
+  <rect x="30" y="132" width="220" height="32" rx="6" fill="#1e293b" stroke="#3b82f6" stroke-width="1" />
+  <text x="140" y="152" text-anchor="middle" fill="#93c5fd" font-family="sans-serif" font-size="10.5" font-weight="600">
+    1. Gen code_verifier &amp; code_challenge
+  </text>
+
+  <!-- Step 1: Auth Request -->
+  <line x1="140" y1="180" x2="475" y2="180" stroke="#60a5fa" stroke-width="1.8" marker-end="url(#arrBlue)" />
+  <text x="310" y="172" text-anchor="middle" fill="#93c5fd" font-family="sans-serif" font-size="11">
+    2. GET /authorize (client_id, challenge, S256, scope)
+  </text>
+
+  <!-- Step 2: User Authenticates & Returns Code -->
+  <line x1="480" y1="230" x2="145" y2="230" stroke="#cbd5e1" stroke-width="1.8" stroke-dasharray="4 4" marker-end="url(#arr)" />
+  <text x="310" y="222" text-anchor="middle" fill="#cbd5e1" font-family="sans-serif" font-size="11">
+    3. User Logs in &amp; Consents $\to$ 302 Redirect with auth_code
+  </text>
+
+  <!-- Step 3: Token Exchange with Verifier -->
+  <line x1="140" y1="285" x2="475" y2="285" stroke="#f59e0b" stroke-width="1.8" marker-end="url(#arr)" />
+  <text x="310" y="277" text-anchor="middle" fill="#fcd34d" font-family="sans-serif" font-size="11" font-weight="600">
+    4. POST /token (auth_code, code_verifier)
+  </text>
+  <rect x="495" y="272" width="180" height="26" rx="4" fill="#1e293b" stroke="#f59e0b" stroke-width="0.8" />
+  <text x="585" y="289" text-anchor="middle" fill="#fde68a" font-family="sans-serif" font-size="9.5">
+    SHA256(verifier) == challenge?
+  </text>
+
+  <!-- Step 4: Token Issued -->
+  <line x1="480" y1="335" x2="145" y2="335" stroke="#34d399" stroke-width="1.8" stroke-dasharray="4 4" marker-end="url(#arrGreen)" />
+  <text x="310" y="327" text-anchor="middle" fill="#6ee7b7" font-family="sans-serif" font-size="11">
+    5. Returns JWT Access Token + ID Token (OIDC)
+  </text>
+
+  <!-- Step 5: Access Resource -->
+  <line x1="140" y1="390" x2="815" y2="390" stroke="#34d399" stroke-width="1.8" marker-end="url(#arrGreen)" />
+  <text x="480" y="382" text-anchor="middle" fill="#a7f3d0" font-family="sans-serif" font-size="11">
+    6. GET /api/v1/resource (Authorization: Bearer &lt;access_token&gt;)
+  </text>
+
+  <line x1="820" y1="430" x2="145" y2="430" stroke="#94a3b8" stroke-width="1.8" stroke-dasharray="4 4" marker-end="url(#arr)" />
+  <text x="480" y="422" text-anchor="middle" fill="#cbd5e1" font-family="sans-serif" font-size="11">
+    7. Validated Claims $\to$ Protected Data Payload
+  </text>
+
+  <text x="480" y="495" text-anchor="middle" fill="#64748b" font-family="sans-serif" font-size="11">
+    Key Distinction: OAuth 2.0 provides Authorization (Access Token / scopes); OpenID Connect (OIDC) adds Identity / Authentication (ID Token / userInfo).
+  </text>
+</svg>

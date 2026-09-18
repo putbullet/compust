@@ -157,7 +157,7 @@ export interface ResumeSkillEntry {
   id: string;
   name: string;
   category: string;
-  proficiency: string;
+  proficiency?: string | null;
 }
 
 export interface ResumeProjectEntry {
@@ -182,7 +182,7 @@ export interface ResumeCertificationEntry {
 export interface ResumeLanguageEntry {
   id: string;
   language: string;
-  proficiency: string;
+  proficiency?: string | null;
 }
 
 export interface ResumeCustomSectionEntry {
@@ -206,6 +206,7 @@ export type ResumeTemplateType = 'modern' | 'classic' | 'minimal' | 'technical';
 
 export interface ResumeSettings {
   template: ResumeTemplateType;
+  language?: 'en' | 'fr' | 'de' | string;
   theme_color: string;
   font_family: string;
   font_size: string;
@@ -475,7 +476,27 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     let errorDetail = response.statusText;
     try {
       const errorJson = await response.json();
-      if (errorJson.detail) errorDetail = errorJson.detail;
+      if (errorJson.detail) {
+        if (typeof errorJson.detail === 'string') {
+          errorDetail = errorJson.detail;
+        } else if (Array.isArray(errorJson.detail)) {
+          errorDetail = errorJson.detail
+            .map((item: any) => {
+              if (typeof item === 'string') return item;
+              if (item && typeof item === 'object') {
+                const loc = Array.isArray(item.loc)
+                  ? item.loc.filter((x: any) => x !== 'body').join('.')
+                  : '';
+                const msg = item.msg || JSON.stringify(item);
+                return loc ? `${loc}: ${msg}` : msg;
+              }
+              return String(item);
+            })
+            .join('; ');
+        } else if (typeof errorJson.detail === 'object') {
+          errorDetail = JSON.stringify(errorJson.detail);
+        }
+      }
     } catch {
       // Keep statusText fallback
     }
@@ -918,6 +939,11 @@ export const api = {
       method: 'POST',
     }),
 
+  importProfileToStructuredResume: (resumeId: number) =>
+    request<StructuredResumeItem>(`/resumes/${resumeId}/import-profile`, {
+      method: 'POST',
+    }),
+
   getStructuredResumeExportUrl: (resumeId: number, format: 'pdf' | 'docx') => {
     const token = getStoredToken();
     const query = token ? `?token=${encodeURIComponent(token)}` : '';
@@ -1000,7 +1026,93 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(params),
     }),
+
+  // Job-Specific Resume & Career Assistant
+  analyzeJobTarget: (resumeId: number, input: ExternalJobInput) =>
+    request<JobTargetAnalysisResult>(`/resumes/${resumeId}/job-target/analyze`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
+  saveTailoredCopyFromJobTarget: (resumeId: number, data: SaveTailoredFromJobTargetRequest) =>
+    request<StructuredResumeItem>(`/resumes/${resumeId}/job-target/save-tailored-copy`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  regenerateApplicationMaterial: (resumeId: number, data: RegenerateMaterialRequest) =>
+    request<ApplicationMaterial>(`/resumes/${resumeId}/job-target/regenerate-material`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  exportMotivationLetter: async (
+    resumeId: number,
+    data: ExportDocumentRequest,
+    defaultFilename?: string
+  ): Promise<void> => {
+    const token = getStoredToken();
+    if (!token) throw new Error('Please log in to export documents');
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    };
+    const response = await fetch(`${API_BASE_URL}/resumes/${resumeId}/job-target/export-letter`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ detail: 'Export failed' }));
+      throw new Error(err.detail || 'Export failed');
+    }
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = defaultFilename || `${data.suggested_filename}.${data.file_format}`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { try { if (a.parentNode) a.parentNode.removeChild(a); } catch (_) {} }, 3000);
+    window.URL.revokeObjectURL(url);
+  },
+
+  // Interview Prep Knowledge Center
+  getBehavioralPrep: (lang: string = 'en') =>
+    request<BehavioralPrepResponse>(`/interview-prep/behavioral?lang=${encodeURIComponent(lang)}`),
+
+  getInterviewDomains: () =>
+    request<InterviewDomainSummary[]>('/interview-prep/domains'),
+
+  getInterviewDomainTree: (domainId: string) =>
+    request<InterviewDomainTree>(`/interview-prep/domains/${encodeURIComponent(domainId)}/tree`),
+
+  getInterviewQuestionDetail: (domainId: string, slug: string) =>
+    request<InterviewQuestionDetail>(
+      `/interview-prep/questions/${encodeURIComponent(domainId)}/${encodeURIComponent(slug)}`
+    ),
+
+  searchInterviewQuestions: (query: string, domainId?: string) => {
+    const params = new URLSearchParams({ q: query });
+    if (domainId) params.set('domain_id', domainId);
+    return request<InterviewQuestionSummary[]>(`/interview-prep/search?${params.toString()}`);
+  },
+
+  explainInterviewQuestionAI: (
+    domainId: string,
+    slug: string,
+    mode: string = 'simplify',
+    userDraftAnswer?: string
+  ) =>
+    request<QuestionAIExplainResponse>(
+      `/interview-prep/questions/${encodeURIComponent(domainId)}/${encodeURIComponent(slug)}/ai-explain`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ mode, user_draft_answer: userDraftAnswer }),
+      }
+    ),
 };
+
 
 
 export interface CompanyCreate {
@@ -1174,6 +1286,8 @@ export interface ScraperDiagnosticResponse {
   rendering_mode?: string | null;
   discovery_method?: string | null;
   failure_reason?: string | null;
+  detected_result_count?: number | null;
+  pages_crawled?: number;
 }
 
 export interface InternshipOpportunity {
@@ -1221,4 +1335,303 @@ export interface InternshipSearchParams {
   year?: number | string | null;
   max_results?: number;
 }
+
+// ---------------------------------------------------------------------------
+// Job-Specific Resume & Career Assistant Types
+// ---------------------------------------------------------------------------
+
+export type SupportedLanguage = 'en' | 'fr' | 'de' | 'es';
+
+export interface ExternalJobInput {
+  target_role: string;
+  job_description: string;
+  additional_information?: string;
+  language?: SupportedLanguage;
+}
+
+export type RequirementCategory =
+  | 'technical_skill' | 'tool' | 'methodology' | 'education'
+  | 'experience' | 'language' | 'certification' | 'domain'
+  | 'soft_skill' | 'ats_keyword' | 'other';
+
+export type RequirementImportance = 'required' | 'preferred' | 'nice_to_have';
+
+export interface JobRequirement {
+  text: string;
+  category: RequirementCategory;
+  importance: RequirementImportance;
+  raw_keyword: string;
+}
+
+export type MatchStatus = 'strong' | 'partial' | 'missing' | 'verify' | 'unknown';
+
+export interface CandidateEvidenceMatch {
+  requirement: string;
+  requirement_category: RequirementCategory;
+  match_status: MatchStatus;
+  evidence_sources: string[];
+  note: string;
+}
+
+export interface MatchAnalysis {
+  strong_matches: CandidateEvidenceMatch[];
+  partial_matches: CandidateEvidenceMatch[];
+  missing_or_unconfirmed: CandidateEvidenceMatch[];
+  verify_items: CandidateEvidenceMatch[];
+}
+
+export interface DeterministicScore {
+  technical_skills: number;
+  experience_alignment: number;
+  education: number;
+  languages: number;
+  ats_keywords: number;
+  overall: number;
+  methodology: string;
+}
+
+export type RecommendationType =
+  | 'keep' | 'emphasize' | 'rewrite' | 'move'
+  | 'add' | 'missing' | 'verify' | 'reduce' | 'remove';
+
+export interface ResumeRecommendation {
+  id: string;
+  rec_type: RecommendationType;
+  section: string;
+  item_id: string;
+  item_label: string;
+  current_text: string;
+  suggested_text: string;
+  reason: string;
+  evidence_sources: string[];
+  grounded: boolean;
+}
+
+export type MaterialType = 'cold_email' | 'short_message' | 'motivation_letter';
+
+export interface ApplicationMaterial {
+  material_type: MaterialType;
+  subject: string;
+  body: string;
+  placeholders: string[];
+  language: string;
+  generated: boolean;
+  error: string;
+}
+
+export type InterviewQuestionType = 'behavioral' | 'technical' | 'domain' | 'qualification_gap';
+
+export interface STARResponse {
+  situation: string;
+  task: string;
+  action: string;
+  result: string;
+}
+
+export interface InterviewQuestion {
+  id: string;
+  question: string;
+  question_type: InterviewQuestionType;
+  category: string;
+  context_reason: string;
+  suggested_star: STARResponse;
+  handling_missing_skill: string;
+}
+
+export interface InterviewPrep {
+  questions: InterviewQuestion[];
+  key_focus_areas: string[];
+  confidence_tip: string;
+}
+
+export interface JobTargetAnalysisResult {
+  resume_id: number;
+  target_role: string;
+  language: string;
+  job_requirements: JobRequirement[];
+  match_analysis: MatchAnalysis;
+  deterministic_score: DeterministicScore;
+  resume_recommendations: ResumeRecommendation[];
+  cold_email: ApplicationMaterial;
+  short_message: ApplicationMaterial;
+  motivation_letter: ApplicationMaterial;
+  interview_prep?: InterviewPrep;
+  ollama_used: boolean;
+  ollama_model: string | null;
+  partial_failure: boolean;
+  partial_failure_detail: string;
+  data_conflicts: string[];
+}
+
+export interface SaveTailoredFromJobTargetRequest {
+  new_title: string;
+  accepted_recommendation_ids: string[];
+  accepted_recommendations: ResumeRecommendation[];
+}
+
+export interface ExportDocumentRequest {
+  content: string;
+  file_format: 'pdf' | 'docx';
+  suggested_filename: string;
+}
+
+export interface RegenerateMaterialRequest {
+  material_type: MaterialType;
+  target_role: string;
+  job_description: string;
+  additional_information?: string;
+  language?: SupportedLanguage;
+}
+
+// ============================================================================
+// Interview Prep Knowledge Center Types
+// ============================================================================
+
+export interface STARStep {
+  step: string;
+  definition: string;
+  key_points: string[];
+  example: string;
+}
+
+export interface STARGuide {
+  title: string;
+  what_is_star: string;
+  when_to_use: string;
+  how_to_structure: string;
+  what_makes_answer_strong: string[];
+  common_mistakes: string[];
+  steps: STARStep[];
+}
+
+export interface BehavioralQuestionItem {
+  id: string;
+  category: string;
+  question: string;
+  intent: string;
+  recommended_structure: string[];
+  strong_example_answer: string;
+  common_pitfalls: string[];
+  self_reflection_prompt: string;
+}
+
+export interface StoryPillar {
+  name: string;
+  focus: string;
+  applies_to: string[];
+}
+
+export interface StoryMatrix {
+  title: string;
+  description: string;
+  pillars: StoryPillar[];
+}
+
+export interface InterviewModuleItem {
+  id: string;
+  title: string;
+  summary: string;
+}
+
+export interface BehavioralPrepResponse {
+  language: string;
+  star_guide: STARGuide;
+  questions: BehavioralQuestionItem[];
+  story_matrix?: StoryMatrix;
+  interview_modules?: InterviewModuleItem[];
+}
+
+export interface InterviewQuestionSummary {
+  id: string;
+  slug: string;
+  title: string;
+  category: string;
+  topic: string;
+  difficulty: string;
+  experience_level?: string;
+  target_roles?: string[];
+  estimated_read_time_min: number;
+  has_code: boolean;
+  has_diagram: boolean;
+}
+
+export interface InterviewTopic {
+  id: string;
+  title: string;
+  description?: string | null;
+  questions: InterviewQuestionSummary[];
+}
+
+export interface InterviewCategory {
+  id: string;
+  title: string;
+  description?: string | null;
+  topics: InterviewTopic[];
+}
+
+export interface InterviewDomainSummary {
+  id: string;
+  title: string;
+  short_title: string;
+  tagline: string;
+  description: string;
+  hero_illustration: string;
+  total_categories: number;
+  total_questions: number;
+  source_repository: string;
+  source_license: string;
+  source_url: string;
+}
+
+export interface InterviewDomainTree {
+  domain: InterviewDomainSummary;
+  categories: InterviewCategory[];
+}
+
+export interface SourceAttribution {
+  repository_name: string;
+  repository_url: string;
+  source_path: string;
+  commit_hash?: string | null;
+  license_name: string;
+  license_notice: string;
+  imported_at: string;
+}
+
+export interface InterviewQuestionDetail {
+  id: string;
+  slug: string;
+  domain_id: string;
+  domain_title: string;
+  category: string;
+  topic: string;
+  title: string;
+  difficulty: string;
+  experience_level?: string;
+  target_roles?: string[];
+  markdown_content: string;
+  raw_content?: string | null;
+  estimated_read_time_min: number;
+  has_code: boolean;
+  has_diagram: boolean;
+  tags: string[];
+  source: SourceAttribution;
+  educational_diagram?: string | null;
+  educational_diagram_alt?: string | null;
+  previous_question?: { id: string; title: string; slug: string } | null;
+  next_question?: { id: string; title: string; slug: string } | null;
+}
+
+export interface QuestionAIExplainResponse {
+  question_id: string;
+  mode: string;
+  explanation: string;
+  real_world_scenario?: string | null;
+  code_sample?: string | null;
+  key_interview_takeaways?: string[];
+  ai_model_used: string;
+  is_ai_generated: boolean;
+  disclaimer: string;
+}
+
 

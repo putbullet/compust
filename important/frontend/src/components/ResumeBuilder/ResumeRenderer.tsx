@@ -1,24 +1,21 @@
 import React from 'react';
 import type { StructuredResumeData, ResumeSettings } from '../../api/client';
+import {
+  getSkillProficiencyLabel,
+  getLanguageProficiencyLabel,
+  getLocalizedSectionTitle,
+  DEFAULT_SECTION_TITLES_BY_LANG,
+} from './resumeLocalization';
 import './ResumeRenderer.css';
 
-export const DEFAULT_SECTION_TITLES: Record<string, string> = {
-  summary: 'Professional Summary',
-  experience: 'Professional Experience',
-  education: 'Education & Academic Background',
-  skills: 'Technical & Core Skills',
-  projects: 'Featured Projects',
-  certifications: 'Certifications & Accreditations',
-  languages: 'Languages',
-  custom_sections: 'Additional Information',
-};
+export const DEFAULT_SECTION_TITLES = DEFAULT_SECTION_TITLES_BY_LANG.en;
 
-export function resolveSectionTitle(sectionKey: string, customTitles?: Record<string, string>): string {
-  const custom = customTitles?.[sectionKey];
-  if (typeof custom === 'string' && custom.trim().length > 0) {
-    return custom.trim();
-  }
-  return DEFAULT_SECTION_TITLES[sectionKey] || sectionKey.charAt(0).toUpperCase() + sectionKey.slice(1);
+export function resolveSectionTitle(
+  sectionKey: string,
+  customTitles?: Record<string, string>,
+  lang: string = 'en'
+): string {
+  return getLocalizedSectionTitle(sectionKey, lang, customTitles?.[sectionKey]);
 }
 
 interface ResumeRendererProps {
@@ -29,9 +26,10 @@ interface ResumeRendererProps {
 export const ResumeRenderer: React.FC<ResumeRendererProps> = ({ data, settings }) => {
   const { profile, experience, education, skills, projects, certifications, languages, custom_sections } = data;
   const { template, theme_color, font_size, section_order, section_visibility } = settings;
+  const lang = settings.language || 'en';
 
   const isVisible = (sectionKey: string) => section_visibility[sectionKey] !== false;
-  const secTitle = (sectionKey: string) => resolveSectionTitle(sectionKey, settings.section_titles);
+  const secTitle = (sectionKey: string) => resolveSectionTitle(sectionKey, settings.section_titles, lang);
 
   const baseFontSize = `${font_size || '10.5'}pt`;
 
@@ -105,14 +103,15 @@ export const ResumeRenderer: React.FC<ResumeRendererProps> = ({ data, settings }
                 <section key="skills" className="resume-section section-skills">
                   <h2 className="section-title">{secTitle('skills')}</h2>
                   <div className="skills-grid">
-                    {skills.map((skill) => (
-                      <div key={skill.id} className="skill-item">
-                        <span className="skill-name">{skill.name}</span>
-                        {skill.proficiency && (
-                          <span className="skill-level">({skill.proficiency})</span>
-                        )}
-                      </div>
-                    ))}
+                    {skills.map((skill) => {
+                      const profLabel = getSkillProficiencyLabel(skill.proficiency, lang);
+                      return (
+                        <div key={skill.id} className="skill-item">
+                          <span className="skill-name">{skill.name}</span>
+                          {profLabel ? <span className="skill-level"> — {profLabel}</span> : null}
+                        </div>
+                      );
+                    })}
                   </div>
                 </section>
               ) : null;
@@ -231,11 +230,15 @@ export const ResumeRenderer: React.FC<ResumeRendererProps> = ({ data, settings }
                 <section key="languages" className="resume-section section-languages">
                   <h2 className="section-title">{secTitle('languages')}</h2>
                   <div className="languages-pills">
-                    {languages.map((l) => (
-                      <span key={l.id} className="lang-tag">
-                        <strong>{l.language}</strong> ({l.proficiency})
-                      </span>
-                    ))}
+                    {languages.map((l) => {
+                      const profLabel = getLanguageProficiencyLabel(l.proficiency, lang);
+                      return (
+                        <span key={l.id} className="lang-tag">
+                          <strong>{l.language}</strong>
+                          {profLabel ? ` (${profLabel})` : null}
+                        </span>
+                      );
+                    })}
                   </div>
                 </section>
               ) : null;

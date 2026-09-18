@@ -113,8 +113,9 @@ def test_ensure_frontend_running_already_alive():
     """Verify frontend check does not spawn duplicate processes if already alive."""
     with patch("launcher.launcher_core.is_http_alive", return_value=True), \
          patch("subprocess.Popen") as mock_popen:
-        res = ensure_frontend_running(REPO_ROOT, port=5173)
+        res, url = ensure_frontend_running(REPO_ROOT, port=5173)
         assert res is True
+        assert url == "http://127.0.0.1:5173"
         mock_popen.assert_not_called()
 
 

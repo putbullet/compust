@@ -34,6 +34,7 @@ interface JobDetailModalProps {
   onClose: () => void;
   isAppliedInitially?: boolean;
   onApplicationStatusChanged?: (jobId: number, status: string) => void;
+  onTargetJob?: (jobData: { role: string; description: string; companyName: string }) => void;
 }
 
 export const JobDetailModal: React.FC<JobDetailModalProps> = ({
@@ -42,6 +43,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   onClose,
   isAppliedInitially = false,
   onApplicationStatusChanged,
+  onTargetJob,
 }) => {
   const [translations, setTranslations] = useState<JobTranslationItem[]>([]);
   const [selectedLang, setSelectedLang] = useState<string>('original');
@@ -359,27 +361,35 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
             )}
           </div>
 
-          {/* AI Resume Studio Tailor Banner (Coming Soon) */}
-          <div className="studio-tailor-banner coming-soon" aria-disabled="true">
+          {/* AI Resume & Career Assistant Banner */}
+          <div className="studio-tailor-banner active" style={{ borderColor: 'var(--accent, #6366f1)', background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(168, 85, 247, 0.05) 100%)' }}>
             <div className="studio-tailor-info">
-              <Sparkles size={20} className="studio-tailor-icon" />
+              <Sparkles size={20} className="studio-tailor-icon" style={{ color: '#818cf8' }} />
               <div>
                 <div className="banner-title-row">
-                  <h4>AI Resume Studio — Tailor for this Vacancy</h4>
-                  <span className="coming-soon-badge">Coming Soon</span>
+                  <h4>Local AI Career Assistant — Target this Vacancy</h4>
+                  <span className="coming-soon-badge" style={{ background: '#10b981', color: '#fff' }}>Active</span>
                 </div>
-                <p>AI resume tailoring is coming soon. Automated vacancy-specific resume tailoring and bullet refinement are currently in development.</p>
+                <p>Run 5-stage career analysis with local AI: match scoring, bullet tailoring, cover letter, cold outreach, and STAR interview prep.</p>
               </div>
             </div>
             <button
               type="button"
-              className="studio-tailor-btn disabled"
-              disabled
-              aria-disabled="true"
-              title="AI resume tailoring is coming soon."
+              className="studio-tailor-btn"
+              style={{ background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)', color: '#fff', cursor: 'pointer' }}
+              onClick={() => {
+                if (job && onTargetJob) {
+                  onTargetJob({
+                    role: job.title,
+                    description: job.description || '',
+                    companyName: companyName,
+                  });
+                }
+              }}
+              title="Open in Career Assistant"
             >
               <Sparkles size={15} />
-              <span>AI resume tailoring is coming soon</span>
+              <span>Target in Career Assistant</span>
             </button>
           </div>
 

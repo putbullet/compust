@@ -57,6 +57,7 @@ export const MyDataSupervisionView: React.FC = () => {
   // Scraper Test Diagnostic state
   const [testUrl, setTestUrl] = useState('https://www.deloitte.com/fr/fr/careers/content/job/results.html');
   const [testStrategy, setTestStrategy] = useState<string>('auto');
+  const [testMaxPages, setTestMaxPages] = useState<number>(3);
   const [runningTest, setRunningTest] = useState(false);
   const [testResult, setTestResult] = useState<ScraperDiagnosticResponse | null>(null);
   const [testError, setTestError] = useState<string | null>(null);
@@ -203,7 +204,7 @@ export const MyDataSupervisionView: React.FC = () => {
       const res = await api.testScraperDiagnostic({
         url: testUrl.trim(),
         strategy: strat,
-        max_pages: 1,
+        max_pages: testMaxPages,
       });
       setTestResult(res);
     } catch (err: any) {
@@ -530,6 +531,20 @@ export const MyDataSupervisionView: React.FC = () => {
                 </select>
               </div>
 
+              <div className="control-group select-group" style={{ maxWidth: '140px' }}>
+                <label>Max Pages</label>
+                <select
+                  value={testMaxPages}
+                  onChange={(e) => setTestMaxPages(Number(e.target.value))}
+                >
+                  <option value={1}>1 page</option>
+                  <option value={2}>2 pages</option>
+                  <option value={3}>3 pages</option>
+                  <option value={5}>5 pages</option>
+                  <option value={10}>10 pages</option>
+                </select>
+              </div>
+
               <button
                 className="run-test-btn"
                 onClick={handleRunDiagnostic}
@@ -584,6 +599,16 @@ export const MyDataSupervisionView: React.FC = () => {
                       <span className="metric-label">Confidence</span>
                       <span className="metric-val">{Math.round(testResult.confidence_score * 100)}%</span>
                     </div>
+                    <div className="metric">
+                      <span className="metric-label">Pages Crawled</span>
+                      <span className="metric-val">{testResult.pages_crawled || 1}</span>
+                    </div>
+                    {testResult.detected_result_count !== undefined && testResult.detected_result_count !== null && (
+                      <div className="metric">
+                        <span className="metric-label">Detected Total</span>
+                        <span className="metric-val highlight">{testResult.detected_result_count}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 

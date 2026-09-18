@@ -13,13 +13,14 @@ import {
   Database,
   BookOpen,
   GraduationCap,
+  BrainCircuit,
 } from 'lucide-react';
 import type { UserProfile } from '../api/client';
 import { useTranslation } from '../i18n';
 
 interface NavbarProps {
-  activeTab: 'directory' | 'profile' | 'scraper' | 'applications' | 'companies' | 'supervision' | 'guide' | 'internships';
-  setActiveTab: (tab: 'directory' | 'profile' | 'scraper' | 'applications' | 'companies' | 'supervision' | 'guide' | 'internships') => void;
+  activeTab: 'directory' | 'profile' | 'scraper' | 'applications' | 'companies' | 'supervision' | 'guide' | 'internships' | 'interview-prep';
+  setActiveTab: (tab: 'directory' | 'profile' | 'scraper' | 'applications' | 'companies' | 'supervision' | 'guide' | 'internships' | 'interview-prep') => void;
   user: UserProfile | null;
   onOpenAuth: () => void;
   onLogout: () => void;
@@ -129,6 +130,24 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <FolderKanban size={20} />
             <div className="tooltip">{language === 'fr' ? 'Mes Candidatures' : 'My Applications'}</div>
+          </div>
+
+          <div
+            className={`nav-item ${activeTab === 'interview-prep' ? 'active' : ''}`}
+            onClick={() => setActiveTab('interview-prep')}
+            role="tab"
+            tabIndex={0}
+            aria-selected={activeTab === 'interview-prep'}
+            aria-label={language === 'fr' ? 'Préparation Entretiens' : 'Interview Prep'}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setActiveTab('interview-prep');
+              }
+            }}
+          >
+            <BrainCircuit size={20} />
+            <div className="tooltip">{language === 'fr' ? 'Préparation Entretiens' : 'Interview Prep'}</div>
           </div>
 
           <div

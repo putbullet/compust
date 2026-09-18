@@ -24,7 +24,15 @@ import type {
   ResumeProjectEntry,
   ResumeLanguageEntry,
 } from '../../api/client';
-import { DEFAULT_SECTION_TITLES } from './ResumeRenderer';
+import {
+  normalizeSkillProficiency,
+  normalizeLanguageProficiency,
+  getSkillProficiencyLabel,
+  getLanguageProficiencyLabel,
+  getSkillDropdownOptions,
+  getLanguageDropdownOptions,
+  getLocalizedSectionTitle,
+} from './resumeLocalization';
 import './ResumeEditor.css';
 
 interface ResumeEditorProps {
@@ -55,7 +63,8 @@ const SectionTitleEditorRow: React.FC<SectionTitleEditorRowProps> = ({
   settings,
   onChangeTitle,
 }) => {
-  const defaultTitle = DEFAULT_SECTION_TITLES[sectionId] || sectionId;
+  const lang = settings.language || 'en';
+  const defaultTitle = getLocalizedSectionTitle(sectionId, lang);
   const customVal = settings.section_titles?.[sectionId] ?? '';
 
   return (
@@ -192,21 +201,32 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
   // Skills helpers
   const [newSkillName, setNewSkillName] = useState('');
   const [newSkillCategory] = useState('Core & Technical');
-  const [newSkillProficiency, setNewSkillProficiency] = useState('Intermediate');
+  const [newSkillProficiency, setNewSkillProficiency] = useState('ADVANCED');
 
   const handleAddSkill = () => {
     if (!newSkillName.trim()) return;
+    const profToken = normalizeSkillProficiency(newSkillProficiency);
     const newSkill: ResumeSkillEntry = {
       id: `sk-${Date.now()}`,
       name: newSkillName.trim(),
       category: newSkillCategory,
-      proficiency: newSkillProficiency,
+      proficiency: profToken === 'NONE' ? null : profToken,
     };
     onChangeData({
       ...data,
       skills: [...(data.skills || []), newSkill],
     });
     setNewSkillName('');
+  };
+
+  const handleUpdateSkillProficiency = (id: string, profValue: string) => {
+    const profToken = normalizeSkillProficiency(profValue);
+    onChangeData({
+      ...data,
+      skills: (data.skills || []).map((s) =>
+        s.id === id ? { ...s, proficiency: profToken === 'NONE' ? null : profToken } : s
+      ),
+    });
   };
 
   const handleRemoveSkill = (id: string) => {
@@ -249,20 +269,31 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
 
   // Languages helpers
   const [newLangName, setNewLangName] = useState('');
-  const [newLangProf, setNewLangProf] = useState('Fluent');
+  const [newLangProf, setNewLangProf] = useState('FLUENT');
 
   const handleAddLanguage = () => {
     if (!newLangName.trim()) return;
+    const profToken = normalizeLanguageProficiency(newLangProf);
     const newLang: ResumeLanguageEntry = {
       id: `lang-${Date.now()}`,
       language: newLangName.trim(),
-      proficiency: newLangProf,
+      proficiency: profToken === 'NONE' ? null : profToken,
     };
     onChangeData({
       ...data,
       languages: [...(data.languages || []), newLang],
     });
     setNewLangName('');
+  };
+
+  const handleUpdateLanguageProficiency = (id: string, profValue: string) => {
+    const profToken = normalizeLanguageProficiency(profValue);
+    onChangeData({
+      ...data,
+      languages: (data.languages || []).map((l) =>
+        l.id === id ? { ...l, proficiency: profToken === 'NONE' ? null : profToken } : l
+      ),
+    });
   };
 
   const handleRemoveLanguage = (id: string) => {
@@ -860,11 +891,13 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
                 className="editor-select"
                 value={newSkillProficiency}
                 onChange={(e) => setNewSkillProficiency(e.target.value)}
+                title="Proficiency (optional)"
               >
-                <option value="Beginner">Beginner</option>
-                <option value="Intermediate">Intermediate</option>
-                <option value="Advanced">Advanced</option>
-                <option value="Expert">Expert</option>
+                {getSkillDropdownOptions(settings.language || 'en').map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
               </select>
               <button type="button" className="add-btn" onClick={handleAddSkill}>
                 <Plus size={15} />
@@ -877,20 +910,35 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
               {(!data.skills || data.skills.length === 0) ? (
                 <p className="empty-subtext">No skills added yet. Add some above or import from your profile.</p>
               ) : (
-                data.skills.map((s) => (
-                  <div key={s.id} className="skill-edit-pill">
-                    <span className="skill-pill-name">{s.name}</span>
-                    <span className="skill-pill-level">({s.proficiency})</span>
-                    <button
-                      type="button"
-                      className="remove-pill-btn"
-                      onClick={() => handleRemoveSkill(s.id)}
-                      title="Remove skill"
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                  </div>
-                ))
+                data.skills.map((s) => {
+                  const profLabel = getSkillProficiencyLabel(s.proficiency, settings.language || 'en');
+                  return (
+                    <div key={s.id} className="skill-edit-pill">
+                      <span className="skill-pill-name">{s.name}</span>
+                      {profLabel ? <span className="skill-pill-level">({profLabel})</span> : null}
+                      <select
+                        className="pill-prof-select"
+                        value={normalizeSkillProficiency(s.proficiency)}
+                        onChange={(e) => handleUpdateSkillProficiency(s.id, e.target.value)}
+                        title="Change proficiency level"
+                      >
+                        {getSkillDropdownOptions(settings.language || 'en').map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        className="remove-pill-btn"
+                        onClick={() => handleRemoveSkill(s.id)}
+                        title="Remove skill"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
@@ -1015,8 +1063,6 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
               settings={settings}
               onChangeTitle={handleSectionTitleChange}
             />
-
-
             <div className="skill-add-bar">
               <input
                 type="text"
@@ -1030,12 +1076,13 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
                 className="editor-select"
                 value={newLangProf}
                 onChange={(e) => setNewLangProf(e.target.value)}
+                title="Proficiency (optional)"
               >
-                <option value="Native">Native / Bilingual</option>
-                <option value="Fluent">Fluent</option>
-                <option value="Professional">Professional Working</option>
-                <option value="Intermediate">Intermediate</option>
-                <option value="Basic">Basic</option>
+                {getLanguageDropdownOptions(settings.language || 'en').map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
               </select>
               <button type="button" className="add-btn" onClick={handleAddLanguage}>
                 <Plus size={15} />
@@ -1047,19 +1094,35 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
               {(!data.languages || data.languages.length === 0) ? (
                 <p className="empty-subtext">No languages added yet.</p>
               ) : (
-                data.languages.map((l) => (
-                  <div key={l.id} className="skill-edit-pill">
-                    <span className="skill-pill-name">{l.language}</span>
-                    <span className="skill-pill-level">({l.proficiency})</span>
-                    <button
-                      type="button"
-                      className="remove-pill-btn"
-                      onClick={() => handleRemoveLanguage(l.id)}
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                  </div>
-                ))
+                data.languages.map((l) => {
+                  const profLabel = getLanguageProficiencyLabel(l.proficiency, settings.language || 'en');
+                  return (
+                    <div key={l.id} className="skill-edit-pill">
+                      <span className="skill-pill-name">{l.language}</span>
+                      {profLabel ? <span className="skill-pill-level">({profLabel})</span> : null}
+                      <select
+                        className="pill-prof-select"
+                        value={normalizeLanguageProficiency(l.proficiency)}
+                        onChange={(e) => handleUpdateLanguageProficiency(l.id, e.target.value)}
+                        title="Change language proficiency level"
+                      >
+                        {getLanguageDropdownOptions(settings.language || 'en').map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        className="remove-pill-btn"
+                        onClick={() => handleRemoveLanguage(l.id)}
+                        title="Remove language"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
@@ -1128,8 +1191,21 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
               </div>
             </div>
 
-            {/* Document Sizing & Typography */}
-            <div className="form-grid-2" style={{ marginTop: '16px' }}>
+            {/* Resume Language, Document Sizing & Typography */}
+            <div className="form-grid-3" style={{ marginTop: '16px' }}>
+              <div className="form-group">
+                <label>Resume Language</label>
+                <select
+                  className="editor-select"
+                  value={settings.language || 'en'}
+                  onChange={(e) => onChangeSettings({ ...settings, language: e.target.value })}
+                >
+                  <option value="en">English (EN)</option>
+                  <option value="fr">Français (FR)</option>
+                  <option value="de">Deutsch (DE)</option>
+                </select>
+              </div>
+
               <div className="form-group">
                 <label>Page Size</label>
                 <select
@@ -1163,22 +1239,7 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
               <div className="sections-order-list">
                 {settings.section_order.map((secKey, idx) => {
                   const isVis = settings.section_visibility[secKey] !== false;
-                  const secLabel =
-                    secKey === 'summary'
-                      ? 'Professional Summary'
-                      : secKey === 'experience'
-                      ? 'Work Experience'
-                      : secKey === 'education'
-                      ? 'Education & Academics'
-                      : secKey === 'skills'
-                      ? 'Technical Skills'
-                      : secKey === 'projects'
-                      ? 'Projects'
-                      : secKey === 'certifications'
-                      ? 'Certifications'
-                      : secKey === 'languages'
-                      ? 'Languages'
-                      : secKey;
+                  const secLabel = getLocalizedSectionTitle(secKey, settings.language || 'en');
 
                   return (
                     <div key={secKey} className={`sec-order-row ${!isVis ? 'disabled' : ''}`}>
@@ -1187,7 +1248,7 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
                         <input
                           type="text"
                           className="editor-input sec-order-custom-input"
-                          placeholder={DEFAULT_SECTION_TITLES[secKey] || secLabel}
+                          placeholder={secLabel}
                           value={settings.section_titles?.[secKey] ?? ''}
                           onChange={(e) => handleSectionTitleChange(secKey, e.target.value)}
                           title={`Custom heading title for ${secLabel}`}

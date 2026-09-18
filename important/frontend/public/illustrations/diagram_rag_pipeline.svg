@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 480" width="100%" height="100%">
+  <defs>
+    <linearGradient id="ragQueryGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#1d4ed8" />
+    </linearGradient>
+    <linearGradient id="ragEmbedGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6" />
+      <stop offset="100%" stop-color="#6d28d9" />
+    </linearGradient>
+    <linearGradient id="ragVectorGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+    <linearGradient id="ragLlmGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#047857" />
+    </linearGradient>
+  </defs>
+
+  <rect width="960" height="480" rx="16" fill="#0b1120" stroke="#1e293b" stroke-width="1.5" />
+
+  <text x="480" y="38" text-anchor="middle" fill="#f8fafc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="20" font-weight="700">
+    Retrieval-Augmented Generation (RAG) Architecture
+  </text>
+  <text x="480" y="62" text-anchor="middle" fill="#94a3b8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13">
+    Grounding Large Language Models in external knowledge bases to eliminate hallucinations and secure proprietary data
+  </text>
+
+  <!-- OFFLINE INGESTION STAGE (Top container) -->
+  <g transform="translate(40, 85)">
+    <rect width="880" height="135" rx="10" fill="#0f172a" stroke="#334155" stroke-dasharray="4 3" />
+    <text x="20" y="24" fill="#94a3b8" font-family="sans-serif" font-size="11" font-weight="700">PHASE 1: OFFLINE DOCUMENT INGESTION &amp; VECTORIZATION</text>
+
+    <!-- Raw Docs -->
+    <rect x="25" y="40" width="160" height="75" rx="6" fill="#1e293b" stroke="#475569" />
+    <text x="105" y="68" text-anchor="middle" fill="#f8fafc" font-family="sans-serif" font-size="12" font-weight="600">Enterprise Docs</text>
+    <text x="105" y="88" text-anchor="middle" fill="#94a3b8" font-family="sans-serif" font-size="10">PDFs, Confluence, Code</text>
+
+    <!-- Arrow -->
+    <path d="M 190 78 L 245 78" stroke="#8b5cf6" stroke-width="2" />
+    <polygon points="245,74 253,78 245,82" fill="#8b5cf6" />
+    <text x="218" y="70" text-anchor="middle" fill="#c084fc" font-family="sans-serif" font-size="9.5">Chunk</text>
+
+    <!-- Embedding Model -->
+    <rect x="255" y="40" width="180" height="75" rx="6" fill="#1e293b" stroke="#8b5cf6" />
+    <text x="345" y="68" text-anchor="middle" fill="#c084fc" font-family="sans-serif" font-size="12" font-weight="700">Embedding Model</text>
+    <text x="345" y="88" text-anchor="middle" fill="#94a3b8" font-family="sans-serif" font-size="10">e.g. text-embedding-3 / BGE</text>
+
+    <!-- Arrow -->
+    <path d="M 440 78 L 515 78" stroke="#f59e0b" stroke-width="2" />
+    <polygon points="515,74 523,78 515,82" fill="#f59e0b" />
+    <text x="478" y="70" text-anchor="middle" fill="#fcd34d" font-family="sans-serif" font-size="9.5">Vectors</text>
+
+    <!-- Vector Database -->
+    <rect x="525" y="35" width="330" height="85" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5" />
+    <text x="690" y="64" text-anchor="middle" fill="#f59e0b" font-family="sans-serif" font-size="13" font-weight="700">Vector Database (Index)</text>
+    <text x="690" y="84" text-anchor="middle" fill="#cbd5e1" font-family="sans-serif" font-size="10.5">Qdrant / Milvus / pgvector / Pinecone</text>
+    <text x="690" y="102" text-anchor="middle" fill="#94a3b8" font-family="sans-serif" font-size="9.5">HNSW Index · Cosine Similarity / Dot-Product</text>
+  </g>
+
+  <!-- ONLINE QUERY & GENERATION (Bottom container) -->
+  <g transform="translate(40, 240)">
+    <rect width="880" height="190" rx="10" fill="#0f172a" stroke="#334155" />
+    <text x="20" y="24" fill="#34d399" font-family="sans-serif" font-size="11" font-weight="700">PHASE 2: ONLINE QUERY, RETRIEVAL &amp; GROUNDED GENERATION</text>
+
+    <!-- 1. User Query -->
+    <rect x="25" y="45" width="160" height="120" rx="8" fill="#1e293b" stroke="#3b82f6" />
+    <text x="105" y="75" text-anchor="middle" fill="#60a5fa" font-family="sans-serif" font-size="12" font-weight="700">1. User Query</text>
+    <text x="105" y="98" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="10">"What is our OAuth</text>
+    <text x="105" y="114" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="10">token TTL policy?"</text>
+    <rect x="35" y="130" width="140" height="24" rx="4" fill="#0b1120" />
+    <text x="105" y="146" text-anchor="middle" fill="#94a3b8" font-family="sans-serif" font-size="9">Runtime Question</text>
+
+    <!-- Query to Embedder -->
+    <path d="M 190 105 L 245 105" stroke="#60a5fa" stroke-width="2" />
+    <polygon points="245,101 253,105 245,109" fill="#60a5fa" />
+
+    <!-- 2. Query Embedding & Search -->
+    <rect x="255" y="45" width="180" height="120" rx="8" fill="#1e293b" stroke="#8b5cf6" />
+    <text x="345" y="75" text-anchor="middle" fill="#c084fc" font-family="sans-serif" font-size="12" font-weight="700">2. Vector Search</text>
+    <text x="345" y="98" text-anchor="middle" fill="#cbd5e1" font-family="sans-serif" font-size="10.5">Embed query vector</text>
+    <text x="345" y="116" text-anchor="middle" fill="#94a3b8" font-family="sans-serif" font-size="10">Retrieve Top-K Chunks</text>
+    <text x="345" y="146" text-anchor="middle" fill="#fcd34d" font-family="sans-serif" font-size="9.5">k=5 Relevant Passages</text>
+
+    <!-- Search to Prompt Assembly -->
+    <path d="M 440 105 L 485 105" stroke="#f59e0b" stroke-width="2" />
+    <polygon points="485,101 493,105 485,109" fill="#f59e0b" />
+
+    <!-- 3. Prompt Assembly & Context Injection -->
+    <rect x="495" y="45" width="185" height="120" rx="8" fill="#1e293b" stroke="#f59e0b" />
+    <text x="587" y="75" text-anchor="middle" fill="#fcd34d" font-family="sans-serif" font-size="12" font-weight="700">3. Context Injection</text>
+    <text x="587" y="96" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="10">System Prompt +</text>
+    <text x="587" y="112" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="10">Retrieved Chunks +</text>
+    <text x="587" y="128" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="10">Original Question</text>
+    <text x="587" y="148" text-anchor="middle" fill="#34d399" font-family="sans-serif" font-size="9">Zero Hallucination</text>
+
+    <!-- To LLM -->
+    <path d="M 685 105 L 730 105" stroke="#10b981" stroke-width="2" />
+    <polygon points="730,101 738,105 730,109" fill="#10b981" />
+
+    <!-- 4. LLM Response -->
+    <rect x="740" y="45" width="165" height="120" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="1.5" />
+    <text x="822" y="75" text-anchor="middle" fill="#34d399" font-family="sans-serif" font-size="12" font-weight="700">4. LLM Generation</text>
+    <text x="822" y="98" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="10.5">Accurate, Grounded</text>
+    <text x="822" y="116" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="10.5">Answer with Citations</text>
+    <text x="822" y="146" text-anchor="middle" fill="#6ee7b7" font-family="sans-serif" font-size="9.5">Enterprise Ready</text>
+  </g>
+
+  <!-- Footer Insight -->
+  <text x="480" y="460" text-anchor="middle" fill="#64748b" font-family="sans-serif" font-size="11">
+    Key Interview Trade-off: Chunking strategy (token count vs semantic preservation), Hybrid Search (Dense vector + BM25 sparse), and Re-ranking models (Cross-Encoders).
+  </text>
+</svg>

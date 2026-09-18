@@ -1,0 +1,100 @@
+{
+  "id": "data_engineering",
+  "title": "Data Engineering",
+  "short_title": "Data Eng",
+  "tagline": "Distributed compute, lakehouse architectures, dimensional modeling, and high-scale streaming pipelines.",
+  "description": "Master distributed data pipeline architecture, Apache Spark/Flink tuning, Kimball dimensional modeling, Delta/Iceberg Lakehouse paradigms, and Kafka event streaming.",
+  "hero_illustration": "/illustrations/data_engineering_hero.png",
+  "educational_diagrams": [
+    "/illustrations/diagram_etl_vs_elt.svg",
+    "/illustrations/diagram_lakehouse_architecture.svg"
+  ],
+  "source_repository": "https://github.com/OBenner/data-engineering-interview-questions",
+  "source_commit": "2a27b4e98a564b9d0fb1019ae3ba9a2c2e3f35db",
+  "source_license": "Public Open Source (GitHub Terms of Service)",
+  "total_categories": 7,
+  "total_questions": 2101,
+  "categories": [
+    {
+      "id": "distributed-compute",
+      "name": "Distributed Compute & Processing",
+      "description": "Apache Spark DAG execution, Apache Flink streaming state, Hadoop YARN, and distributed memory management.",
+      "topics": [
+        "spark",
+        "flink",
+        "hadoop",
+        "kubernetes"
+      ]
+    },
+    {
+      "id": "data-warehousing-modeling",
+      "name": "Data Warehousing & Dimensional Modeling",
+      "description": "Kimball star & snowflake schemas, SCD Type 2, dbt analytics engineering, and cloud MPP warehouses (BigQuery, Redshift).",
+      "topics": [
+        "data-modeling",
+        "dbt",
+        "bigquery",
+        "redshift",
+        "dwha"
+      ]
+    },
+    {
+      "id": "lakehouse-storage",
+      "name": "Lakehouse Storage & Formats",
+      "description": "ACID table formats (Apache Iceberg, Delta Lake, Apache Hudi), Parquet columnar layouts, and Avro serialization.",
+      "topics": [
+        "iceberg",
+        "delta",
+        "hudi",
+        "avro",
+        "parquet"
+      ]
+    },
+    {
+      "id": "streaming-messaging",
+      "name": "Streaming & Event Messaging",
+      "description": "Apache Kafka consumer groups, exactly-once semantics, partition offsets, CDC (Change Data Capture), and NiFi.",
+      "topics": [
+        "kafka",
+        "cdc",
+        "flume",
+        "nifi"
+      ]
+    },
+    {
+      "id": "databases-nosql",
+      "name": "Databases & Distributed NoSQL",
+      "description": "Relational PostgreSQL / SQL query optimization, Cassandra wide-column partitions, MongoDB sharding, and HBase.",
+      "topics": [
+        "sql",
+        "cassandra",
+        "mongo",
+        "hbase",
+        "bigtable"
+      ]
+    },
+    {
+      "id": "orchestration-cloud",
+      "name": "Orchestration & Cloud Platforms",
+      "description": "Apache Airflow DAG scheduling, backfilling, operators, and hyperscaler services across AWS, GCP, and Azure.",
+      "topics": [
+        "airflow",
+        "aws",
+        "gcp",
+        "azure"
+      ]
+    },
+    {
+      "id": "reliability-architecture",
+      "name": "Reliability, Governance & System Design",
+      "description": "Data quality contracts, SLA/SLO monitoring, cost optimization, and end-to-end distributed system design.",
+      "topics": [
+        "system-design",
+        "data-quality",
+        "data-governance",
+        "cost-optimization",
+        "observability"
+      ]
+    }
+  ]
+}

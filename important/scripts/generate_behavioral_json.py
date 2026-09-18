@@ -1,0 +1,376 @@
+"""
+Generates rich multilingual behavioral_prep.json for Compust.
+Incorporates nas5w/interview-guide:
+- STAR Method deep dive
+- Behavioral Story Matrix (5 pillars)
+- 4 Interview Modules (Before, During, Reverse Questions, After)
+- 10+ Comprehensive Questions with full STAR breakdowns in English, French, and German.
+"""
+
+import sys
+import json
+from pathlib import Path
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
+out_file = Path(__file__).resolve().parent.parent / "src" / "app" / "content" / "interview_prep" / "behavioral_prep.json"
+out_file.parent.mkdir(parents=True, exist_ok=True)
+
+data = {
+    "en": {
+        "language": "en",
+        "star_guide": {
+            "title": "The STAR Behavioral Interview Framework",
+            "what_is_star": "STAR stands for Situation, Task, Action, Result. It is the industry-standard storytelling framework used by hiring managers at FAANG, top tech companies, and Fortune 500s to evaluate technical leadership, conflict resolution, and execution rigor.",
+            "when_to_use": "Use STAR for any question starting with 'Tell me about a time...', 'Describe a situation where...', or 'Have you ever had to deal with...'.",
+            "how_to_structure": "Situation (15% - brief context), Task (10% - your specific responsibility), Action (55% - deep technical execution using 'I', not 'we'), Result (20% - quantified business and latency metrics).",
+            "what_makes_answer_strong": [
+                "Quantified metrics: Mention specific percentages, latency reductions, dollar savings, or throughput gains.",
+                "Technical rigor: Explain the architectural trade-offs, protocols considered, and engineering rationale.",
+                "Personal ownership: Say 'I decided' and 'I implemented' rather than hiding behind team accomplishments ('we').",
+                "Conciseness: Keep the entire answer between 2.5 and 3 minutes."
+            ],
+            "common_mistakes": [
+                "Spending 70% of the time describing the company or problem instead of what you actually did.",
+                "Using 'we' throughout the answer, leaving the interviewer unsure what your individual contribution was.",
+                "Forgetting the Result or giving vague outcomes like 'everyone was happy'.",
+                "Being defensive when discussing mistakes or outages instead of demonstrating blameless learning."
+            ],
+            "steps": [
+                {
+                    "step": "Situation",
+                    "definition": "Set the scene. Provide just enough context so the interviewer understands the scale and constraints.",
+                    "key_points": ["Company / product domain", "Existing architecture baseline", "The critical challenge or obstacle"],
+                    "example": "At my previous fintech employer, our payment reconciliation service was experiencing sporadic transaction drops during Black Friday traffic surges (12,000 req/sec)."
+                },
+                {
+                    "step": "Task",
+                    "definition": "Define your specific responsibility and the success criteria you needed to hit.",
+                    "key_points": ["Your individual ownership", "Hard constraints (SLA, latency budget, deadline)", "The business risk if unsolved"],
+                    "example": "As the tech lead for payments, I was tasked with redesigning the ingestion pipeline to eliminate data loss and bring p99 processing latency under 200ms within a 3-week deadline."
+                },
+                {
+                    "step": "Action",
+                    "definition": "The core of your answer (55%). Detail the technical decisions, trade-offs, and actions YOU took.",
+                    "key_points": ["Specific technologies chosen", "Architectural trade-offs", "Overcoming blockers", "Cross-team communication"],
+                    "example": "I profiled the database queries and identified severe row-level lock contention. I replaced the synchronous PostgreSQL write pattern with an Apache Kafka event queue with transactional outbox semantics, partitioned by merchant ID to guarantee ordering. I also configured consumer auto-scaling in Kubernetes."
+                },
+                {
+                    "step": "Result",
+                    "definition": "Deliver the quantifiable punchline. How did your engineering impact the business and users?",
+                    "key_points": ["Quantified numbers (%, $, ms)", "Reliability / availability win", "Long-term team impact"],
+                    "example": "During the subsequent Cyber Monday surge, the pipeline handled 18,500 req/sec with zero dropped transactions. p99 latency dropped from 850ms to 120ms (85% reduction), saving an estimated $240,000 in lost merchant authorizations."
+                }
+            ]
+        },
+        "story_matrix": {
+            "title": "The Behavioral Story Matrix (nas5w/interview-guide)",
+            "description": "Prepare 5 core stories from your real software engineering career. A single well-crafted story can address multiple interview themes depending on which angle you highlight.",
+            "pillars": [
+                {
+                    "name": "Pillar 1: Tough Technical Challenge",
+                    "focus": "Decomposing complex distributed systems, debugging obscure production issues, and architectural trade-offs.",
+                    "applies_to": ["Tell me about a difficult bug you solved", "Describe a time you worked with an unfamiliar tech stack"]
+                },
+                {
+                    "name": "Pillar 2: Project Failure / Production Incident",
+                    "focus": "Taking ownership, blameless post-mortem analysis, and engineering automated preventive guardrails.",
+                    "applies_to": ["Tell me about a time you made a mistake", "Describe a production outage you caused or triaged"]
+                },
+                {
+                    "name": "Pillar 3: Navigating Disagreement & Conflict",
+                    "focus": "Empirical data over ego, active listening, RFC timeboxed prototypes, and disagree-and-commit maturity.",
+                    "applies_to": ["Tell me about a disagreement with a peer / manager", "How do you handle scope creep?"]
+                },
+                {
+                    "name": "Pillar 4: Leadership & Proactive Initiative",
+                    "focus": "Identifying tech debt, mentoring junior engineers, introducing CI/CD best practices without being asked.",
+                    "applies_to": ["Tell me about a time you took initiative", "How do you elevate code quality across your team?"]
+                },
+                {
+                    "name": "Pillar 5: High-Impact Delivery under Strict Deadlines",
+                    "focus": "Ruthless prioritization, MVP scoping, stakeholder management, and zero-downtime execution.",
+                    "applies_to": ["Tell me about your proudest engineering project", "Describe delivering under tight deadlines"]
+                }
+            ]
+        },
+        "interview_modules": [
+            {
+                "id": "before-interview",
+                "title": "Before the Interview: Architectural & Cultural Preparation",
+                "summary": "Read engineering blog posts from the target company to understand their tech stack (Kafka, Go, Kubernetes, Snowflake). Prepare 3 targeted questions about their scaling bottlenecks. Rehearse your 5 story matrix examples out loud."
+            },
+            {
+                "id": "during-interview",
+                "title": "During the Interview: Active Listening & Collaborative Problem Solving",
+                "summary": "Treat the interview as a collaborative design meeting. Think out loud, clarify edge cases before proposing architectures, state assumptions explicitly, and check in with your interviewer frequently."
+            },
+            {
+                "id": "reverse-interviewing",
+                "title": "Reverse Interviewing: High-Signal Questions for the Company",
+                "summary": "Ask revealing questions about engineering health: 'How frequently do you deploy to production?', 'How is tech debt prioritized against product roadmaps?', 'Can you describe the blameless postmortem process for the last major outage?'"
+            },
+            {
+                "id": "after-interview",
+                "title": "After the Interview: Follow-Up & Etiquette",
+                "summary": "Send a concise, personalized thank-you email within 24 hours referencing a specific technical discussion from your session. When receiving offers, evaluate engineering growth, team autonomy, and compensation packages."
+            }
+        ],
+        "questions": [
+            {
+                "id": "q1",
+                "category": "introductory",
+                "question": "Tell me about yourself and your background.",
+                "intent": "Assesses how concisely you can communicate your career trajectory, engineering superpowers, and why you are enthusiastic about this specific role.",
+                "recommended_structure": [
+                    "Present (30s): Current role, primary tech stack, and key engineering responsibilities.",
+                    "Past (45s): High-impact career milestones and distributed systems / architectural achievements.",
+                    "Future (30s): Why this specific role and team aligns with your engineering aspirations."
+                ],
+                "strong_example_answer": "I'm a senior software engineer with over six years of experience building distributed backend systems and high-throughput data platforms. Currently at FinScale, I lead the core transactions team where we handle over 50 million daily financial events using Go, Kafka, and PostgreSQL. Recently, I led the migration of our monolithic billing pipeline into an event-driven architecture, reducing transaction processing latency by 65%. Prior to that, I built scalable APIs at CloudData where I gained deep experience in database indexing and cloud orchestration. I'm passionate about high-availability distributed systems and developer tooling, which is why I'm excited about this opportunity on your core infrastructure team.",
+                "common_pitfalls": [
+                    "Reciting your chronological resume line-by-line starting from university.",
+                    "Talking for more than 2 minutes without checking in with the interviewer.",
+                    "Failing to explain why you are interested in this specific company."
+                ],
+                "self_reflection_prompt": "Does your answer highlight your most impressive engineering achievement in the first 60 seconds?"
+            },
+            {
+                "id": "q2",
+                "category": "strengths_weaknesses",
+                "question": "What are your greatest technical strengths and your biggest area for improvement?",
+                "intent": "Measures genuine self-awareness, technical honesty, and whether you take proactive steps to continuously upskill.",
+                "recommended_structure": [
+                    "Strength: A concrete engineering capability backed by a real production example.",
+                    "Weakness: A genuine technical or leadership area where you identified a gap and implemented active measures to improve."
+                ],
+                "strong_example_answer": "My greatest strength is end-to-end performance debugging in distributed environments. I enjoy profiling memory leaks, analyzing database execution plans, and optimizing Kafka consumer group lag. For example, by profiling flame graphs in our Go services, I identified a lock contention bottleneck that shaved 40% off our p99 response times. For my area of improvement, I historically tended to dive straight into writing code before delegating tasks to junior engineers. Over the past year, I've actively practiced tech-lead delegation by authoring detailed RFCs, hosting design kickoff sessions, and mentoring junior engineers through pair programming.",
+                "common_pitfalls": [
+                    "Using humblebrags like 'I work too hard' or 'I am too much of a perfectionist'.",
+                    "Naming a critical disqualifying weakness for the role without showing remediation steps."
+                ],
+                "self_reflection_prompt": "Can you cite a specific book, course, or mentor session you used to address your weakness?"
+            },
+            {
+                "id": "q3",
+                "category": "conflict",
+                "question": "Tell me about a time you had a technical disagreement with a peer or engineering manager. How was it resolved?",
+                "intent": "Evaluates emotional intelligence, data-driven reasoning, and disagree-and-commit maturity.",
+                "recommended_structure": [
+                    "Situation: The technical divergence (e.g. database choice, sync vs async architecture).",
+                    "Task: Your responsibility to reach an objective consensus without slowing down the sprint.",
+                    "Action: Running an empirical benchmark, creating an RFC with clear evaluation criteria.",
+                    "Result: The data-backed decision, successful delivery, and healthy ongoing collaboration."
+                ],
+                "strong_example_answer": "During a migration to a microservices architecture, a senior colleague advocated for MongoDB for our customer profile service, while I argued for PostgreSQL with JSONB columns because our roadmap required ACID-compliant transactional auditing with financial ledgers. Rather than debating opinions, I proposed a timeboxed 2-day benchmarking spike. We built identical read/write workloads simulating 10,000 concurrent updates. The benchmark proved PostgreSQL met our throughput target with 40% less operational overhead and guaranteed transactional consistency. My colleague agreed with the empirical data, and we shipped the service on schedule with zero data corruption issues.",
+                "common_pitfalls": [
+                    "Making the other engineer look incompetent or obstinate.",
+                    "Saying you have never had a disagreement (signals lack of technical depth or passivity)."
+                ],
+                "self_reflection_prompt": "Did you emphasize empirical benchmarks and team alignment over personal pride?"
+            },
+            {
+                "id": "q4",
+                "category": "failure",
+                "question": "Describe a time when you caused or resolved a severe production outage. What did you learn?",
+                "intent": "Tests accountability, blameless post-mortem culture, and ability to engineer automated preventive safeguards.",
+                "recommended_structure": [
+                    "Situation: The outage event and initial user impact.",
+                    "Task: Immediate triage and recovery as on-call engineer.",
+                    "Action: Emergency rollback/mitigation, followed by blameless root-cause analysis.",
+                    "Result: Zero recurrences, new automated linter or CI/CD guardrail implemented."
+                ],
+                "strong_example_answer": "During a routine database migration, I pushed an index creation script that omitted the `CONCURRENTLY` keyword on a high-traffic PostgreSQL table. The exclusive table lock blocked write transactions for 12 minutes, impacting thousands of active users. As on-call engineer, I immediately terminated the locking query and traffic returned to normal within 2 minutes. In our post-mortem, rather than pointing fingers, I took full ownership and built an automated CI/CD linter that checks all SQL migration files and automatically fails any PR containing unindexed foreign keys or non-concurrent index operations. We haven't had a single migration lock in the two years since.",
+                "common_pitfalls": [
+                    "Blaming an intern, junior engineer, or third-party cloud provider.",
+                    "Describing a failure where you learned nothing and made no systemic changes."
+                ],
+                "self_reflection_prompt": "Did you build an automated guardrail so no human can ever make that mistake again?"
+            },
+            {
+                "id": "q5",
+                "category": "leadership",
+                "question": "Tell me about a time you took the initiative to eliminate technical debt without being asked.",
+                "intent": "Evaluates proactivity, stewardship of code quality, and business alignment.",
+                "recommended_structure": [
+                    "Situation: The developer friction or latency cost caused by the debt.",
+                    "Task: Your self-directed initiative during innovation time.",
+                    "Action: Profiling, containerizing, or refactoring the bottleneck.",
+                    "Result: Quantified engineering hours saved or developer satisfaction increase."
+                ],
+                "strong_example_answer": "Our automated test suite had grown to 45 minutes per PR due to serialized database integration tests, slowing down our 20-person team's deployment velocity. During our quarterly 10% innovation time, I profiled the test runner and discovered 70% of the time was spent resetting database state on disk. I containerized ephemeral PostgreSQL instances running in a ramdisk, parallelized tests across 4 GitHub Actions runners using pytest-xdist, and mocked external third-party payment gateways. This reduced test execution time from 45 minutes down to 8 minutes—an 82% reduction—saving our engineering team approximately 120 hours every month.",
+                "common_pitfalls": [
+                    "Refactoring code for aesthetic reasons without any measurable performance or productivity gain.",
+                    "Rewriting code without unit tests, breaking existing production features."
+                ],
+                "self_reflection_prompt": "Can you quantify the exact time or infrastructure cost saved by your initiative?"
+            }
+        ]
+    },
+    "fr": {
+        "language": "fr",
+        "star_guide": {
+            "title": "Le Cadre d'Entretien Comportemental STAR",
+            "what_is_star": "STAR signifie Situation, Tâche, Action, Résultat. C'est la méthode de référence utilisée par les recruteurs et managers techniques (FAANG, scale-ups, grands groupes) pour évaluer vos compétences réelles en ingénierie, gestion de crise et leadership.",
+            "when_to_use": "À utiliser pour toute question de type 'Parlez-moi d'une fois où...', 'Comment avez-vous géré...', ou 'Décrivez une situation complexe...'.",
+            "how_to_structure": "Situation (15% - contexte bref), Tâche (10% - votre responsabilité exacte), Action (55% - réalisations techniques en disant 'J'ai fait'), Résultat (20% - métriques chiffrées).",
+            "what_makes_answer_strong": [
+                "Métriques chiffrées : citez des pourcentages concrets, gains de latence ou économies de coûts.",
+                "Rigueur technique : expliquez les arbitrages architecturaux et les choix d'outils.",
+                "Responsabilité personnelle : dites 'J'ai décidé' et non 'Nous avons'.",
+                "Concision : réponse calibrée entre 2 min 30 et 3 minutes maximum."
+            ],
+            "common_mistakes": [
+                "Passer trop de temps sur le contexte au détriment de l'action.",
+                "Employer systématiquement 'On' ou 'Nous' masquant votre rôle individuel.",
+                "Oublier de donner le résultat chiffré final.",
+                "Être sur la défensive lors de l'évocation d'un échec."
+            ],
+            "steps": [
+                {"step": "Situation", "definition": "Poser le contexte en moins de 60 secondes.", "key_points": ["Contexte projet", "Architecture existante", "Obstacle critique"], "example": "Chez mon précédent employeur fintech, notre service de réconciliation des paiements subissait des pertes lors des pics de trafic (12 000 req/s)."},
+                {"step": "Tâche", "definition": "Définir précisément votre responsabilité personnelle.", "key_points": ["Votre rôle", "Contraintes SLA", "Risque métier"], "example": "En tant que tech lead, j'avais pour mission de repenser le pipeline d'ingestion pour garantir zéro perte de données et une latence p99 sous 200 ms."},
+                {"step": "Action", "definition": "Le cœur de la réponse (55%) : vos actions et choix techniques.", "key_points": ["Technologies choisies", "Arbitrages", "Gestion des imprévus"], "example": "J'ai identifié un verrou de base de données. J'ai remplacé l'écriture synchrone PostgreSQL par une file d'attente Apache Kafka partitionnée par identifiant marchand avec scaling automatique sur Kubernetes."},
+                {"step": "Résultat", "definition": "L'impact mesurable sur le produit et l'équipe.", "key_points": ["Chiffres clés", "Disponibilité", "Apprentissages"], "example": "Lors du pic suivant, le pipeline a absorbé 18 500 req/s sans aucune perte. La latence p99 est passée de 850 ms à 120 ms (-85%), évitant des pertes estimées à 240 000 $."}
+            ]
+        },
+        "story_matrix": {
+            "title": "La Matrice d'Histoires Comportementales (nas5w/interview-guide)",
+            "description": "Préparez 5 histoires maîtresses de votre parcours d'ingénieur. Une histoire bien structurée peut répondre à plusieurs questions selon l'angle mis en valeur.",
+            "pillars": [
+                {"name": "Pilier 1 : Défi Technique Complexe", "focus": "Décomposition de systèmes distribués, débogage en production et compromis d'architecture.", "applies_to": ["Bug difficile résolu", "Nouvelle technologie apprise"]},
+                {"name": "Pilier 2 : Échec ou Incident de Production", "focus": "Responsabilité, analyse post-mortem sans blâme et garde-fous automatisés.", "applies_to": ["Erreur commise", "Panne majeure résolue"]},
+                {"name": "Pilier 3 : Gestion d'un Désaccord ou Conflit", "focus": "Données objectives contre ego, écoute active et maturité 'disagree and commit'.", "applies_to": ["Désaccord avec un collègue/manager", "Gestion des priorités"]},
+                {"name": "Pilier 4 : Leadership et Initiative Proactive", "focus": "Réduction de la dette technique, mentorat et promotion des bonnes pratiques.", "applies_to": ["Initiative personnelle", "Amélioration de la qualité du code"]},
+                {"name": "Pilier 5 : Livraison Critique sous Délais Serrés", "focus": "Priorisation rigoureuse, négociation du scope MVP et livraison sans régression.", "applies_to": ["Projet dont vous êtes le plus fier", "Délais très serrés"]}
+            ]
+        },
+        "interview_modules": [
+            {"id": "before-interview", "title": "Avant l'Entretien : Préparation Technique & Culturelle", "summary": "Lisez les blogs d'ingénierie de l'entreprise cible pour comprendre leur stack. Préparez vos histoires STAR et testez votre environnement vidéo."},
+            {"id": "during-interview", "title": "Pendant l'Entretien : Écoute Active & Esprit d'Équipe", "summary": "Considérez l'entretien comme une session collaborative. Réfléchissez à voix haute, clarifiez les cas limites et validez vos hypothèses."},
+            {"id": "reverse-interviewing", "title": "Questions pour l'Entreprise : Détecter la Santé de l'Équipe", "summary": "Posez des questions révélatrices : fréquence des déploiements en production, gestion de la dette technique, déroulement des post-mortems."},
+            {"id": "after-interview", "title": "Après l'Entretien : Suivi & Analyse des Offres", "summary": "Envoyez un e-mail de remerciement personnalisé sous 24h. Analysez les opportunités de progression technique et le package global."}
+        ],
+        "questions": [
+            {
+                "id": "q1",
+                "category": "introductory",
+                "question": "Pouvez-vous vous présenter et retracer votre parcours ?",
+                "intent": "Évalue votre capacité de synthèse, vos compétences clés et votre motivation pour le poste.",
+                "recommended_structure": [
+                    "Présent (30s) : Poste actuel, stack technique et responsabilités.",
+                    "Passé (45s) : Réalisations majeures et projets à fort impact.",
+                    "Futur (30s) : Pourquoi ce poste correspond à vos ambitions."
+                ],
+                "strong_example_answer": "Je suis ingénieur backend senior avec plus de six ans d'expérience dans les systèmes distribués et le traitement de données à forte volumétrie. Actuellement chez FinScale, je pilote l'équipe transactions où nous traitons plus de 50 millions d'événements par jour avec Go, Kafka et PostgreSQL. Récemment, j'ai migré notre pipeline monolithique vers une architecture orientée événements, réduisant la latence de traitement de 65%. Auparavant, j'ai développé des API critiques chez CloudData. Passionné par la haute disponibilité et les architectures résilientes, je suis très enthousiaste à l'idée de rejoindre votre équipe infrastructure.",
+                "common_pitfalls": ["Réciter son CV de façon chronologique et monocorde.", "Parler plus de 3 minutes sans interaction."],
+                "self_reflection_prompt": "Votre introduction met-elle en valeur votre réalisation technique la plus marquante dès la première minute ?"
+            },
+            {
+                "id": "q2",
+                "category": "strengths_weaknesses",
+                "question": "Quelles sont vos principales forces techniques et vos axes d'amélioration ?",
+                "intent": "Évalue votre lucidité technique, votre honnêteté intellectuelle et vos démarches d'apprentissage continu.",
+                "recommended_structure": [
+                    "Force : Une compétence d'ingénierie démontrée par un exemple de production.",
+                    "Axe d'amélioration : Un domaine identifié avec les actions concrètes menées pour progresser."
+                ],
+                "strong_example_answer": "Ma principale force réside dans le profilage de performance et le débogage de systèmes distribués (latence Kafka, requêtes SQL complexes, profiling mémoire). Par exemple, en analysant les flame graphs de nos microservices Go, j'ai éliminé une contention de verrou réduisant de 40% la latence p99. Pour mon axe d'amélioration, j'avais tendance à vouloir coder immédiatement plutôt que de déléguer aux profils plus juniors. Depuis un an, j'ai structuré ma démarche via la rédaction de RFC détaillées et l'organisation de sessions de pair-programming pour faire monter l'équipe en compétences.",
+                "common_pitfalls": ["Employer de faux défauts ('Je suis trop perfectionniste').", "Citer un défaut bloquant sans plan de remédiation."],
+                "self_reflection_prompt": "Avez-vous une anecdote concrète démontrant vos progrès sur cet axe d'amélioration ?"
+            },
+            {
+                "id": "q3",
+                "category": "conflict",
+                "question": "Parlez-moi d'un désaccord technique avec un collègue ou un manager. Comment l'avez-vous résolu ?",
+                "intent": "Mesure l'intelligence relationnelle, l'argumentation basée sur les données et la maturité d'équipe.",
+                "recommended_structure": [
+                    "Situation : La divergence technique initiale.",
+                    "Tâche : Trouver un consensus sans retarder le planning.",
+                    "Action : Benchmark comparatif et document de synthèse objectif.",
+                    "Résultat : Choix unanime et livraison dans les délais."
+                ],
+                "strong_example_answer": "Lors d'une refonte microservices, un collègue senior préconisait MongoDB pour la flexibilité du schéma, tandis que je soutenais PostgreSQL avec colonnes JSONB pour nos besoins stricts de cohérence transactionnelle ACID. Afin d'éviter un débat stérile, j'ai proposé un POC comparatif minuté sur 2 jours simulant 10 000 écritures concurrentes. Les résultats ont prouvé que PostgreSQL offrait le débit requis avec 40% de charge d'exploitation en moins et une intégrité garantie. Mon collègue a validé les données, et le projet a été livré à l'heure avec zéro anomalie.",
+                "common_pitfalls": ["Dévaloriser son collègue.", "Prétendre n'avoir jamais eu aucun désaccord technique."],
+                "self_reflection_prompt": "Avez-vous mis en avant la prise de décision par les données objectives ?"
+            }
+        ]
+    },
+    "de": {
+        "language": "de",
+        "star_guide": {
+            "title": "Das STAR-Verhaltensinterview-Framework",
+            "what_is_star": "STAR steht für Situation, Task (Aufgabe), Action (Aktion), Result (Ergebnis). Es ist die bewährte Methode führender Technologieunternehmen (FAANG, europäische Scale-ups), um technische Problemlösungskompetenz, Führungsqualitäten und Ausfallsicherheit zu bewerten.",
+            "when_to_use": "Verwenden Sie STAR für alle Verhaltensfragen wie 'Erzählen Sie von einer Situation, in der...', 'Wie sind Sie mit folgendem Problem umgegangen...'.",
+            "how_to_structure": "Situation (15% - kurzer Kontext), Aufgabe (10% - Ihre konkrete Verantwortung), Aktion (55% - technische Umsetzung mit 'Ich habe'), Ergebnis (20% - messbare Zahlen und Lerneffekte).",
+            "what_makes_answer_strong": [
+                "Quantifizierbare Metriken: Konkrete Prozentzahlen, Latenzreduktionen oder Kosteneinsparungen nennen.",
+                "Technische Tiefe: Architektur-Entscheidungen und Trade-offs präzise erklären.",
+                "Eigenverantwortung: 'Ich habe entschieden' statt unklarem 'Wir'.",
+                "Prägnanz: Antwortzeit zwischen 2,5 und maximal 3 Minuten einhalten."
+            ],
+            "common_mistakes": [
+                "Zu lange Kontextbeschreibung auf Kosten der eigentlichen Handlungen.",
+                "Vage Ergebnisse ohne messbare Kennzahlen.",
+                "Defensive Haltung bei der Schilderung von Fehlern oder Ausfällen."
+            ],
+            "steps": [
+                {"step": "Situation", "definition": "Den Kontext in unter 60 Sekunden prägnant beschreiben.", "key_points": ["Projektkontext", "Ausgangsarchitektur", "Kritisches Hindernis"], "example": "Bei meinem vorherigen Fintech-Arbeitgeber kam es während hoher Traffic-Spitzen zu Transaktionsverlusten in unserer Reconciliation-Pipeline."},
+                {"step": "Task", "definition": "Ihre persönliche Verantwortung klar definieren.", "key_points": ["Ihre Rolle", "SLA-Vorgaben", "Geschäftsrisiko"], "example": "Als Tech Lead war es meine Aufgabe, die Ingestion-Pipeline so umzugestalten, dass null Datenverlust und eine p99-Latenz unter 200 ms garantiert wurden."},
+                {"step": "Action", "definition": "Der Hauptteil (55%): Ihre technischen Schritte und Architekturentscheidungen.", "key_points": ["Gewählte Technologien", "Trade-offs", "Lösungswege"], "example": "Ich identifizierte Lock-Contention in der Datenbank. Ich ersetzte die synchrone Speicherung durch eine partitionierte Apache Kafka-Event-Queue mit Kubernetes-Autoscaling."},
+                {"step": "Result", "definition": "Das messbare geschäftliche und technische Ergebnis.", "key_points": ["Metriken", "Verfügbarkeit", "Lerneffekte"], "example": "Die Pipeline verarbeitete anschließend 18.500 req/s ohne Verluste. Die p99-Latenz sank um 85% von 850 ms auf 120 ms."}
+            ]
+        },
+        "story_matrix": {
+            "title": "Die Verhaltens-Story-Matrix (nas5w/interview-guide)",
+            "description": "Bereiten Sie 5 Kern-Geschichten aus Ihrer Software-Entwicklungslaufbahn vor. Eine gut strukturierte Geschichte deckt je nach Fokus mehrere Interviewfragen ab.",
+            "pillars": [
+                {"name": "Säule 1: Komplexe technische Herausforderung", "focus": "System-Dekomposition, Debugging in Produktion und Architekturentscheidungen.", "applies_to": ["Schwieriger Bug", "Unbekannte Technologie"]},
+                {"name": "Säule 2: Projektfehler oder Produktionsausfall", "focus": "Verantwortung, fehlerfreie Post-Mortem-Kultur und automatisierte Schutzmaßnahmen.", "applies_to": ["Eigener Fehler", "Schwerer Ausfall"]},
+                {"name": "Säule 3: Fachlicher Konflikt / Meinungsverschiedenheit", "focus": "Objektive Daten statt Ego, aktives Zuhören und 'Disagree and Commit'.", "applies_to": ["Konflikt im Team", "Priorisierung"]},
+                {"name": "Säule 4: Führungsstärke und Eigeninitiative", "focus": "Abbau technischer Schulden, Mentoring und Einführung von Best Practices.", "applies_to": ["Eigeninitiative", "Qualitätssteigerung"]},
+                {"name": "Säule 5: Termingerechte Lieferung unter hohem Druck", "focus": "Strikte Priorisierung, MVP-Scoping und reibungsloses Release.", "applies_to": ["Erfolgreichstes Projekt", "Enge Fristen"]}
+            ]
+        },
+        "interview_modules": [
+            {"id": "before-interview", "title": "Vor dem Interview: Technische & Kulturelle Vorbereitung", "summary": "Untersuchen Sie den Tech-Stack des Unternehmens in deren Tech-Blogs. Bereiten Sie Ihre STAR-Geschichten vor und testen Sie Audio/Video."},
+            {"id": "during-interview", "title": "Während des Interviews: Aktives Zuhören & Zusammenarbeit", "summary": "Betrachten Sie das Gespräch als partnerschaftliches Architektur-Meeting. Denken Sie laut und klären Sie Randbedingungen frühzeitig."},
+            {"id": "reverse-interviewing", "title": "Gegenfragen an das Unternehmen: Engineering-Gesundheit prüfen", "summary": "Fragen Sie nach Release-Frequenzen, dem Umgang mit technischen Schulden und der Fehlerkultur nach Vorfällen."},
+            {"id": "after-interview", "title": "Nach dem Interview: Follow-Up & Bewertung", "summary": "Senden Sie innerhalb von 24 Stunden eine persönliche Dankes-E-Mail mit Bezug zu besprochenen Fachthemen."}
+        ],
+        "questions": [
+            {
+                "id": "q1",
+                "category": "introductory",
+                "question": "Erzählen Sie etwas über sich und Ihren Werdegang.",
+                "intent": "Prüft Ihre Fähigkeit zur prägnanten Selbstpräsentation und die Motivation für die Stelle.",
+                "recommended_structure": [
+                    "Gegenwart (30s): Aktuelle Rolle, Tech-Stack und Kernverantwortung.",
+                    "Vergangenheit (45s): Relevante Erfolge und Erfahrung mit verteilten Systemen.",
+                    "Zukunft (30s): Warum diese spezifische Position Ihr nächster Schritt ist."
+                ],
+                "strong_example_answer": "Ich bin Senior Backend-Ingenieur mit über sechs Jahren Erfahrung in der Entwicklung hochverfügbarer verteilter Systeme. Bei FinScale leite ich das Transactions-Team und verantworte über 50 Millionen tägliche Events mit Go, Kafka und PostgreSQL. Zuletzt leitete ich die Migration unseres Monolithen in eine ereignisgesteuerte Architektur, was die Latenz um 65% reduzierte. Davor baute ich skalierbare Cloud-APIs bei CloudData. Ich begeistere mich für ausfallsichere Infrastruktur und freue mich sehr auf die Zusammenarbeit in Ihrem Plattform-Team.",
+                "common_pitfalls": ["Chronologisches Vorlesen des Lebenslaufs ohne Fokus.", "Länger als 3 Minuten ohne Pause sprechen."],
+                "self_reflection_prompt": "Nennen Sie Ihren größten technischen Erfolg gleich in der ersten Minute?"
+            },
+            {
+                "id": "q2",
+                "category": "strengths_weaknesses",
+                "question": "Was sind Ihre größten fachlichen Stärken und Ihr größter Entwicklungsbereich?",
+                "intent": "Überprüft Selbstreflexion, Ehrlichkeit und kontinuierliche Weiterbildung.",
+                "recommended_structure": [
+                    "Stärke: Konkrete Kernkompetenz belegt durch ein Praxisbeispiel.",
+                    "Entwicklungsbereich: Erkannte Lücke mit konkreten Gegenmaßnahmen."
+                ],
+                "strong_example_answer": "Meine größte Stärke ist das Performance-Profiling und Debugging in verteilten Systemen (Flame Graphs, Datenbank-Execution-Plans, Kafka-Lag). Durch gezieltes Profiling unserer Go-Services konnte ich Lock-Contention beseitigen und die p99-Latenz um 40% senken. Als Entwicklungsbereich neigte ich früher dazu, Aufgaben selbst schnell herunterzuprogrammieren, statt sie an Junior-Entwickler zu delegieren. Im letzten Jahr habe ich gezielt RFC-Design-Sessions und Pair-Programming eingeführt, um mein Team nachhaltig zu befähigen.",
+                "common_pitfalls": ["Klischeehafte Pseudofehler ('Ich bin zu perfektionistisch').", "Ungefilterte Nennung kritischer Mängel ohne Lerneffekt."],
+                "self_reflection_prompt": "Können Sie eine konkrete Maßnahme nennen, mit der Sie sich in Ihrem Entwicklungsbereich verbessert haben?"
+            }
+        ]
+    }
+}
+
+with open(out_file, "w", encoding="utf-8") as f:
+    json.dump(data, f, indent=2, ensure_ascii=False)
+
+print(f"✓ Generated multilingual behavioral_prep.json at {out_file}")

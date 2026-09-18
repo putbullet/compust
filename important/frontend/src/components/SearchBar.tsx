@@ -141,6 +141,7 @@ const StyledSearchWrapper = styled.div`
   margin: 0 auto;
 
   .input-glow-container {
+    position: relative;
     display: flex;
     align-items: center;
     width: 100%;
@@ -160,6 +161,7 @@ const StyledSearchWrapper = styled.div`
   }
 
   .search-icon {
+    position: static !important;
     color: #60a5fa;
     margin-right: 14px;
     flex-shrink: 0;

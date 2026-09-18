@@ -27,6 +27,8 @@ class DiagnosticReport:
     discovery_method: str | None = None
     failure_reason: str | None = None
     browser_rendered: bool = False
+    detected_result_count: int | None = None
+    pages_crawled: int = 1
 
 
 def detect_target_platform(url: str) -> str:
@@ -60,7 +62,7 @@ def detect_target_platform(url: str) -> str:
 def run_scraper_diagnostics(
     url: str,
     strategy_override: str | None = None,
-    max_pages: int = 1,
+    max_pages: int = 3,
 ) -> DiagnosticReport:
     """
     Dry-run diagnostic test for a scrape target or career URL.
@@ -197,8 +199,16 @@ def run_scraper_diagnostics(
             if not failure_reason and errors:
                 failure_reason = errors[0]
             elif not failure_reason:
-                failure_reason = "Universal parser found 0 job listings matching semantic structures or cards in static HTML."
-
+                if crawl_res.detected_result_count is not None:
+                    if crawl_res.detected_result_count == 0:
+                        failure_reason = "Career page explicitly reported 0 matching results for the current search or filters."
+                    else:
+                        failure_reason = (
+                            f"Career page indicated {crawl_res.detected_result_count} available results, but universal "
+                            "parser could not extract job cards (possible client-rendered listing or dynamic DOM structure)."
+                        )
+                else:
+                    failure_reason = "Universal parser found 0 job listings matching semantic structures or cards in static HTML."
 
         return DiagnosticReport(
             target_url=url,
@@ -218,6 +228,8 @@ def run_scraper_diagnostics(
             discovery_method=discovery_method,
             failure_reason=failure_reason,
             browser_rendered=is_browser_rendered,
+            detected_result_count=crawl_res.detected_result_count,
+            pages_crawled=crawl_res.pages_crawled,
         )
 
     except SourceFetchError as exc:

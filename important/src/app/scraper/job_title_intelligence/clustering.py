@@ -49,7 +49,7 @@ def is_excluded_context(element: Tag) -> bool:
         style = current.get("style", "").lower() if hasattr(current, "get") and current.get("style") else ""
         if "display: none" in style or "visibility: hidden" in style:
             return True
-        current = current.parent
+        current = getattr(current, "parent", None)
     return False
 
 
@@ -59,7 +59,7 @@ def find_candidate_card(title_node: Tag, container: Tag) -> Tag:
     Typically a child `li`, `tr`, `article`, or `div` inside the container.
     """
     curr = title_node
-    while curr and curr.parent and curr != container and curr.parent != container:
+    while curr and getattr(curr, "parent", None) and curr != container and getattr(curr, "parent", None) != container:
         curr = curr.parent
     return curr if curr != container else title_node
 
@@ -69,10 +69,10 @@ def find_semantic_container(node: Tag) -> Tag:
     Find the nearest enclosing semantic section container (e.g., <section>, <article>,
     <div class="...jobs...">, <ul>, <table>, or first major block below <body>).
     """
-    curr = node.parent
+    curr = getattr(node, "parent", None)
     last_block = node
 
-    while curr and curr.name not in ("body", "html", "[document]"):
+    while curr and getattr(curr, "name", None) not in ("body", "html", "[document]", None):
         # Check for explicit section / article tags
         if curr.name in ("section", "article"):
             return curr
@@ -91,7 +91,7 @@ def find_semantic_container(node: Tag) -> Tag:
                     return curr
 
         last_block = curr
-        curr = curr.parent
+        curr = getattr(curr, "parent", None)
 
     # If reached body without hitting an explicit section, return the last major block below body
     return last_block
@@ -111,7 +111,7 @@ def find_lowest_common_ancestor(nodes: list[Tag]) -> Tag | None:
         curr: Any = node
         while curr:
             chain.append(curr)
-            curr = curr.parent
+            curr = getattr(curr, "parent", None)
         ancestor_chains.append(list(reversed(chain)))
 
     common = None

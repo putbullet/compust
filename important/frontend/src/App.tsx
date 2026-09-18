@@ -24,6 +24,7 @@ import { CompanyManagementView } from './components/CompanyManagementView';
 import { MyDataSupervisionView } from './components/MyDataSupervisionView';
 import { GuideView } from './components/Guide/GuideView';
 import { InternshipScraperView } from './components/Internships/InternshipScraperView';
+import { InterviewPrepView } from './components/InterviewPrep/InterviewPrepView';
 import { FloatingHelpControls } from './components/Guide/FloatingHelpControls';
 import { AISettingsModal } from './components/AISettingsModal';
 import { AIAssistantWidget } from './components/AIAssistantWidget';
@@ -31,16 +32,21 @@ import { Loader } from './components/Loader';
 import { Sparkles, Layers, ShieldCheck, ChevronLeft, ChevronRight, Bookmark } from 'lucide-react';
 import { useTranslation } from './i18n';
 
+type AppTab = 'directory' | 'profile' | 'scraper' | 'applications' | 'companies' | 'supervision' | 'guide' | 'internships' | 'interview-prep';
+
 export const App: React.FC = () => {
   const { t } = useTranslation();
 
   // Navigation & View
-  const [activeTab, setActiveTab] = useState<'directory' | 'profile' | 'scraper' | 'applications' | 'companies' | 'supervision' | 'guide' | 'internships'>(() => {
+  const [activeTab, setActiveTab] = useState<AppTab>(() => {
     try {
       const params = new URLSearchParams(window.location.search);
       const tab = params.get('tab');
-      if (tab && ['directory', 'profile', 'scraper', 'applications', 'companies', 'supervision', 'guide', 'internships'].includes(tab)) {
-        return tab as any;
+      if (tab && ['directory', 'profile', 'scraper', 'applications', 'companies', 'supervision', 'guide', 'internships', 'interview-prep'].includes(tab)) {
+        return tab as AppTab;
+      }
+      if (window.location.pathname.includes('/interview-prep') || window.location.hash.startsWith('#interview-prep')) {
+        return 'interview-prep';
       }
       if (window.location.hash.startsWith('#guide')) {
         return 'guide';
@@ -49,6 +55,11 @@ export const App: React.FC = () => {
     return 'directory';
   });
   const [isAISettingsOpen, setIsAISettingsOpen] = useState(false);
+  const [targetJobForAssistant, setTargetJobForAssistant] = useState<{
+    role: string;
+    description: string;
+    companyName: string;
+  } | null>(null);
 
   // Metadata
   const [countries, setCountries] = useState<Country[]>([]);
@@ -238,7 +249,7 @@ export const App: React.FC = () => {
         onOpenAISettings={() => setIsAISettingsOpen(true)}
       />
 
-      <main className="main-content">
+      <main className={`main-content ${activeTab === 'profile' || activeTab === 'interview-prep' ? 'wide' : ''}`}>
         {/* VIEW 1: DIRECTORY */}
         {activeTab === 'directory' && (
           <div className="directory-view">
@@ -379,7 +390,14 @@ export const App: React.FC = () => {
         {activeTab === 'profile' && (
           <div className="profile-wrapper">
             {user ? (
-              <ProfileView user={user} onUpdate={(updated) => setUser(updated)} />
+              <ProfileView
+                user={user}
+                onUpdate={(updated) => setUser(updated)}
+                initialJobTarget={targetJobForAssistant}
+                onClearJobTarget={() => setTargetJobForAssistant(null)}
+                onNavigateToApplications={() => setActiveTab('applications')}
+                onNavigateToInterviewPrep={() => setActiveTab('interview-prep')}
+              />
             ) : (
               <div className="unauth-profile glass-panel">
                 <Sparkles size={40} className="sparkle-icon" />
@@ -446,6 +464,11 @@ export const App: React.FC = () => {
         {activeTab === 'guide' && (
           <GuideView />
         )}
+
+        {/* VIEW 8: INTERVIEW PREPARATION KNOWLEDGE CENTER */}
+        {activeTab === 'interview-prep' && (
+          <InterviewPrepView onNavigateToProfile={() => setActiveTab('profile')} />
+        )}
       </main>
 
       {/* Footer */}
@@ -471,6 +494,11 @@ export const App: React.FC = () => {
         isAppliedInitially={selectedJobDetail ? savedJobIds.includes(selectedJobDetail.id) : false}
         onApplicationStatusChanged={(jobId) => {
           setSavedJobIds((prev) => Array.from(new Set([...prev, jobId])));
+        }}
+        onTargetJob={(jobData) => {
+          setTargetJobForAssistant(jobData);
+          setActiveTab('profile');
+          setSelectedJobDetail(null);
         }}
       />
 
@@ -511,6 +539,11 @@ const StyledApp = styled.div`
     width: 100%;
     margin: 0 auto;
     padding: 32px 20px 80px;
+    transition: max-width 0.25s ease;
+  }
+
+  .main-content.wide {
+    max-width: 1560px;
   }
 
   .directory-view {
@@ -525,12 +558,15 @@ const StyledApp = styled.div`
     align-items: center;
     text-align: center;
     gap: 20px;
-    margin-top: 20px;
+    margin: 20px auto 0;
+    width: 100%;
+    max-width: 900px;
   }
 
   .hero-badge {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 6px;
     padding: 6px 14px;
     background: rgba(59, 130, 246, 0.12);
@@ -539,12 +575,15 @@ const StyledApp = styled.div`
     color: #60a5fa;
     font-size: 0.8rem;
     font-weight: 600;
+    margin: 0 auto;
   }
 
   .hero-title {
     font-size: clamp(2rem, 4vw, 3.2rem);
     line-height: 1.15;
     max-width: 850px;
+    margin: 0 auto;
+    text-align: center;
   }
 
   .gradient-text {
@@ -558,6 +597,8 @@ const StyledApp = styled.div`
     color: #94a3b8;
     max-width: 680px;
     line-height: 1.6;
+    margin: 0 auto;
+    text-align: center;
   }
 
   .stats-ribbon {
@@ -569,7 +610,8 @@ const StyledApp = styled.div`
     background: rgba(15, 23, 42, 0.6);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 20px;
-    margin: 8px 0 16px;
+    margin: 8px auto 16px;
+    width: fit-content;
   }
 
   .stat-card {

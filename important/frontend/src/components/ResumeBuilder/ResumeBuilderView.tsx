@@ -9,18 +9,28 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
+  Target,
 } from 'lucide-react';
 import type { StructuredResumeItem, StructuredResumeData, ResumeSettings, UserProfile } from '../../api/client';
 import { api } from '../../api/client';
 import { ResumeEditor } from './ResumeEditor';
 import { ResumePreview } from './ResumePreview';
+import { JobTargetPanel } from './JobTargetPanel';
 import './ResumeBuilderView.css';
 
 interface ResumeBuilderViewProps {
   currentUser?: UserProfile | null;
+  initialJobTarget?: { role: string; description: string; companyName: string } | null;
+  onClearJobTarget?: () => void;
+  onNavigateToApplications?: () => void;
 }
 
-export const ResumeBuilderView: React.FC<ResumeBuilderViewProps> = ({ currentUser }) => {
+export const ResumeBuilderView: React.FC<ResumeBuilderViewProps> = ({
+  currentUser,
+  initialJobTarget,
+  onClearJobTarget,
+  onNavigateToApplications,
+}) => {
   const [resumes, setResumes] = useState<StructuredResumeItem[]>([]);
   const [activeResumeId, setActiveResumeId] = useState<number | null>(null);
   const [currentData, setCurrentData] = useState<StructuredResumeData | null>(null);
@@ -123,17 +133,43 @@ export const ResumeBuilderView: React.FC<ResumeBuilderViewProps> = ({ currentUse
     setSaving(true);
     setStatusMsg(null);
     try {
+      // Clean and normalize skills & languages so no invalid nulls or tokens are passed
+      const sanitizedData: StructuredResumeData = {
+        ...currentData,
+        skills: (currentData.skills || []).map((s) => ({
+          ...s,
+          id: String(s.id || `sk-${Date.now()}`),
+          name: s.name || '',
+          category: s.category || 'Core & Technical',
+          proficiency: s.proficiency && !['NONE', 'NO_LABEL', 'NO LABEL', 'BLANK'].includes(String(s.proficiency).trim().toUpperCase())
+            ? s.proficiency
+            : null,
+        })),
+        languages: (currentData.languages || []).map((l) => ({
+          ...l,
+          id: String(l.id || `lang-${Date.now()}`),
+          language: l.language || '',
+          proficiency: l.proficiency && !['NONE', 'NO_LABEL', 'NO LABEL', 'BLANK'].includes(String(l.proficiency).trim().toUpperCase())
+            ? l.proficiency
+            : null,
+        })),
+      };
+
       const updated = await api.updateStructuredResume(activeResumeId, {
         title: currentTitle,
-        structured_data: currentData,
+        structured_data: sanitizedData,
         settings: currentSettings,
       });
+      setCurrentData(updated.structured_data || sanitizedData);
       setResumes((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
       setDirty(false);
       setStatusMsg({ type: 'success', text: 'Resume saved successfully!' });
       setTimeout(() => setStatusMsg(null), 3000);
     } catch (err: any) {
-      setStatusMsg({ type: 'error', text: err.message || 'Failed to save resume' });
+      const msg = typeof err?.message === 'string' && err.message !== '[object Object]'
+        ? err.message
+        : (typeof err === 'string' ? err : 'Failed to save resume');
+      setStatusMsg({ type: 'error', text: msg });
     } finally {
       setSaving(false);
     }
@@ -222,12 +258,77 @@ export const ResumeBuilderView: React.FC<ResumeBuilderViewProps> = ({ currentUse
   const handleImportProfile = async () => {
     if (!activeResumeId) return;
     try {
-      const res = await api.importProfileToResume(activeResumeId);
-      selectResume(res);
-      setStatusMsg({ type: 'success', text: 'Profile data imported into resume!' });
+      const updated = await api.importProfileToStructuredResume(activeResumeId);
+      selectResume(updated);
+      setStatusMsg({ type: 'success', text: 'Imported latest profile data into resume.' });
       setTimeout(() => setStatusMsg(null), 3000);
     } catch (err: any) {
       setStatusMsg({ type: 'error', text: err.message || 'Failed to import profile' });
+    }
+  };
+
+  // Callback when recommendations are previewed live in the current editor
+  const handlePreviewRecommendations = (acceptedRecs: any[]) => {
+    if (!currentData) return;
+    const updated = JSON.parse(JSON.stringify(currentData));
+    for (const rec of acceptedRecs) {
+      if (rec.rec_type === 'missing' || !rec.grounded) continue;
+      if (rec.rec_type === 'rewrite' && rec.section === 'summary' && rec.suggested_text) {
+        if (!updated.profile) updated.profile = {};
+        updated.profile.summary = rec.suggested_text;
+      } else if (rec.rec_type === 'emphasize' && rec.section === 'skills' && rec.item_label) {
+        const skills = updated.skills || [];
+        const idx = skills.findIndex((s: any) => s.name?.toLowerCase() === rec.item_label.toLowerCase());
+        if (idx > 0) {
+          const [moved] = skills.splice(idx, 1);
+          skills.unshift(moved);
+          updated.skills = skills;
+        }
+      } else if (rec.rec_type === 'rewrite' && rec.item_id && rec.suggested_text) {
+        for (const exp of (updated.experience || [])) {
+          if (String(exp.id) === rec.item_id) {
+            exp.description = rec.suggested_text;
+            break;
+          }
+        }
+        for (const proj of (updated.projects || [])) {
+          if (String(proj.id) === rec.item_id) {
+            proj.description = rec.suggested_text;
+            break;
+          }
+        }
+      } else if (rec.rec_type === 'move' && rec.section === 'experience' && rec.item_id) {
+        const exps = updated.experience || [];
+        const idx = exps.findIndex((e: any) => String(e.id) === rec.item_id);
+        if (idx > 0) {
+          const [moved] = exps.splice(idx, 1);
+          exps.unshift(moved);
+          updated.experience = exps;
+        }
+      }
+    }
+    setCurrentData(updated);
+    setDirty(true);
+    setStatusMsg({
+      type: 'success',
+      text: `Applied ${acceptedRecs.length} accepted recommendations to the live draft editor. You can review in preview or save a tailored copy.`,
+    });
+    setTimeout(() => setStatusMsg(null), 5000);
+  };
+
+  // Callback when a tailored copy is saved from the Job Target Assistant
+  const handleTailoredResumeCreated = async (newResumeId: number) => {
+    try {
+      const list = await api.listStructuredResumes();
+      setResumes(list);
+      const created = list.find((r) => r.id === newResumeId);
+      if (created) {
+        selectResume(created);
+        setStatusMsg({ type: 'success', text: `Loaded tailored copy "${created.title}"` });
+        setTimeout(() => setStatusMsg(null), 3500);
+      }
+    } catch {
+      loadResumes();
     }
   };
 
@@ -241,136 +342,172 @@ export const ResumeBuilderView: React.FC<ResumeBuilderViewProps> = ({ currentUse
   }
 
   return (
-    <div className="resume-builder-wrapper">
-      {/* Top Controls Header */}
-      <header className="builder-top-bar">
-        <div className="top-left-controls">
-          <div className="resume-select-wrapper">
-            <FileText size={16} className="text-primary" />
-            <select
-              className="resume-dropdown"
-              value={activeResumeId || ''}
-              onChange={(e) => handleSelectChange(e.target.value)}
-            >
-              {resumes.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.title} {r.is_default ? '★ (Default)' : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="title-inline-edit">
-            <input
-              type="text"
-              className="title-input"
-              value={currentTitle}
-              onChange={(e) => {
-                setCurrentTitle(e.target.value);
-                setDirty(true);
-              }}
-              title="Click to rename this resume"
-            />
-          </div>
-
-          {isDefault && (
-            <span className="default-badge" title="This resume is selected automatically for job applications">
-              <Star size={12} fill="#f59e0b" color="#f59e0b" />
-              <span>Default Master</span>
-            </span>
-          )}
-        </div>
-
-        <div className="top-right-actions">
-          {statusMsg && (
-            <div className={`status-pill ${statusMsg.type}`}>
-              {statusMsg.type === 'success' ? <CheckCircle2 size={13} /> : <AlertCircle size={13} />}
-              <span>{statusMsg.text}</span>
+    <div className="resume-builder-page-layout resume-builder-wrapper">
+      {/* Primary Resume Studio Container */}
+      <section className="resume-studio-card" aria-label="Resume Studio">
+        {/* Top Controls Header */}
+        <header className="builder-top-bar">
+          <div className="top-left-controls">
+            <div className="resume-select-wrapper">
+              <FileText size={16} className="text-primary" />
+              <select
+                className="resume-dropdown"
+                value={activeResumeId || ''}
+                onChange={(e) => handleSelectChange(e.target.value)}
+              >
+                {resumes.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.title} {r.is_default ? '★ (Default)' : ''}
+                  </option>
+                ))}
+              </select>
             </div>
-          )}
 
-          {!isDefault && (
+            <div className="title-inline-edit">
+              <input
+                type="text"
+                className="title-input"
+                value={currentTitle}
+                onChange={(e) => {
+                  setCurrentTitle(e.target.value);
+                  setDirty(true);
+                }}
+                title="Click to rename this resume"
+              />
+            </div>
+
+            {isDefault && (
+              <span className="default-badge" title="This resume is selected automatically for job applications">
+                <Star size={12} fill="#f59e0b" color="#f59e0b" />
+                <span>Default Master</span>
+              </span>
+            )}
+          </div>
+
+          <div className="top-right-actions">
+            {statusMsg && (
+              <div className={`status-pill ${statusMsg.type}`}>
+                {statusMsg.type === 'success' ? <CheckCircle2 size={13} /> : <AlertCircle size={13} />}
+                <span>{statusMsg.text}</span>
+              </div>
+            )}
+
+            {!isDefault && (
+              <button
+                type="button"
+                className="action-btn secondary"
+                onClick={handleSetDefault}
+                title="Make this your default resume"
+              >
+                <Star size={14} />
+                <span>Set as Default</span>
+              </button>
+            )}
+
             <button
               type="button"
               className="action-btn secondary"
-              onClick={handleSetDefault}
-              title="Make this your default resume"
+              onClick={handleDuplicate}
+              title="Duplicate this resume as a new copy"
             >
-              <Star size={14} />
-              <span>Set as Default</span>
+              <Copy size={14} />
+              <span>Duplicate</span>
             </button>
-          )}
 
-          <button
-            type="button"
-            className="action-btn secondary"
-            onClick={handleDuplicate}
-            title="Duplicate this resume as a new copy"
-          >
-            <Copy size={14} />
-            <span>Duplicate</span>
-          </button>
-
-          <button
-            type="button"
-            className="action-btn secondary"
-            onClick={handleCreateNew}
-            title="Create a fresh resume"
-          >
-            <Plus size={14} />
-            <span>New Resume</span>
-          </button>
-
-          {resumes.length > 1 && (
             <button
               type="button"
-              className="action-btn danger"
-              onClick={handleDelete}
-              title="Delete this resume"
+              className="action-btn secondary"
+              onClick={handleCreateNew}
+              title="Create a fresh resume"
             >
-              <Trash2 size={14} />
+              <Plus size={14} />
+              <span>New Resume</span>
             </button>
-          )}
 
-          <button
-            type="button"
-            className={`action-btn primary save-btn ${dirty ? 'dirty' : ''}`}
-            disabled={saving}
-            onClick={handleSave}
-          >
-            {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-            <span>{saving ? 'Saving...' : dirty ? 'Save Changes *' : 'Saved'}</span>
-          </button>
-        </div>
-      </header>
+            <button
+              type="button"
+              className="action-btn secondary"
+              onClick={() => {
+                const el = document.getElementById('resume-job-target-section');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }}
+              title="Target a specific job with local career assistant"
+            >
+              <Target size={14} />
+              <span>Target a Job</span>
+            </button>
 
-      {/* Two-Panel Main Body */}
-      <div className="builder-two-panel-grid">
-        {/* Left Panel: Editor */}
-        <div className="builder-panel left-panel">
-          {currentData && currentSettings && (
-            <ResumeEditor
-              data={currentData}
-              settings={currentSettings}
-              onChangeData={handleDataChange}
-              onChangeSettings={handleSettingsChange}
-              onImportProfile={handleImportProfile}
-            />
-          )}
-        </div>
+            {resumes.length > 1 && (
+              <button
+                type="button"
+                className="action-btn danger"
+                onClick={handleDelete}
+                title="Delete this resume"
+              >
+                <Trash2 size={14} />
+              </button>
+            )}
 
-        {/* Right Panel: Live WYSIWYG Preview */}
-        <div className="builder-panel right-panel">
-          {activeResumeId && currentData && currentSettings && (
-            <ResumePreview
-              resumeId={activeResumeId}
-              resumeTitle={currentTitle}
-              data={currentData}
-              settings={currentSettings}
-            />
-          )}
+            <button
+              type="button"
+              className={`action-btn primary save-btn ${dirty ? 'dirty' : ''}`}
+              disabled={saving}
+              onClick={handleSave}
+            >
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              <span>{saving ? 'Saving...' : dirty ? 'Save Changes *' : 'Saved'}</span>
+            </button>
+          </div>
+        </header>
+
+        {/* Two-Panel Main Body */}
+        <div className="builder-two-panel-grid">
+          {/* Left Panel: Editor */}
+          <div className="builder-panel left-panel">
+            {currentData && currentSettings && (
+              <ResumeEditor
+                data={currentData}
+                settings={currentSettings}
+                onChangeData={handleDataChange}
+                onChangeSettings={handleSettingsChange}
+                onImportProfile={handleImportProfile}
+              />
+            )}
+          </div>
+
+          {/* Right Panel: Live WYSIWYG Preview */}
+          <div className="builder-panel right-panel">
+            {activeResumeId && currentData && currentSettings && (
+              <ResumePreview
+                resumeId={activeResumeId}
+                resumeTitle={currentTitle}
+                data={currentData}
+                settings={currentSettings}
+                onChangeSettings={handleSettingsChange}
+              />
+            )}
+          </div>
         </div>
-      </div>
+      </section>
+
+      {/* Secondary Full-Width Section: Job Targeting Assistant */}
+      {activeResumeId && (
+        <section
+          id="resume-job-target-section"
+          className="job-targeting-section-card"
+          aria-label="Job Targeting and Career Assistant"
+        >
+          <JobTargetPanel
+            resumeId={activeResumeId}
+            resumeTitle={currentTitle}
+            onResumeSaved={handleTailoredResumeCreated}
+            onPreviewRecommendations={handlePreviewRecommendations}
+            initialJobTarget={initialJobTarget}
+            onClearJobTarget={onClearJobTarget}
+            onNavigateToApplications={onNavigateToApplications}
+          />
+        </section>
+      )}
     </div>
   );
 };

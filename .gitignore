@@ -26,3 +26,5 @@ logs/
 *.log
 *.lnk
 *.mp4
+*.db
+release/

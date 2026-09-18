@@ -1,0 +1,1214 @@
+[
+  {
+    "canonical_title": "Cybersecurity Analyst",
+    "family": "cybersecurity",
+    "variants": [
+      {
+        "title": "cybersecurity analyst",
+        "lang": "en"
+      },
+      {
+        "title": "cyber security analyst",
+        "lang": "en"
+      },
+      {
+        "title": "information security analyst",
+        "lang": "en"
+      },
+      {
+        "title": "soc analyst",
+        "lang": "en"
+      },
+      {
+        "title": "mdr analyst",
+        "lang": "en"
+      },
+      {
+        "title": "voc analyst",
+        "lang": "en"
+      },
+      {
+        "title": "incident response analyst",
+        "lang": "en"
+      },
+      {
+        "title": "analyste cybersecurite",
+        "lang": "fr"
+      },
+      {
+        "title": "analyste cybersécurité",
+        "lang": "fr"
+      },
+      {
+        "title": "analyste securite",
+        "lang": "fr"
+      },
+      {
+        "title": "analyste sécurité",
+        "lang": "fr"
+      },
+      {
+        "title": "analyste soc",
+        "lang": "fr"
+      },
+      {
+        "title": "analyste mdr",
+        "lang": "fr"
+      },
+      {
+        "title": "analyste voc",
+        "lang": "fr"
+      },
+      {
+        "title": "analyste voc cybersécurité",
+        "lang": "fr"
+      },
+      {
+        "title": "analyste voc cybersecurite",
+        "lang": "fr"
+      },
+      {
+        "title": "analyste mdr cybersécurité",
+        "lang": "fr"
+      },
+      {
+        "title": "analyste mdr cybersecurite",
+        "lang": "fr"
+      },
+      {
+        "title": "cyber security analyst",
+        "lang": "de"
+      },
+      {
+        "title": "it sicherheitsanalyst",
+        "lang": "de"
+      },
+      {
+        "title": "it sicherheitsanalystin",
+        "lang": "de"
+      },
+      {
+        "title": "informationssicherheitsanalyst",
+        "lang": "de"
+      }
+    ]
+  },
+  {
+    "canonical_title": "Cybersecurity Engineer",
+    "family": "cybersecurity",
+    "variants": [
+      {
+        "title": "cybersecurity engineer",
+        "lang": "en"
+      },
+      {
+        "title": "cyber security engineer",
+        "lang": "en"
+      },
+      {
+        "title": "security engineer",
+        "lang": "en"
+      },
+      {
+        "title": "information security engineer",
+        "lang": "en"
+      },
+      {
+        "title": "pam engineer",
+        "lang": "en"
+      },
+      {
+        "title": "iam engineer",
+        "lang": "en"
+      },
+      {
+        "title": "ingenieur cybersecurite",
+        "lang": "fr"
+      },
+      {
+        "title": "ingénieur cybersécurité",
+        "lang": "fr"
+      },
+      {
+        "title": "ingénieure cybersécurité",
+        "lang": "fr"
+      },
+      {
+        "title": "ingenieure cybersecurite",
+        "lang": "fr"
+      },
+      {
+        "title": "ingenieur securite",
+        "lang": "fr"
+      },
+      {
+        "title": "ingénieur sécurité",
+        "lang": "fr"
+      },
+      {
+        "title": "ingénieur validation cybersécurité",
+        "lang": "fr"
+      },
+      {
+        "title": "ingenieur validation cybersecurite",
+        "lang": "fr"
+      },
+      {
+        "title": "ingénieur technique cybersécurité",
+        "lang": "fr"
+      },
+      {
+        "title": "ingenieur technique cybersecurite",
+        "lang": "fr"
+      },
+      {
+        "title": "ingénieur pam",
+        "lang": "fr"
+      },
+      {
+        "title": "ingénieur iam",
+        "lang": "fr"
+      },
+      {
+        "title": "cybersicherheitsingenieur",
+        "lang": "de"
+      },
+      {
+        "title": "cybersicherheitsingenieurin",
+        "lang": "de"
+      },
+      {
+        "title": "it sicherheitsingenieur",
+        "lang": "de"
+      },
+      {
+        "title": "it sicherheitsingenieurin",
+        "lang": "de"
+      },
+      {
+        "title": "security ingenieur",
+        "lang": "de"
+      }
+    ]
+  },
+  {
+    "canonical_title": "Cybersecurity Consultant",
+    "family": "cybersecurity",
+    "variants": [
+      {
+        "title": "cybersecurity consultant",
+        "lang": "en"
+      },
+      {
+        "title": "cyber security consultant",
+        "lang": "en"
+      },
+      {
+        "title": "security consultant",
+        "lang": "en"
+      },
+      {
+        "title": "information security consultant",
+        "lang": "en"
+      },
+      {
+        "title": "consultant cybersecurite",
+        "lang": "fr"
+      },
+      {
+        "title": "consultant cybersécurité",
+        "lang": "fr"
+      },
+      {
+        "title": "consultante cybersécurité",
+        "lang": "fr"
+      },
+      {
+        "title": "consultante cybersecurite",
+        "lang": "fr"
+      },
+      {
+        "title": "consultant securite",
+        "lang": "fr"
+      },
+      {
+        "title": "consultant sécurité",
+        "lang": "fr"
+      },
+      {
+        "title": "consultante sécurité",
+        "lang": "fr"
+      },
+      {
+        "title": "it sicherheitsberater",
+        "lang": "de"
+      },
+      {
+        "title": "it sicherheitsberaterin",
+        "lang": "de"
+      },
+      {
+        "title": "cyber security berater",
+        "lang": "de"
+      },
+      {
+        "title": "cyber security beraterin",
+        "lang": "de"
+      }
+    ]
+  },
+  {
+    "canonical_title": "Cybersecurity Intern",
+    "family": "cybersecurity",
+    "is_internship": true,
+    "variants": [
+      {
+        "title": "cybersecurity intern",
+        "lang": "en"
+      },
+      {
+        "title": "cyber security intern",
+        "lang": "en"
+      },
+      {
+        "title": "cyber security internship",
+        "lang": "en"
+      },
+      {
+        "title": "information security intern",
+        "lang": "en"
+      },
+      {
+        "title": "stage cybersecurite",
+        "lang": "fr"
+      },
+      {
+        "title": "stage cybersécurité",
+        "lang": "fr"
+      },
+      {
+        "title": "stage analyste cybersécurité",
+        "lang": "fr"
+      },
+      {
+        "title": "stage analyste cybersecurite",
+        "lang": "fr"
+      },
+      {
+        "title": "stage ingénieur cybersécurité",
+        "lang": "fr"
+      },
+      {
+        "title": "stage ingenieur cybersecurite",
+        "lang": "fr"
+      },
+      {
+        "title": "stage analyste voc cybersécurité",
+        "lang": "fr"
+      },
+      {
+        "title": "stage analyste voc cybersecurite",
+        "lang": "fr"
+      },
+      {
+        "title": "stage analyste mdr cybersécurité",
+        "lang": "fr"
+      },
+      {
+        "title": "stage analyste mdr cybersecurite",
+        "lang": "fr"
+      },
+      {
+        "title": "stage ingénieur technique cybersécurité",
+        "lang": "fr"
+      },
+      {
+        "title": "stage sécurité informatique",
+        "lang": "fr"
+      },
+      {
+        "title": "stage securite informatique",
+        "lang": "fr"
+      },
+      {
+        "title": "alternance cybersecurite",
+        "lang": "fr"
+      },
+      {
+        "title": "alternance cybersécurité",
+        "lang": "fr"
+      },
+      {
+        "title": "alternance analyste cybersécurité",
+        "lang": "fr"
+      },
+      {
+        "title": "alternance ingénieur cybersécurité",
+        "lang": "fr"
+      },
+      {
+        "title": "apprentissage cybersécurité",
+        "lang": "fr"
+      },
+      {
+        "title": "apprentissage cybersecurite",
+        "lang": "fr"
+      },
+      {
+        "title": "praktikum cyber security",
+        "lang": "de"
+      },
+      {
+        "title": "praktikum it sicherheit",
+        "lang": "de"
+      },
+      {
+        "title": "praktikum informationssicherheit",
+        "lang": "de"
+      },
+      {
+        "title": "praktikant it-sicherheit",
+        "lang": "de"
+      },
+      {
+        "title": "praktikant it sicherheit",
+        "lang": "de"
+      },
+      {
+        "title": "praktikant cyber security",
+        "lang": "de"
+      },
+      {
+        "title": "werkstudent cyber security",
+        "lang": "de"
+      },
+      {
+        "title": "werkstudent it sicherheit",
+        "lang": "de"
+      },
+      {
+        "title": "werkstudentin it sicherheit",
+        "lang": "de"
+      }
+    ]
+  },
+  {
+    "canonical_title": "Software Developer",
+    "family": "software_engineering",
+    "variants": [
+      {
+        "title": "software developer",
+        "lang": "en"
+      },
+      {
+        "title": "software engineer",
+        "lang": "en"
+      },
+      {
+        "title": "software programmer",
+        "lang": "en"
+      },
+      {
+        "title": "full stack developer",
+        "lang": "en"
+      },
+      {
+        "title": "fullstack developer",
+        "lang": "en"
+      },
+      {
+        "title": "frontend developer",
+        "lang": "en"
+      },
+      {
+        "title": "front end developer",
+        "lang": "en"
+      },
+      {
+        "title": "backend developer",
+        "lang": "en"
+      },
+      {
+        "title": "back end developer",
+        "lang": "en"
+      },
+      {
+        "title": "web developer",
+        "lang": "en"
+      },
+      {
+        "title": "mobile developer",
+        "lang": "en"
+      },
+      {
+        "title": "developpeur",
+        "lang": "fr"
+      },
+      {
+        "title": "développeur",
+        "lang": "fr"
+      },
+      {
+        "title": "developpeuse",
+        "lang": "fr"
+      },
+      {
+        "title": "développeuse",
+        "lang": "fr"
+      },
+      {
+        "title": "développeur logiciel",
+        "lang": "fr"
+      },
+      {
+        "title": "developpeur logiciel",
+        "lang": "fr"
+      },
+      {
+        "title": "développeuse logiciel",
+        "lang": "fr"
+      },
+      {
+        "title": "développeur full stack",
+        "lang": "fr"
+      },
+      {
+        "title": "developpeur full stack",
+        "lang": "fr"
+      },
+      {
+        "title": "développeuse full stack",
+        "lang": "fr"
+      },
+      {
+        "title": "développeur front end",
+        "lang": "fr"
+      },
+      {
+        "title": "développeur back end",
+        "lang": "fr"
+      },
+      {
+        "title": "développeur web",
+        "lang": "fr"
+      },
+      {
+        "title": "développeur mobile",
+        "lang": "fr"
+      },
+      {
+        "title": "développeur java",
+        "lang": "fr"
+      },
+      {
+        "title": "développeur python",
+        "lang": "fr"
+      },
+      {
+        "title": "développeur c#",
+        "lang": "fr"
+      },
+      {
+        "title": "développeur .net",
+        "lang": "fr"
+      },
+      {
+        "title": "développeur php",
+        "lang": "fr"
+      },
+      {
+        "title": "ingénieur développement logiciel",
+        "lang": "fr"
+      },
+      {
+        "title": "ingenieur developpement logiciel",
+        "lang": "fr"
+      },
+      {
+        "title": "ingénieur d'études et développement",
+        "lang": "fr"
+      },
+      {
+        "title": "ingenieur d etudes et developpement",
+        "lang": "fr"
+      },
+      {
+        "title": "softwareentwickler",
+        "lang": "de"
+      },
+      {
+        "title": "softwareentwicklerin",
+        "lang": "de"
+      },
+      {
+        "title": "software entwickler",
+        "lang": "de"
+      },
+      {
+        "title": "software entwicklerin",
+        "lang": "de"
+      },
+      {
+        "title": "webentwickler",
+        "lang": "de"
+      },
+      {
+        "title": "webentwicklerin",
+        "lang": "de"
+      },
+      {
+        "title": "frontend entwickler",
+        "lang": "de"
+      },
+      {
+        "title": "frontend entwicklerin",
+        "lang": "de"
+      },
+      {
+        "title": "backend entwickler",
+        "lang": "de"
+      },
+      {
+        "title": "backend entwicklerin",
+        "lang": "de"
+      },
+      {
+        "title": "fullstack entwickler",
+        "lang": "de"
+      },
+      {
+        "title": "fullstack entwicklerin",
+        "lang": "de"
+      },
+      {
+        "title": "java entwickler",
+        "lang": "de"
+      },
+      {
+        "title": "python entwickler",
+        "lang": "de"
+      },
+      {
+        "title": ".net entwickler",
+        "lang": "de"
+      }
+    ]
+  },
+  {
+    "canonical_title": "Software Engineering Intern",
+    "family": "software_engineering",
+    "is_internship": true,
+    "variants": [
+      {
+        "title": "software engineering intern",
+        "lang": "en"
+      },
+      {
+        "title": "software developer intern",
+        "lang": "en"
+      },
+      {
+        "title": "web developer intern",
+        "lang": "en"
+      },
+      {
+        "title": "stage développeur",
+        "lang": "fr"
+      },
+      {
+        "title": "stage developpeur",
+        "lang": "fr"
+      },
+      {
+        "title": "stage développeur web",
+        "lang": "fr"
+      },
+      {
+        "title": "stage développeur full stack",
+        "lang": "fr"
+      },
+      {
+        "title": "stage développeur front end",
+        "lang": "fr"
+      },
+      {
+        "title": "stage développeur back end",
+        "lang": "fr"
+      },
+      {
+        "title": "stage développeur big data",
+        "lang": "fr"
+      },
+      {
+        "title": "stage developpeur big data",
+        "lang": "fr"
+      },
+      {
+        "title": "stage ingénieur logiciel",
+        "lang": "fr"
+      },
+      {
+        "title": "stage ingénieur développement",
+        "lang": "fr"
+      },
+      {
+        "title": "stage pfe informatique",
+        "lang": "fr"
+      },
+      {
+        "title": "alternance développeur",
+        "lang": "fr"
+      },
+      {
+        "title": "alternance developpeur",
+        "lang": "fr"
+      },
+      {
+        "title": "alternance développeur web",
+        "lang": "fr"
+      },
+      {
+        "title": "alternance développeur full stack",
+        "lang": "fr"
+      },
+      {
+        "title": "apprentissage développeur",
+        "lang": "fr"
+      },
+      {
+        "title": "praktikum softwareentwicklung",
+        "lang": "de"
+      },
+      {
+        "title": "praktikum software entwicklung",
+        "lang": "de"
+      },
+      {
+        "title": "praktikum webentwicklung",
+        "lang": "de"
+      },
+      {
+        "title": "werkstudent softwareentwicklung",
+        "lang": "de"
+      },
+      {
+        "title": "werkstudent software entwicklung",
+        "lang": "de"
+      },
+      {
+        "title": "werkstudent webentwicklung",
+        "lang": "de"
+      },
+      {
+        "title": "werkstudentin softwareentwicklung",
+        "lang": "de"
+      }
+    ]
+  },
+  {
+    "canonical_title": "Data Scientist",
+    "family": "data_ai",
+    "variants": [
+      {
+        "title": "data scientist",
+        "lang": "en"
+      },
+      {
+        "title": "data science specialist",
+        "lang": "en"
+      },
+      {
+        "title": "machine learning engineer",
+        "lang": "en"
+      },
+      {
+        "title": "data scientist",
+        "lang": "fr"
+      },
+      {
+        "title": "ingénieur data science",
+        "lang": "fr"
+      },
+      {
+        "title": "ingénieur intelligence artificielle",
+        "lang": "fr"
+      },
+      {
+        "title": "consultant data",
+        "lang": "fr"
+      },
+      {
+        "title": "consultante data",
+        "lang": "fr"
+      },
+      {
+        "title": "data scientist",
+        "lang": "de"
+      },
+      {
+        "title": "ki entwickler",
+        "lang": "de"
+      },
+      {
+        "title": "ki entwicklerin",
+        "lang": "de"
+      },
+      {
+        "title": "machine learning entwickler",
+        "lang": "de"
+      }
+    ]
+  },
+  {
+    "canonical_title": "Data Engineer",
+    "family": "data_ai",
+    "variants": [
+      {
+        "title": "data engineer",
+        "lang": "en"
+      },
+      {
+        "title": "big data engineer",
+        "lang": "en"
+      },
+      {
+        "title": "data platform engineer",
+        "lang": "en"
+      },
+      {
+        "title": "data engineer",
+        "lang": "fr"
+      },
+      {
+        "title": "ingénieur data",
+        "lang": "fr"
+      },
+      {
+        "title": "ingénieure data",
+        "lang": "fr"
+      },
+      {
+        "title": "ingénieur big data",
+        "lang": "fr"
+      },
+      {
+        "title": "data ingenieur",
+        "lang": "de"
+      },
+      {
+        "title": "data ingenieurin",
+        "lang": "de"
+      },
+      {
+        "title": "big data ingenieur",
+        "lang": "de"
+      }
+    ]
+  },
+  {
+    "canonical_title": "Data Intern",
+    "family": "data_ai",
+    "is_internship": true,
+    "variants": [
+      {
+        "title": "data science intern",
+        "lang": "en"
+      },
+      {
+        "title": "data analyst intern",
+        "lang": "en"
+      },
+      {
+        "title": "data engineer intern",
+        "lang": "en"
+      },
+      {
+        "title": "stage data science",
+        "lang": "fr"
+      },
+      {
+        "title": "stage data analyst",
+        "lang": "fr"
+      },
+      {
+        "title": "stage data engineer",
+        "lang": "fr"
+      },
+      {
+        "title": "stage développeur big data",
+        "lang": "fr"
+      },
+      {
+        "title": "stage developpeur big data",
+        "lang": "fr"
+      },
+      {
+        "title": "alternance data science",
+        "lang": "fr"
+      },
+      {
+        "title": "alternance data analyst",
+        "lang": "fr"
+      },
+      {
+        "title": "praktikum data science",
+        "lang": "de"
+      },
+      {
+        "title": "praktikum data analytics",
+        "lang": "de"
+      },
+      {
+        "title": "werkstudent data science",
+        "lang": "de"
+      },
+      {
+        "title": "werkstudent data analytics",
+        "lang": "de"
+      }
+    ]
+  },
+  {
+    "canonical_title": "DevOps Engineer",
+    "family": "devops_cloud",
+    "variants": [
+      {
+        "title": "devops engineer",
+        "lang": "en"
+      },
+      {
+        "title": "cloud engineer",
+        "lang": "en"
+      },
+      {
+        "title": "cloud architect",
+        "lang": "en"
+      },
+      {
+        "title": "site reliability engineer",
+        "lang": "en"
+      },
+      {
+        "title": "sre",
+        "lang": "en"
+      },
+      {
+        "title": "ingénieur devops",
+        "lang": "fr"
+      },
+      {
+        "title": "ingenieur devops",
+        "lang": "fr"
+      },
+      {
+        "title": "ingénieure devops",
+        "lang": "fr"
+      },
+      {
+        "title": "ingénieur cloud",
+        "lang": "fr"
+      },
+      {
+        "title": "architecte cloud",
+        "lang": "fr"
+      },
+      {
+        "title": "consultant cloud",
+        "lang": "fr"
+      },
+      {
+        "title": "devops ingenieur",
+        "lang": "de"
+      },
+      {
+        "title": "devops ingenieurin",
+        "lang": "de"
+      },
+      {
+        "title": "cloud ingenieur",
+        "lang": "de"
+      },
+      {
+        "title": "cloud architekt",
+        "lang": "de"
+      },
+      {
+        "title": "cloud architektin",
+        "lang": "de"
+      }
+    ]
+  },
+  {
+    "canonical_title": "Systems and Network Engineer",
+    "family": "infrastructure",
+    "variants": [
+      {
+        "title": "systems engineer",
+        "lang": "en"
+      },
+      {
+        "title": "network engineer",
+        "lang": "en"
+      },
+      {
+        "title": "system administrator",
+        "lang": "en"
+      },
+      {
+        "title": "sysadmin",
+        "lang": "en"
+      },
+      {
+        "title": "ingénieur systèmes et réseaux",
+        "lang": "fr"
+      },
+      {
+        "title": "ingenieur systemes et reseaux",
+        "lang": "fr"
+      },
+      {
+        "title": "ingénieur exploitation",
+        "lang": "fr"
+      },
+      {
+        "title": "ingénieur support",
+        "lang": "fr"
+      },
+      {
+        "title": "administrateur systèmes et réseaux",
+        "lang": "fr"
+      },
+      {
+        "title": "administrateur systemes",
+        "lang": "fr"
+      },
+      {
+        "title": "technicien support informatique",
+        "lang": "fr"
+      },
+      {
+        "title": "systemadministrator",
+        "lang": "de"
+      },
+      {
+        "title": "systemadministratorin",
+        "lang": "de"
+      },
+      {
+        "title": "netzwerkadministrator",
+        "lang": "de"
+      },
+      {
+        "title": "systemingenieur",
+        "lang": "de"
+      },
+      {
+        "title": "systemingenieurin",
+        "lang": "de"
+      },
+      {
+        "title": "it support spezialist",
+        "lang": "de"
+      }
+    ]
+  },
+  {
+    "canonical_title": "Project Manager",
+    "family": "management",
+    "variants": [
+      {
+        "title": "it project manager",
+        "lang": "en"
+      },
+      {
+        "title": "technical project manager",
+        "lang": "en"
+      },
+      {
+        "title": "project manager",
+        "lang": "en"
+      },
+      {
+        "title": "scrum master",
+        "lang": "en"
+      },
+      {
+        "title": "product owner",
+        "lang": "en"
+      },
+      {
+        "title": "chef de projet",
+        "lang": "fr"
+      },
+      {
+        "title": "cheffe de projet",
+        "lang": "fr"
+      },
+      {
+        "title": "chef de projet it",
+        "lang": "fr"
+      },
+      {
+        "title": "chef de projet informatique",
+        "lang": "fr"
+      },
+      {
+        "title": "chef de projet moa",
+        "lang": "fr"
+      },
+      {
+        "title": "chef de projet amoa",
+        "lang": "fr"
+      },
+      {
+        "title": "directeur de projet",
+        "lang": "fr"
+      },
+      {
+        "title": "directrice de projet",
+        "lang": "fr"
+      },
+      {
+        "title": "responsable d'application",
+        "lang": "fr"
+      },
+      {
+        "title": "manager application",
+        "lang": "fr"
+      },
+      {
+        "title": "it projektleiter",
+        "lang": "de"
+      },
+      {
+        "title": "it projektleiterin",
+        "lang": "de"
+      },
+      {
+        "title": "it projektmanager",
+        "lang": "de"
+      },
+      {
+        "title": "it projektmanagerin",
+        "lang": "de"
+      },
+      {
+        "title": "scrum master",
+        "lang": "de"
+      },
+      {
+        "title": "product owner",
+        "lang": "de"
+      }
+    ]
+  },
+  {
+    "canonical_title": "Business Analyst",
+    "family": "management",
+    "variants": [
+      {
+        "title": "business analyst",
+        "lang": "en"
+      },
+      {
+        "title": "it business analyst",
+        "lang": "en"
+      },
+      {
+        "title": "functional analyst",
+        "lang": "en"
+      },
+      {
+        "title": "business analyst",
+        "lang": "fr"
+      },
+      {
+        "title": "business analyst it",
+        "lang": "fr"
+      },
+      {
+        "title": "analyste fonctionnel",
+        "lang": "fr"
+      },
+      {
+        "title": "analyste fonctionnelle",
+        "lang": "fr"
+      },
+      {
+        "title": "consultant fonctionnel",
+        "lang": "fr"
+      },
+      {
+        "title": "consultante fonctionnelle",
+        "lang": "fr"
+      },
+      {
+        "title": "business analyst",
+        "lang": "de"
+      },
+      {
+        "title": "it business analyst",
+        "lang": "de"
+      },
+      {
+        "title": "it berater",
+        "lang": "de"
+      },
+      {
+        "title": "it beraterin",
+        "lang": "de"
+      }
+    ]
+  },
+  {
+    "canonical_title": "Project Management Intern",
+    "family": "management",
+    "is_internship": true,
+    "variants": [
+      {
+        "title": "project management intern",
+        "lang": "en"
+      },
+      {
+        "title": "business analyst intern",
+        "lang": "en"
+      },
+      {
+        "title": "stage chef de projet",
+        "lang": "fr"
+      },
+      {
+        "title": "stage assistant chef de projet",
+        "lang": "fr"
+      },
+      {
+        "title": "stage business analyst",
+        "lang": "fr"
+      },
+      {
+        "title": "alternance chef de projet",
+        "lang": "fr"
+      },
+      {
+        "title": "alternance assistant chef de projet",
+        "lang": "fr"
+      },
+      {
+        "title": "alternance business analyst",
+        "lang": "fr"
+      },
+      {
+        "title": "praktikum projektmanagement",
+        "lang": "de"
+      },
+      {
+        "title": "praktikum business analysis",
+        "lang": "de"
+      },
+      {
+        "title": "werkstudent projektmanagement",
+        "lang": "de"
+      }
+    ]
+  }
+]

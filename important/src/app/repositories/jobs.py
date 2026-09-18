@@ -190,6 +190,7 @@ def list_jobs(
     limit: int = 20,
 ) -> tuple[list[Job], int]:
     from sqlalchemy import func, or_
+    from ..services.opportunities_search import prepare_search_plan, calculate_job_relevance
 
     filters = []
     if active_only:
@@ -202,46 +203,75 @@ def list_jobs(
         filters.append(Job.remote_type.ilike(f"%{remote_type}%"))
     if employment_type:
         filters.append(Job.employment_type.ilike(f"%{employment_type}%"))
-    if search:
-        from ..scraper.search import expand_search_query
 
-        raw_search = search.strip()
-        expanded_terms = expand_search_query(raw_search)
-        if raw_search not in expanded_terms:
-            expanded_terms.insert(0, raw_search)
+    # When NO search query is present, use fast direct SQL pagination ordered by date
+    if not search or not search.strip():
+        query = select(Job)
+        count_query = select(func.count(Job.id))
+        if filters:
+            query = query.where(*filters)
+            count_query = count_query.where(*filters)
 
-        for word in raw_search.split():
-            if len(word) > 1 and word not in expanded_terms:
-                expanded_terms.append(word)
+        total = db.scalar(count_query) or 0
+        items = list(
+            db.scalars(
+                query.order_by(Job.posted_at.desc(), Job.id.desc())
+                .offset(skip)
+                .limit(limit)
+            ).all()
+        )
+        return items, total
 
-        search_clauses = []
-        for term in expanded_terms:
-            pattern = f"%{term}%"
-            search_clauses.extend(
-                [
-                    Job.title.ilike(pattern),
-                    Job.description.ilike(pattern),
-                    Job.location.ilike(pattern),
-                    Job.department.ilike(pattern),
-                    Job.company_id.in_(select(Company.id).where(Company.name.ilike(pattern))),
-                ]
-            )
+    # When search IS present, execute intelligent relevance-ranked search
+    raw_search = search.strip()
+    plan = prepare_search_plan(raw_search)
+
+    search_clauses = []
+    for term in plan.all_matching_terms:
+        if not term or len(term.strip()) == 0:
+            continue
+        pattern = f"%{term.strip()}%"
+        search_clauses.extend(
+            [
+                Job.title.ilike(pattern),
+                Job.description.ilike(pattern),
+                Job.location.ilike(pattern),
+                Job.department.ilike(pattern),
+                Job.employment_type.ilike(pattern),
+                Job.company_id.in_(select(Company.id).where(Company.name.ilike(pattern))),
+            ]
+        )
+
+    if plan.is_internship_query:
+        search_clauses.append(Job.employment_type.ilike("%intern%"))
+        search_clauses.append(Job.employment_type.ilike("%stage%"))
+        search_clauses.append(Job.employment_type.ilike("%praktik%"))
+
+    if search_clauses:
         filters.append(or_(*search_clauses))
 
-    query = select(Job)
-    count_query = select(func.count(Job.id))
-    if filters:
-        query = query.where(*filters)
-        count_query = count_query.where(*filters)
+    query = select(Job).where(*filters)
+    candidates = list(db.scalars(query).all())
 
-    total = db.scalar(count_query) or 0
-    items = list(
-        db.scalars(
-            query.order_by(Job.posted_at.desc(), Job.id.desc())
-            .offset(skip)
-            .limit(limit)
-        ).all()
-    )
+    # Calculate deterministic relevance score for each candidate
+    scored_candidates: list[tuple[Job, float, float, int]] = []
+    for job in candidates:
+        rel = calculate_job_relevance(job, plan)
+        if rel.total_score > 0:
+            posted_ts = (
+                job.posted_at.timestamp()
+                if job.posted_at
+                else (job.discovered_at.timestamp() if job.discovered_at else 0.0)
+            )
+            scored_candidates.append((job, rel.total_score, posted_ts, job.id))
+
+    # Rank before pagination: primary sort by relevance score descending,
+    # secondary sort by posted_at timestamp descending, tertiary by job ID descending
+    scored_candidates.sort(key=lambda x: (-x[1], -x[2], -x[3]))
+
+    total = len(scored_candidates)
+    paginated_slice = scored_candidates[skip : skip + limit]
+    items = [item[0] for item in paginated_slice]
     return items, total
 
 

@@ -22,6 +22,7 @@ import {
   TrendingUp,
   Percent,
   CheckCircle2,
+  Sparkles,
 } from 'lucide-react';
 import { api } from '../api/client';
 import type {
@@ -472,6 +473,23 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ onSelectJob 
                           )}
                         </div>
 
+                        {/* Resume edits suggested badge */}
+                        {Boolean(
+                          (Array.isArray(app.resume_suggestions) && app.resume_suggestions.length > 0) ||
+                          (app.resume_suggestions?.suggestions && app.resume_suggestions.suggestions.length > 0) ||
+                          (Array.isArray(app.job?.resume_suggestions) && app.job?.resume_suggestions.length > 0) ||
+                          (app.job?.resume_suggestions?.suggestions && app.job.resume_suggestions.suggestions.length > 0)
+                        ) && (
+                          <div
+                            className="sugg-badge-pill"
+                            onClick={() => app.job && onSelectJob(app.job)}
+                            title="Contains actionable resume edit suggestions tailored for this job"
+                          >
+                            <Sparkles size={11} />
+                            <span>Resume edits suggested</span>
+                          </div>
+                        )}
+
                         {/* Notes Section */}
                         <div className="notes-box">
                           {editingNotesId === app.id ? (
@@ -825,12 +843,18 @@ const ControlBar = styled.div`
 `;
 
 const KanbanBoard = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+  display: flex;
   gap: 16px;
   align-items: flex-start;
+  overflow-x: auto;
+  padding-bottom: 16px;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
 
   .kanban-column {
+    flex: 1 1 270px;
+    min-width: 260px;
+    max-width: 340px;
     padding: 16px;
     border-radius: 14px;
     display: flex;
@@ -893,6 +917,27 @@ const KanbanBoard = styled.div`
     &:hover {
       border-color: rgba(59, 130, 246, 0.4);
       transform: translateY(-1px);
+    }
+
+    .sugg-badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: #fbbf24;
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      padding: 2px 7px;
+      border-radius: 6px;
+      cursor: pointer;
+      width: fit-content;
+      transition: all 0.15s;
+
+      &:hover {
+        background: rgba(245, 158, 11, 0.22);
+        color: #fef08a;
+      }
     }
   }
 

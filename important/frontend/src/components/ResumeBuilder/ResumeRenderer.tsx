@@ -1,9 +1,11 @@
 import React from 'react';
-import type { StructuredResumeData, ResumeSettings } from '../../api/client';
+import type { StructuredResumeData, ResumeSettings, ResumeProfileData } from '../../api/client';
 import {
-  getSkillProficiencyLabel,
   getLanguageProficiencyLabel,
   getLocalizedSectionTitle,
+  getLocalizedPresentLabel,
+  getLocalizedDegreeConnector,
+  getLocalizedHonorsLabel,
   DEFAULT_SECTION_TITLES_BY_LANG,
 } from './resumeLocalization';
 import './ResumeRenderer.css';
@@ -24,70 +26,77 @@ interface ResumeRendererProps {
 }
 
 export const ResumeRenderer: React.FC<ResumeRendererProps> = ({ data, settings }) => {
-  const { profile, experience, education, skills, projects, certifications, languages, custom_sections } = data;
-  const { template, theme_color, font_size, section_order, section_visibility } = settings;
-  const lang = settings.language || 'en';
+  const profile: Partial<ResumeProfileData> = data?.profile || {};
+  const experience = data?.experience || [];
+  const education = data?.education || [];
+  const skills = data?.skills || [];
+  const projects = data?.projects || [];
+  const certifications = data?.certifications || [];
+  const languages = data?.languages || [];
+  const custom_sections = data?.custom_sections || [];
 
-  const isVisible = (sectionKey: string) => section_visibility[sectionKey] !== false;
-  const secTitle = (sectionKey: string) => resolveSectionTitle(sectionKey, settings.section_titles, lang);
+  const lang = (settings.language || 'en').toLowerCase();
+  const secTitles = settings.section_titles || {};
+  const visibility = settings.section_visibility || {};
+  const order = settings.section_order || [
+    'summary',
+    'experience',
+    'education',
+    'skills',
+    'projects',
+    'certifications',
+    'languages',
+    'custom_sections',
+  ];
 
-  const baseFontSize = `${font_size || '10.5'}pt`;
+  const secTitle = (key: string) => resolveSectionTitle(key, secTitles, lang);
 
   return (
     <div
-      className={`resume-paper template-${template}`}
-      style={{
-        fontSize: baseFontSize,
-        // CSS variables for dynamic styling
-        ['--resume-accent' as any]: theme_color || '#2563eb',
-      }}
+      className={`resume-paper resume-document template-${settings.template || 'modern'}`}
+      style={
+        {
+          '--resume-accent': settings.theme_color || '#2563eb',
+          '--primary-color': settings.theme_color || '#2563eb',
+          '--font-family': settings.font_family || 'Inter',
+          '--font-size-base': `${settings.font_size || '10.5'}pt`,
+        } as React.CSSProperties
+      }
     >
-      {/* Profile Header */}
-      {isVisible('profile') && (
+      {/* Header / Profile Section */}
+      {visibility.profile !== false && (
         <header className="resume-header">
-          <h1 className="resume-name">{profile.full_name || 'Your Full Name'}</h1>
-          {profile.headline && <div className="resume-headline">{profile.headline}</div>}
-
-          <div className="resume-contact-row">
-            {profile.email && (
-              <span className="contact-item">
-                <span className="contact-bullet">•</span> {profile.email}
-              </span>
-            )}
-            {profile.phone && (
-              <span className="contact-item">
-                <span className="contact-bullet">•</span> {profile.phone}
-              </span>
-            )}
-            {profile.location && (
-              <span className="contact-item">
-                <span className="contact-bullet">•</span> {profile.location}
-              </span>
-            )}
+          <h1 className="candidate-name">
+            {profile.full_name || (data as any)?.name || (data as any)?.full_name || 'Your Full Name'}
+          </h1>
+          {profile.headline && <div className="candidate-headline">{profile.headline}</div>}
+          <div className="contact-info-row">
+            {profile.email && <span className="contact-item">{profile.email}</span>}
+            {profile.phone && <span className="contact-item">{profile.phone}</span>}
+            {profile.location && <span className="contact-item">{profile.location}</span>}
             {profile.linkedin && (
               <span className="contact-item">
-                <span className="contact-bullet">•</span> {profile.linkedin.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//, 'in/')}
+                <a href={profile.linkedin} target="_blank" rel="noreferrer">LinkedIn</a>
               </span>
             )}
             {profile.github && (
               <span className="contact-item">
-                <span className="contact-bullet">•</span> {profile.github.replace(/^https?:\/\/(www\.)?github\.com\//, 'github/')}
+                <a href={profile.github} target="_blank" rel="noreferrer">GitHub</a>
               </span>
             )}
             {profile.website && (
               <span className="contact-item">
-                <span className="contact-bullet">•</span> {profile.website.replace(/^https?:\/\//, '')}
+                <a href={profile.website} target="_blank" rel="noreferrer">Portfolio</a>
               </span>
             )}
           </div>
-          <div className="header-divider" />
         </header>
       )}
 
-      {/* Dynamic Sections by Order */}
+      {/* Dynamic Sections via section_order */}
       <div className="resume-body">
-        {section_order.map((sectionKey) => {
-          if (!isVisible(sectionKey)) return null;
+        {order.map((sectionKey) => {
+          if (visibility[sectionKey] === false) return null;
 
           switch (sectionKey) {
             case 'summary':
@@ -103,15 +112,11 @@ export const ResumeRenderer: React.FC<ResumeRendererProps> = ({ data, settings }
                 <section key="skills" className="resume-section section-skills">
                   <h2 className="section-title">{secTitle('skills')}</h2>
                   <div className="skills-grid">
-                    {skills.map((skill) => {
-                      const profLabel = getSkillProficiencyLabel(skill.proficiency, lang);
-                      return (
-                        <div key={skill.id} className="skill-item">
-                          <span className="skill-name">{skill.name}</span>
-                          {profLabel ? <span className="skill-level"> — {profLabel}</span> : null}
-                        </div>
-                      );
-                    })}
+                    {skills.map((skill) => (
+                      <div key={skill.id} className="skill-item">
+                        <span className="skill-name">{skill.name}</span>
+                      </div>
+                    ))}
                   </div>
                 </section>
               ) : null;
@@ -131,7 +136,7 @@ export const ResumeRenderer: React.FC<ResumeRendererProps> = ({ data, settings }
                           </div>
                           <div className="item-date">
                             {exp.start_date || exp.end_date
-                              ? `${exp.start_date} – ${exp.end_date || (exp.is_current ? 'Present' : '')}`
+                              ? `${exp.start_date} – ${exp.end_date || (exp.is_current ? getLocalizedPresentLabel(lang) : '')}`
                               : ''}
                           </div>
                         </div>
@@ -159,7 +164,7 @@ export const ResumeRenderer: React.FC<ResumeRendererProps> = ({ data, settings }
                         <div className="item-header-row">
                           <div className="item-title-col">
                             <span className="item-title">
-                              {edu.degree} {edu.field ? `in ${edu.field}` : ''}
+                              {edu.degree} {edu.field ? `${getLocalizedDegreeConnector(lang)} ${edu.field}` : ''}
                             </span>
                             {edu.institution && (
                               <span className="item-company"> — {edu.institution}</span>
@@ -169,7 +174,7 @@ export const ResumeRenderer: React.FC<ResumeRendererProps> = ({ data, settings }
                             {edu.start_date || edu.end_date ? `${edu.start_date} – ${edu.end_date}` : ''}
                           </div>
                         </div>
-                        {edu.gpa && <div className="edu-gpa">GPA / Honors: {edu.gpa}</div>}
+                        {edu.gpa && <div className="edu-gpa">{getLocalizedHonorsLabel(lang)} {edu.gpa}</div>}
                         {edu.description && <p className="item-description">{edu.description}</p>}
                       </div>
                     ))}

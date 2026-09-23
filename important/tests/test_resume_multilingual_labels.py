@@ -114,13 +114,13 @@ def test_skill_labels_german():
 
 
 def test_skill_format_display_with_and_without_proficiency():
-    # Skill with proficiency
-    assert format_skill_display("Python", "ADVANCED", "en") == "Python — Advanced"
-    assert format_skill_display("Python", "ADVANCED", "fr") == "Python — Avancé"
-    assert format_skill_display("Python", "ADVANCED", "de") == "Python — Sehr gute Kenntnisse"
-    assert format_skill_display("Linux", "INTERMEDIATE", "en") == "Linux — Intermediate"
-    assert format_skill_display("Linux", "INTERMEDIATE", "fr") == "Linux — Intermédiaire"
-    assert format_skill_display("Linux", "INTERMEDIATE", "de") == "Linux — Fortgeschritten"
+    # B4: Skills are plain keywords only, never with proficiency suffixes
+    assert format_skill_display("Python", "ADVANCED", "en") == "Python"
+    assert format_skill_display("Python", "ADVANCED", "fr") == "Python"
+    assert format_skill_display("Python", "ADVANCED", "de") == "Python"
+    assert format_skill_display("Linux", "INTERMEDIATE", "en") == "Linux"
+    assert format_skill_display("Linux", "INTERMEDIATE", "fr") == "Linux"
+    assert format_skill_display("Linux", "INTERMEDIATE", "de") == "Linux"
 
     # Skill WITHOUT proficiency ("No label") - transversal / soft skills
     assert format_skill_display("Communication", "NONE", "en") == "Communication"
@@ -231,9 +231,9 @@ def test_schemas_optional_proficiency():
     sk_none = ResumeSkillItem(id="s1", name="Docker")
     assert sk_none.proficiency is None
 
-    # Skill with proficiency
+    # Skill with proficiency: B4 eliminates skill proficiency so it normalizes to None
     sk_prof = ResumeSkillItem(id="s2", name="Python", proficiency="ADVANCED")
-    assert sk_prof.proficiency == "ADVANCED"
+    assert sk_prof.proficiency is None
 
     # Language without proficiency defaults to None
     lang_none = ResumeLanguageItem(id="l1", language="English")
@@ -396,10 +396,11 @@ def test_pdf_export_french_multilingual(resume_multilingual_env):
         pdf_text = "\n".join(page.extract_text() or "" for page in reader.pages)
 
         # French section title
-        assert "COMPÉTENCES" in pdf_text or "LANGUES" in pdf_text
-        # French skill labels
-        assert "Python — Avancé" in pdf_text
-        assert "PostgreSQL — Intermédiaire" in pdf_text
+        assert "COMPÉTENCES" in pdf_text.upper() or "LANGUES" in pdf_text.upper()
+        # B4: Skills are plain keywords without proficiency suffix
+        assert "Python" in pdf_text
+        assert "PostgreSQL" in pdf_text
+        assert "Avancé" not in pdf_text
         # No label transversal skills: ONLY name, no dashes or "None"
         assert "Team Leadership" in pdf_text
         assert "Communication" in pdf_text
@@ -435,9 +436,10 @@ def test_docx_export_german_multilingual(resume_multilingual_env):
 
         # German section titles
         assert "KENNTNISSE & FÄHIGKEITEN" in doc_text or "SPRACHEN" in doc_text
-        # German skill labels
-        assert "Python — Experte" in doc_text
+        # B4: German skill labels - plain keywords only
+        assert "Python" in doc_text
         assert "Teamwork" in doc_text
+        assert "Experte" not in doc_text
         assert "Teamwork —" not in doc_text
         # German language labels
         assert "Deutsch (Verhandlungssicher)" in doc_text
@@ -463,8 +465,9 @@ def test_legacy_resume_export_backward_compatibility(resume_multilingual_env):
         reader = PdfReader(str(pdf_file))
         pdf_text = "\n".join(page.extract_text() or "" for page in reader.pages)
 
-        # Legacy skill with "Intermediate" formatted cleanly
-        assert "Python — Intermediate" in pdf_text
+        # B4: Skills are plain keywords without proficiency
+        assert "Python" in pdf_text
+        assert "Intermediate" not in pdf_text
         # Legacy skill without proficiency formatted cleanly
         assert "Problem Solving" in pdf_text
         assert "Problem Solving —" not in pdf_text
@@ -528,7 +531,8 @@ def test_api_resume_multilingual_crud(resume_multilingual_env):
     skills = res_data["structured_data"]["skills"]
     assert len(skills) == 2
     assert skills[0]["name"] == "Kubernetes"
-    assert skills[0]["proficiency"] == "ADVANCED"
+    # B4: Skill proficiency is eliminated across data model and API
+    assert skills[0]["proficiency"] is None
     assert skills[1]["name"] == "Problem Solving"
     assert skills[1]["proficiency"] in ("NONE", None, "")
 
@@ -549,7 +553,9 @@ def test_api_resume_multilingual_crud(resume_multilingual_env):
     assert resp_pdf.headers["content-type"] == "application/pdf"
     pdf_reader = PdfReader(io.BytesIO(resp_pdf.content))
     pdf_text = "\n".join(page.extract_text() or "" for page in pdf_reader.pages)
-    assert "Kubernetes — Sehr gute Kenntnisse" in pdf_text
+    # B4: Skills are plain keywords without proficiency
+    assert "Kubernetes" in pdf_text
+    assert "Sehr gute Kenntnisse" not in pdf_text
     assert "Problem Solving" in pdf_text
     assert "Problem Solving —" not in pdf_text
     assert "None" not in pdf_text

@@ -192,12 +192,13 @@ def test_export_pdf_with_multilingual_custom_titles(resume_test_env, tmp_path):
 
     reader = PdfReader(io.BytesIO(resp.content))
     total_text = "".join(page.extract_text() or "" for page in reader.pages)
+    upper_text = total_text.upper()
 
-    # Assert custom French titles appear (in uppercase per heading style)
-    assert "EXPÉRIENCE PROFESSIONNELLE" in total_text
-    assert "FORMATION & DIPLÔMES" in total_text
-    assert "COMPÉTENCES CLÉS" in total_text
-    assert "PROFIL & OBJECTIFS" in total_text
+    # Assert custom French titles appear (case-insensitive for RenderCV / ReportLab compatibility)
+    assert "EXPÉRIENCE PROFESSIONNELLE" in upper_text
+    assert "FORMATION & DIPLÔMES" in upper_text
+    assert "COMPÉTENCES CLÉS" in upper_text
+    assert "PROFIL & OBJECTIFS" in upper_text
 
 
 def test_export_docx_with_multilingual_custom_titles(resume_test_env):
@@ -208,7 +209,7 @@ def test_export_docx_with_multilingual_custom_titles(resume_test_env):
     assert resp.status_code == 200
 
     doc = Document(io.BytesIO(resp.content))
-    paragraphs_text = "\n".join(p.text for p in doc.paragraphs)
+    paragraphs_text = "\n".join(p.text for p in doc.paragraphs).upper()
 
     assert "EXPÉRIENCE PROFESSIONNELLE" in paragraphs_text
     assert "FORMATION & DIPLÔMES" in paragraphs_text
@@ -224,10 +225,11 @@ def test_legacy_resume_backward_compatibility_pdf(resume_test_env):
 
     reader = PdfReader(io.BytesIO(resp.content))
     total_text = "".join(page.extract_text() or "" for page in reader.pages)
+    upper_text = total_text.upper()
 
     # Legacy resume has no custom titles -> must default gracefully without error
-    assert "PROFESSIONAL EXPERIENCE" in total_text or "PROFESSIONAL TENURE" in total_text
-    assert "TECHNICAL & CORE SKILLS" in total_text
+    assert "PROFESSIONAL EXPERIENCE" in upper_text or "PROFESSIONAL TENURE" in upper_text
+    assert "TECHNICAL & CORE SKILLS" in upper_text
 
 
 def test_update_resume_section_titles_via_api(resume_test_env):
@@ -256,8 +258,9 @@ def test_update_resume_section_titles_via_api(resume_test_env):
     assert pdf_resp.status_code == 200
     reader = PdfReader(io.BytesIO(pdf_resp.content))
     total_text = "".join(page.extract_text() or "" for page in reader.pages)
+    upper_text = total_text.upper()
 
-    assert "BERUFSERFAHRUNG" in total_text
-    assert "FACHLICHE FÄHIGKEITEN" in total_text
+    assert "BERUFSERFAHRUNG" in upper_text
+    assert "FACHLICHE FÄHIGKEITEN" in upper_text
     # Whitespace fallback should display default "PROFESSIONAL SUMMARY"
-    assert "PROFESSIONAL SUMMARY" in total_text
+    assert "PROFESSIONAL SUMMARY" in upper_text

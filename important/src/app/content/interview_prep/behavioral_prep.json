@@ -5,7 +5,7 @@
       "title": "The STAR Behavioral Interview Framework",
       "what_is_star": "STAR stands for Situation, Task, Action, Result. It is the industry-standard storytelling framework used by hiring managers at FAANG, top tech companies, and Fortune 500s to evaluate technical leadership, conflict resolution, and execution rigor.",
       "when_to_use": "Use STAR for any question starting with 'Tell me about a time...', 'Describe a situation where...', or 'Have you ever had to deal with...'.",
-      "how_to_structure": "Situation (15% - brief context), Task (10% - your specific responsibility), Action (55% - deep technical execution using 'I', not 'we'), Result (20% - quantified business and latency metrics).",
+      "how_to_structure": "Situation (15% - brief context), Task (10% - your specific responsibility), Action (60% - deep technical execution using 'I', not 'we'), Result (15% - quantified business and latency metrics).",
       "what_makes_answer_strong": [
         "Quantified metrics: Mention specific percentages, latency reductions, dollar savings, or throughput gains.",
         "Technical rigor: Explain the architectural trade-offs, protocols considered, and engineering rationale.",
@@ -41,7 +41,7 @@
         },
         {
           "step": "Action",
-          "definition": "The core of your answer (55%). Detail the technical decisions, trade-offs, and actions YOU took.",
+          "definition": "The core of your answer (60%). Detail the technical decisions, trade-offs, and actions YOU took.",
           "key_points": [
             "Specific technologies chosen",
             "Architectural trade-offs",
@@ -227,7 +227,7 @@
       "title": "Le Cadre d'Entretien Comportemental STAR",
       "what_is_star": "STAR signifie Situation, Tâche, Action, Résultat. C'est la méthode de référence utilisée par les recruteurs et managers techniques (FAANG, scale-ups, grands groupes) pour évaluer vos compétences réelles en ingénierie, gestion de crise et leadership.",
       "when_to_use": "À utiliser pour toute question de type 'Parlez-moi d'une fois où...', 'Comment avez-vous géré...', ou 'Décrivez une situation complexe...'.",
-      "how_to_structure": "Situation (15% - contexte bref), Tâche (10% - votre responsabilité exacte), Action (55% - réalisations techniques en disant 'J'ai fait'), Résultat (20% - métriques chiffrées).",
+      "how_to_structure": "Situation (15% - contexte bref), Tâche (10% - votre responsabilité exacte), Action (60% - réalisations techniques en disant 'J'ai fait'), Résultat (15% - métriques chiffrées).",
       "what_makes_answer_strong": [
         "Métriques chiffrées : citez des pourcentages concrets, gains de latence ou économies de coûts.",
         "Rigueur technique : expliquez les arbitrages architecturaux et les choix d'outils.",
@@ -263,7 +263,7 @@
         },
         {
           "step": "Action",
-          "definition": "Le cœur de la réponse (55%) : vos actions et choix techniques.",
+          "definition": "Le cœur de la réponse (60%) : vos actions et choix techniques.",
           "key_points": [
             "Technologies choisies",
             "Arbitrages",
@@ -446,7 +446,7 @@
         },
         {
           "step": "Action",
-          "definition": "Der Hauptteil (55%): Ihre technischen Schritte und Architekturentscheidungen.",
+          "definition": "Der Hauptteil (60%): Ihre technischen Schritte und Architekturentscheidungen.",
           "key_points": [
             "Gewählte Technologien",
             "Trade-offs",

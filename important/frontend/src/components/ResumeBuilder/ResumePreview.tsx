@@ -32,6 +32,10 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
   const [scale, setScale] = useState(0.85);
   const [downloadingFormat, setDownloadingFormat] = useState<'pdf' | 'docx' | null>(null);
 
+  // RenderCV Typeset Live Preview state
+  const [renderedPages, setRenderedPages] = useState<string[]>([]);
+  const [isTypesetting, setIsTypesetting] = useState(false);
+
   const isA4 = settings.document_size === 'A4';
   const paperWidthPx = isA4 ? 794 : 816; // 96 DPI approximations
   const pageHeightPx = isA4 ? 1123 : 1056; // Exact printed page height at 96 DPI
@@ -39,7 +43,7 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
   const contentRef = useRef<HTMLDivElement>(null);
   const [contentHeight, setContentHeight] = useState<number>(pageHeightPx);
 
-  // Measure rendered content height in real-time
+  // Measure rendered content height for fallback shell
   useEffect(() => {
     const el = contentRef.current;
     if (!el) return;
@@ -66,6 +70,35 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
     };
   }, [data, settings]);
 
+  // Debounced RenderCV Typst Live Preview compilation
+  useEffect(() => {
+    let active = true;
+    setIsTypesetting(true);
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await api.renderStructuredResumePreview(resumeId, {
+          structured_data: data,
+          settings: settings,
+        });
+        if (active && res && res.pages && res.pages.length > 0) {
+          setRenderedPages(res.pages);
+        }
+      } catch (err) {
+        console.warn('RenderCV preview generation warning:', err);
+      } finally {
+        if (active) {
+          setIsTypesetting(false);
+        }
+      }
+    }, 400);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [resumeId, data, settings]);
+
   const handleZoomIn = () => setScale((s) => Math.min(1.4, Number((s + 0.1).toFixed(2))));
   const handleZoomOut = () => setScale((s) => Math.max(0.4, Number((s - 0.1).toFixed(2))));
   const handleResetZoom = () => setScale(0.85);
@@ -83,8 +116,11 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
     }
   };
 
-  // Page calculations
-  const pageCount = Math.max(1, Math.ceil(contentHeight / pageHeightPx));
+  // Page calculations (from real RenderCV pages when available)
+  const hasRealPages = renderedPages.length > 0;
+  const pageCount = hasRealPages
+    ? renderedPages.length
+    : Math.max(1, Math.ceil(contentHeight / pageHeightPx));
   const isMultiPage = pageCount > 1;
   const page1Percent = Math.min(100, Math.round((contentHeight / pageHeightPx) * 100));
   const remainderHeight = contentHeight % pageHeightPx;
@@ -138,6 +174,18 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
               ))}
             </div>
           )}
+
+          {isTypesetting ? (
+            <span className="typeset-badge rendering" title="Compiling Typst Typesetting Engine">
+              <Loader2 size={11} className="animate-spin" />
+              <span>Typesetting...</span>
+            </span>
+          ) : hasRealPages ? (
+            <span className="typeset-badge" title="RenderCV Typst 100% PDF-Accurate View">
+              <CheckCircle2 size={11} />
+              <span>RenderCV Typst</span>
+            </span>
+          ) : null}
         </div>
 
         {/* Download Actions: Always visible, never clipped */}
@@ -187,13 +235,19 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
           </span>
           <span className="status-strip-divider">·</span>
           <span className="status-strip-detail">
-            {isMultiPage ? `Page ${pageCount} is ~${lastPagePercent}% filled` : `${page1Percent}% of page filled`}
+            {hasRealPages
+              ? 'RenderCV typesetting pipeline (matches PDF export 100%)'
+              : isMultiPage
+              ? `Page ${pageCount} is ~${lastPagePercent}% filled`
+              : `${page1Percent}% of page filled`}
           </span>
         </div>
 
         <div className="status-strip-right">
-          {isMultiPage ? (
-            <span className="status-strip-tag warning">✂ Overflows into Page {pageCount} (see break below)</span>
+          {hasRealPages ? (
+            <span className="status-strip-tag success">✓ Verified Typst Layout</span>
+          ) : isMultiPage ? (
+            <span className="status-strip-tag warning">✂ Overflows into Page {pageCount}</span>
           ) : (
             <span className="status-strip-tag success">✓ Optimal 1-Page ATS Format</span>
           )}
@@ -202,58 +256,90 @@ export const ResumePreview: React.FC<ResumePreviewProps> = ({
 
       {/* Scalable Viewport */}
       <div className="preview-canvas-viewport">
-        <div
-          className="canvas-scale-wrapper"
-          style={{
-            width: `${paperWidthPx * scale}px`,
-            minHeight: `${renderedCanvasHeight * scale}px`,
-          }}
-        >
+        {hasRealPages ? (
+          /* Exact RenderCV Typst Rendered Pages Stack */
           <div
-            className="canvas-transformed"
+            className="rendered-pages-stack"
             style={{
-              width: `${paperWidthPx}px`,
-              minHeight: `${renderedCanvasHeight}px`,
               transform: `scale(${scale})`,
-              transformOrigin: 'top left',
+              transformOrigin: 'top center',
+              marginTop: '16px',
+              marginBottom: '32px',
             }}
           >
-            {/* Sheet Page Tag (Top Right of Page 1) */}
-            <div className="sheet-page-tag sheet-page-1-tag">
-              <FileText size={11} />
-              <span>PAGE 1</span>
-            </div>
-
-            {/* Content measurement container */}
-            <div ref={contentRef} className="resume-content-layer">
-              <ResumeRenderer data={data} settings={settings} />
-            </div>
-
-            {/* Page Break Guide Overlays */}
-            {Array.from({ length: pageCount - 1 }).map((_, idx) => {
-              const breakTop = (idx + 1) * pageHeightPx;
-              return (
-                <div
-                  key={`page-break-${idx + 1}`}
-                  className="page-break-overlay"
-                  style={{ top: `${breakTop}px`, width: `${paperWidthPx}px` }}
-                >
-                  <div className="page-break-divider-line" />
-                  <div className="page-break-badge-pill">
-                    <span className="break-badge-side">Page {idx + 1} Ends</span>
-                    <span className="break-badge-center">✂ Page Break Guide</span>
-                    <span className="break-badge-side highlight">Page {idx + 2} Starts</span>
-                  </div>
-                  {/* Floating Page Number Tag for Next Page */}
-                  <div className="sheet-page-tag next-sheet-tag">
-                    <FileText size={11} />
-                    <span>PAGE {idx + 2}</span>
-                  </div>
+            {renderedPages.map((pageSrc, idx) => (
+              <div
+                key={`typeset-page-${idx + 1}`}
+                className="rendered-page-sheet"
+                style={{
+                  width: `${paperWidthPx}px`,
+                }}
+              >
+                {/* Page Number Indicator */}
+                <div className="sheet-page-tag sheet-page-1-tag">
+                  <FileText size={11} />
+                  <span>PAGE {idx + 1} OF {pageCount}</span>
                 </div>
-              );
-            })}
+                <img
+                  src={pageSrc}
+                  alt={`Page ${idx + 1}`}
+                  className="rendered-page-img"
+                  style={{ width: `${paperWidthPx}px` }}
+                />
+              </div>
+            ))}
           </div>
-        </div>
+        ) : (
+          /* Responsive Layout Measurement Container */
+          <div
+            className="canvas-scale-wrapper"
+            style={{
+              width: `${paperWidthPx * scale}px`,
+              minHeight: `${renderedCanvasHeight * scale}px`,
+            }}
+          >
+            <div
+              className="canvas-transformed"
+              style={{
+                width: `${paperWidthPx}px`,
+                minHeight: `${renderedCanvasHeight}px`,
+                transform: `scale(${scale})`,
+                transformOrigin: 'top left',
+              }}
+            >
+              <div className="sheet-page-tag sheet-page-1-tag">
+                <FileText size={11} />
+                <span>PAGE 1</span>
+              </div>
+
+              <div ref={contentRef} className="resume-content-layer">
+                <ResumeRenderer data={data} settings={settings} />
+              </div>
+
+              {Array.from({ length: pageCount - 1 }).map((_, idx) => {
+                const breakTop = (idx + 1) * pageHeightPx;
+                return (
+                  <div
+                    key={`page-break-${idx + 1}`}
+                    className="page-break-overlay"
+                    style={{ top: `${breakTop}px`, width: `${paperWidthPx}px` }}
+                  >
+                    <div className="page-break-divider-line" />
+                    <div className="page-break-badge-pill">
+                      <span className="break-badge-side">Page {idx + 1} Ends</span>
+                      <span className="break-badge-center">✂ Page Break Guide</span>
+                      <span className="break-badge-side highlight">Page {idx + 2} Starts</span>
+                    </div>
+                    <div className="sheet-page-tag next-sheet-tag">
+                      <FileText size={11} />
+                      <span>PAGE {idx + 2}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

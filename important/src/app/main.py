@@ -1,6 +1,9 @@
+from collections import defaultdict
 from datetime import datetime, timezone
+import hashlib
 import pathlib
 import time
+from typing import Any
 from pydantic import BaseModel, Field
 from fastapi import Body, Depends, FastAPI, File, HTTPException, Path, Query, Response, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,7 +15,7 @@ from .database import get_db
 from .logging import ScrapingRunScope, get_logger
 from .matching.matcher import calculate_job_match
 from .matching.semantic_adapter import semantic_service
-from .models import Company, Country, ScrapeTarget, ScrapingRun, User, Resume, CustomizedResume
+from .models import Company, Country, Job, ScrapeTarget, ScrapingRun, User, Resume, CustomizedResume
 from .services.translation import JobTranslationService
 from .repositories.applications import (
     create_manual_application,
@@ -31,6 +34,7 @@ from .repositories.auth import (
     build_user_profile,
     create_user,
     get_user_by_email,
+    reset_user_password,
     set_user_country_preferences,
     set_user_skills,
     update_user_preferences,
@@ -60,7 +64,14 @@ from .repositories.scrape_targets import (
     toggle_scrape_target_active,
     update_scrape_target,
 )
-from .repositories.jobs import get_job, get_job_skills, list_jobs, persist_candidates
+from .repositories.jobs import (
+    get_job,
+    get_job_skills,
+    list_jobs,
+    persist_candidates,
+    persist_candidate,
+    resolve_or_create_company,
+)
 from .repositories.resume import (
     delete_resume,
     get_active_resume,
@@ -77,6 +88,13 @@ from .schemas import (
     HealthRead,
     JobDetailRead,
     JobListResponse,
+    JobQuickAddRequest,
+    JobQuickAddResponse,
+    JobQuickAddAndAnalyzeResponse,
+    JobEphemeralAnalyzeRequest,
+    JobEphemeralAnalyzeResponse,
+    GenericExtractRequest,
+    GenericExtractResponse,
     JobRead,
     JobTranslationCreate,
     JobTranslationRead,
@@ -100,6 +118,10 @@ from .schemas_ai_resume import (
     ResumeSuggestionResponse,
     ScraperDiagnosticRequest,
     ScraperDiagnosticResponse,
+    ScraperExplainRequest,
+    ScraperExplainResponse,
+    ScraperDecisionRequest,
+    ScraperDecisionResponse,
 )
 from .schemas_applications import (
     ApplicationCreate,
@@ -117,6 +139,7 @@ from .schemas_auth import (
     UserPreferencesUpdate,
     UserProfileResponse,
     UserRegisterRequest,
+    UserResetPasswordRequest,
     UserSkillUpdate,
 )
 from .schemas_profile import (
@@ -163,7 +186,9 @@ from .services.resume_parser import (
     extract_text_from_pdf_bytes,
     structure_resume_text,
 )
-from .services.resume_customization import get_ai_resume_customization
+from .services.resume_customization import get_ai_resume_customization, analyze_resume_alignment
+from .services.resume_edit_guidance import generate_actionable_resume_suggestions
+from .services.generic_extractor import extract_job_from_html
 from .services.resume_export import (
     render_document_docx,
     render_document_pdf,
@@ -189,6 +214,7 @@ from .services.resume_tailoring import (
 )
 from .repositories.resume import (
     create_structured_resume,
+    create_studio_copy,
     delete_structured_resume,
     duplicate_structured_resume,
     get_user_resume,
@@ -207,6 +233,8 @@ from .schemas_interview_prep import (
     QuestionAIExplainResponse,
     RepositoryImportRequest,
     RepositoryImportResponse,
+    STAREvaluationRequest,
+    STAREvaluationResponse,
 )
 from .services.interview_prep import interview_prep_service
 from .services.interview_prep_importer import InterviewPrepImporter
@@ -215,14 +243,49 @@ settings = get_settings()
 app = FastAPI(title=settings.app_name, debug=settings.debug)
 translation_service = JobTranslationService()
 
+class CompustCORSMiddleware(CORSMiddleware):
+    def is_allowed_origin(self, origin: str) -> bool:
+        current_settings = get_settings()
+        if origin in current_settings.all_cors_origins:
+            return True
+        return super().is_allowed_origin(origin)
+
+
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_allowed_origins,
+    CompustCORSMiddleware,
+    allow_origins=settings.all_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["Content-Disposition", "Content-Type", "Content-Length"],
 )
+
+
+class UserRateLimiter:
+    """In-memory sliding window rate limiter per user.
+    Note: Resets on backend restart and is not meant to persist across processes.
+    """
+    def __init__(self, max_requests: int = 30, window_seconds: float = 60.0):
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+        self._records: dict[int, list[float]] = defaultdict(list)
+
+    def check(self, user_id: int) -> bool:
+        now = time.monotonic()
+        cutoff = now - self.window_seconds
+        timestamps = [t for t in self._records[user_id] if t > cutoff]
+        if len(timestamps) >= self.max_requests:
+            self._records[user_id] = timestamps
+            return False
+        timestamps.append(now)
+        self._records[user_id] = timestamps
+        return True
+
+    def reset(self):
+        self._records.clear()
+
+
+extension_rate_limiter = UserRateLimiter(max_requests=30, window_seconds=60.0)
 
 
 @app.on_event("startup")
@@ -763,6 +826,327 @@ def get_job_detail(
     return detail
 
 
+def quick_add_job_core(
+    db: Session,
+    user: User,
+    req: JobQuickAddRequest,
+) -> tuple[Job, bool]:
+    from .repositories.countries import resolve_country_by_location
+    from .scraper.orange_parser import JobCandidate
+
+    company = resolve_or_create_company(db, req.company)
+
+    country_id = None
+    if company.countries:
+        country_id = company.countries[0].id
+    else:
+        resolved_country = resolve_country_by_location(db, req.location)
+        if resolved_country:
+            country_id = resolved_country.id
+            company.countries = [resolved_country]
+        else:
+            first_country = db.scalar(select(Country).order_by(Country.id))
+            country_id = first_country.id if first_country else 1
+
+    candidate = JobCandidate(
+        title=req.title,
+        job_url=req.url,
+        external_job_id="",
+        location=req.location,
+        description=req.description,
+        employment_type=req.employment_type,
+        remote_type=req.remote_type,
+    )
+
+    job, is_created = persist_candidate(
+        db,
+        company_id=company.id,
+        country_id=country_id,
+        source=req.source,
+        candidate=candidate,
+        commit=True,
+    )
+    if req.resume_suggestions is not None:
+        raw_sugg = [
+            s.model_dump() if hasattr(s, "model_dump") else s
+            for s in req.resume_suggestions
+        ] if isinstance(req.resume_suggestions, list) else req.resume_suggestions
+        job.resume_suggestions = raw_sugg
+        db.commit()
+        db.refresh(job)
+    return job, is_created
+
+
+@app.post("/api/v1/jobs/quick-add", response_model=JobQuickAddResponse, tags=["jobs"])
+def quick_add_job(
+    req: JobQuickAddRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> JobQuickAddResponse:
+    if not extension_rate_limiter.check(user.id):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Rate limit exceeded. Please wait a moment before capturing more jobs.",
+        )
+
+    job, is_created = quick_add_job_core(db, user, req)
+    company_name = job.company.name if job.company else req.company
+
+    app_id = None
+    if req.application_status in ("applied", "saved"):
+        from .schemas_applications import ApplicationCreate
+        from .repositories.applications import save_or_update_application
+
+        app_record = save_or_update_application(
+            db=db,
+            user=user,
+            job_id=job.id,
+            data=ApplicationCreate(
+                status=req.application_status,
+                notes=req.notes or ("Added via Compust Capture" if req.application_status == "saved" else "Applied via Compust Capture"),
+                source=req.source or "Compust Capture",
+                resume_suggestions=job.resume_suggestions,
+            ),
+        )
+        app_id = app_record.id
+
+    return JobQuickAddResponse(
+        job_id=job.id,
+        title=job.title,
+        company=company_name,
+        location=job.location,
+        url=job.job_url,
+        dedup_status="created" if is_created else "existing",
+        is_duplicate=not is_created,
+        resume_suggestions=job.resume_suggestions,
+        application_id=app_id,
+        application_status=req.application_status,
+    )
+
+
+_ephemeral_analysis_cache: dict[str, tuple[float, JobEphemeralAnalyzeResponse]] = {}
+
+
+@app.post("/api/v1/jobs/analyze-ephemeral", response_model=JobEphemeralAnalyzeResponse, tags=["jobs"])
+def analyze_ephemeral_job(
+    req: JobEphemeralAnalyzeRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> JobEphemeralAnalyzeResponse:
+    """Analyze job posting against active resume without persisting anything to the database."""
+    if not extension_rate_limiter.check(user.id):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Rate limit exceeded. Please wait a moment before analyzing more jobs.",
+        )
+
+    content_raw = f"{user.id}:{req.url}:{req.title}:{req.company}:{req.description or ''}"
+    content_hash = hashlib.sha256(content_raw.encode("utf-8")).hexdigest()
+
+    now_ts = time.time()
+    cached = _ephemeral_analysis_cache.get(content_hash)
+    if cached:
+        cached_ts, cached_resp = cached
+        if now_ts - cached_ts < 900:  # 15 minutes TTL
+            return cached_resp
+
+    active_resume = get_active_resume(db, user.id)
+    if not active_resume:
+        return JobEphemeralAnalyzeResponse(
+            title=req.title,
+            company=req.company,
+            location=req.location,
+            url=req.url,
+            has_active_resume=False,
+            message="No active resume set. Please upload or activate a resume in Compust.",
+            content_hash=content_hash,
+        )
+
+    # Ephemeral job model - zero DB write
+    dummy_company = Company(name=req.company)
+    ephemeral_job = Job(
+        id=0,
+        title=req.title,
+        company=dummy_company,
+        job_url=req.url,
+        location=req.location,
+        description=req.description,
+        employment_type=req.employment_type,
+        remote_type=req.remote_type,
+    )
+
+    match_res = calculate_job_match(ephemeral_job, [], user)
+    alignment = analyze_resume_alignment(ephemeral_job, [], active_resume, user=user)
+
+    demonstrated = alignment.get("already_demonstrated") or []
+    missing = alignment.get("missing_or_weak") or []
+
+    resume_text = active_resume.raw_text or ""
+    suggestions = generate_actionable_resume_suggestions(
+        job_title=req.title,
+        job_description=req.description or "",
+        missing_skills=missing,
+        demonstrated_skills=demonstrated,
+        resume_text=resume_text,
+        structured_data=active_resume.structured_data,
+        use_llm=True,
+    )
+
+    visa_info = None
+    desc_lower = (req.description or "").lower()
+    if any(term in desc_lower for term in ("visa sponsorship", "sponsor visa", "work authorization", "security clearance", "citizenship")):
+        visa_info = {
+            "mentioned": True,
+            "snippet": next(
+                (line.strip() for line in (req.description or "").split("\n") if any(k in line.lower() for k in ("visa", "authorization", "clearance", "citizen"))),
+                None,
+            ),
+        }
+
+    response = JobEphemeralAnalyzeResponse(
+        title=req.title,
+        company=req.company,
+        location=req.location,
+        url=req.url,
+        has_active_resume=True,
+        match_score=match_res.score,
+        positive_factors=match_res.positive_factors,
+        missing_factors=match_res.missing_factors,
+        demonstrated_skills=demonstrated,
+        missing_skills=missing,
+        resume_suggestions=[s.model_dump() for s in suggestions],
+        visa_analysis=visa_info,
+        content_hash=content_hash,
+    )
+
+    _ephemeral_analysis_cache[content_hash] = (now_ts, response)
+    return response
+
+
+@app.post("/api/v1/jobs/extract-from-html", response_model=GenericExtractResponse, tags=["jobs"])
+def extract_from_html_endpoint(
+    req: GenericExtractRequest,
+    user: User = Depends(get_current_user),
+) -> GenericExtractResponse:
+    """Extract structured job posting fields from generic raw HTML using platform adapters and 73k-title taxonomy."""
+    if not extension_rate_limiter.check(user.id):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Rate limit exceeded. Please wait a moment before extracting more jobs.",
+        )
+    return extract_job_from_html(html=req.html, url=req.url)
+
+
+@app.put("/api/v1/jobs/{job_id}/resume-suggestions", response_model=JobDetailRead, tags=["jobs"])
+def update_or_refresh_job_resume_suggestions(
+    job_id: int = Path(gt=0),
+    refresh: bool = Query(default=False),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> JobDetailRead:
+    """Retrieve or recalculate attached resume-edit suggestions for a persisted job."""
+    job = get_job(db, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    if refresh:
+        active_resume = get_active_resume(db, user.id)
+        if not active_resume:
+            raise HTTPException(status_code=400, detail="No active resume to generate suggestions against.")
+        skills = get_job_skills(db, job_id)
+        alignment = analyze_resume_alignment(job, skills, active_resume, user=user)
+        suggestions = generate_actionable_resume_suggestions(
+            job_title=job.title,
+            job_description=job.description or "",
+            missing_skills=alignment.get("missing_or_weak", []),
+            demonstrated_skills=alignment.get("already_demonstrated", []),
+            resume_text=active_resume.raw_text or "",
+            structured_data=active_resume.structured_data,
+            use_llm=True,
+        )
+        job.resume_suggestions = [s.model_dump() for s in suggestions]
+        db.commit()
+        db.refresh(job)
+
+    detail = JobDetailRead.model_validate(job)
+    detail.skills = get_job_skills(db, job_id)
+    match_res = semantic_service.compute_match(job, detail.skills, user)
+    detail.match_score = match_res.score
+    detail.positive_factors = match_res.positive_factors
+    detail.missing_factors = match_res.missing_factors
+    detail.category_scores = match_res.category_scores
+    return detail
+
+
+@app.post("/api/v1/jobs/quick-add-and-analyze", response_model=JobQuickAddAndAnalyzeResponse, tags=["jobs"])
+def quick_add_and_analyze_job(
+    req: JobQuickAddRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> JobQuickAddAndAnalyzeResponse:
+    if not extension_rate_limiter.check(user.id):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Rate limit exceeded. Please wait a moment before capturing more jobs.",
+        )
+
+    job, is_created = quick_add_job_core(db, user, req)
+    company_name = job.company.name if job.company else req.company
+    quick_res = JobQuickAddResponse(
+        job_id=job.id,
+        title=job.title,
+        company=company_name,
+        location=job.location,
+        url=job.job_url,
+        dedup_status="created" if is_created else "existing",
+        is_duplicate=not is_created,
+        resume_suggestions=job.resume_suggestions,
+    )
+
+    active_resume = get_active_resume(db, user.id)
+    if not active_resume:
+        return JobQuickAddAndAnalyzeResponse(
+            job=quick_res,
+            dedup_status="created" if is_created else "existing",
+            is_duplicate=not is_created,
+            has_active_resume=False,
+            message="No active resume set. Please upload or activate a resume in Compust.",
+            match_analysis=None,
+            score_breakdown=None,
+        )
+
+    analysis = get_ai_resume_customization(db, job, active_resume, user=user)
+    skills = get_job_skills(db, job.id)
+    match_res = calculate_job_match(job, skills, user)
+    score_breakdown = {
+        "overall_score": match_res.score,
+        "positive_factors": match_res.positive_factors,
+        "missing_factors": match_res.missing_factors,
+        "category_scores": match_res.category_scores,
+    }
+
+    return JobQuickAddAndAnalyzeResponse(
+        job=quick_res,
+        dedup_status="created" if is_created else "existing",
+        is_duplicate=not is_created,
+        has_active_resume=True,
+        message=None,
+        match_analysis=analysis,
+        score_breakdown=score_breakdown,
+    )
+
+
+@app.get("/api/v1/resumes/active", response_model=ResumeRead, tags=["resumes"])
+def get_active_resume_alias(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Resume:
+    resume = get_active_resume(db, user.id)
+    if not resume:
+        raise HTTPException(status_code=404, detail="No active resume found. Please upload a resume first.")
+    return resume
+
+
 @app.get("/api/v1/jobs/{job_id}/translations", response_model=list[JobTranslationRead], tags=["jobs"])
 def get_job_translations(
     job_id: int = Path(gt=0),
@@ -826,6 +1210,18 @@ def login_user(
     user = authenticate_user(db, req.email, req.password)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
+    token = create_access_token({"sub": str(user.id), "email": user.email})
+    return TokenResponse(access_token=token, user=build_user_profile(user))
+
+
+@app.post("/api/v1/auth/reset-password", response_model=TokenResponse, tags=["auth"])
+def reset_password(
+    req: UserResetPasswordRequest,
+    db: Session = Depends(get_db),
+) -> TokenResponse:
+    user = reset_user_password(db, req.email, req.new_password)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No account found with this email address")
     token = create_access_token({"sub": str(user.id), "email": user.email})
     return TokenResponse(access_token=token, user=build_user_profile(user))
 
@@ -1291,6 +1687,18 @@ def duplicate_single_structured_resume(
     return copy_resume
 
 
+@app.post("/api/v1/resumes/{resume_id}/create-studio-copy", response_model=StructuredResumeRead, tags=["resume-builder"])
+def create_studio_copy_endpoint(
+    resume_id: int = Path(gt=0),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Resume:
+    copy_resume = create_studio_copy(db, user.id, resume_id)
+    if not copy_resume:
+        raise HTTPException(status_code=404, detail="Resume not found.")
+    return copy_resume
+
+
 @app.delete("/api/v1/resumes/{resume_id}", tags=["resume-builder"])
 def delete_single_structured_resume(
     resume_id: int = Path(gt=0),
@@ -1370,6 +1778,88 @@ def export_structured_resume_file(
     )
 
 
+class ResumePreviewRequest(BaseModel):
+    structured_data: dict[str, Any] | None = None
+    settings: dict[str, Any] | None = None
+
+ResumePreviewRequest.model_rebuild()
+
+
+@app.post("/api/v1/resumes/{resume_id}/render-preview", tags=["resume-builder"])
+def render_structured_resume_preview(
+    resume_id: int = Path(gt=0),
+    payload: ResumePreviewRequest | None = None,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    resume = get_user_resume(db, user.id, resume_id)
+    if not resume:
+        raise HTTPException(status_code=404, detail="Resume not found.")
+
+    req = payload or ResumePreviewRequest()
+    structured_data = req.structured_data if req.structured_data is not None else (resume.structured_data or {})
+    settings_data = req.settings if req.settings is not None else (resume.settings or {})
+
+    from .services.rendercv_service import render_rendercv_preview_payload
+    try:
+        preview_data = render_rendercv_preview_payload(structured_data, settings_data)
+        return preview_data
+    except Exception as exc:
+        logger.warning(f"RenderCV live preview generation error: {exc}")
+        raise HTTPException(status_code=500, detail=f"Live preview rendering error: {exc}")
+
+
+class ResumeATSCheckRequest(BaseModel):
+    target_role: str | None = None
+    target_field: str | None = None
+    job_id: int | None = None
+    structured_data: dict[str, Any] | None = None
+    raw_text: str | None = None
+
+ResumeATSCheckRequest.model_rebuild()
+
+
+@app.post("/api/v1/resumes/{resume_id}/ats-check", tags=["resume-builder"])
+def run_resume_ats_check(
+    resume_id: int = Path(gt=0),
+    payload: ResumeATSCheckRequest | None = None,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    resume = get_user_resume(db, user.id, resume_id)
+    if not resume:
+        raise HTTPException(status_code=404, detail="Resume not found.")
+
+    req = payload or ResumeATSCheckRequest()
+    from .services.ats_checker import evaluate_resume_ats
+    from .repositories.resume import build_raw_text_from_structured_data
+
+    structured_data = req.structured_data if req.structured_data is not None else (resume.structured_data or {})
+
+    job_description = None
+    if req.job_id:
+        job = get_job(db, req.job_id)
+        if job and job.description:
+            job_description = job.description
+
+    resume_text = req.raw_text
+    if not resume_text:
+        resume_text = build_raw_text_from_structured_data(structured_data)
+        if not resume_text and resume.raw_text:
+            resume_text = resume.raw_text
+
+    target_role = req.target_role or (structured_data.get("profile", {}).get("headline") if structured_data else None)
+
+    return evaluate_resume_ats(
+        resume_text=resume_text,
+        structured_data=structured_data,
+        role=target_role,
+        field=req.target_field,
+        job_description=job_description,
+    )
+
+
+
 # --- Resume Customization Assistant Endpoint ---
 
 
@@ -1387,7 +1877,7 @@ def get_resume_suggestions_for_job(
     if not active_resume:
         raise HTTPException(status_code=400, detail="Please upload a resume first.")
 
-    analysis = get_ai_resume_customization(db, job, active_resume)
+    analysis = get_ai_resume_customization(db, job, active_resume, user=user)
     return ResumeSuggestionResponse(
         job_id=job.id,
         job_title=job.title,
@@ -1629,7 +2119,58 @@ def test_scraper_target_diagnostic(
         browser_rendered=report.browser_rendered,
         detected_result_count=report.detected_result_count,
         pages_crawled=report.pages_crawled,
+        total_jobs_detected=report.total_jobs_detected,
+        rejection_reasons=report.rejection_reasons,
+        rejected_items=report.rejected_items,
+        max_pages=report.max_pages,
+        stop_reason=report.stop_reason,
+        content_signal_count=report.content_signal_count,
+        discrepancy_detected=report.discrepancy_detected,
+        discrepancy_details=report.discrepancy_details,
+        explanation=report.explanation,
+        suggested_action=report.suggested_action,
     )
+
+
+@app.post("/api/v1/admin/scraper/explain", response_model=ScraperExplainResponse, tags=["admin"])
+def explain_scraper_target_diagnostic(
+    req: ScraperExplainRequest,
+    user: User = Depends(get_current_user),
+) -> ScraperExplainResponse:
+    from .services.scraper_assistant import explain_scraper_run
+
+    result = explain_scraper_run(req.report)
+    return ScraperExplainResponse(
+        summary=result.get("summary", ""),
+        reasons_breakdown=result.get("reasons_breakdown", {}),
+        discrepancy_explanation=result.get("discrepancy_explanation"),
+        recommendations=result.get("recommendations", []),
+        provider=result.get("provider", "deterministic"),
+    )
+
+
+@app.post("/api/v1/admin/scraper/apply-decision", response_model=ScraperDecisionResponse, tags=["admin"])
+def apply_scraper_target_decision(
+    req: ScraperDecisionRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ScraperDecisionResponse:
+    from .services.scraper_assistant import apply_scraper_decision
+
+    result = apply_scraper_decision(
+        db=db,
+        target_url=req.target_url,
+        decision=req.decision,
+        rejected_items=req.rejected_items,
+        user_id=user.id,
+    )
+    return ScraperDecisionResponse(
+        status=result.get("status", "success"),
+        action=result.get("action", req.decision),
+        integrated_count=result.get("integrated_count", 0),
+        message=result.get("message", ""),
+    )
+
 
 
 # --- Internship Intelligence Scraper Endpoints ---
@@ -1654,6 +2195,34 @@ def search_internships_endpoint(
         year=payload.year,
         max_results=payload.max_results,
     )
+
+
+@app.get("/api/v1/internships/github-repos", tags=["internships"])
+def get_curated_github_internships_endpoint(
+    repo_id: str | None = Query(default=None),
+    visa_status: str | None = Query(default=None),
+    category: str | None = Query(default=None),
+    search: str | None = Query(default=None),
+    open_only: bool = Query(default=False),
+):
+    """Retrieve parsed opportunities from the 7 curated GitHub repositories."""
+    from .services.github_internships_service import GitHubInternshipsService
+    service = GitHubInternshipsService()
+    return service.get_curated_internships(
+        repo_id=repo_id,
+        visa_status=visa_status,
+        category=category,
+        search=search,
+        open_only=open_only,
+    )
+
+
+@app.post("/api/v1/internships/github-repos/sync", tags=["internships"])
+def sync_curated_github_internships_endpoint():
+    """Trigger live re-fetch and re-parse of all 7 GitHub repositories."""
+    from .services.github_internships_service import GitHubInternshipsService
+    service = GitHubInternshipsService()
+    return service.sync_all_repos()
 
 
 # ---------------------------------------------------------------------------
@@ -1874,12 +2443,29 @@ async def explain_interview_prep_question_ai(
     question_slug: str = Path(...),
     payload: QuestionAIExplainRequest = Body(...),
 ) -> QuestionAIExplainResponse:
-    """Uses local Ollama AI to simplify concepts or evaluate user draft answers."""
+    """Uses local Ollama AI to generate structured visual explanations or evaluate answers."""
     return await interview_prep_service.explain_with_ai(
         domain_id=domain_id,
         question_slug=question_slug,
         mode=payload.mode,
         user_draft_answer=payload.user_draft_answer,
+        language=payload.language,
+    )
+
+
+@app.post(
+    "/api/v1/interview-prep/evaluate-star",
+    response_model=STAREvaluationResponse,
+    tags=["interview-prep"],
+)
+async def evaluate_star_draft_answer(
+    payload: STAREvaluationRequest = Body(...),
+) -> STAREvaluationResponse:
+    """Evaluates candidate draft STAR response for structural completeness, metrics, and ownership."""
+    return interview_prep_service.evaluate_star_draft(
+        draft_answer=payload.draft_answer,
+        question_title=payload.question_title,
+        language=payload.language,
     )
 
 
@@ -1951,6 +2537,60 @@ def get_interview_prep_asset(
         media_type = "image/webp"
 
     return FileResponse(path=str(file_path), media_type=media_type)
+
+
+@app.get("/api/v1/extension/download/{target_browser}", tags=["extension"])
+def download_extension_package(target_browser: str = Path(..., description="Browser type: chrome, edge, brave, or firefox")):
+    """Serves the pre-built unpacked extension package zipped for local developer-mode onboarding."""
+    browser_clean = target_browser.lower().strip()
+    base_dir = pathlib.Path(__file__).resolve().parent.parent.parent
+    extension_dist = base_dir / "extension" / "dist"
+
+    if browser_clean in ["chrome", "chromium", "edge", "brave"]:
+        package_dir = extension_dist / "chrome"
+        zip_filename = "compust-capture-chrome.zip"
+    elif browser_clean in ["firefox"]:
+        package_dir = extension_dist / "firefox"
+        zip_filename = "compust-capture-firefox.zip"
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported browser target '{target_browser}'. Supported options are: chrome, edge, brave, firefox."
+        )
+
+    if not package_dir.is_dir():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Extension distribution for '{browser_clean}' not found. Please build the extension first."
+        )
+
+    zip_path = extension_dist / zip_filename
+    if zip_path.is_file():
+        zip_bytes = zip_path.read_bytes()
+    else:
+        import io
+        import zipfile
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+            for file_path in package_dir.rglob("*"):
+                if file_path.is_file():
+                    arcname = file_path.relative_to(package_dir)
+                    zf.write(file_path, arcname)
+        zip_bytes = zip_buffer.getvalue()
+        try:
+            zip_path.write_bytes(zip_bytes)
+        except Exception:
+            pass
+
+    return Response(
+        content=zip_bytes,
+        media_type="application/zip",
+        headers={
+            "Content-Type": "application/zip",
+            "Content-Disposition": f'attachment; filename="{zip_filename}"',
+            "Content-Length": str(len(zip_bytes)),
+        },
+    )
 
 
 # Standalone Frontend Production Mount (for Windows Release without Node.js):

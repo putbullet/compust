@@ -1,0 +1,29 @@
+{
+  "name": "compust-capture-extension",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:chrome": "node build.js chrome",
+    "build:firefox": "node build.js firefox",
+    "build": "node build.js chrome && node build.js firefox",
+    "test:unit": "vitest run tests/unit",
+    "test:e2e": "playwright test",
+    "test": "npm run test:unit"
+  },
+  "dependencies": {
+    "webextension-polyfill": "^0.12.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.0",
+    "@types/adm-zip": "^0.5.8",
+    "@types/chrome": "^0.0.308",
+    "@types/node": "^22.13.0",
+    "@types/webextension-polyfill": "^0.12.0",
+    "adm-zip": "^0.6.1",
+    "jsdom": "^26.0.0",
+    "typescript": "^5.7.3",
+    "vite": "^6.1.0",
+    "vitest": "^3.0.5"
+  }
+}

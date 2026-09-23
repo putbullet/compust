@@ -53,13 +53,13 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     user.preferences?.preferred_work_mode || 'Hybrid'
   );
   const [preferredLocation, setPreferredLocation] = useState(
-    user.preferences?.preferred_location || 'Casablanca'
+    user.preferences?.preferred_location || 'Global / Remote'
   );
   const [minSalary, setMinSalary] = useState(
     user.preferences?.min_salary?.toString() || '18000'
   );
   const [salaryCurrency, setSalaryCurrency] = useState(
-    user.preferences?.salary_currency || 'MAD'
+    user.preferences?.salary_currency || 'USD'
   );
 
   const [availableCountries, setAvailableCountries] = useState<Country[]>([]);
@@ -328,7 +328,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           <div className="status-chips">
             <span className="chip">
               <MapPin size={13} />
-              <span>{preferredLocation || 'Morocco'}</span>
+              <span>{preferredLocation || 'Worldwide / Remote'}</span>
             </span>
             <span className="chip">
               <Building2 size={13} />
@@ -670,23 +670,23 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             <div className="structured-sections-box">
               <div className="sections-title">Structured Sections Detected:</div>
               <div className="sections-tags">
-                <span className={`sec-pill ${activeResume.parsed_sections?.summary ? 'present' : 'missing'}`}>
-                  Summary {activeResume.parsed_sections?.summary ? '✓' : '—'}
+                <span className={`sec-pill ${activeResume.parsed_sections?.summary || (activeResume as any).structured_data?.profile?.summary ? 'present' : 'missing'}`}>
+                  Summary {activeResume.parsed_sections?.summary || (activeResume as any).structured_data?.profile?.summary ? '✓' : '—'}
                 </span>
-                <span className={`sec-pill ${activeResume.parsed_sections?.experience ? 'present' : 'missing'}`}>
-                  Experience {activeResume.parsed_sections?.experience ? '✓' : '—'}
+                <span className={`sec-pill ${activeResume.parsed_sections?.experience || (activeResume as any).structured_data?.experience?.length ? 'present' : 'missing'}`}>
+                  Experience {activeResume.parsed_sections?.experience || (activeResume as any).structured_data?.experience?.length ? '✓' : '—'}
                 </span>
-                <span className={`sec-pill ${activeResume.parsed_sections?.education ? 'present' : 'missing'}`}>
-                  Education {activeResume.parsed_sections?.education ? '✓' : '—'}
+                <span className={`sec-pill ${activeResume.parsed_sections?.education || (activeResume as any).structured_data?.education?.length ? 'present' : 'missing'}`}>
+                  Education {activeResume.parsed_sections?.education || (activeResume as any).structured_data?.education?.length ? '✓' : '—'}
                 </span>
-                <span className={`sec-pill ${activeResume.parsed_sections?.skills?.length ? 'present' : 'missing'}`}>
-                  Skills ({activeResume.parsed_sections?.skills?.length || 0}) {activeResume.parsed_sections?.skills?.length ? '✓' : '—'}
+                <span className={`sec-pill ${(activeResume.parsed_sections?.skills?.length || (activeResume as any).structured_data?.skills?.length) ? 'present' : 'missing'}`}>
+                  Skills ({activeResume.parsed_sections?.skills?.length ?? (activeResume as any).structured_data?.skills?.length ?? 0}) {(activeResume.parsed_sections?.skills?.length || (activeResume as any).structured_data?.skills?.length) ? '✓' : '—'}
                 </span>
-                <span className={`sec-pill ${activeResume.parsed_sections?.projects ? 'present' : 'missing'}`}>
-                  Projects {activeResume.parsed_sections?.projects ? '✓' : '—'}
+                <span className={`sec-pill ${activeResume.parsed_sections?.projects || (activeResume as any).structured_data?.projects?.length ? 'present' : 'missing'}`}>
+                  Projects {activeResume.parsed_sections?.projects || (activeResume as any).structured_data?.projects?.length ? '✓' : '—'}
                 </span>
-                <span className={`sec-pill ${activeResume.parsed_sections?.languages?.length ? 'present' : 'missing'}`}>
-                  Languages ({activeResume.parsed_sections?.languages?.length || 0})
+                <span className={`sec-pill ${(activeResume.parsed_sections?.languages?.length || (activeResume as any).structured_data?.languages?.length) ? 'present' : 'missing'}`}>
+                  Languages ({activeResume.parsed_sections?.languages?.length ?? (activeResume as any).structured_data?.languages?.length ?? 0}) {(activeResume.parsed_sections?.languages?.length || (activeResume as any).structured_data?.languages?.length) ? '✓' : '—'}
                 </span>
               </div>
             </div>

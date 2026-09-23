@@ -7,9 +7,20 @@ multilingual behavioral preparation, and optional local AI explanation.
 import json
 import logging
 from pathlib import Path
+import re
+from datetime import datetime
 from typing import Dict, List, Optional, Any
 
 from ..schemas_interview_prep import (
+    Actor,
+    ScenarioStep,
+    ScenarioVariant,
+    Scenario,
+    CodeExplanationLine,
+    CodeSample,
+    ComparisonRow,
+    StructuredAIExplanationPayload,
+    STAREvaluationResponse,
     BehavioralPrepResponse,
     InterviewDomainSummary,
     InterviewDomainTree,
@@ -20,8 +31,18 @@ from ..schemas_interview_prep import (
     QuestionAIExplainResponse,
 )
 from ..config import get_settings
+from ..database import SessionLocal
+from ..models import InterviewExplanation
 
 logger = logging.getLogger("compust.interview_prep.service")
+
+SCHEMA_VERSION = 1
+STAR_TARGET_SPLIT = {
+    "situation": 15,
+    "task": 10,
+    "action": 60,
+    "result": 15,
+}
 
 DOMAIN_DEFINITIONS = [
     {
@@ -561,16 +582,145 @@ class InterviewPrepService:
             "key_interview_takeaways": takeaways,
         }
 
+    def _load_few_shot_fixture(self, domain_id: str, lang: str = "en") -> Optional[dict]:
+        """Loads versioned few-shot structured exemplars for prompt grounding."""
+        try:
+            fixture_file = self.content_root / "fixtures" / "explain_fixtures.json"
+            if fixture_file.exists():
+                with open(fixture_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    lang_data = data.get(lang) or data.get("en") or {}
+                    return lang_data.get(domain_id) or lang_data.get("security_engineering")
+        except Exception as e:
+            logger.warning(f"Could not load explain fixture: {e}")
+        return None
+
+    def _build_structured_fallback_payload(self, q: InterviewQuestionDetail, lang: str = "en") -> StructuredAIExplanationPayload:
+        """
+        Builds a deterministic, schema-validated StructuredAIExplanationPayload.
+        Used when local AI is offline, slow, or fails validation.
+        """
+        slug = (q.slug or "").lower()
+        title = (q.title or "").lower()
+        fixture_data = self._load_few_shot_fixture(q.domain_id, lang)
+
+        # 1. Domain-specific exact fixture matches (2FA, OAuth, Spark, RAG)
+        if ("2fa" in slug or "two-factor" in slug or "authenticat" in slug) and fixture_data and "2fa" in str(fixture_data).lower():
+            try:
+                return StructuredAIExplanationPayload(**fixture_data)
+            except Exception:
+                pass
+
+        if ("broadcast" in slug or "spark" in slug or "shuffle" in slug) and fixture_data and "broadcast" in str(fixture_data).lower():
+            try:
+                return StructuredAIExplanationPayload(**fixture_data)
+            except Exception:
+                pass
+
+        if ("rag" in slug or "vector" in slug or "retriev" in slug) and fixture_data and "rag" in str(fixture_data).lower():
+            try:
+                return StructuredAIExplanationPayload(**fixture_data)
+            except Exception:
+                pass
+
+        # 2. Universal structured fallback guaranteed to be schema-compliant
+        summary = f"{q.title} defines foundational architectural mechanics in {q.category}."
+        if q.markdown_content:
+            first_sent = q.markdown_content.split(".")[0].replace("#", "").strip()
+            if len(first_sent) > 20:
+                summary = first_sent[:180] + "."
+
+        analogy = f"Like establishing an automated checkpoint that validates constraints before allowing high-concurrency operations."
+        if "sql" in title or "database" in title:
+            analogy = "Like checking an ID at a club entrance instead of letting anyone in and checking them on the dance floor."
+        elif "firewall" in title or "network" in title:
+            analogy = "Like a secured gated community where uninvited external cars are stopped at the perimeter gate."
+        elif "attention" in title or "transformer" in title:
+            analogy = "Like highlighting critical keywords in a 100-page book with colored markers to see connections across chapters."
+
+        actors = [
+            Actor(id="alice", role="legitimate_user", label="Alice", description="Client or employee initiating operations"),
+            Actor(id="system", role="system", label="Target System", description=f"Core service processing {q.topic}"),
+            Actor(id="bob", role="attacker", label="Bob", description="External client, adversary, or auditor"),
+        ]
+
+        variant_failure = ScenarioVariant(
+            label="Without Recommended Architecture (Naive / Unprotected)",
+            outcome="failure",
+            steps=[
+                ScenarioStep(order=1, from_actor="alice", to_actor="system", action="Dispatches request without safeguards or tuning", payload="req_data", annotation="Initial request", status="normal"),
+                ScenarioStep(order=2, from_actor="bob", to_actor="system", action="Exposes bottleneck, race condition, or vulnerability", payload="exploit / probe", annotation="Bottleneck exposed", status="attack"),
+                ScenarioStep(order=3, from_actor="system", to_actor="alice", action="Drops transaction due to contention or policy violation", payload="HTTP 500 / Timeout", annotation="System failure", status="blocked"),
+            ]
+        )
+
+        variant_success = ScenarioVariant(
+            label="With Production Architecture (Optimized / Hardened)",
+            outcome="success",
+            steps=[
+                ScenarioStep(order=1, from_actor="alice", to_actor="system", action="Dispatches authenticated and structured request", payload="signed_req", annotation="Validated input", status="normal"),
+                ScenarioStep(order=2, from_actor="system", to_actor="system", action="Executes stateful validation or in-memory cache lookup", payload="cached_lookup", annotation="Zero-overhead path", status="secure"),
+                ScenarioStep(order=3, from_actor="system", to_actor="alice", action="Returns verified low-latency response", payload="HTTP 200 OK", annotation="Production success", status="secure"),
+            ]
+        )
+
+        scenario = Scenario(
+            title=f"Case Scenario — Production Execution Flow: {q.title[:60]}",
+            variants=[variant_failure, variant_success]
+        )
+
+        code_sample = None
+        if q.has_code or "security" in q.domain_id or "data" in q.domain_id or "phish" in slug or "social" in slug:
+            code_sample = CodeSample(
+                language="python",
+                code=f"# Verified defensive/implementation pattern for {q.topic}\ndef enforce_guardrails(request_payload):\n    validated = validate_security_constraints(request_payload)\n    if not validated:\n        raise ValueError('Blocked unauthorized or malformed transaction')\n    return execute_production_pipeline(validated)",
+                explanation_lines=[
+                    CodeExplanationLine(line=3, note="Validates input constraints prior to execution"),
+                    CodeExplanationLine(line=5, note="Blocks malformed or suspicious payloads")
+                ]
+            )
+
+        comparison_table = [
+            ComparisonRow(criterion="Performance / Latency", option_a="Naive: High latency and potential resource starvation", option_b="Production: Deterministic sub-millisecond execution"),
+            ComparisonRow(criterion="Failure Boundary", option_a="Naive: Cascading failures under unexpected load", option_b="Production: Isolated blast radius with graceful degradation"),
+            ComparisonRow(criterion="Operational Complexity", option_a="Naive: Simple initial setup but high incident rate", option_b="Production: Requires initial design but maintenance is low")
+        ]
+
+        takeaways = [
+            f"Articulate both the core theory and practical trade-offs of {q.topic}.",
+            "Highlight failure modes (e.g. latency, race conditions, security vectors) to prove production experience.",
+            "Cite a concrete project from your career where this decision impacted latency or reliability."
+        ]
+
+        common_mistakes = [
+            "Giving a purely textbook definition without mentioning operational edge cases.",
+            "Ignoring scalability limits when traffic surges 10x.",
+            "Forgetting to address observability, logging, and metrics."
+        ]
+
+        return StructuredAIExplanationPayload(
+            concept_summary=summary,
+            analogy=analogy,
+            actors=actors,
+            scenario=scenario,
+            code_sample=code_sample,
+            comparison_table=comparison_table,
+            takeaways=takeaways,
+            common_mistakes=common_mistakes
+        )
+
     async def explain_with_ai(
         self,
         domain_id: str,
         question_slug: str,
         mode: str = "simplify",
         user_draft_answer: Optional[str] = None,
+        language: str = "en",
     ) -> QuestionAIExplainResponse:
         """
-        Uses the local Ollama LLM to generate an educational breakdown or evaluate a user draft answer.
-        Output is enriched with real-world scenarios, code snippets, and interview takeaways.
+        Generates or retrieves a structured, visual-ready explanation for a question.
+        Returns strict JSON adhering to StructuredAIExplanationPayload.
+        Caches results per (question_id, language, model_name, schema_version).
         """
         q = self.get_question_detail(domain_id, question_slug)
         if not q:
@@ -581,85 +731,264 @@ class InterviewPrepService:
                 ai_model_used="none",
             )
 
-        smart_data = self._build_smart_explanation_fields(q)
+        lang = (language or "en").lower().strip()
+        if lang not in ["en", "fr", "de"]:
+            lang = "en"
 
         settings = get_settings()
         ollama_url = settings.ollama_url or "http://127.0.0.1:11434"
         model = settings.default_ai_model or "qwen2.5:0.5b"
+        SCHEMA_VERSION = 1
 
-        prompt = ""
-        if mode == "simplify":
-            prompt = (
-                f"You are a Senior Principal Technical Interviewer. Explain the following technical interview question "
-                f"in simple, intuitive, real-world terms for an engineer preparing for a technical interview.\n\n"
-                f"Question: {q.title}\n"
-                f"Category: {q.category} ({q.topic})\n"
-                f"Core Content Summary: {q.markdown_content[:1500]}\n\n"
-                f"Structure your response:\n"
-                f"1. Real-World Case Scenario (A concrete narrative with named actors e.g. Alice the engineer and Bob the adversary or colleague illustrating what happens step-by-step in practice)\n"
-                f"2. Core Technical Mechanics\n"
-                f"3. Practical Sample Code / Command Blueprint (if technical)\n"
-                f"4. 3 Crucial Points to Pass the Interview."
-            )
-        elif mode == "mock_feedback" and user_draft_answer:
-            prompt = (
-                f"You are an empathetic yet rigorous Technical Interviewer. Evaluate this candidate's draft answer.\n\n"
-                f"Question: {q.title}\n"
-                f"Candidate's Draft Answer:\n{user_draft_answer}\n\n"
-                f"Reference Concepts:\n{q.markdown_content[:1500]}\n\n"
-                f"Provide constructive, structured feedback:\n"
-                f"1. Strengths of the candidate's answer\n"
-                f"2. Missing technical depth or nuances\n"
-                f"3. Concrete suggested revision for maximum impact."
-            )
-        else:
-            prompt = (
-                f"Provide a realistic follow-up interview question and answer evaluation for:\n"
-                f"Question: {q.title}\n"
-                f"Context: {q.markdown_content[:1200]}"
-            )
+        # 1. Database Cache Check
+        try:
+            with SessionLocal() as db:
+                cached = db.query(InterviewExplanation).filter(
+                    InterviewExplanation.question_id == q.id,
+                    InterviewExplanation.language == lang,
+                    InterviewExplanation.model_name == model,
+                    InterviewExplanation.schema_version == SCHEMA_VERSION,
+                ).first()
+                if cached and cached.payload:
+                    try:
+                        structured_payload = StructuredAIExplanationPayload(**cached.payload)
+                        return QuestionAIExplainResponse(
+                            question_id=q.id,
+                            mode=mode,
+                            explanation=structured_payload.concept_summary,
+                            real_world_scenario=structured_payload.scenario.title,
+                            code_sample=structured_payload.code_sample.code if structured_payload.code_sample else None,
+                            key_interview_takeaways=structured_payload.takeaways,
+                            structured_payload=structured_payload,
+                            ai_model_used=model,
+                        )
+                    except Exception as e:
+                        logger.warning(f"Cached explanation payload failed validation: {e}")
+        except Exception as e:
+            logger.warning(f"Cache lookup failed: {e}")
 
-        explanation = ""
+        # 2. Ollama JSON Generation Attempt
+        structured_payload: Optional[StructuredAIExplanationPayload] = None
         model_used = "deterministic-smart-ai"
+
+        few_shot = self._load_few_shot_fixture(domain_id, lang)
+        few_shot_str = json.dumps(few_shot, indent=2) if few_shot else "{}"
+
+        prompt = (
+            "You are an expert technical interviewer and systems architect.\n"
+            "Explain the technical interview question below by returning ONLY a valid JSON object matching the schema.\n"
+            "DO NOT output markdown formatting like ```json or ```. DO NOT output conversational prose.\n"
+            "Return raw valid JSON only.\n\n"
+            f"Target Language: {lang.upper()}\n"
+            f"Question Title: {q.title}\n"
+            f"Category: {q.category} ({q.topic})\n"
+            f"Source Answer Summary: {q.markdown_content[:600]}\n\n"
+            "Few-Shot Exemplar:\n"
+            f"{few_shot_str}\n"
+        )
 
         try:
             import httpx
-            async with httpx.AsyncClient(timeout=40.0) as client:
+            async with httpx.AsyncClient(timeout=35.0) as client:
                 resp = await client.post(
                     f"{ollama_url}/api/generate",
                     json={
                         "model": model,
                         "prompt": prompt,
+                        "format": "json",
                         "stream": False,
-                        "options": {"temperature": 0.2, "top_p": 0.9}
+                        "options": {"temperature": 0.1, "top_p": 0.85}
                     }
                 )
                 if resp.status_code == 200:
-                    data = resp.json()
-                    explanation = data.get("response", "").strip()
-                    model_used = model
-        except Exception as e:
-            logger.warning(f"Ollama local explanation unavailable ({e}), using structured smart heuristic.")
+                    raw_resp = resp.json().get("response", "").strip()
+                    # Strip any markdown fences
+                    clean_json = raw_resp
+                    if clean_json.startswith("```json"):
+                        clean_json = clean_json[7:]
+                    if clean_json.startswith("```"):
+                        clean_json = clean_json[3:]
+                    if clean_json.endswith("```"):
+                        clean_json = clean_json[:-3]
+                    clean_json = clean_json.strip()
 
-        if not explanation:
-            # Deterministic fallback breakdown when local AI is offline
-            explanation = (
-                f"### High-Yield Concept Breakdown\n\n"
-                f"**Real-World Scenario**: {smart_data['real_world_scenario']}\n\n"
-                f"**3 Core Takeaways to Articulate**:\n" +
-                "\n".join([f"{i+1}. {pt}" for i, pt in enumerate(smart_data["key_interview_takeaways"])])
-            )
-            if smart_data["code_sample"]:
-                explanation += f"\n\n**Production Code / Pattern Sample**:\n```python\n{smart_data['code_sample']}\n```"
+                    try:
+                        parsed_dict = json.loads(clean_json)
+                        structured_payload = StructuredAIExplanationPayload(**parsed_dict)
+                        model_used = model
+                    except Exception as parse_err:
+                        logger.warning(f"Model JSON failed validation: {parse_err}. Attempting repair retry...")
+                        # Single repair retry
+                        repair_prompt = (
+                            f"The previous output had a validation error: {parse_err}.\n"
+                            "Fix the JSON so all steps[].from and steps[].to match a declared actors[].id.\n"
+                            f"Original question: {q.title}\n"
+                            "Return ONLY the fixed raw JSON."
+                        )
+                        repair_resp = await client.post(
+                            f"{ollama_url}/api/generate",
+                            json={
+                                "model": model,
+                                "prompt": repair_prompt,
+                                "format": "json",
+                                "stream": False,
+                                "options": {"temperature": 0.1}
+                            }
+                        )
+                        if repair_resp.status_code == 200:
+                            repair_text = repair_resp.json().get("response", "").strip()
+                            if repair_text.startswith("```json"):
+                                repair_text = repair_text[7:]
+                            if repair_text.endswith("```"):
+                                repair_text = repair_text[:-3]
+                            repair_dict = json.loads(repair_text.strip())
+                            structured_payload = StructuredAIExplanationPayload(**repair_dict)
+                            model_used = model
+        except Exception as exc:
+            logger.info(f"Ollama generation unavailable ({exc}). Using deterministic structured fallback.")
 
+        # 3. Deterministic fallback if Ollama was offline or failed schema
+        if not structured_payload:
+            structured_payload = self._build_structured_fallback_payload(q, lang)
+
+        # 4. Cache in Database
+        try:
+            with SessionLocal() as db:
+                existing = db.query(InterviewExplanation).filter(
+                    InterviewExplanation.question_id == q.id,
+                    InterviewExplanation.language == lang,
+                    InterviewExplanation.model_name == model_used,
+                    InterviewExplanation.schema_version == SCHEMA_VERSION,
+                ).first()
+                if existing:
+                    existing.payload = structured_payload.model_dump(by_alias=True)
+                    existing.generated_at = datetime.utcnow()
+                else:
+                    new_cache = InterviewExplanation(
+                        question_id=q.id,
+                        language=lang,
+                        model_name=model_used,
+                        payload=structured_payload.model_dump(by_alias=True),
+                        schema_version=SCHEMA_VERSION,
+                        generated_at=datetime.utcnow(),
+                    )
+                    db.add(new_cache)
+                db.commit()
+        except Exception as cache_err:
+            logger.warning(f"Failed to persist explanation to cache: {cache_err}")
+
+        actor_names = " vs ".join(a.label for a in structured_payload.actors)
         return QuestionAIExplainResponse(
             question_id=q.id,
             mode=mode,
-            explanation=explanation,
-            real_world_scenario=smart_data["real_world_scenario"],
-            code_sample=smart_data["code_sample"],
-            key_interview_takeaways=smart_data["key_interview_takeaways"],
+            explanation=structured_payload.concept_summary,
+            real_world_scenario=f"{structured_payload.scenario.title} ({actor_names})",
+            code_sample=structured_payload.code_sample.code if structured_payload.code_sample else None,
+            key_interview_takeaways=structured_payload.takeaways,
+            structured_payload=structured_payload,
             ai_model_used=model_used,
+        )
+
+    def evaluate_star_draft(
+        self,
+        draft_answer: str,
+        question_title: Optional[str] = None,
+        language: str = "en",
+    ) -> STAREvaluationResponse:
+        """
+        Evaluates a candidate's draft STAR behavioral response using deterministic heuristics.
+        Analyzes coverage, quantified metrics, and 'I' vs 'We' ownership ratio.
+        """
+        text = (draft_answer or "").strip()
+        words = text.split()
+        total_words = len(words)
+        text_lower = text.lower()
+
+        # 1. STAR Coverage detection
+        has_s = any(k in text_lower for k in [
+            "situation", "context", "when i", "at my", "in my role", "working at",
+            "lorsque", "dans mon", "contexte", "en tant que",
+            "als ich", "bei meinem", "in meiner rolle"
+        ])
+        has_t = any(k in text_lower for k in [
+            "task", "tasked with", "responsibility", "objective", "goal", "sla", "deadline", "mission",
+            "objectif", "responsabilité", "défi",
+            "aufgabe", "ziel", "verantwortung"
+        ])
+        has_a = any(k in text_lower for k in [
+            "action", "i designed", "i built", "i implemented", "i profiled", "i refactored", "i decided", "i resolved",
+            "j'ai", "je conçu", "j'ai implémenté", "j'ai analysé", "j'ai décidé",
+            "ich entwickelte", "ich implementierte", "ich entschied", "ich analysierte"
+        ])
+        has_r = any(k in text_lower for k in [
+            "result", "reduced", "increased", "saved", "latency", "throughput", "impact", "delivered",
+            "résultat", "réduit", "augmenté", "économisé", "latence",
+            "ergebnis", "gesenkt", "gesteigert", "eingespart", "latenz"
+        ])
+
+        # 2. Action proportion estimate (Target: 60%)
+        est_action_prop = 60 if (has_a and total_words > 40) else (35 if has_a else 15)
+
+        # 3. Quantified metrics detection
+        metric_patterns = [
+            r"\b\d+%\b",                                    # percentages
+            r"\b\d+\s*(?:ms|s|sec|seconds|minutes)\b",      # latencies
+            r"\b(?:\$|€|£|\d+\s*(?:usd|eur|mad))\b",        # currency
+            r"\b\d+\s*(?:req/s|rps|qps|gb|tb|mb|k)\b",      # volume/rates
+            r"\b\d+\b",                                     # raw digits
+        ]
+        detected_metrics = []
+        for pat in metric_patterns:
+            matches = re.findall(pat, text_lower)
+            for m in matches[:3]:
+                if m not in detected_metrics:
+                    detected_metrics.append(m)
+
+        metrics_score = min(10, len(detected_metrics) * 3)
+
+        # 4. Ownership ratio (I vs We)
+        i_tokens = re.findall(r"\b(i|my|me|mine|j'ai|je|mon|ma|mes|moi|ich|mein|mir|mich)\b", text_lower)
+        we_tokens = re.findall(r"\b(we|our|us|ours|nous|notre|nos|wir|unser|uns)\b", text_lower)
+        i_count = len(i_tokens)
+        we_count = len(we_tokens)
+        total_ownership = i_count + we_count
+        i_percentage = round((i_count / total_ownership) * 100, 1) if total_ownership > 0 else 0.0
+
+        strengths = []
+        missing = []
+        recommendations = []
+
+        if has_s and has_t and has_a and has_r:
+            strengths.append("Complete STAR structure: All four phases (Situation, Task, Action, Result) detected.")
+        else:
+            if not has_s:
+                missing.append("Situation: Set the scene and scale constraints in under 45 seconds.")
+            if not has_t:
+                missing.append("Task: Specify your individual ownership and explicit success criteria.")
+            if not has_a:
+                missing.append("Action (60%): Detail the architectural trade-offs and technical decisions YOU executed.")
+            if not has_r:
+                missing.append("Result: Conclude with quantified business, performance, or team velocity impact.")
+
+        if metrics_score >= 6:
+            strengths.append(f"Strong quantification: {len(detected_metrics)} measurable data points detected ({', '.join(detected_metrics[:3])}).")
+        else:
+            recommendations.append("Quantify your result: add specific numbers (e.g. 'reduced latency by 45%', 'saved $40k/yr', 'zero dropped transactions').")
+
+        if i_percentage >= 60:
+            strengths.append(f"High personal ownership ({i_percentage}% 'I' statements): hiring managers can clearly see your individual contribution.")
+        elif we_count > i_count:
+            recommendations.append(f"Excessive team passive language detected ('we' used {we_count} times vs 'I' {i_count} times). Reframe around actions YOU personally drove.")
+
+        return STAREvaluationResponse(
+            star_coverage={"situation": has_s, "task": has_t, "action": has_a, "result": has_r},
+            action_proportion_estimate=est_action_prop,
+            quantified_metrics_score=metrics_score,
+            metrics_detected=detected_metrics,
+            ownership_ratio={"i_count": i_count, "we_count": we_count, "i_percentage": i_percentage},
+            strengths=strengths,
+            missing_elements=missing,
+            recommendations=recommendations,
         )
 
     def _load_domain_questions(self, domain_id: str) -> List[Dict[str, Any]]:

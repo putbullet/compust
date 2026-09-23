@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Compust Capture — Settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="options-layout">
+    <div class="options-container">
+      <header class="header">
+        <div class="brand">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2.5">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+            <polyline points="2 17 12 22 22 17"></polyline>
+            <polyline points="2 12 12 17 22 12"></polyline>
+          </svg>
+          <div>
+            <h1>Compust Capture Settings</h1>
+            <p>Configure local backend connection & extension preferences</p>
+          </div>
+        </div>
+      </header>
+
+      <main class="card">
+        <div class="field-group">
+          <label for="backend-url">Compust Backend URL</label>
+          <p class="field-hint">
+            The local address where your Compust backend is listening. Default is <code>http://localhost:8000</code>.
+          </p>
+          <div class="input-row">
+            <input type="url" id="backend-url" placeholder="http://localhost:8000" required>
+            <button class="btn btn-secondary" id="btn-test">Test Connection</button>
+          </div>
+          <div id="test-result" class="test-box hidden"></div>
+        </div>
+
+        <div class="actions-row">
+          <button class="btn btn-primary" id="btn-save">Save Settings</button>
+          <span id="save-feedback" class="feedback-text hidden">✓ Settings saved successfully</span>
+        </div>
+      </main>
+
+      <section class="card info-card">
+        <h2>CORS Security Setup</h2>
+        <p>
+          For security, Compust rejects requests from unknown extension origins. After loading this extension, ensure your backend <code>.env</code> contains this extension's origin:
+        </p>
+        <div class="code-block" id="cors-example-block">
+          <code>COMPUST_EXTENSION_ORIGINS=chrome-extension://&lt;EXTENSION_ID&gt;,moz-extension://compust-capture@compust.ma</code>
+        </div>
+        <p class="field-hint">
+          In Chrome: find the generated ID at <code>chrome://extensions</code>.<br>
+          In Firefox: the ID is fixed to <code>moz-extension://compust-capture@compust.ma</code>.
+        </p>
+      </section>
+    </div>
+  </div>
+
+  <script type="module" src="options.ts"></script>
+</body>
+</html>

@@ -24,23 +24,33 @@ def analyze_structured_resume_for_job(
     explicit_job_skills: list[str],
     resume: Resume,
 ) -> dict[str, Any]:
+    import unicodedata
+    from ..repositories.resume import extract_canonical_skills_map
+    from ..scraper.vocabulary import SKILL_SYNONYMS
+
     structured = resume.structured_data or {}
     profile = structured.get("profile", {})
-    candidate_skills = [
-        s.get("name", "").strip() for s in structured.get("skills", []) if s.get("name")
-    ]
-    candidate_skill_names_lower = {s.lower() for s in candidate_skills}
+    canon_candidate_skills, display_map, raw_skills = extract_canonical_skills_map(resume)
 
     required_skills = extract_job_required_skills(job, explicit_job_skills)
     matched_skills = []
     missing_skills = []
 
     for req in required_skills:
-        req_clean = req.lower()
-        if req_clean in candidate_skill_names_lower:
-            matched_skills.append(req)
+        req_clean = req.strip()
+        req_canon = SKILL_SYNONYMS.get(req_clean.lower(), req_clean.lower()).lower()
+        req_unacc = unicodedata.normalize("NFKD", req_clean.lower()).encode("ASCII", "ignore").decode("utf-8")
+        if (
+            req_canon in canon_candidate_skills
+            or any(
+                req_unacc in unicodedata.normalize("NFKD", r.lower()).encode("ASCII", "ignore").decode("utf-8")
+                or unicodedata.normalize("NFKD", r.lower()).encode("ASCII", "ignore").decode("utf-8") in req_unacc
+                for r in raw_skills
+            )
+        ):
+            matched_skills.append(req_clean)
         else:
-            missing_skills.append(req)
+            missing_skills.append(req_clean)
 
     total_reqs = len(required_skills)
     match_score = int((len(matched_skills) / total_reqs * 100)) if total_reqs > 0 else 75

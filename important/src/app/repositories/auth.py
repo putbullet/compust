@@ -60,6 +60,17 @@ def authenticate_user(db: Session, email: str, password: str) -> User | None:
     return user
 
 
+def reset_user_password(db: Session, email: str, new_password: str) -> User | None:
+    user = get_user_by_email(db, email)
+    if not user:
+        return None
+    user.password_hash = hash_password(new_password)
+    user.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
 def update_user_preferences(
     db: Session,
     user: User,

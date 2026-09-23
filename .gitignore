@@ -14,6 +14,12 @@ important/__pycache__/
 important/.pytest_cache/
 important/frontend/node_modules/
 important/frontend/dist/
+node_modules/
+**/node_modules/
+**/test-results/
+**/playwright-report/
+important/extension/dist/
+important/extension/scratch_*
 important/data/raw/
 important/data/processed/
 important/scratch/

@@ -1,0 +1,625 @@
+{
+  "en": {
+    "security_engineering": {
+      "concept_summary": "Two-Factor Authentication (2FA) requires providing identity evidence from two distinct authentication categories. Presenting multiple credentials from the same category does not qualify as 2FA.",
+      "analogy": "Like entering a bank vault that requires both a secret combination (Knowledge) and a physical brass key (Possession), not two separate combinations.",
+      "actors": [
+        {
+          "id": "alice",
+          "role": "legitimate_user",
+          "label": "Alice",
+          "description": "Enterprise employee authenticating to internal systems"
+        },
+        {
+          "id": "auth_server",
+          "role": "system",
+          "label": "Identity Server",
+          "description": "Zero-trust IAM authentication gateway"
+        }
+      ],
+      "scenario": {
+        "title": "Two-Factor Authentication: Category Independence Verification",
+        "variants": [
+          {
+            "label": "Without Category Separation (Password + Security Question)",
+            "outcome": "failure",
+            "steps": [
+              {
+                "order": 1,
+                "from": "alice",
+                "to": "auth_server",
+                "action": "Submits primary account password",
+                "payload": "password=••••••••",
+                "annotation": "Factor 1: Something you know",
+                "status": "normal"
+              },
+              {
+                "order": 2,
+                "from": "auth_server",
+                "to": "alice",
+                "action": "Challenges for second verification credential",
+                "payload": "prompt='Favorite pet?'",
+                "annotation": "Verification prompt",
+                "status": "normal"
+              },
+              {
+                "order": 3,
+                "from": "alice",
+                "to": "auth_server",
+                "action": "Submits childhood pet answer",
+                "payload": "answer='Fluffy'",
+                "annotation": "Factor 2: Something you know",
+                "status": "normal"
+              },
+              {
+                "order": 4,
+                "from": "auth_server",
+                "to": "alice",
+                "action": "Rejects session: duplicate knowledge factors",
+                "payload": "401 Unauthorized: Same Category",
+                "annotation": "Rejected: Both are knowledge factors",
+                "status": "blocked"
+              }
+            ]
+          },
+          {
+            "label": "With True 2FA (Password + Hardware Security Key)",
+            "outcome": "success",
+            "steps": [
+              {
+                "order": 1,
+                "from": "alice",
+                "to": "auth_server",
+                "action": "Submits primary account password",
+                "payload": "password=••••••••",
+                "annotation": "Factor 1: Knowledge",
+                "status": "normal"
+              },
+              {
+                "order": 2,
+                "from": "auth_server",
+                "to": "alice",
+                "action": "Dispatches cryptographic challenge nonce",
+                "payload": "nonce=0x7f4e92b",
+                "annotation": "Hardware challenge",
+                "status": "normal"
+              },
+              {
+                "order": 3,
+                "from": "alice",
+                "to": "auth_server",
+                "action": "Signs nonce via physical FIDO2 key touch",
+                "payload": "signature=FIDO2_SIG",
+                "annotation": "Factor 2: Possession",
+                "status": "secure"
+              },
+              {
+                "order": 4,
+                "from": "auth_server",
+                "to": "alice",
+                "action": "Validates distinct categories and issues JWT session",
+                "payload": "200 OK: session_token",
+                "annotation": "Access granted: Knowledge + Possession",
+                "status": "secure"
+              }
+            ]
+          }
+        ]
+      },
+      "code_sample": {
+        "language": "python",
+        "code": "def verify_2fa(user_id, factors_presented):\n    # Factors must span at least 2 distinct categories\n    CATEGORIES = {'KNOWLEDGE', 'POSSESSION', 'INHERENCE'}\n    categories_seen = {f.category for f in factors_presented if f.is_valid()}\n    if len(categories_seen) < 2:\n        raise ValueError('2FA requires at least 2 independent factor categories.')\n    return issue_auth_session(user_id)",
+        "explanation_lines": [
+          { "line": 4, "note": "Gathers validated categories (Knowledge, Possession, Inherence)" },
+          { "line": 5, "note": "Rejects multiple factors from identical category" }
+        ]
+      },
+      "comparison_table": [
+        { "criterion": "Knowledge Factor", "option_a": "Password, PIN, Mother's maiden name", "option_b": "Vulnerable to phishing and credential stuffing" },
+        { "criterion": "Possession Factor", "option_a": "Hardware token, FIDO2 key, TOTP app", "option_b": "Requires physical access or registered device" },
+        { "criterion": "Inherence Factor", "option_a": "Fingerprint, Facial geometry, Retina scan", "option_b": "Bound to physical human biology" }
+      ],
+      "takeaways": [
+        "2FA requires credentials from distinct categories, not two passwords.",
+        "SMS OTP is vulnerable to SIM-swapping; WebAuthn/FIDO2 is phishing-resistant.",
+        "In interviews, emphasize knowledge, possession, and inherence clearly."
+      ],
+      "common_mistakes": [
+        "Confusing 2-step verification (two passwords) with genuine multi-factor authentication.",
+        "Assuming SMS OTP provides equal security to hardware-backed FIDO2 keys.",
+        "Failing to articulate the three foundational authentication categories."
+      ]
+    },
+    "data_engineering": {
+      "concept_summary": "Broadcast Joins eliminate costly network data shuffling by transmitting a small lookup table entirely to all worker nodes executing distributed join queries.",
+      "analogy": "Like handing a printed price cheat-sheet to every cashier rather than forcing all cashiers to walk across the store to read a single central ledger.",
+      "actors": [
+        {
+          "id": "driver",
+          "role": "system",
+          "label": "Spark Driver",
+          "description": "Cluster coordinator planning physical execution DAGs"
+        },
+        {
+          "id": "worker_1",
+          "role": "system",
+          "label": "Worker Node 1",
+          "description": "Compute executor processing partitions 1 & 2"
+        },
+        {
+          "id": "worker_2",
+          "role": "system",
+          "label": "Worker Node 2",
+          "description": "Compute executor processing partitions 3 & 4"
+        }
+      ],
+      "scenario": {
+        "title": "Distributed Join Execution: Shuffled Hash Join vs Broadcast Join",
+        "variants": [
+          {
+            "label": "Naive Shuffled Join (Heavy Network IO)",
+            "outcome": "failure",
+            "steps": [
+              {
+                "order": 1,
+                "from": "worker_1",
+                "to": "worker_2",
+                "action": "Shuffles gigabytes of partition data across physical network",
+                "payload": "hash_partition(id)",
+                "annotation": "High network saturation and shuffle spill",
+                "status": "attack"
+              },
+              {
+                "order": 2,
+                "from": "worker_2",
+                "to": "worker_1",
+                "action": "Reciprocates shuffle partition records",
+                "payload": "shuffle_exchange(id)",
+                "annotation": "Disk serialization bottleneck",
+                "status": "attack"
+              },
+              {
+                "order": 3,
+                "from": "worker_1",
+                "to": "driver",
+                "action": "Reports out-of-memory executor failure from shuffle skew",
+                "payload": "ExecutorLostFailure",
+                "annotation": "Join failed due to partition skew",
+                "status": "blocked"
+              }
+            ]
+          },
+          {
+            "label": "Optimized Broadcast Join (Zero Shuffle)",
+            "outcome": "success",
+            "steps": [
+              {
+                "order": 1,
+                "from": "driver",
+                "to": "worker_1",
+                "action": "Replicates small lookup table into worker memory cache",
+                "payload": "broadcast(dim_table)",
+                "annotation": "One-time broadcast transmission",
+                "status": "secure"
+              },
+              {
+                "order": 2,
+                "from": "driver",
+                "to": "worker_2",
+                "action": "Replicates same lookup table into worker memory cache",
+                "payload": "broadcast(dim_table)",
+                "annotation": "Zero inter-worker shuffle required",
+                "status": "secure"
+              },
+              {
+                "order": 3,
+                "from": "worker_1",
+                "to": "driver",
+                "action": "Completes local in-memory hash join in milliseconds",
+                "payload": "task_completed(rows=1M)",
+                "annotation": "Pure local CPU execution",
+                "status": "secure"
+              }
+            ]
+          }
+        ]
+      },
+      "code_sample": {
+        "language": "python",
+        "code": "from pyspark.sql.functions import broadcast\n\n# Broadcast small dimension table to avoid heavy shuffle\nlarge_events = spark.read.parquet('s3://lake/events/')\nsmall_countries = spark.read.parquet('s3://lake/countries/')\n\njoined_df = large_events.join(\n    broadcast(small_countries),\n    on='country_code',\n    how='inner'\n)",
+        "explanation_lines": [
+          { "line": 7, "note": "Wraps small table with broadcast() hint" },
+          { "line": 8, "note": "Executes local map-side join without network shuffle" }
+        ]
+      },
+      "comparison_table": [
+        { "criterion": "Network Shuffle Overhead", "option_a": "High: O(N) records exchanged over cluster network", "option_b": "Zero: Small table replicated once to executors" },
+        { "criterion": "Driver Memory Impact", "option_a": "Negligible: Driver does not collect table data", "option_b": "High: Driver collects table before broadcast" },
+        { "criterion": "Ideal Table Size", "option_a": "Arbitrary size large datasets", "option_b": "Typically < 100MB (autoBroadcastJoinThreshold)" }
+      ],
+      "takeaways": [
+        "Use broadcast joins when one table comfortably fits in executor RAM.",
+        "Default Spark threshold is 10MB; tune via spark.sql.autoBroadcastJoinThreshold.",
+        "Beware driver OutOfMemory errors if broadcasting tables larger than driver heap."
+      ],
+      "common_mistakes": [
+        "Broadcasting a large table that exhausts driver or executor JVM heap.",
+        "Overlooking data skew in skewed keys where broadcast cannot apply.",
+        "Assuming broadcast join works on full outer joins (outer requires shuffle)."
+      ]
+    },
+    "ai_tech_interview": {
+      "concept_summary": "Retrieval-Augmented Generation (RAG) grounds LLM outputs in verified external enterprise data by embedding documents, performing vector similarity search, and injecting top matches into the prompt context.",
+      "analogy": "Like taking an open-book exam where you look up exact textbook passages before writing an answer, rather than trying to guess from distant memory.",
+      "actors": [
+        {
+          "id": "alice",
+          "role": "legitimate_user",
+          "label": "Candidate / User",
+          "description": "Queries enterprise knowledge assistant"
+        },
+        {
+          "id": "rag_server",
+          "role": "system",
+          "label": "RAG Pipeline",
+          "description": "Embedding orchestrator and vector retriever"
+        },
+        {
+          "id": "llm",
+          "role": "system",
+          "label": "Generative LLM",
+          "description": "Contextual reasoning and answer synthesizer"
+        }
+      ],
+      "scenario": {
+        "title": "Knowledge Retrieval: Pure Hallucination vs Grounded RAG",
+        "variants": [
+          {
+            "label": "Without RAG (Parametric Memory Only)",
+            "outcome": "failure",
+            "steps": [
+              {
+                "order": 1,
+                "from": "alice",
+                "to": "llm",
+                "action": "Asks question about internal company vacation policy",
+                "payload": "prompt='How many rollover days in 2026?'",
+                "annotation": "Private policy unknown to training set",
+                "status": "normal"
+              },
+              {
+                "order": 2,
+                "from": "llm",
+                "to": "alice",
+                "action": "Hallucinates plausible yet completely fabricated policy numbers",
+                "payload": "response='You have 15 rollover days.'",
+                "annotation": "Hallucination: Confidence without evidence",
+                "status": "attack"
+              }
+            ]
+          },
+          {
+            "label": "With Grounded RAG (Vector Search + Citations)",
+            "outcome": "success",
+            "steps": [
+              {
+                "order": 1,
+                "from": "alice",
+                "to": "rag_server",
+                "action": "Submits query to enterprise assistant",
+                "payload": "query='2026 vacation rollover policy'",
+                "annotation": "Input query",
+                "status": "normal"
+              },
+              {
+                "order": 2,
+                "from": "rag_server",
+                "to": "llm",
+                "action": "Retrieves top-k policy chunks and constructs augmented prompt",
+                "payload": "prompt=[Context: handbook.pdf] + query",
+                "annotation": "Verified context injection",
+                "status": "secure"
+              },
+              {
+                "order": 3,
+                "from": "llm",
+                "to": "alice",
+                "action": "Generates factual response with direct document citation",
+                "payload": "response='5 rollover days (Handbook p.14)'",
+                "annotation": "Grounded answer with audit trail",
+                "status": "secure"
+              }
+            ]
+          }
+        ]
+      },
+      "code_sample": {
+        "language": "python",
+        "code": "def rag_query(user_query, vector_store, llm_client):\n    # 1. Retrieve relevant verified context chunks\n    relevant_chunks = vector_store.similarity_search(user_query, k=3)\n    context_text = '\\n\\n'.join([c.page_content for c in relevant_chunks])\n    \n    # 2. Augment prompt with grounded context\n    prompt = f'Use the following context to answer:\\n{context_text}\\n\\nQuery: {user_query}'\n    return llm_client.generate(prompt=prompt)",
+        "explanation_lines": [
+          { "line": 3, "note": "Performs top-k vector cosine similarity search" },
+          { "line": 6, "note": "Injects verified context into strict prompt template" }
+        ]
+      },
+      "comparison_table": [
+        { "criterion": "Knowledge Freshness", "option_a": "Fine-Tuning: Frozen at model training cut-off date", "option_b": "RAG: Real-time updates by updating vector database" },
+        { "criterion": "Fact Traceability", "option_a": "Fine-Tuning: Black-box neural weights without citations", "option_b": "RAG: Direct chunk citations and page references" },
+        { "criterion": "Implementation Cost", "option_a": "Fine-Tuning: High GPU compute and data curation costs", "option_b": "RAG: Lightweight embedding and vector index storage" }
+      ],
+      "takeaways": [
+        "RAG solves LLM hallucination and training cutoff limitations without model retraining.",
+        "Chunking strategy and embedding model choice heavily dictate retrieval quality.",
+        "Use hybrid search (BM25 lexical + dense vectors) for production domain accuracy."
+      ],
+      "common_mistakes": [
+        "Using RAG when the problem requires teaching the model new reasoning or style.",
+        "Ignoring chunk boundary fragmentation that cuts off critical sentence context.",
+        "Failing to implement reranking (e.g. Cohere rerank) after initial vector retrieval."
+      ]
+    }
+  },
+  "fr": {
+    "security_engineering": {
+      "concept_summary": "L'authentification à deux facteurs (2FA) exige des preuves d'identité issues de deux catégories distinctes. Présenter deux éléments d'une même catégorie ne constitue pas un 2FA.",
+      "analogy": "Comme ouvrir un coffre-fort nécessitant à la fois une combinaison secrète (Connaissance) et une clé physique (Possession), et non deux combinaisons successives.",
+      "actors": [
+        {
+          "id": "alice",
+          "role": "legitimate_user",
+          "label": "Alice",
+          "description": "Collaboratrice accédant au portail d'entreprise"
+        },
+        {
+          "id": "auth_server",
+          "role": "system",
+          "label": "Serveur d'Identité",
+          "description": "Passerelle IAM Zero-Trust"
+        }
+      ],
+      "scenario": {
+        "title": "Authentification 2FA: Vérification de l'Indépendance des Facteurs",
+        "variants": [
+          {
+            "label": "Sans Séparation de Catégorie (Mot de passe + Question secrète)",
+            "outcome": "failure",
+            "steps": [
+              {
+                "order": 1,
+                "from": "alice",
+                "to": "auth_server",
+                "action": "Envoie le mot de passe principal",
+                "payload": "password=••••••••",
+                "annotation": "Facteur 1: Ce que vous savez",
+                "status": "normal"
+              },
+              {
+                "order": 2,
+                "from": "auth_server",
+                "to": "alice",
+                "action": "Demande la réponse à la question de sécurité",
+                "payload": "prompt='Nom animal?'",
+                "annotation": "Défi de vérification",
+                "status": "normal"
+              },
+              {
+                "order": 3,
+                "from": "alice",
+                "to": "auth_server",
+                "action": "Fournit le nom de son animal d'enfance",
+                "payload": "answer='Fluffy'",
+                "annotation": "Facteur 2: Ce que vous savez",
+                "status": "normal"
+              },
+              {
+                "order": 4,
+                "from": "auth_server",
+                "to": "alice",
+                "action": "Refuse la session: deux facteurs de même catégorie",
+                "payload": "401 Non autorisé: Même catégorie",
+                "annotation": "Rejeté: Deux facteurs de connaissance",
+                "status": "blocked"
+              }
+            ]
+          },
+          {
+            "label": "Avec 2FA Authentique (Mot de passe + Clé physique FIDO2)",
+            "outcome": "success",
+            "steps": [
+              {
+                "order": 1,
+                "from": "alice",
+                "to": "auth_server",
+                "action": "Envoie le mot de passe du compte",
+                "payload": "password=••••••••",
+                "annotation": "Facteur 1: Connaissance",
+                "status": "normal"
+              },
+              {
+                "order": 2,
+                "from": "auth_server",
+                "to": "alice",
+                "action": "Envoie un défi cryptographique",
+                "payload": "nonce=0x7f4e92b",
+                "annotation": "Défi matériel",
+                "status": "normal"
+              },
+              {
+                "order": 3,
+                "from": "alice",
+                "to": "auth_server",
+                "action": "Signe le défi en touchant sa clé FIDO2",
+                "payload": "signature=FIDO2_SIG",
+                "annotation": "Facteur 2: Possession",
+                "status": "secure"
+              },
+              {
+                "order": 4,
+                "from": "auth_server",
+                "to": "alice",
+                "action": "Valide les deux catégories distinctes et émet le jeton JWT",
+                "payload": "200 OK: session_token",
+                "annotation": "Accès accordé: Connaissance + Possession",
+                "status": "secure"
+              }
+            ]
+          }
+        ]
+      },
+      "code_sample": {
+        "language": "python",
+        "code": "def verify_2fa(user_id, factors_presented):\n    # Vérifie que les facteurs couvrent 2 catégories distinctes\n    categories_seen = {f.category for f in factors_presented if f.is_valid()}\n    if len(categories_seen) < 2:\n        raise ValueError('Le 2FA requiert au moins 2 catégories distinctes.')\n    return issue_auth_session(user_id)",
+        "explanation_lines": [
+          { "line": 3, "note": "Collecte les catégories valides (Connaissance, Possession, Inhérence)" },
+          { "line": 4, "note": "Rejette si les deux facteurs appartiennent à la même catégorie" }
+        ]
+      },
+      "comparison_table": [
+        { "criterion": "Facteur de Connaissance", "option_a": "Mot de passe, code PIN, question secrète", "option_b": "Vulnérable au phishing et à l'ingénierie sociale" },
+        { "criterion": "Facteur de Possession", "option_a": "Clé FIDO2, badge physique, application TOTP", "option_b": "Exige un accès direct à un équipement physique" },
+        { "criterion": "Facteur d'Inhérence", "option_a": "Empreinte digitale, reconnaissance faciale", "option_b": "Inhérent aux caractéristiques biologiques de l'individu" }
+      ],
+      "takeaways": [
+        "Le 2FA exige des catégories distinctes, pas deux mots de passe successifs.",
+        "Les SMS OTP sont sensibles au SIM-swapping; préférez WebAuthn/FIDO2.",
+        "En entretien, structurez toujours votre réponse autour des 3 piliers d'authentification."
+      ],
+      "common_mistakes": [
+        "Confondre vérification en deux étapes et authentification multi-facteurs authentique.",
+        "Considérer le SMS OTP comme équivalent à une clé physique FIDO2.",
+        "Oublier de nommer les trois catégories: Connaissance, Possession, Inhérence."
+      ]
+    }
+  },
+  "de": {
+    "security_engineering": {
+      "concept_summary": "Zwei-Faktor-Authentifizierung (2FA) erfordert Identitätsnachweise aus zwei voneinander unabhängigen Kategorien. Mehrere Faktoren aus derselben Kategorie genügen nicht.",
+      "analogy": "Wie eine Tresortür, die sowohl eine Zahlenkombination (Wissen) als auch einen physischen Schlüssel (Besitz) erfordert, nicht zwei getrennte Zahlenfolgen.",
+      "actors": [
+        {
+          "id": "alice",
+          "role": "legitimate_user",
+          "label": "Alice",
+          "description": "Unternehmensmitarbeiterin beim Login"
+        },
+        {
+          "id": "auth_server",
+          "role": "system",
+          "label": "Authentifizierungsserver",
+          "description": "Zero-Trust Identitätsprüfungsdienst"
+        }
+      ],
+      "scenario": {
+        "title": "2FA: Überprüfung der Kategoriendifferenzierung",
+        "variants": [
+          {
+            "label": "Ohne Kategorientrennung (Passwort + Sicherheitsfrage)",
+            "outcome": "failure",
+            "steps": [
+              {
+                "order": 1,
+                "from": "alice",
+                "to": "auth_server",
+                "action": "Sendet primäres Benutzerpasswort",
+                "payload": "password=••••••••",
+                "annotation": "Faktor 1: Wissen",
+                "status": "normal"
+              },
+              {
+                "order": 2,
+                "from": "auth_server",
+                "to": "alice",
+                "action": "Fordert Beantwortung einer Sicherheitsfrage an",
+                "payload": "prompt='Haustiername?'",
+                "annotation": "Verifizierungsanfrage",
+                "status": "normal"
+              },
+              {
+                "order": 3,
+                "from": "alice",
+                "to": "auth_server",
+                "action": "Sendet Namen des Haustiers",
+                "payload": "answer='Fluffy'",
+                "annotation": "Faktor 2: Wissen",
+                "status": "normal"
+              },
+              {
+                "order": 4,
+                "from": "auth_server",
+                "to": "alice",
+                "action": "Verweigert Zugriff: zwei Faktoren derselben Kategorie",
+                "payload": "401 Unauthorized: Gleiche Kategorie",
+                "annotation": "Abgelehnt: Beides Wissensfaktoren",
+                "status": "blocked"
+              }
+            ]
+          },
+          {
+            "label": "Mit echtem 2FA (Passwort + Hardware-Sicherheitsschlüssel)",
+            "outcome": "success",
+            "steps": [
+              {
+                "order": 1,
+                "from": "alice",
+                "to": "auth_server",
+                "action": "Sendet Benutzerpasswort",
+                "payload": "password=••••••••",
+                "annotation": "Faktor 1: Wissen",
+                "status": "normal"
+              },
+              {
+                "order": 2,
+                "from": "auth_server",
+                "to": "alice",
+                "action": "Übermittelt kryptografische Challenge-Nonce",
+                "payload": "nonce=0x7f4e92b",
+                "annotation": "Hardware-Prüfung",
+                "status": "normal"
+              },
+              {
+                "order": 3,
+                "from": "alice",
+                "to": "auth_server",
+                "action": "Signiert Challenge durch Berühren des FIDO2-Tokens",
+                "payload": "signature=FIDO2_SIG",
+                "annotation": "Faktor 2: Besitz",
+                "status": "secure"
+              },
+              {
+                "order": 4,
+                "from": "auth_server",
+                "to": "alice",
+                "action": "Bestätigt zwei unabhängige Faktoren und erteilt Sitzungstoken",
+                "payload": "200 OK: session_token",
+                "annotation": "Zugriff gewährt: Wissen + Besitz",
+                "status": "secure"
+              }
+            ]
+          }
+        ]
+      },
+      "code_sample": {
+        "language": "python",
+        "code": "def verify_2fa(user_id, factors_presented):\n    # Prüft, ob Faktoren mindestens zwei unabhängige Kategorien abdecken\n    categories_seen = {f.category for f in factors_presented if f.is_valid()}\n    if len(categories_seen) < 2:\n        raise ValueError('2FA erfordert mindestens zwei getrennte Faktorkategorien.')\n    return issue_auth_session(user_id)",
+        "explanation_lines": [
+          { "line": 3, "note": "Sammelt valide Kategorien (Wissen, Besitz, Inhärenz)" },
+          { "line": 4, "note": "Verwirft doppelte Faktoren derselben Kategorie" }
+        ]
+      },
+      "comparison_table": [
+        { "criterion": "Wissensfaktor", "option_a": "Passwort, PIN, Sicherheitsfrage", "option_b": "Anfällig für Phishing und Ausspähung" },
+        { "criterion": "Besitzfaktor", "option_a": "FIDO2-Key, Smartcard, TOTP-App", "option_b": "Erfordert physische Kontrolle über das Gerät" },
+        { "criterion": "Inhärenzfaktor", "option_a": "Fingerabdruck, Iris-Scan, Gesichtserkennung", "option_b": "An biologische Merkmale gebunden" }
+      ],
+      "takeaways": [
+        "2FA verlangt unterschiedliche Kategorien, nicht lediglich zwei Passwörter.",
+        "SMS-OTP ist durch SIM-Swapping angreifbar; FIDO2 bietet Phishing-Resistenz.",
+        "Im Vorstellungsgespräch die drei Kernkategorien Wissen, Besitz und Inhärenz nennen."
+      ],
+      "common_mistakes": [
+        "Zwei-Schritt-Verifizierung mit echter Zwei-Faktor-Authentifizierung verwechseln.",
+        "SMS-Nachrichten die gleiche Sicherheit wie FIDO2-Hardwaretokens zuschreiben.",
+        "Die drei Authentifizierungskategorien im Gespräch nicht präzise trennen."
+      ]
+    }
+  }
+}

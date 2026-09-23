@@ -28,6 +28,16 @@ export interface ScrapeTarget {
   robots_txt_checked_at: string | null;
 }
 
+export interface ResumeEditSuggestionItem {
+  section: string;
+  original_text?: string | null;
+  suggested_text: string;
+  rationale: string;
+  target_location?: string | null;
+  grounded: boolean;
+  warning?: string | null;
+}
+
 export interface Job {
   id: number;
   company_id: number;
@@ -52,6 +62,7 @@ export interface Job {
   match_score?: number | null;
   company_name?: string | null;
   country_name?: string | null;
+  resume_suggestions?: ResumeEditSuggestionItem[] | { suggestions: ResumeEditSuggestionItem[] } | any;
 }
 
 export interface JobDetail extends Job {
@@ -225,11 +236,59 @@ export interface StructuredResumeItem {
   is_default: boolean;
   target_job_id: number | null;
   source_resume_id: number | null;
+  is_original_upload?: boolean;
   structured_data: StructuredResumeData;
   settings: ResumeSettings;
   created_at: string;
   updated_at: string;
 }
+
+export interface RenderResumePreviewResponse {
+  pages: string[];
+  page_count: number;
+  engine: string;
+  theme: string;
+}
+
+export interface ATSCategoryScore {
+  category: 'parseability' | 'keywords' | 'sections' | 'impact' | 'formatting' | 'contact' | string;
+  name: string;
+  score: number;
+  max_score: number;
+  status: 'pass' | 'warning' | 'critical';
+  notes: string;
+}
+
+export interface ATSFeedbackItem {
+  id: string;
+  category: string;
+  severity: 'critical' | 'warning' | 'tip' | 'pass';
+  title: string;
+  message: string;
+  recommendation: string;
+  grounded_quote?: string | null;
+}
+
+export interface ATSCheckResult {
+  overall_score: number;
+  verdict: 'Strong Match' | 'Competitive' | 'Needs Optimization' | 'High ATS Rejection Risk' | string;
+  categories: ATSCategoryScore[];
+  feedback: ATSFeedbackItem[];
+  keywords_found: string[];
+  keywords_missing: string[];
+  recommended_action_verbs: string[];
+  provider: 'ollama' | 'deterministic' | string;
+  model?: string | null;
+}
+
+export interface ResumeATSCheckPayload {
+  target_role?: string;
+  target_field?: string;
+  job_id?: number;
+  structured_data?: StructuredResumeData;
+  raw_text?: string;
+}
+
 
 export interface ResumeTailorSuggestionSummary {
   original: string;
@@ -321,6 +380,7 @@ export interface ApplicationItem {
   effective_job_url?: string | null;
   job?: Job | null;
   history?: ApplicationHistoryItem[];
+  resume_suggestions?: ResumeEditSuggestionItem[] | { suggestions: ResumeEditSuggestionItem[] } | any;
 }
 
 export interface ManualApplicationPayload {
@@ -556,6 +616,12 @@ export const api = {
     }),
 
   getMe: () => request<UserProfile>('/auth/me'),
+
+  resetPassword: (email: string, new_password: string) =>
+    request<AuthResponse>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ email, new_password }),
+    }),
 
   // Profile
   getProfile: () => request<UserProfile>('/profile'),
@@ -846,6 +912,11 @@ export const api = {
       method: 'POST',
     }),
 
+  refreshJobResumeSuggestions: (jobId: number) =>
+    request<JobDetail>(`/jobs/${jobId}/resume-suggestions?refresh=true`, {
+      method: 'PUT',
+    }),
+
   recreateResume: (jobId: number) =>
     request<CustomizedResumeItem>(`/jobs/${jobId}/resume-customizations/recreate`, {
       method: 'POST',
@@ -924,6 +995,11 @@ export const api = {
       body: JSON.stringify({ new_title: newTitle }),
     }),
 
+  createStudioCopy: (resumeId: number) =>
+    request<StructuredResumeItem>(`/resumes/${resumeId}/create-studio-copy`, {
+      method: 'POST',
+    }),
+
   deleteStructuredResume: (resumeId: number) =>
     request<{ status: string; id: number }>(`/resumes/${resumeId}`, {
       method: 'DELETE',
@@ -942,6 +1018,24 @@ export const api = {
   importProfileToStructuredResume: (resumeId: number) =>
     request<StructuredResumeItem>(`/resumes/${resumeId}/import-profile`, {
       method: 'POST',
+    }),
+
+  renderStructuredResumePreview: (
+    resumeId: number,
+    data?: {
+      structured_data?: StructuredResumeData;
+      settings?: ResumeSettings;
+    }
+  ) =>
+    request<RenderResumePreviewResponse>(`/resumes/${resumeId}/render-preview`, {
+      method: 'POST',
+      body: JSON.stringify(data || {}),
+    }),
+
+  runResumeATSCheck: (resumeId: number, payload?: ResumeATSCheckPayload) =>
+    request<ATSCheckResult>(`/resumes/${resumeId}/ats-check`, {
+      method: 'POST',
+      body: JSON.stringify(payload || {}),
     }),
 
   getStructuredResumeExportUrl: (resumeId: number, format: 'pdf' | 'docx') => {
@@ -1021,10 +1115,38 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
+  explainScraperDiagnostic: (report: any) =>
+    request<ScraperExplainResponse>('/admin/scraper/explain', {
+      method: 'POST',
+      body: JSON.stringify({ report }),
+    }),
+
+  applyScraperDecision: (data: ScraperDecisionRequest) =>
+    request<ScraperDecisionResponse>('/admin/scraper/apply-decision', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
   searchInternships: (params: InternshipSearchParams) =>
     request<InternshipSearchResponse>('/internships/search', {
       method: 'POST',
       body: JSON.stringify(params),
+    }),
+
+  getCuratedGitHubInternships: (params: GitHubInternshipsParams = {}) => {
+    const q = new URLSearchParams();
+    if (params.repo_id) q.set('repo_id', params.repo_id);
+    if (params.visa_status) q.set('visa_status', params.visa_status);
+    if (params.category) q.set('category', params.category);
+    if (params.search) q.set('search', params.search);
+    if (params.open_only !== undefined) q.set('open_only', params.open_only.toString());
+    const queryStr = q.toString() ? `?${q.toString()}` : '';
+    return request<GitHubInternshipsResponse>(`/internships/github-repos${queryStr}`);
+  },
+
+  syncCuratedGitHubInternships: () =>
+    request<GitHubInternshipsResponse>('/internships/github-repos/sync', {
+      method: 'POST',
     }),
 
   // Job-Specific Resume & Career Assistant
@@ -1102,13 +1224,23 @@ export const api = {
     domainId: string,
     slug: string,
     mode: string = 'simplify',
-    userDraftAnswer?: string
+    userDraftAnswer?: string,
+    language: string = 'en'
   ) =>
     request<QuestionAIExplainResponse>(
       `/interview-prep/questions/${encodeURIComponent(domainId)}/${encodeURIComponent(slug)}/ai-explain`,
       {
         method: 'POST',
-        body: JSON.stringify({ mode, user_draft_answer: userDraftAnswer }),
+        body: JSON.stringify({ mode, user_draft_answer: userDraftAnswer, language }),
+      }
+    ),
+
+  evaluateSTARDraft: (payload: STAREvaluationRequest) =>
+    request<STAREvaluationResponse>(
+      '/interview-prep/evaluate-star',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
       }
     ),
 };
@@ -1196,6 +1328,7 @@ export interface ResumeItem {
   filename: string;
   parsed_sections?: ResumeSections | null;
   is_active: boolean;
+  is_original_upload?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -1288,7 +1421,46 @@ export interface ScraperDiagnosticResponse {
   failure_reason?: string | null;
   detected_result_count?: number | null;
   pages_crawled?: number;
+  total_jobs_detected?: number;
+  rejection_reasons?: Record<string, number>;
+  rejected_items?: Array<{
+    title?: string;
+    url?: string;
+    reason?: string;
+    company?: string;
+    location?: string;
+    [key: string]: any;
+  }>;
+  max_pages?: number;
+  stop_reason?: string;
+  content_signal_count?: number;
+  discrepancy_detected?: boolean;
+  discrepancy_details?: string | null;
+  explanation?: any;
+  suggested_action?: string | null;
 }
+
+export interface ScraperExplainResponse {
+  summary: string;
+  reasons_breakdown: Record<string, string>;
+  discrepancy_explanation: string | null;
+  recommendations: string[];
+  provider: string;
+}
+
+export interface ScraperDecisionRequest {
+  target_url: string;
+  decision: 'keep_accepted' | 'force_integrate_all' | string;
+  rejected_items?: Array<Record<string, any>>;
+}
+
+export interface ScraperDecisionResponse {
+  status: string;
+  action: string;
+  integrated_count: number;
+  message: string;
+}
+
 
 export interface InternshipOpportunity {
   id: string;
@@ -1334,6 +1506,76 @@ export interface InternshipSearchParams {
   country?: string | null;
   year?: number | string | null;
   max_results?: number;
+}
+
+export type GitHubVisaStatus =
+  | 'sponsors_visa'
+  | 'no_sponsorship'
+  | 'us_citizen_only'
+  | 'canada_authorized'
+  | 'not_specified'
+  | 'closed';
+
+export interface GitHubInternshipItem {
+  id: string;
+  company: string;
+  company_domain?: string | null;
+  logo_url?: string | null;
+  role: string;
+  location: string;
+  country?: string | null;
+  category: string;
+  season: string;
+  source_repo_id: string;
+  source_repo_name: string;
+  source_repo_url: string;
+  apply_url: string;
+  date_posted?: string | null;
+  visa_status: GitHubVisaStatus;
+  visa_text: string;
+  is_closed: boolean;
+  notes?: string | null;
+}
+
+export interface GitHubRepoMeta {
+  id: string;
+  name: string;
+  url: string;
+  raw_url: string;
+  region: string;
+  year: string;
+  description: string;
+  item_count: number;
+}
+
+export interface GitHubInternshipStats {
+  total_listings: number;
+  active_listings: number;
+  closed_listings: number;
+  visa_sponsored_count: number;
+  no_sponsorship_count: number;
+  us_citizens_count: number;
+  canada_authorized_count: number;
+  not_specified_count: number;
+  repos_count: number;
+  last_synced_at?: string | null;
+  by_repo: Record<string, number>;
+  by_category: Record<string, number>;
+}
+
+export interface GitHubInternshipsResponse {
+  items: GitHubInternshipItem[];
+  stats: GitHubInternshipStats;
+  repositories: GitHubRepoMeta[];
+  categories: string[];
+}
+
+export interface GitHubInternshipsParams {
+  repo_id?: string | null;
+  visa_status?: string | null;
+  category?: string | null;
+  search?: string | null;
+  open_only?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -1622,6 +1864,90 @@ export interface InterviewQuestionDetail {
   next_question?: { id: string; title: string; slug: string } | null;
 }
 
+export interface Actor {
+  id: string;
+  role: 'legitimate_user' | 'attacker' | 'system' | 'database' | 'client' | string;
+  label: string;
+  description: string;
+}
+
+export interface ScenarioStep {
+  order: number;
+  from?: string;
+  from_actor?: string;
+  to?: string;
+  to_actor?: string;
+  action: string;
+  payload?: string | null;
+  annotation?: string | null;
+  status?: 'normal' | 'attack' | 'blocked' | 'secure' | string;
+}
+
+export interface ScenarioVariant {
+  label: string;
+  outcome: 'failure' | 'success' | 'partial' | string;
+  steps: ScenarioStep[];
+}
+
+export interface Scenario {
+  title: string;
+  variants: ScenarioVariant[];
+}
+
+export interface CodeExplanationLine {
+  line: number;
+  note: string;
+}
+
+export interface CodeSample {
+  language: string;
+  code: string;
+  explanation_lines: CodeExplanationLine[];
+}
+
+export interface ComparisonRow {
+  criterion: string;
+  option_a: string;
+  option_b: string;
+}
+
+export interface StructuredAIExplanationPayload {
+  concept_summary: string;
+  analogy: string;
+  actors: Actor[];
+  scenario: Scenario;
+  code_sample?: CodeSample | null;
+  comparison_table: ComparisonRow[];
+  takeaways: string[];
+  common_mistakes: string[];
+}
+
+export interface STAREvaluationRequest {
+  draft_answer: string;
+  question_title?: string;
+  language?: string;
+}
+
+export interface STAREvaluationResponse {
+  star_coverage: {
+    situation: boolean;
+    task: boolean;
+    action: boolean;
+    result: boolean;
+  };
+  action_proportion_estimate: number;
+  quantified_metrics_score: number;
+  metrics_detected: string[];
+  ownership_ratio: {
+    i_count: number;
+    we_count: number;
+    i_percentage: number;
+  };
+  strengths: string[];
+  missing_elements: string[];
+  recommendations: string[];
+}
+
 export interface QuestionAIExplainResponse {
   question_id: string;
   mode: string;
@@ -1629,9 +1955,11 @@ export interface QuestionAIExplainResponse {
   real_world_scenario?: string | null;
   code_sample?: string | null;
   key_interview_takeaways?: string[];
+  structured_payload?: StructuredAIExplanationPayload | null;
   ai_model_used: string;
   is_ai_generated: boolean;
   disclaimer: string;
 }
+
 
 

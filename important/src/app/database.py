@@ -12,7 +12,7 @@ logger = logging.getLogger("compust.database")
 settings = get_settings()
 
 
-def _is_mysql_reachable(url: str) -> bool:
+def _is_mysql_reachable(url: str, retries: int = 2, timeout: float = 2.0) -> bool:
     """Quick pre-flight TCP check if the configured database host/port is accepting connections."""
     try:
         if "@" in url:
@@ -28,8 +28,12 @@ def _is_mysql_reachable(url: str) -> bool:
             elif host_port:
                 host = host_port
 
-            with socket.create_connection((host, port), timeout=1.0):
-                return True
+            for _ in range(retries):
+                try:
+                    with socket.create_connection((host, port), timeout=timeout):
+                        return True
+                except Exception:
+                    pass
     except Exception:
         return False
     return False
@@ -75,8 +79,24 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 def init_database_schema():
     """Initializes all database tables from declarative models if they do not exist."""
     try:
+        from sqlalchemy import text
         from .models import Base
         Base.metadata.create_all(bind=engine)
+
+        with engine.begin() as conn:
+            try:
+                conn.execute(text("ALTER TABLE jobs ADD COLUMN resume_suggestions JSON"))
+            except Exception:
+                pass
+            try:
+                conn.execute(text("ALTER TABLE user_applications ADD COLUMN resume_suggestions JSON"))
+            except Exception:
+                pass
+            try:
+                conn.execute(text("ALTER TABLE resumes ADD COLUMN is_original_upload BOOLEAN DEFAULT 0"))
+            except Exception:
+                pass
+
         logger.info("Database schema verified and initialized.")
     except Exception as exc:
         logger.error(f"Error initializing database schema: {exc}")

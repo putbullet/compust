@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "node --max-old-space-size=4096 ./node_modules/typescript/bin/tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview"
   },

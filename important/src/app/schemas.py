@@ -1,6 +1,7 @@
 from datetime import datetime
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CountryRead(BaseModel):
@@ -111,6 +112,7 @@ class JobRead(BaseModel):
     match_score: int | None = None
     company_name: str | None = None
     country_name: str | None = None
+    resume_suggestions: Any | None = None
 
 
 class JobDetailRead(JobRead):
@@ -194,3 +196,86 @@ class HealthRead(BaseModel):
     status: str
     database: str
     latency_ms: float | None = None
+
+
+class JobQuickAddRequest(BaseModel):
+    title: str = Field(..., min_length=1, max_length=500)
+    company: str = Field(..., min_length=1, max_length=255)
+    url: str = Field(..., min_length=1, max_length=1000)
+    location: str | None = None
+    description: str | None = None
+    employment_type: str | None = None
+    remote_type: str | None = None
+    source: str = "extension:generic"
+    resume_suggestions: Any | None = None
+    application_status: str | None = None  # None | "saved" | "applied"
+    notes: str | None = None
+
+
+class JobQuickAddResponse(BaseModel):
+    job_id: int
+    title: str
+    company: str
+    location: str | None = None
+    url: str
+    dedup_status: str  # "created" | "existing"
+    is_duplicate: bool
+    resume_suggestions: Any | None = None
+    application_id: int | None = None
+    application_status: str | None = None
+
+
+class JobQuickAddAndAnalyzeResponse(BaseModel):
+    job: JobQuickAddResponse
+    dedup_status: str
+    is_duplicate: bool
+    has_active_resume: bool
+    message: str | None = None
+    match_analysis: dict[str, Any] | None = None
+    score_breakdown: dict[str, Any] | None = None
+
+
+class JobEphemeralAnalyzeRequest(BaseModel):
+    title: str = Field(..., min_length=1, max_length=500)
+    company: str = Field(..., min_length=1, max_length=255)
+    url: str = Field(..., min_length=1, max_length=1000)
+    location: str | None = None
+    description: str | None = None
+    employment_type: str | None = None
+    remote_type: str | None = None
+    source: str = "extension"
+
+
+class JobEphemeralAnalyzeResponse(BaseModel):
+    title: str
+    company: str
+    location: str | None = None
+    url: str
+    has_active_resume: bool
+    message: str | None = None
+    match_score: int | None = None
+    positive_factors: list[str] = Field(default_factory=list)
+    missing_factors: list[str] = Field(default_factory=list)
+    demonstrated_skills: list[str] = Field(default_factory=list)
+    missing_skills: list[str] = Field(default_factory=list)
+    resume_suggestions: list[dict[str, Any]] = Field(default_factory=list)
+    visa_analysis: dict[str, Any] | None = None
+    content_hash: str
+
+
+class GenericExtractRequest(BaseModel):
+    html: str = Field(..., min_length=10)
+    url: str = Field(..., min_length=1)
+
+
+class GenericExtractResponse(BaseModel):
+    title: str | None = None
+    company: str | None = None
+    location: str | None = None
+    description: str | None = None
+    employment_type: str | None = None
+    remote_type: str | None = None
+    confidence: str  # "high" | "medium" | "low"
+    normalized_title: str | None = None
+    message: str | None = None
+

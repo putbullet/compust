@@ -1,0 +1,141 @@
+{
+  "manifest_version": 3,
+  "name": "Compust Capture",
+  "version": "1.0.0",
+  "description": "Capture job postings from LinkedIn, Indeed, and Glassdoor directly into your local Compust career tracker with instant resume match analysis.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "compust-capture@compust.ma",
+      "strict_min_version": "140.0",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
+    },
+    "gecko_android": {
+      "strict_min_version": "142.0"
+    }
+  },
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "contextMenus"
+  ],
+  "host_permissions": [
+    "*://*.linkedin.com/jobs/*",
+    "*://linkedin.com/jobs/*",
+    "*://*.linkedin.com/jobs/view*",
+    "*://linkedin.com/jobs/view*",
+    "*://*.linkedin.com/jobs/collections*",
+    "*://linkedin.com/jobs/collections*",
+    "*://*.linkedin.com/jobs/search*",
+    "*://linkedin.com/jobs/search*",
+    "*://*.linkedin.com/jobs/search-results*",
+    "*://linkedin.com/jobs/search-results*",
+    "*://*.indeed.com/viewjob*",
+    "*://indeed.com/viewjob*",
+    "*://*.indeed.com/jobs*",
+    "*://indeed.com/jobs*",
+    "*://*.indeed.com/job/*",
+    "*://indeed.com/job/*",
+    "*://*.glassdoor.com/Job/*",
+    "*://glassdoor.com/Job/*",
+    "*://*.glassdoor.com/job/*",
+    "*://glassdoor.com/job/*",
+    "*://*.glassdoor.com/job-listing/*",
+    "*://glassdoor.com/job-listing/*",
+    "*://*.glassdoor.com/job-listing*",
+    "*://glassdoor.com/job-listing*",
+    "*://*.welcometothejungle.com/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
+  "background": {
+    "scripts": ["src/background/index.js"]
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.linkedin.com/jobs/*",
+        "*://linkedin.com/jobs/*",
+        "*://*.linkedin.com/jobs",
+        "*://linkedin.com/jobs",
+        "*://*.linkedin.com/jobs/view*",
+        "*://linkedin.com/jobs/view*",
+        "*://*.linkedin.com/jobs/collections*",
+        "*://linkedin.com/jobs/collections*",
+        "*://*.linkedin.com/jobs/search*",
+        "*://linkedin.com/jobs/search*",
+        "*://*.linkedin.com/jobs/search-results*",
+        "*://linkedin.com/jobs/search-results*"
+      ],
+      "js": ["src/content/linkedin.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "*://*.indeed.com/viewjob*",
+        "*://indeed.com/viewjob*",
+        "*://*.indeed.com/jobs*",
+        "*://indeed.com/jobs*",
+        "*://*.indeed.com/job/*",
+        "*://indeed.com/job/*"
+      ],
+      "js": ["src/content/indeed.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "*://*.glassdoor.com/Job/*",
+        "*://glassdoor.com/Job/*",
+        "*://*.glassdoor.com/job/*",
+        "*://glassdoor.com/job/*",
+        "*://*.glassdoor.com/job-listing/*",
+        "*://glassdoor.com/job-listing/*",
+        "*://*.glassdoor.com/job-listing*",
+        "*://glassdoor.com/job-listing*"
+      ],
+      "js": ["src/content/glassdoor.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "*://*.welcometothejungle.com/*/companies/*/jobs/*",
+        "*://welcometothejungle.com/*/companies/*/jobs/*",
+        "*://*.welcometothejungle.com/companies/*/jobs/*",
+        "*://welcometothejungle.com/companies/*/jobs/*"
+      ],
+      "js": ["src/content/welcomeToTheJungle.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "src/popup/index.html",
+    "default_icon": {
+      "16": "assets/icons/icon-16.png",
+      "32": "assets/icons/icon-32.png",
+      "48": "assets/icons/icon-48.png",
+      "128": "assets/icons/icon-128.png"
+    },
+    "default_title": "Compust Capture"
+  },
+  "commands": {
+    "toggle-capture": {
+      "suggested_key": {
+        "default": "Alt+Shift+C",
+        "mac": "Alt+Shift+C"
+      },
+      "description": "Toggle Compust Capture on active page"
+    }
+  },
+  "options_ui": {
+    "page": "src/options/index.html",
+    "open_in_tab": true
+  },
+  "icons": {
+    "16": "assets/icons/icon-16.png",
+    "32": "assets/icons/icon-32.png",
+    "48": "assets/icons/icon-48.png",
+    "128": "assets/icons/icon-128.png"
+  }
+}

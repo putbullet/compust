@@ -161,6 +161,10 @@ class JobTitleMatcher:
                             )
 
         return None
+
+    def match_raw_title(self, text: str) -> TitleMatch | None:
+        """Evaluate raw string against title intelligence without requiring a BeautifulSoup Tag."""
+        return self.match_text(text, Tag(name="span"))
  
  
 def is_job_title_candidate(text: str) -> bool:
@@ -168,5 +172,4 @@ def is_job_title_candidate(text: str) -> bool:
     if not text or is_action_or_button_text(text):
         return False
     matcher = JobTitleMatcher()
-    dummy = Tag(name="span")
-    return matcher.match_text(text, dummy) is not None
+    return matcher.match_raw_title(text) is not None

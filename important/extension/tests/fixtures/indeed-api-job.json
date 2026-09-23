@@ -1,0 +1,51 @@
+{
+  "data": {
+    "jobSearch": {
+      "results": [
+        {
+          "job": {
+            "key": "5e409e577046830a",
+            "title": "Principal Systems Architect",
+            "datePublished": 1726704000000,
+            "description": {
+              "html": "<div id=\"jobDescriptionText\"><p>As a Principal Systems Architect, you will spearhead our next-generation enterprise distributed platforms.</p><p>Requires 10+ years in Python, FastAPI, Docker, and PostgreSQL architecture.</p></div>"
+            },
+            "location": {
+              "city": "Austin",
+              "admin1Code": "TX",
+              "countryCode": "US",
+              "formatted": {
+                "short": "Austin, TX",
+                "long": "Austin, TX, US"
+              }
+            },
+            "compensation": {
+              "baseSalary": {
+                "unitOfWork": "YEAR",
+                "range": {
+                  "min": 180000,
+                  "max": 230000
+                }
+              },
+              "currencyCode": "USD"
+            },
+            "attributes": [
+              {
+                "key": "jobType",
+                "label": "Full-time"
+              },
+              {
+                "key": "remote",
+                "label": "Remote"
+              }
+            ],
+            "employer": {
+              "name": "CloudScale Technologies",
+              "relativeCompanyPageUrl": "/cmp/Cloudscale-Technologies"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -16,6 +16,30 @@ from .url_normalizer import normalize_url
 logger = logging.getLogger(__name__)
 
 
+def count_html_job_signals(html: str) -> int:
+    """Heuristically count job-like card or listing elements in raw HTML."""
+    if not html:
+        return 0
+    import re
+    data_jk = len(re.findall(r'data-jk=["\'][^"\']+["\']', html, re.IGNORECASE))
+    if data_jk > 0:
+        return data_jk
+    data_job = len(re.findall(r'data-job[-_]?(?:id|key)?=["\'][^"\']+["\']', html, re.IGNORECASE))
+    if data_job > 0:
+        return data_job
+    job_cards = len(re.findall(
+        r'class=["\'][^"\']*\b(?:job[-_]?card|job[-_]?item|job[-_]?listing|vacancy[-_]?card|opening[-_]?card|result[-_]?card|posting[-_]?item)\b[^"\']*["\']',
+        html,
+        re.IGNORECASE,
+    ))
+    if job_cards > 0:
+        return job_cards
+    title_matches = len(re.findall(r'class=["\'][^"\']*\b(?:job[-_]?title|posting[-_]?title)\b[^"\']*["\']', html, re.IGNORECASE))
+    if title_matches > 0:
+        return title_matches
+    return 0
+
+
 @dataclass(frozen=True)
 class CrawlResult:
     jobs: list[JobCandidate]
@@ -23,6 +47,8 @@ class CrawlResult:
     pages_crawled: int
     initial_source: FetchedSource | None = None
     detected_result_count: int | None = None
+    stop_reason: str = "completed"
+    content_signal_count: int = 0
 
 
 def crawl_pages(
@@ -68,9 +94,12 @@ def crawl_pages(
     detected_result_count: int | None = None
     actual_fetcher = fetcher or fetch_source
     actual_rendered_fetcher = rendered_fetcher or fetch_rendered_source
+    stop_reason = "completed"
+    content_signal_count = 0
 
     while current_url and pages_crawled < page_limit:
         if current_url in visited_urls:
+            stop_reason = "completed"
             break
         visited_urls.add(current_url)
 
@@ -90,17 +119,21 @@ def crawl_pages(
                 except Exception as b_exc:
                     all_errors.append(str(exc))
                     all_errors.append(f"[Browser Fallback] Headless browser recovery attempt failed: {b_exc}")
+                    stop_reason = "error"
                     break
             else:
                 all_errors.append(str(exc))
+                stop_reason = "rate_limited" if "429" in str(exc) else "error"
                 break
 
         if source is None:
+            stop_reason = "error"
             break
 
         if initial_source is None:
             initial_source = source
         pages_crawled += 1
+        content_signal_count += count_html_job_signals(source.body)
 
         result: ParseResult = strategy.parse(source)
 
@@ -120,6 +153,7 @@ def crawl_pages(
                             if pages_crawled == 1:
                                 initial_source = rendered_source
                             result = rendered_result
+                            content_signal_count += count_html_job_signals(rendered_source.body)
                             all_errors.append(
                                 f"[Browser Fallback] Hydrated client-rendered SPA shell via headless browser; discovered {len(rendered_result.jobs)} job candidate(s)."
                             )
@@ -132,12 +166,14 @@ def crawl_pages(
 
         if not result.jobs:
             # Exhausted results
+            stop_reason = "no_new_jobs"
             break
 
         # Check for repeated job IDs loop
         page_ids = {j.external_job_id for j in result.jobs if j.external_job_id}
         if page_ids and page_ids.issubset(seen_job_ids):
             # All job IDs on this page were already seen
+            stop_reason = "no_new_jobs"
             break
 
         if result.detected_result_count is not None and detected_result_count is None:
@@ -151,10 +187,16 @@ def crawl_pages(
 
         next_url = strategy.find_next_page_url(source)
         if not next_url:
+            stop_reason = "completed"
             break
 
         next_url = normalize_url(next_url)
         if next_url in visited_urls:
+            stop_reason = "completed"
+            break
+
+        if pages_crawled >= page_limit:
+            stop_reason = "max_pages_reached"
             break
 
         if request_delay > 0:
@@ -162,11 +204,16 @@ def crawl_pages(
 
         current_url = next_url
 
+    if pages_crawled >= page_limit and stop_reason == "completed":
+        stop_reason = "max_pages_reached"
+
     return CrawlResult(
         jobs=all_jobs,
         errors=all_errors,
         pages_crawled=pages_crawled,
         initial_source=initial_source,
         detected_result_count=detected_result_count,
+        stop_reason=stop_reason,
+        content_signal_count=content_signal_count,
     )
 

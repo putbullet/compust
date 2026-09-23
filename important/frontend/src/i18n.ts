@@ -1,12 +1,20 @@
 import React, { createContext, useContext, useState, type ReactNode } from 'react';
 
-export type Language = 'en' | 'fr';
+export type Language = 'en' | 'fr' | 'nl';
 
 export interface Translations {
   nav: {
     opportunities: string;
+    internships: string;
     profile: string;
+    applications: string;
+    interviewPrep: string;
+    companies: string;
+    supervision: string;
     scraperHub: string;
+    guide: string;
+    extension: string;
+    aiSettings: string;
     login: string;
     logout: string;
   };
@@ -41,6 +49,30 @@ export interface Translations {
     saved: string;
     save: string;
   };
+  internships: {
+    title: string;
+    subtitle: string;
+    searchPlaceholder: string;
+    allRepos: string;
+    allVisas: string;
+    sponsorsVisa: string;
+    noSponsorship: string;
+    usCitizenOnly: string;
+    canadaEligible: string;
+    notSpecified: string;
+    allCategories: string;
+    openOnly: string;
+    totalListings: string;
+    activeOpenings: string;
+    syncGithub: string;
+    syncing: string;
+    clearFilters: string;
+    applyNow: string;
+    closed: string;
+    matchingCount: string;
+    viewGrid: string;
+    viewTable: string;
+  };
   modal: {
     posted: string;
     employmentType: string;
@@ -73,23 +105,40 @@ export interface Translations {
     cooldown: string;
     disallowed: string;
   };
+  common: {
+    loading: string;
+    retry: string;
+    cancel: string;
+    save: string;
+    close: string;
+    export: string;
+    all: string;
+  };
 }
 
 export const translations: Record<Language, Translations> = {
   en: {
     nav: {
       opportunities: 'Opportunities',
+      internships: 'Internships',
       profile: 'Match Profile',
+      applications: 'Applications',
+      interviewPrep: 'Interview Prep',
+      companies: 'Company Intel',
+      supervision: 'Data Supervision',
       scraperHub: 'Scraper Hub',
+      guide: 'Guide & Docs',
+      extension: 'Browser Extension',
+      aiSettings: 'AI Settings',
       login: 'Sign In',
       logout: 'Sign Out',
     },
     hero: {
       badge: 'Real-Time Career Intelligence',
-      titlePrefix: 'Verified Careers in ',
-      titleHighlight: 'Morocco & Beyond',
+      titlePrefix: 'Verified Careers, ',
+      titleHighlight: 'Worldwide & Across Regions',
       titleSuffix: '',
-      subtitle: 'Compliant ingestion directly from verified employer portals. Transparent matching, sanitized job intelligence, and zero intermediaries.',
+      subtitle: 'Compliant ingestion directly from verified employer portals worldwide. Transparent matching, sanitized job intelligence, and zero intermediaries.',
     },
     search: {
       placeholder: 'Search by role, skill, tech stack, or employer...',
@@ -114,6 +163,30 @@ export const translations: Record<Language, Translations> = {
       viewDetails: 'View Details',
       saved: 'Saved',
       save: 'Save',
+    },
+    internships: {
+      title: 'Curated Tech Internships',
+      subtitle: 'Directly parsed from top community GitHub repositories with work authorization status, company logos, and direct career links.',
+      searchPlaceholder: 'Search by company, role, location, or keyword (e.g. Disney, SWE, Toronto, AI)...',
+      allRepos: 'All Repositories',
+      allVisas: 'All Sponsorship',
+      sponsorsVisa: 'Sponsors Visa',
+      noSponsorship: 'No Sponsorship',
+      usCitizenOnly: 'US Citizens Only',
+      canadaEligible: 'Canada Eligible',
+      notSpecified: 'Not Specified',
+      allCategories: 'All Categories',
+      openOnly: 'Active Only',
+      totalListings: 'Total Tracked',
+      activeOpenings: 'Active Openings',
+      syncGithub: 'Sync with GitHub',
+      syncing: 'Syncing Live...',
+      clearFilters: 'Clear Filters',
+      applyNow: 'Apply',
+      closed: 'Closed',
+      matchingCount: 'matching opportunities',
+      viewGrid: 'Grid View',
+      viewTable: 'Table View',
     },
     modal: {
       posted: 'Posted',
@@ -147,21 +220,38 @@ export const translations: Record<Language, Translations> = {
       cooldown: 'In Cooldown',
       disallowed: 'Robots Disallowed',
     },
+    common: {
+      loading: 'Loading...',
+      retry: 'Retry',
+      cancel: 'Cancel',
+      save: 'Save',
+      close: 'Close',
+      export: 'Export',
+      all: 'All',
+    },
   },
   fr: {
     nav: {
       opportunities: 'Opportunités',
+      internships: 'Stages & Alternances',
       profile: 'Profil de Match',
+      applications: 'Mes Candidatures',
+      interviewPrep: 'Préparation Entretiens',
+      companies: 'Entreprises',
+      supervision: 'Supervision Données',
       scraperHub: 'Centre de Scraping',
+      guide: 'Guide & Documentation',
+      extension: 'Extension Navigateur',
+      aiSettings: 'Paramètres IA',
       login: 'Connexion',
       logout: 'Déconnexion',
     },
     hero: {
       badge: 'Veille Carrière en Temps Réel',
-      titlePrefix: 'Carrières vérifiées au ',
-      titleHighlight: 'Maroc & International',
+      titlePrefix: 'Carrières Vérifiées, ',
+      titleHighlight: 'Mondial & Multi-Régions',
       titleSuffix: '',
-      subtitle: 'Ingestion conforme directement depuis les portails recruteurs officiels. Scoring transparent, descriptions assainies et zéro intermédiaire.',
+      subtitle: 'Ingestion conforme directement depuis les portails recruteurs officiels à l\'international. Scoring transparent, descriptions assainies et zéro intermédiaire.',
     },
     search: {
       placeholder: 'Rechercher par poste, compétence, technologie ou entreprise...',
@@ -186,6 +276,30 @@ export const translations: Record<Language, Translations> = {
       viewDetails: 'Détails',
       saved: 'Enregistré',
       save: 'Enregistrer',
+    },
+    internships: {
+      title: 'Stages Tech Vérifiés',
+      subtitle: 'Directement extrait des meilleurs dépôts GitHub communautaires avec statut de visa, logos et liens officiels.',
+      searchPlaceholder: 'Rechercher par entreprise, poste, lieu ou mot-clé (ex. Disney, SWE, Paris, IA)...',
+      allRepos: 'Tous les Dépôts',
+      allVisas: 'Toutes Autorisations',
+      sponsorsVisa: 'Sponsorise le Visa',
+      noSponsorship: 'Pas de Sponsoring',
+      usCitizenOnly: 'Citoyens US Uniquement',
+      canadaEligible: 'Éligible Canada',
+      notSpecified: 'Non Spécifié',
+      allCategories: 'Toutes Catégories',
+      openOnly: 'Actives Uniquement',
+      totalListings: 'Total Suivi',
+      activeOpenings: 'Postes Actifs',
+      syncGithub: 'Synchroniser GitHub',
+      syncing: 'Synchronisation en direct...',
+      clearFilters: 'Réinitialiser Filtres',
+      applyNow: 'Postuler',
+      closed: 'Fermé',
+      matchingCount: 'opportunités correspondantes',
+      viewGrid: 'Vue Grille',
+      viewTable: 'Vue Tableau',
     },
     modal: {
       posted: 'Publié le',
@@ -219,6 +333,128 @@ export const translations: Record<Language, Translations> = {
       cooldown: 'En Temporisation',
       disallowed: 'Refusé par Robots.txt',
     },
+    common: {
+      loading: 'Chargement...',
+      retry: 'Réessayer',
+      cancel: 'Annuler',
+      save: 'Enregistrer',
+      close: 'Fermer',
+      export: 'Exporter',
+      all: 'Tous',
+    },
+  },
+  nl: {
+    nav: {
+      opportunities: 'Vacatures',
+      internships: 'Stages',
+      profile: 'Matchprofiel',
+      applications: 'Sollicitaties',
+      interviewPrep: 'Sollicitatiegesprek',
+      companies: 'Bedrijven',
+      supervision: 'Gegevenstoezicht',
+      scraperHub: 'Scraper Hub',
+      guide: 'Handleiding & Documentatie',
+      extension: 'Browserextensie',
+      aiSettings: 'AI-instellingen',
+      login: 'Inloggen',
+      logout: 'Uitloggen',
+    },
+    hero: {
+      badge: 'Realtime Loopbaanintelligentie',
+      titlePrefix: 'Geverifieerde Carrières, ',
+      titleHighlight: 'Wereldwijd & Grenzeloos',
+      titleSuffix: '',
+      subtitle: 'Directe intake van geverifieerde werkgeversportalen wereldwijd. Transparante matching, opgeschoonde vacature-informatie en zonder tussenpersonen.',
+    },
+    search: {
+      placeholder: 'Zoek op functie, vaardigheid, tech stack of werkgever...',
+      allCountries: 'Alle Landen',
+      allModes: 'Alle Werktijden',
+      savedJobs: 'Opgeslagen Vacatures',
+      remote: 'Op Afstand',
+      hybrid: 'Hybride',
+      onsite: 'Op Locatie',
+    },
+    directory: {
+      opportunitiesCount: 'actieve vacatures gevonden',
+      page: 'Pagina',
+      of: 'van',
+      prev: 'Vorige',
+      next: 'Volgende',
+      noJobsFound: 'Geen vacatures gevonden die voldoen aan uw criteria.',
+      noJobsSub: 'Probeer uw zoektermen, werkvormfilters of geselecteerde land aan te passen.',
+    },
+    card: {
+      match: 'Match',
+      viewDetails: 'Details Bekijken',
+      saved: 'Opgeslagen',
+      save: 'Opslaan',
+    },
+    internships: {
+      title: 'Gecureerde Tech Stages',
+      subtitle: 'Rechtstreeks geëxtraheerd uit actieve GitHub-repositories van de gemeenschap met visumstatus, bedrijfslogo\'s en directe links.',
+      searchPlaceholder: 'Zoek op bedrijf, functie, locatie of trefwoord (bijv. Disney, SWE, Amsterdam, AI)...',
+      allRepos: 'Alle Repositories',
+      allVisas: 'Alle Visumstatussen',
+      sponsorsVisa: 'Sponsoring Mogelijk',
+      noSponsorship: 'Geen Sponsoring',
+      usCitizenOnly: 'Alleen VS Burgers',
+      canadaEligible: 'Geschikt voor Canada',
+      notSpecified: 'Niet Gespecificeerd',
+      allCategories: 'Alle Categorieën',
+      openOnly: 'Alleen Openstaand',
+      totalListings: 'Totaal Gevolgde',
+      activeOpenings: 'Actieve Vacatures',
+      syncGithub: 'Synchroniseren met GitHub',
+      syncing: 'Live Synchroniseren...',
+      clearFilters: 'Filters Wissen',
+      applyNow: 'Solliciteren',
+      closed: 'Gesloten',
+      matchingCount: 'overeenkomende vacatures',
+      viewGrid: 'Rasterweergave',
+      viewTable: 'Tabelweergave',
+    },
+    modal: {
+      posted: 'Geplaatst op',
+      employmentType: 'Dienstverband',
+      workMode: 'Vorm',
+      salary: 'Salaris',
+      matchAnalysis: 'Regelgebaseerde Matchanalyse',
+      strengths: 'Overeenkomende Vaardigheden',
+      missingSkills: 'Ontbrekende Vaardigheden',
+      description: 'Functieomschrijving (Beveiligd)',
+      applyOnPortal: 'Solliciteren via Carrièreportaal',
+      close: 'Sluiten',
+    },
+    profile: {
+      title: 'Kandidaatprofiel & Matchinstellingen',
+      subtitle: 'Stel uw vaardigheden, voorkeuren en doelsalaris in voor nauwkeurige matchscores.',
+      preferences: 'Carrièrevoorkeuren',
+      skills: 'Vaardigheden & Technologieën',
+      workMode: 'Voorkeurswerkvorm',
+      location: 'Voorkeurslocatie',
+      expectedSalary: 'Minimaal Verwacht Salaris',
+      saveChanges: 'Voorkeuren Opslaan',
+    },
+    scraper: {
+      title: 'Scraper Hub & Doelenmonitor',
+      subtitle: 'Inspecteer actieve werkgeversdoelen, robots.txt-naleving en synchronisatieruns.',
+      liveTargets: 'Geconfigureerde Bronnen',
+      complianceNote: 'Alle portalen hanteren robots.txt-richtlijnen en wachttijden.',
+      sync: 'Bron Synchroniseren',
+      syncing: 'Synchroniseren...',
+      cooldown: 'In Wachttijd',
+      disallowed: 'Geweigerd door Robots.txt',
+    },
+    common: {
+      loading: 'Laden...',
+      retry: 'Opnieuw Proberen',
+      cancel: 'Annuleren',
+      save: 'Opslaan',
+      close: 'Sluiten',
+      export: 'Exporteren',
+      all: 'Alle',
+    },
   },
 };
 
@@ -234,7 +470,7 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [language, setLanguageState] = useState<Language>(() => {
     try {
       const saved = localStorage.getItem('compust_lang');
-      return saved === 'fr' ? 'fr' : 'en';
+      return saved === 'fr' || saved === 'nl' ? saved : 'en';
     } catch {
       return 'en';
     }
@@ -252,7 +488,7 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
   const value = {
     language,
     setLanguage,
-    t: translations[language],
+    t: translations[language] || translations.en,
   };
 
   return React.createElement(LanguageContext.Provider, { value }, children);

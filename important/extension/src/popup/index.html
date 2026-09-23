@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Compust Capture</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <header class="popup-header">
+      <div class="brand">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+          <polyline points="2 17 12 22 22 17"></polyline>
+          <polyline points="2 12 12 17 22 12"></polyline>
+        </svg>
+        <span>Compust Capture</span>
+      </div>
+      <div id="connection-badge" class="badge badge-offline">Offline</div>
+    </header>
+
+    <!-- Logged In View -->
+    <div id="view-authenticated" class="view hidden">
+      <div class="user-card">
+        <div class="user-avatar" id="user-avatar">?</div>
+        <div class="user-details">
+          <div class="user-name" id="user-name">Candidate</div>
+          <div class="user-email" id="user-email">candidate@compust.ma</div>
+        </div>
+      </div>
+
+      <div class="info-section">
+        <div class="section-label">Active Resume</div>
+        <div class="resume-pill" id="resume-info">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+          </svg>
+          <span id="resume-filename">Loading...</span>
+        </div>
+      </div>
+
+      <div class="capture-action-row" style="margin-bottom: 12px;">
+        <button class="btn btn-primary" id="btn-capture-now" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+            <polyline points="2 17 12 22 22 17"></polyline>
+            <polyline points="2 12 12 17 22 12"></polyline>
+          </svg>
+          Analyse Job on Active Tab
+        </button>
+      </div>
+
+      <div class="quick-links">
+        <button class="link-btn" id="link-kanban">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="9" y1="3" x2="9" y2="21"></line>
+          </svg>
+          Applications Kanban
+        </button>
+        <button class="link-btn" id="link-resumes">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          </svg>
+          Resume Studio
+        </button>
+      </div>
+
+      <div class="footer-actions">
+        <button class="btn btn-secondary" id="btn-options">Settings</button>
+        <button class="btn btn-danger" id="btn-logout">Log Out</button>
+      </div>
+    </div>
+
+    <!-- Login View -->
+    <div id="view-login" class="view">
+      <form id="login-form">
+        <div class="form-title">Log in to Local Compust</div>
+        <p class="form-subtitle">Connect with your local account to capture postings and analyze resume match.</p>
+
+        <div id="login-error" class="alert-box hidden"></div>
+
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" required placeholder="user@compust.ma" autocomplete="username">
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" required placeholder="••••••••" autocomplete="current-password">
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="btn-login-submit">
+          Log In
+        </button>
+      </form>
+
+      <div class="login-footer">
+        <button class="link-text-btn" id="link-options-loggedout">Configure Backend Port / Host</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="popup.ts"></script>
+</body>
+</html>

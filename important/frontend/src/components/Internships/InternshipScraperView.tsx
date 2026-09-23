@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import type { InternshipSearchResponse, Country } from '../../api/client';
 import { api } from '../../api/client';
+import { GitHubInternshipsView } from './GitHubInternshipsView';
 import './InternshipScraperView.css';
 
 interface InternshipScraperViewProps {
@@ -41,6 +42,7 @@ const SEARCH_STAGES = [
 ];
 
 export const InternshipScraperView: React.FC<InternshipScraperViewProps> = ({ availableCountries = [] }) => {
+  const [subTab, setSubTab] = useState<'curated' | 'discovery'>('curated');
   const [fieldInput, setFieldInput] = useState('Cybersecurity');
   const [countryInput, setCountryInput] = useState('');
   const [yearInput, setYearInput] = useState('2026');
@@ -90,14 +92,44 @@ export const InternshipScraperView: React.FC<InternshipScraperViewProps> = ({ av
           <h1 className="internships-heading">
             <GraduationCap size={32} className="text-blue-500" />
             <span>Internship Intelligence</span>
-            <span className="heading-badge">Autonomous Discovery</span>
+            <span className="heading-badge">
+              {subTab === 'curated' ? 'Community GitHub Hub' : 'Autonomous Discovery'}
+            </span>
           </h1>
         </div>
         <p className="internships-subtitle">
-          Dedicated career engine for students and emerging professionals. Ingests, classifies, and extracts verified
-          internship and PFE opportunities worldwide using multilingual query expansion and structured job intelligence.
+          Dedicated career engine for students and emerging professionals. Discover verified tech internships worldwide
+          from active community repositories or run autonomous keyword discovery across global portals.
         </p>
+
+        {/* View Mode Sub-tabs */}
+        <div className="internships-mode-tabs">
+          <button
+            type="button"
+            className={`mode-tab-btn ${subTab === 'curated' ? 'active' : ''}`}
+            onClick={() => setSubTab('curated')}
+          >
+            <Sparkles size={16} />
+            <span>Curated GitHub Repositories</span>
+            <span className="mode-tab-badge">7 Repos</span>
+          </button>
+          <button
+            type="button"
+            className={`mode-tab-btn ${subTab === 'discovery' ? 'active' : ''}`}
+            onClick={() => setSubTab('discovery')}
+          >
+            <Compass size={16} />
+            <span>Autonomous Web Discovery</span>
+          </button>
+        </div>
       </div>
+
+      {/* Curated GitHub Repositories View */}
+      {subTab === 'curated' && <GitHubInternshipsView />}
+
+      {/* Autonomous Web Scraper View */}
+      {subTab === 'discovery' && (
+        <>
 
       {/* Search Filter Card */}
       <div className="internship-search-card">
@@ -370,6 +402,8 @@ export const InternshipScraperView: React.FC<InternshipScraperViewProps> = ({ av
             Enter your field of study, preferred country, or target year above to scan verified career pages and structured postings.
           </p>
         </div>
+      )}
+        </>
       )}
     </div>
   );

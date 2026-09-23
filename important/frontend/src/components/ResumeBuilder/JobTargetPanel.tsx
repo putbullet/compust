@@ -32,7 +32,17 @@ import type {
   SaveTailoredFromJobTargetRequest,
 } from '../../api/client';
 import { api } from '../../api/client';
+import { StageProgressList, useStageProgress } from '../common/StageProgressList';
+import { useTranslation } from '../../i18n';
 import './JobTargetPanel.css';
+
+const IN_APP_ANALYZE_STAGES = [
+  'Sending job details & requirements…',
+  'Checking your active resume…',
+  'Comparing skills & identifying gaps…',
+  'Generating tailored suggestions & outreach…',
+  'Done',
+];
 
 interface JobTargetPanelProps {
   resumeId: number;
@@ -63,11 +73,21 @@ export const JobTargetPanel: React.FC<JobTargetPanelProps> = ({
   onClearJobTarget,
   onNavigateToApplications,
 }) => {
+  const { language: globalLang } = useTranslation();
   // Input state
   const [role, setRole] = useState('');
   const [description, setDescription] = useState('');
   const [additionalInfo, setAdditionalInfo] = useState('');
-  const [language, setLanguage] = useState<SupportedLanguage>('en');
+  const [language, setLanguage] = useState<SupportedLanguage>(() => {
+    return (globalLang === 'fr' ? 'fr' : 'en') as SupportedLanguage;
+  });
+
+  // Keep synced with global switcher changes unless user manually changed
+  React.useEffect(() => {
+    if (globalLang === 'fr' || globalLang === 'en') {
+      setLanguage(globalLang as SupportedLanguage);
+    }
+  }, [globalLang]);
   const [showAdditionalInfo, setShowAdditionalInfo] = useState(false);
 
   // Analysis state
@@ -83,6 +103,7 @@ export const JobTargetPanel: React.FC<JobTargetPanelProps> = ({
   const [savingCopy, setSavingCopy] = useState(false);
   const [copySuccess, setCopySuccess] = useState<string | null>(null);
   const [exportingLetter, setExportingLetter] = useState(false);
+  const analyzeStage = useStageProgress(IN_APP_ANALYZE_STAGES, step === 'analyzing', 500);
   const [exportFormat, setExportFormat] = useState<ExportFormat>('pdf');
   const [regeneratingMaterial, setRegeneratingMaterial] = useState<Record<string, boolean>>({});
 
@@ -673,9 +694,13 @@ export const JobTargetPanel: React.FC<JobTargetPanelProps> = ({
         </button>
 
         {step === 'analyzing' && (
-          <div className="jtp-analyzing-hint">
-            <Activity size={13} /> Running {result === null ? '4-stage analysis' : 'analysis'}…
-            {' '}This may take 20-60 seconds depending on your local AI model.
+          <div className="jtp-analyzing-progress-wrap">
+            <StageProgressList
+              title="Running In-App Job Targeting Analysis…"
+              stages={IN_APP_ANALYZE_STAGES}
+              currentStage={analyzeStage}
+              className="jtp-stage-progress"
+            />
           </div>
         )}
 

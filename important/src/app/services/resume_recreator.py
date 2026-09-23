@@ -279,7 +279,8 @@ def recreate_customized_resume_for_job(
     version = 1 if not existing_count else 2
 
     # 3. Prepare structured sections
-    sections = base_resume.parsed_sections or {}
+    from ..repositories.resume import get_canonical_resume_sections
+    sections = get_canonical_resume_sections(base_resume)
 
     timestamp_str = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     pdf_fname = f"resume_{user_id}_job_{job.id}_v{version}_{timestamp_str}.pdf"

@@ -100,6 +100,31 @@ DEFAULT_SECTION_TITLES_BY_LANG: dict[str, dict[str, str]] = {
     },
 }
 
+PRESENT_LABELS: dict[str, str] = {
+    "en": "Present",
+    "fr": "Présent",
+    "de": "Heute",
+}
+
+DEGREE_CONNECTORS: dict[str, str] = {
+    "en": "in",
+    "fr": "en",
+    "de": "in",
+}
+
+
+def get_localized_present_label(lang: str = "en") -> str:
+    """Return localized label for current/ongoing roles (e.g. Present, Présent, Heute)."""
+    lang_key = (lang or "en").lower()
+    return PRESENT_LABELS.get(lang_key, PRESENT_LABELS["en"])
+
+
+def get_localized_degree_connector(lang: str = "en") -> str:
+    """Return localized preposition between degree and field (e.g. 'in', 'en')."""
+    lang_key = (lang or "en").lower()
+    return DEGREE_CONNECTORS.get(lang_key, DEGREE_CONNECTORS["en"])
+
+
 
 def normalize_skill_proficiency(raw: str | None) -> str:
     """Normalize raw skill proficiency string to a canonical token."""
@@ -161,20 +186,13 @@ def get_localized_language_label(proficiency: str | None, lang: str = "en") -> s
     return labels.get(token, LANGUAGE_PROFICIENCY_LABELS["en"].get(token, token))
 
 
-def format_skill_display(name: str, proficiency: str | None, lang: str = "en") -> str:
+def format_skill_display(name: str, proficiency: str | None = None, lang: str = "en") -> str:
     """Format skill for display.
     
-    If proficiency is None / NONE / blank, returns only name (e.g. "Python").
-    If proficiency is set, returns "Python — Advanced" (or localized equivalent).
-    Never returns "Python — None", "Python — Basic", or "null".
+    B4: Skill proficiency is eliminated across models, UI, preview, and export.
+    Always returns clean skill name as a plain keyword (e.g. "Python").
     """
-    clean_name = (name or "").strip()
-    if not clean_name:
-        return ""
-    label = get_localized_skill_label(proficiency, lang)
-    if label:
-        return f"{clean_name} — {label}"
-    return clean_name
+    return (name or "").strip()
 
 
 def format_language_display(language: str, proficiency: str | None, lang: str = "en") -> str:

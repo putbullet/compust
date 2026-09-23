@@ -113,12 +113,8 @@ class ResumeSkillItem(BaseModel):
     @field_validator("proficiency", mode="before")
     @classmethod
     def _clean_proficiency(cls, v: Any) -> str | None:
-        if v is None:
-            return None
-        s = str(v).strip()
-        if s.upper() in ("", "NONE", "NO_LABEL", "NO LABEL", "NULL", "UNDEFINED", "BLANK"):
-            return None
-        return s
+        # B4: Skill proficiency is completely removed; skills are plain keywords only
+        return None
 
 
 class ResumeProjectItem(BaseModel):
@@ -332,6 +328,7 @@ class StructuredResumeRead(BaseModel):
     title: str
     is_active: bool
     is_default: bool
+    is_original_upload: bool = False
     target_job_id: int | None = None
     source_resume_id: int | None = None
     structured_data: dict[str, Any] | None = None
@@ -348,6 +345,7 @@ class StructuredResumeListItem(BaseModel):
     title: str
     is_active: bool
     is_default: bool
+    is_original_upload: bool = False
     target_job_id: int | None = None
     source_resume_id: int | None = None
     created_at: datetime

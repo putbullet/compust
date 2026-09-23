@@ -6,7 +6,6 @@ import {
   Activity,
   LogIn,
   LogOut,
-  Globe,
   FolderKanban,
   Building2,
   Bot,
@@ -14,13 +13,14 @@ import {
   BookOpen,
   GraduationCap,
   BrainCircuit,
+  Puzzle,
 } from 'lucide-react';
 import type { UserProfile } from '../api/client';
 import { useTranslation } from '../i18n';
 
 interface NavbarProps {
-  activeTab: 'directory' | 'profile' | 'scraper' | 'applications' | 'companies' | 'supervision' | 'guide' | 'internships' | 'interview-prep';
-  setActiveTab: (tab: 'directory' | 'profile' | 'scraper' | 'applications' | 'companies' | 'supervision' | 'guide' | 'internships' | 'interview-prep') => void;
+  activeTab: 'directory' | 'profile' | 'scraper' | 'applications' | 'companies' | 'supervision' | 'guide' | 'internships' | 'interview-prep' | 'extension';
+  setActiveTab: (tab: 'directory' | 'profile' | 'scraper' | 'applications' | 'companies' | 'supervision' | 'guide' | 'internships' | 'interview-prep' | 'extension') => void;
   user: UserProfile | null;
   onOpenAuth: () => void;
   onLogout: () => void;
@@ -74,7 +74,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               }
             }}
           >
-            <Briefcase size={20} />
+            <Briefcase size={18} />
             <div className="tooltip">{t.nav.opportunities}</div>
           </div>
 
@@ -84,7 +84,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             role="tab"
             tabIndex={0}
             aria-selected={activeTab === 'internships'}
-            aria-label={language === 'fr' ? 'Stages & Alternances' : 'Internships'}
+            aria-label={t.nav.internships}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
@@ -92,8 +92,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               }
             }}
           >
-            <GraduationCap size={20} />
-            <div className="tooltip">{language === 'fr' ? 'Stages & Alternances' : 'Internships'}</div>
+            <GraduationCap size={18} />
+            <div className="tooltip">{t.nav.internships}</div>
           </div>
 
           <div
@@ -110,7 +110,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               }
             }}
           >
-            <UserCheck size={20} />
+            <UserCheck size={18} />
             <div className="tooltip">{t.nav.profile}</div>
           </div>
 
@@ -120,7 +120,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             role="tab"
             tabIndex={0}
             aria-selected={activeTab === 'applications'}
-            aria-label={language === 'fr' ? 'Mes Candidatures' : 'My Applications'}
+            aria-label={t.nav.applications}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
@@ -128,8 +128,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               }
             }}
           >
-            <FolderKanban size={20} />
-            <div className="tooltip">{language === 'fr' ? 'Mes Candidatures' : 'My Applications'}</div>
+            <FolderKanban size={18} />
+            <div className="tooltip">{t.nav.applications}</div>
           </div>
 
           <div
@@ -138,7 +138,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             role="tab"
             tabIndex={0}
             aria-selected={activeTab === 'interview-prep'}
-            aria-label={language === 'fr' ? 'Préparation Entretiens' : 'Interview Prep'}
+            aria-label={t.nav.interviewPrep}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
@@ -146,8 +146,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               }
             }}
           >
-            <BrainCircuit size={20} />
-            <div className="tooltip">{language === 'fr' ? 'Préparation Entretiens' : 'Interview Prep'}</div>
+            <BrainCircuit size={18} />
+            <div className="tooltip">{t.nav.interviewPrep}</div>
           </div>
 
           <div
@@ -156,7 +156,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             role="tab"
             tabIndex={0}
             aria-selected={activeTab === 'companies'}
-            aria-label="Companies and Sources"
+            aria-label={t.nav.companies}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
@@ -164,8 +164,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               }
             }}
           >
-            <Building2 size={20} />
-            <div className="tooltip">Companies & Sources</div>
+            <Building2 size={18} />
+            <div className="tooltip">{t.nav.companies}</div>
           </div>
 
           <div
@@ -174,7 +174,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             role="tab"
             tabIndex={0}
             aria-selected={activeTab === 'supervision'}
-            aria-label="Data Supervision"
+            aria-label={t.nav.supervision}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
@@ -182,8 +182,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               }
             }}
           >
-            <Database size={20} />
-            <div className="tooltip">Data Supervision</div>
+            <Database size={18} />
+            <div className="tooltip">{t.nav.supervision}</div>
           </div>
 
           <div
@@ -200,7 +200,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               }
             }}
           >
-            <Activity size={20} />
+            <Activity size={18} />
             <div className="tooltip">{t.nav.scraperHub}</div>
           </div>
 
@@ -210,7 +210,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             role="tab"
             tabIndex={0}
             aria-selected={activeTab === 'guide'}
-            aria-label={language === 'fr' ? 'Guide & Documentation' : 'Guide & Documentation'}
+            aria-label={t.nav.guide}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
@@ -218,33 +218,56 @@ export const Navbar: React.FC<NavbarProps> = ({
               }
             }}
           >
-            <BookOpen size={20} />
-            <div className="tooltip">{language === 'fr' ? 'Guide & Doc' : 'Guide & Docs'}</div>
+            <BookOpen size={18} />
+            <div className="tooltip">{t.nav.guide}</div>
+          </div>
+
+          <div
+            className={`nav-item ${activeTab === 'extension' ? 'active' : ''}`}
+            onClick={() => setActiveTab('extension')}
+            role="tab"
+            tabIndex={0}
+            aria-selected={activeTab === 'extension'}
+            aria-label={t.nav.extension}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setActiveTab('extension');
+              }
+            }}
+          >
+            <Puzzle size={18} />
+            <div className="tooltip">{t.nav.extension}</div>
           </div>
         </div>
-
 
         {/* Actions: AI Settings, Language Switcher & Auth */}
         <div className="actions-cluster">
           <button
             className="ai-settings-btn"
             onClick={onOpenAISettings}
-            title="Local AI & Model Settings"
-            aria-label="Local AI and Model Settings"
+            title={t.nav.aiSettings}
+            aria-label={t.nav.aiSettings}
           >
-            <Bot size={15} />
+            <Bot size={14} />
             <span>AI</span>
           </button>
 
-          <button
-            className="lang-btn"
-            onClick={() => setLanguage(language === 'en' ? 'fr' : 'en')}
-            title={`Switch to ${language === 'en' ? 'Français' : 'English'}`}
-            aria-label={`Current language: ${language.toUpperCase()}. Click to switch language`}
-          >
-            <Globe size={14} />
-            <span>{language.toUpperCase()}</span>
-          </button>
+          {/* Unified 3-way Language Switcher */}
+          <div className="global-lang-switcher" role="group" aria-label="Select Language">
+            {(['en', 'fr', 'nl'] as const).map((langCode) => (
+              <button
+                key={langCode}
+                type="button"
+                className={`lang-option-btn ${language === langCode ? 'active' : ''}`}
+                onClick={() => setLanguage(langCode)}
+                title={langCode === 'en' ? 'English' : langCode === 'fr' ? 'Français' : 'Nederlands'}
+                aria-pressed={language === langCode}
+              >
+                {langCode.toUpperCase()}
+              </button>
+            ))}
+          </div>
 
           <div className="auth-action">
             {user ? (
@@ -263,11 +286,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }}
               >
                 <span className="user-name">{user.first_name || user.email.split('@')[0]}</span>
-                <LogOut size={16} className="logout-icon" />
+                <LogOut size={15} className="logout-icon" />
               </div>
             ) : (
               <button className="sign-in-btn" onClick={onOpenAuth} aria-label={t.nav.login}>
-                <LogIn size={16} />
+                <LogIn size={15} />
                 <span>{t.nav.login}</span>
               </button>
             )}
@@ -280,7 +303,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
 const StyledNav = styled.header`
   position: sticky;
-  top: 16px;
+  top: 14px;
   z-index: 100;
   display: flex;
   justify-content: center;
@@ -291,16 +314,17 @@ const StyledNav = styled.header`
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 20px;
-    padding: 8px 18px;
-    background: rgba(10, 15, 26, 0.85);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    gap: 16px;
+    padding: 6px 16px;
+    background: rgba(10, 15, 26, 0.88);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
     border-radius: 24px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
-    width: 100%;
-    max-width: 960px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.06);
+    width: fit-content;
+    max-width: min(1180px, calc(100% - 16px));
+    min-width: 0;
     transition: all 0.3s ease;
   }
 
@@ -310,11 +334,12 @@ const StyledNav = styled.header`
     gap: 8px;
     cursor: pointer;
     user-select: none;
+    flex-shrink: 0;
   }
 
   .brand-logo {
-    width: 28px;
-    height: 28px;
+    width: 26px;
+    height: 26px;
     object-fit: contain;
     filter: drop-shadow(0 0 8px rgba(0, 240, 255, 0.4));
     transition: transform 0.25s ease, filter 0.25s ease;
@@ -328,15 +353,19 @@ const StyledNav = styled.header`
   .brand-name {
     font-family: var(--font-heading);
     font-weight: 800;
-    font-size: 1.25rem;
+    font-size: 1.15rem;
     letter-spacing: -0.02em;
     color: #ffffff;
+    white-space: nowrap;
   }
 
   .nav-items {
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
+    gap: 5px;
+    flex: 1 1 auto;
+    min-width: 0;
   }
 
   .nav-item {
@@ -344,13 +373,19 @@ const StyledNav = styled.header`
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 42px;
-    height: 42px;
+    width: 38px;
+    height: 38px;
     border-radius: 50%;
     color: #94a3b8;
     background: transparent;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    flex-shrink: 0;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+    svg {
+      width: 18px;
+      height: 18px;
+    }
 
     &:hover {
       color: #ffffff;
@@ -360,9 +395,9 @@ const StyledNav = styled.header`
 
     &.active {
       color: #3b82f6;
-      background: rgba(59, 130, 246, 0.15);
-      border: 1px solid rgba(59, 130, 246, 0.3);
-      box-shadow: 0 0 16px rgba(59, 130, 246, 0.25);
+      background: rgba(59, 130, 246, 0.16);
+      border: 1px solid rgba(59, 130, 246, 0.35);
+      box-shadow: 0 0 14px rgba(59, 130, 246, 0.25);
     }
   }
 
@@ -383,6 +418,7 @@ const StyledNav = styled.header`
     pointer-events: none;
     transition: all 0.2s ease;
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+    z-index: 1000;
   }
 
   .nav-item:hover .tooltip {
@@ -390,67 +426,27 @@ const StyledNav = styled.header`
     transform: translateX(-50%) scale(1);
   }
 
-  .user-pill {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 14px;
-    background: rgba(59, 130, 246, 0.12);
-    border: 1px solid rgba(59, 130, 246, 0.25);
-    border-radius: 20px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-
-    &:hover {
-      background: rgba(244, 63, 94, 0.15);
-      border-color: rgba(244, 63, 94, 0.3);
-      color: #f43f5e;
-    }
-  }
-
-  .user-name {
-    font-size: 0.85rem;
-    font-weight: 600;
-  }
-
-  .sign-in-btn {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 18px;
-    background: #2563eb;
-    color: #ffffff;
-    font-size: 0.85rem;
-    font-weight: 600;
-    border-radius: 20px;
-    transition: all 0.2s ease;
-    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
-
-    &:hover {
-      background: #1d4ed8;
-      transform: translateY(-1px);
-      box-shadow: 0 6px 18px rgba(37, 99, 235, 0.5);
-    }
-  }
-
   .actions-cluster {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
+    flex-shrink: 0;
   }
 
   .ai-settings-btn {
     display: flex;
     align-items: center;
-    gap: 5px;
-    padding: 6px 12px;
-    border-radius: 16px;
+    gap: 4px;
+    padding: 5px 10px;
+    border-radius: 14px;
     background: rgba(59, 130, 246, 0.12);
     border: 1px solid rgba(59, 130, 246, 0.25);
     color: #93c5fd;
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     font-weight: 700;
     cursor: pointer;
+    flex-shrink: 0;
+    white-space: nowrap;
     transition: all 0.2s ease;
 
     &:hover {
@@ -465,30 +461,101 @@ const StyledNav = styled.header`
     }
   }
 
-  .lang-btn {
-    display: flex;
+  .global-lang-switcher {
+    display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 6px 12px;
-    border-radius: 16px;
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.12);
-    color: #cbd5e1;
-    font-size: 0.75rem;
+    border-radius: 14px;
+    padding: 2px;
+    gap: 1px;
+    flex-shrink: 0;
+  }
+
+  .lang-option-btn {
+    padding: 3px 7px;
+    border-radius: 10px;
+    font-size: 0.68rem;
     font-weight: 700;
-    letter-spacing: 0.05em;
+    line-height: 1;
+    color: #94a3b8;
+    background: transparent;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.16s ease;
+    border: none;
+    white-space: nowrap;
 
     &:hover {
-      background: rgba(255, 255, 255, 0.12);
-      border-color: rgba(59, 130, 246, 0.4);
-      color: #3b82f6;
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    &.active {
+      background: rgba(59, 130, 246, 0.35);
+      color: #60a5fa;
+      box-shadow: 0 0 8px rgba(59, 130, 246, 0.3);
     }
 
     &:focus-visible {
       outline: 2px solid var(--border-focus);
-      outline-offset: 2px;
+      outline-offset: 1px;
+    }
+  }
+
+  .auth-action {
+    flex-shrink: 0;
+  }
+
+  .user-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    background: rgba(59, 130, 246, 0.12);
+    border: 1px solid rgba(59, 130, 246, 0.25);
+    border-radius: 16px;
+    cursor: pointer;
+    flex-shrink: 0;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: rgba(244, 63, 94, 0.15);
+      border-color: rgba(244, 63, 94, 0.3);
+      color: #f43f5e;
+    }
+  }
+
+  .user-name {
+    font-size: 0.8rem;
+    font-weight: 600;
+    max-width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .sign-in-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 13px;
+    background: #2563eb;
+    color: #ffffff;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: 16px;
+    border: none;
+    cursor: pointer;
+    flex-shrink: 0;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+
+    &:hover {
+      background: #1d4ed8;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(37, 99, 235, 0.5);
     }
   }
 
@@ -500,41 +567,111 @@ const StyledNav = styled.header`
     outline-offset: 2px;
   }
 
-  @media (max-width: 768px) {
-    top: 8px;
-    padding: 0 8px;
+  @media (max-width: 1240px) {
+    padding: 0 12px;
 
     .dock-container {
-      padding: 6px 10px;
-      gap: 8px;
-      border-radius: 18px;
-    }
-
-    .brand-name {
-      display: none;
+      gap: 10px;
+      padding: 5px 12px;
     }
 
     .nav-items {
-      gap: 4px;
-      overflow-x: auto;
-      padding-bottom: 2px;
-      max-width: 55vw;
+      gap: 3px;
     }
 
     .nav-item {
-      width: 36px;
-      height: 36px;
-      flex-shrink: 0;
+      width: 35px;
+      height: 35px;
+
+      svg {
+        width: 16px;
+        height: 16px;
+      }
+    }
+
+    .brand-name {
+      font-size: 1.05rem;
     }
 
     .actions-cluster {
       gap: 6px;
     }
+  }
 
-    .ai-settings-btn,
-    .lang-btn {
+  @media (max-width: 992px) {
+    .brand-name {
+      display: none;
+    }
+
+    .nav-items {
+      gap: 2px;
+    }
+
+    .nav-item {
+      width: 34px;
+      height: 34px;
+
+      svg {
+        width: 16px;
+        height: 16px;
+      }
+    }
+
+    .sign-in-btn span {
+      display: none;
+    }
+
+    .sign-in-btn {
       padding: 5px 8px;
-      font-size: 0.7rem;
+    }
+  }
+
+  @media (max-width: 768px) {
+    top: 8px;
+    padding: 0 8px;
+
+    .dock-container {
+      width: 100%;
+      max-width: 100%;
+      padding: 5px 8px;
+      gap: 6px;
+      border-radius: 18px;
+    }
+
+    .nav-items {
+      gap: 2px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      &::-webkit-scrollbar {
+        display: none;
+      }
+      max-width: 48vw;
+    }
+
+    .nav-item {
+      width: 32px;
+      height: 32px;
+      flex-shrink: 0;
+
+      svg {
+        width: 15px;
+        height: 15px;
+      }
+    }
+
+    .actions-cluster {
+      gap: 4px;
+    }
+
+    .ai-settings-btn {
+      padding: 4px 6px;
+      font-size: 0.65rem;
+    }
+
+    .lang-option-btn {
+      padding: 2px 4px;
+      font-size: 0.62rem;
     }
 
     .user-name {

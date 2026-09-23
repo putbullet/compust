@@ -1,6 +1,7 @@
 from functools import lru_cache
 
-from pydantic import Field
+from typing import Any
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -30,6 +31,27 @@ class Settings(BaseSettings):
         ],
         validation_alias="COMPUST_CORS_ALLOWED_ORIGINS",
     )
+    extension_allowed_origins: list[str] = Field(
+        default_factory=list,
+        validation_alias="COMPUST_EXTENSION_ORIGINS",
+    )
+
+    @field_validator("extension_allowed_origins", mode="before")
+    @classmethod
+    def parse_extension_origins(cls, v: Any) -> list[str]:
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        if isinstance(v, (list, set, tuple)):
+            return [str(origin).strip() for origin in v if str(origin).strip()]
+        return []
+
+    @property
+    def all_cors_origins(self) -> list[str]:
+        origins = list(self.cors_allowed_origins)
+        for ext in self.extension_allowed_origins:
+            if ext not in origins:
+                origins.append(ext)
+        return origins
     scraper_request_timeout: float = Field(
         default=20.0,
         validation_alias="COMPUST_SCRAPER_TIMEOUT",

@@ -29,6 +29,16 @@ class DiagnosticReport:
     browser_rendered: bool = False
     detected_result_count: int | None = None
     pages_crawled: int = 1
+    total_jobs_detected: int = 0
+    rejection_reasons: dict[str, int] = field(default_factory=dict)
+    rejected_items: list[dict[str, Any]] = field(default_factory=list)
+    max_pages: int = 3
+    stop_reason: str = "completed"
+    content_signal_count: int = 0
+    discrepancy_detected: bool = False
+    discrepancy_details: str | None = None
+    explanation: str | None = None
+    suggested_action: str | None = None
 
 
 def detect_target_platform(url: str) -> str:
@@ -99,15 +109,72 @@ def run_scraper_diagnostics(
         errors.extend(crawl_res.errors)
         discovered = len(crawl_res.jobs)
 
-        # Validate candidates
+        # Validate candidates with granular rejection reasons (C1)
         accepted = []
-        rejected = 0
-        for job in crawl_res.jobs:
-            if job.title and len(job.title) >= 3 and job.job_url:
-                accepted.append(job)
-            else:
-                rejected += 1
+        rejected_items = []
+        rejection_reasons: dict[str, int] = {}
+        seen_keys = set()
 
+        generic_titles = {
+            "careers", "career", "about", "about us", "contact", "contact us",
+            "privacy", "privacy policy", "terms", "terms of service", "home",
+            "search", "all jobs", "jobs", "login", "sign in", "apply", "menu",
+        }
+
+        for job in crawl_res.jobs:
+            title_clean = (job.title or "").strip()
+            job_comp = getattr(job, "company", None)
+            comp_clean = (job_comp or "").strip()
+            loc_clean = (job.location or "").strip()
+            dedup_key = f"{title_clean.lower()}|{comp_clean.lower()}|{loc_clean.lower()}"
+
+            if dedup_key in seen_keys:
+                rejection_reasons["dedup_hash_match"] = rejection_reasons.get("dedup_hash_match", 0) + 1
+                rejected_items.append({
+                    "title": job.title,
+                    "company": job_comp,
+                    "location": job.location,
+                    "job_url": job.job_url,
+                    "reason": "dedup_hash_match",
+                    "details": "Normalized title, company, and location matched an already seen listing in this run.",
+                })
+                continue
+            seen_keys.add(dedup_key)
+
+            if not title_clean or len(title_clean) < 3:
+                rejection_reasons["missing_title"] = rejection_reasons.get("missing_title", 0) + 1
+                rejected_items.append({
+                    "title": job.title or "<Empty>",
+                    "company": job_comp,
+                    "location": job.location,
+                    "job_url": job.job_url,
+                    "reason": "missing_title",
+                    "details": "Job title was missing or shorter than 3 characters.",
+                })
+            elif title_clean.lower() in generic_titles:
+                rejection_reasons["generic_title"] = rejection_reasons.get("generic_title", 0) + 1
+                rejected_items.append({
+                    "title": job.title,
+                    "company": job_comp,
+                    "location": job.location,
+                    "job_url": job.job_url,
+                    "reason": "generic_title",
+                    "details": f"Job title '{job.title}' matched generic navigation or boilerplate label.",
+                })
+            elif not job.job_url:
+                rejection_reasons["missing_job_url"] = rejection_reasons.get("missing_job_url", 0) + 1
+                rejected_items.append({
+                    "title": job.title,
+                    "company": job_comp,
+                    "location": job.location,
+                    "job_url": job.job_url,
+                    "reason": "missing_job_url",
+                    "details": "No direct or canonical apply URL was extracted for this listing.",
+                })
+            else:
+                accepted.append(job)
+
+        rejected_count = len(rejected_items)
         duration = round(time.time() - start_time, 3)
 
         if len(accepted) > 0:
@@ -116,6 +183,25 @@ def run_scraper_diagnostics(
         else:
             confidence = 0.0
             status = "NO_JOBS_FOUND"
+
+        total_detected = len(crawl_res.jobs)
+        content_signal = getattr(crawl_res, "content_signal_count", 0)
+        discrepancy = False
+        discrepancy_details = None
+
+        if content_signal >= 10 and total_detected <= content_signal // 3:
+            discrepancy = True
+            discrepancy_details = (
+                f"Page content signal detected ~{content_signal} potential job cards in the HTML, "
+                f"but parser only extracted {total_detected} structured candidate(s). "
+                f"Some listings may be in custom or non-standard container elements."
+            )
+        elif crawl_res.detected_result_count and crawl_res.detected_result_count >= 10 and total_detected <= crawl_res.detected_result_count // 3:
+            discrepancy = True
+            discrepancy_details = (
+                f"Target page stated {crawl_res.detected_result_count} available jobs, "
+                f"but parser only extracted {total_detected} candidate(s)."
+            )
 
         samples = [
             {
@@ -217,7 +303,7 @@ def run_scraper_diagnostics(
             execution_time_seconds=duration,
             jobs_discovered=discovered,
             jobs_accepted=len(accepted),
-            jobs_rejected=rejected,
+            jobs_rejected=rejected_count,
             confidence_score=confidence,
             status=status,
             errors=errors,
@@ -230,6 +316,14 @@ def run_scraper_diagnostics(
             browser_rendered=is_browser_rendered,
             detected_result_count=crawl_res.detected_result_count,
             pages_crawled=crawl_res.pages_crawled,
+            total_jobs_detected=total_detected,
+            rejection_reasons=rejection_reasons,
+            rejected_items=rejected_items[:10],
+            max_pages=max_pages,
+            stop_reason=getattr(crawl_res, "stop_reason", "completed"),
+            content_signal_count=content_signal,
+            discrepancy_detected=discrepancy,
+            discrepancy_details=discrepancy_details,
         )
 
     except SourceFetchError as exc:

@@ -10,7 +10,7 @@ Handles:
 - Clean, sanitized logging to logs/launcher.log
 - Automatic browser opening
 """
-
+import psutil
 import json
 import logging
 import os
@@ -257,6 +257,7 @@ def ensure_mysql_running(repo_root: Path, host: str = "127.0.0.1", port: int = 3
                     cwd=str(xampp_dir),
                     creationflags=creation_flags,
                     shell=True,
+                    stdin=subprocess.DEVNULL,
                 )
             elif mysqld_exe.exists():
                 logger.info(f"Launching MySQL via {mysqld_exe}...")
@@ -264,6 +265,7 @@ def ensure_mysql_running(repo_root: Path, host: str = "127.0.0.1", port: int = 3
                     [str(mysqld_exe), "--console"],
                     cwd=str(xampp_dir / "mysql"),
                     creationflags=creation_flags,
+                    stdin=subprocess.DEVNULL,
                 )
 
             # Wait up to 10 seconds for MySQL to bind to port
@@ -314,7 +316,7 @@ def ensure_backend_running(repo_root: Path, host: str = "127.0.0.1", port: int =
     logs_dir.mkdir(parents=True, exist_ok=True)
     backend_log_file = open(logs_dir / "backend.log", "a", encoding="utf-8")
 
-    creation_flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
+    creation_flags = (subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP) if os.name == "nt" else 0
 
     cmd = [
         python_exe,
@@ -333,6 +335,7 @@ def ensure_backend_running(repo_root: Path, host: str = "127.0.0.1", port: int =
             cmd,
             cwd=str(important_dir),
             creationflags=creation_flags,
+            stdin=subprocess.DEVNULL,
             stdout=backend_log_file,
             stderr=backend_log_file,
         )
@@ -395,7 +398,7 @@ def ensure_frontend_running(repo_root: Path, host: str = "127.0.0.1", port: int 
         logs_dir.mkdir(parents=True, exist_ok=True)
         frontend_log_file = open(logs_dir / "frontend.log", "a", encoding="utf-8")
 
-        creation_flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
+        creation_flags = (subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP) if os.name == "nt" else 0
         npm_cmd = "npm.cmd" if os.name == "nt" else "npm"
 
         try:
@@ -404,6 +407,7 @@ def ensure_frontend_running(repo_root: Path, host: str = "127.0.0.1", port: int 
                 cwd=str(frontend_dir),
                 creationflags=creation_flags,
                 shell=True if os.name == "nt" else False,
+                stdin=subprocess.DEVNULL,
                 stdout=frontend_log_file,
                 stderr=frontend_log_file,
             )
@@ -433,6 +437,243 @@ def ensure_frontend_running(repo_root: Path, host: str = "127.0.0.1", port: int 
 
     logger.error("Neither Vite dev server nor compiled dist build is available. Check logs/frontend.log.")
     return False, ""
+def kill_process_tree(pid: int) -> None:
+    """Terminate a process and all its children cleanly."""
+    if pid <= 4:
+        return
+    try:
+        parent = psutil.Process(pid)
+        children = parent.children(recursive=True)
+        for child in children:
+            try:
+                child.terminate()
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+        parent.terminate()
+        _, alive = psutil.wait_procs(children + [parent], timeout=3)
+        for p in alive:
+            try:
+                p.kill()
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        pass
+    except Exception as exc:
+        logger.warning(f"Error terminating process tree for PID {pid}: {exc}")
+
+
+
+import psutil
+
+def free_ports(ports: list[int] = [8000, 5173]) -> None:
+    """Ensure specified ports are freed by terminating lingering listening processes."""
+    if os.name != "nt":
+        return
+
+    for port in ports:
+        for conn in psutil.net_connections(kind="tcp"):
+            if conn.status == psutil.CONN_LISTEN and conn.laddr.port == port:
+                pid = conn.pid
+                if pid and pid > 4:
+                    try:
+                        proc = psutil.Process(pid)
+                        logger.info(f"Port {port} held by PID {pid} ({proc.name()}). Terminating.")
+                        proc.terminate()
+                        try:
+                            proc.wait(timeout=3)
+                        except psutil.TimeoutExpired:
+                            proc.kill()
+                    except (psutil.NoSuchProcess, psutil.AccessDenied) as exc:
+                        logger.warning(f"Could not terminate PID {pid} on port {port}: {exc}")
+
+def prompt_shutdown_confirmation(timeout_seconds: int = 10) -> bool:
+    """Prompt user for confirmation (Y/N) to terminate Compust services.
+
+    Y/y -> Proceed with shutdown
+    N/n or Enter -> Cancel and continue running
+    Timeout -> Proceed with shutdown (safe action to prevent orphaned processes holding ports)
+    """
+    prompt_msg = (
+        f"\nReceived shutdown signal (Ctrl+C).\n"
+        f"Are you sure you want to stop Compust services? (Y/N) "
+        f"[Proceeding automatically in {timeout_seconds}s]: "
+    )
+    sys.stdout.write(prompt_msg)
+    sys.stdout.flush()
+
+    if os.name == "nt" and sys.stdin.isatty():
+        import msvcrt
+        # Drain any residual characters in the console input buffer
+        while msvcrt.kbhit():
+            msvcrt.getwch()
+
+        start_time = time.time()
+        while True:
+            elapsed = time.time() - start_time
+            if elapsed >= timeout_seconds:
+                sys.stdout.write(f"\n[TIMEOUT] No response within {timeout_seconds}s. Proceeding with safe shutdown.\n")
+                sys.stdout.flush()
+                logger.info(f"Shutdown confirmation timed out after {timeout_seconds}s. Proceeding with safe shutdown.")
+                return True
+
+            if msvcrt.kbhit():
+                ch = msvcrt.getwch()
+                if ch.lower() == "y":
+                    sys.stdout.write(f"{ch}\n")
+                    sys.stdout.flush()
+                    logger.info("User confirmed shutdown (Y).")
+                    return True
+                elif ch.lower() == "n":
+                    sys.stdout.write(f"{ch}\n")
+                    sys.stdout.flush()
+                    logger.info("User cancelled shutdown (N).")
+                    return False
+                elif ch in ("\r", "\n"):
+                    sys.stdout.write("\n")
+                    sys.stdout.flush()
+                    logger.info("User pressed Enter. Defaulting to cancel.")
+                    return False
+                elif ch == "\x03":  # Second Ctrl+C pressed
+                    sys.stdout.write("\n[FORCED] Second Ctrl+C received. Forcing immediate shutdown.\n")
+                    sys.stdout.flush()
+                    logger.info("Forced shutdown requested by user (second Ctrl+C).")
+                    return True
+
+            time.sleep(0.05)
+    else:
+        import queue
+        import threading
+
+        input_queue: queue.Queue[str] = queue.Queue()
+
+        def _reader():
+            try:
+                line = sys.stdin.readline()
+                input_queue.put(line)
+            except Exception:
+                pass
+
+        t = threading.Thread(target=_reader, daemon=True)
+        t.start()
+
+        try:
+            line = input_queue.get(timeout=timeout_seconds)
+            ans = line.strip().lower()
+            if ans.startswith("y"):
+                logger.info("User confirmed shutdown (Y).")
+                return True
+            elif ans.startswith("n") or ans == "":
+                logger.info(f"User cancelled shutdown (input: '{ans}').")
+                return False
+            else:
+                logger.info(f"Unrecognized response '{ans}', defaulting to safe shutdown.")
+                return True
+        except queue.Empty:
+            sys.stdout.write(f"\n[TIMEOUT] No response within {timeout_seconds}s. Proceeding with safe shutdown.\n")
+            sys.stdout.flush()
+            logger.info("Shutdown confirmation timed out. Defaulting to safe shutdown.")
+            return True
+
+
+def terminate_compust_services(repo_root: Path) -> None:
+    """Terminate all backend and frontend processes, release ports, and clean PID tracking."""
+    logger.info("Stopping Compust services...")
+    # 1. Terminate tracked subprocesses
+    for name, proc in _SPAWNED_PROCESSES:
+        try:
+            if proc.poll() is None:
+                logger.info(f"Stopping {name} process (PID: {proc.pid})...")
+                kill_process_tree(proc.pid)
+        except Exception as exc:
+            logger.warning(f"Could not terminate {name}: {exc}")
+
+    # 2. Terminate PIDs loaded from pid file
+    pids = load_tracked_pids(repo_root)
+    for name, pid in pids.items():
+        if pid > 4:
+            kill_process_tree(pid)
+
+    # 3. Clean pid file
+    pid_file = get_pid_file(repo_root)
+    if pid_file.exists():
+        try:
+            pid_file.unlink()
+        except Exception:
+            pass
+
+    # 4. Release ports 8000 and 5173
+    free_ports([8000, 5173])
+    logger.info("Compust shutdown complete. Ports 8000 and 5173 released.")
+
+
+def check_extension_onboarding(repo_root: Path) -> None:
+    """Check if Compust Capture browser extension onboarding has been presented.
+
+    If first run, display clear dev/unpacked installation instructions for detected browsers.
+    Subsequent runs are a fast no-op via local marker file.
+    """
+    marker = repo_root / "logs" / ".extension_onboarding_done"
+    chrome_manifest = repo_root / "important" / "extension" / "dist" / "chrome" / "manifest.json"
+    firefox_manifest = repo_root / "important" / "extension" / "dist" / "firefox" / "manifest.json"
+
+    # Fast no-op if already completed and builds exist
+    if marker.is_file() and (chrome_manifest.is_file() or firefox_manifest.is_file()):
+        return
+
+    # Detect installed browsers
+    detected_browsers = []
+    if os.name == "nt":
+        browser_checks = [
+            ("Google Chrome", [
+                Path(os.environ.get("PROGRAMFILES", "C:\\Program Files")) / "Google\\Chrome\\Application\\chrome.exe",
+                Path(os.environ.get("PROGRAMFILES(X86)", "C:\\Program Files (x86)")) / "Google\\Chrome\\Application\\chrome.exe",
+                Path(os.environ.get("LOCALAPPDATA", "")) / "Google\\Chrome\\Application\\chrome.exe",
+            ]),
+            ("Microsoft Edge", [
+                Path(os.environ.get("PROGRAMFILES(X86)", "C:\\Program Files (x86)")) / "Microsoft\\Edge\\Application\\msedge.exe",
+                Path(os.environ.get("PROGRAMFILES", "C:\\Program Files")) / "Microsoft\\Edge\\Application\\msedge.exe",
+            ]),
+            ("Brave Browser", [
+                Path(os.environ.get("LOCALAPPDATA", "")) / "BraveSoftware\\Brave-Browser\\Application\\brave.exe",
+                Path(os.environ.get("PROGRAMFILES", "C:\\Program Files")) / "BraveSoftware\\Brave-Browser\\Application\\brave.exe",
+            ]),
+            ("Mozilla Firefox", [
+                Path(os.environ.get("PROGRAMFILES", "C:\\Program Files")) / "Mozilla Firefox\\firefox.exe",
+                Path(os.environ.get("PROGRAMFILES(X86)", "C:\\Program Files (x86)")) / "Mozilla Firefox\\firefox.exe",
+            ]),
+        ]
+        for b_name, paths in browser_checks:
+            if any(p.is_file() for p in paths):
+                detected_browsers.append(b_name)
+
+    chrome_dist = repo_root / "important" / "extension" / "dist" / "chrome"
+    firefox_dist = repo_root / "important" / "extension" / "dist" / "firefox"
+
+    logger.info("=" * 60)
+    logger.info("[FIRST-RUN ONBOARDING] Compust Capture Browser Extension")
+    logger.info("------------------------------------------------------------")
+    if detected_browsers:
+        logger.info(f"Detected browsers: {', '.join(detected_browsers)}")
+    logger.info("To capture vacancies from LinkedIn, Indeed, Glassdoor & WTTJ:")
+    logger.info("  1. Chromium browsers (Chrome, Edge, Brave):")
+    logger.info("     - Navigate to chrome://extensions or edge://extensions")
+    logger.info("     - Toggle 'Developer mode' ON (top-right)")
+    logger.info(f"     - Click 'Load unpacked' and select:")
+    logger.info(f"       {chrome_dist}")
+    logger.info("  2. Mozilla Firefox:")
+    logger.info("     - Navigate to about:debugging#/runtime/this-firefox")
+    logger.info(f"     - Click 'Load Temporary Add-on...' and select:")
+    logger.info(f"       {firefox_dist / 'manifest.json'}")
+    logger.info("  (Note: Unpacked extensions require this developer load step")
+    logger.info("   due to browser security boundaries. Web Store publishing")
+    logger.info("   is the standard path for automated enterprise deployment.)")
+    logger.info("=" * 60)
+
+    try:
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.write_text(f"completed_at={time.time()}\n", encoding="utf-8")
+    except Exception:
+        pass
 
 
 def launch_compust(keep_alive: bool = True) -> int:
@@ -485,38 +726,34 @@ def launch_compust(keep_alive: bool = True) -> int:
     webbrowser.open(target_url)
     logger.info("=" * 60)
     logger.info("Compust is now running successfully!")
-    logger.info(f"  -> Frontend: {frontend_url}")
+    logger.info(f"  -> Frontend: {target_url}")
     logger.info(f"  -> Backend:  http://127.0.0.1:8000")
     logger.info(f"  -> API Docs: http://127.0.0.1:8000/docs")
     logger.info("Keep this window open while using Compust.")
     logger.info("Press Ctrl+C in this window to stop all services.")
     logger.info("=" * 60)
 
+    # 6. Check extension onboarding status (fast no-op on repeat launches)
+    check_extension_onboarding(repo_root)
+
     if not keep_alive or "pytest" in sys.modules:
         return 0
 
-    try:
-        while True:
-            time.sleep(1.0)
-            for name, proc in _SPAWNED_PROCESSES:
-                if proc.poll() is not None:
-                    logger.warning(f"{name} process ended unexpectedly (code {proc.returncode}).")
-    except KeyboardInterrupt:
-        logger.info("\nStopping Compust services...")
-    finally:
-        for name, proc in _SPAWNED_PROCESSES:
-            try:
-                if proc.poll() is None:
-                    proc.terminate()
-                    proc.wait(timeout=2)
-            except Exception:
-                try:
-                    proc.kill()
-                except Exception:
-                    pass
-        logger.info("Compust shutdown complete.")
-
-    return 0
+    while True:
+        try:
+            while True:
+                time.sleep(1.0)
+                for name, proc in _SPAWNED_PROCESSES:
+                    if proc.poll() is not None:
+                        logger.warning(f"{name} process ended unexpectedly (code {proc.returncode}).")
+        except KeyboardInterrupt:
+            confirmed = prompt_shutdown_confirmation(timeout_seconds=10)
+            if confirmed:
+                terminate_compust_services(repo_root)
+                return 0
+            else:
+                logger.info("Resuming Compust services. Press Ctrl+C in this window to stop.")
+                continue
 
 
 if __name__ == "__main__":

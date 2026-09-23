@@ -14,11 +14,11 @@
 }
 
 /* Header & Personal Info */
-.resume-header {
+.resume-paper .resume-header {
   margin-bottom: 18px;
 }
 
-.resume-name {
+.resume-paper .resume-name {
   font-size: 1.85em;
   font-weight: 800;
   line-height: 1.2;
@@ -27,14 +27,14 @@
   letter-spacing: -0.02em;
 }
 
-.resume-headline {
+.resume-paper .resume-headline {
   font-size: 1.05em;
   font-weight: 600;
   color: var(--resume-accent, #2563eb);
   margin-bottom: 8px;
 }
 
-.resume-contact-row {
+.resume-paper .resume-contact-row {
   display: flex;
   flex-wrap: wrap;
   gap: 8px 14px;
@@ -43,12 +43,12 @@
   align-items: center;
 }
 
-.contact-bullet {
+.resume-paper .contact-bullet {
   color: var(--resume-accent, #2563eb);
   font-weight: bold;
 }
 
-.header-divider {
+.resume-paper .header-divider {
   width: 100%;
   height: 2px;
   background-color: var(--resume-accent, #2563eb);
@@ -56,11 +56,11 @@
 }
 
 /* Sections */
-.resume-section {
+.resume-paper .resume-section {
   margin-bottom: 18px;
 }
 
-.section-title {
+.resume-paper .section-title {
   font-size: 1.05em;
   font-weight: 700;
   text-transform: uppercase;
@@ -71,7 +71,7 @@
   border-bottom: 1px solid #e2e8f0;
 }
 
-.summary-text {
+.resume-paper .summary-text {
   font-size: 0.94em;
   color: #1e293b;
   line-height: 1.55;
@@ -80,11 +80,13 @@
 }
 
 /* Item styling */
-.exp-item, .edu-item, .project-item {
+.resume-paper .exp-item,
+.resume-paper .edu-item,
+.resume-paper .project-item {
   margin-bottom: 14px;
 }
 
-.item-header-row {
+.resume-paper .item-header-row {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
@@ -92,40 +94,40 @@
   margin-bottom: 3px;
 }
 
-.item-title-col {
+.resume-paper .item-title-col {
   font-size: 0.98em;
 }
 
-.item-title {
+.resume-paper .item-title {
   font-weight: 700;
   color: #0f172a;
 }
 
-.item-company {
+.resume-paper .item-company {
   font-weight: 600;
   color: #334155;
 }
 
-.item-location {
+.resume-paper .item-location {
   color: #64748b;
   font-size: 0.92em;
 }
 
-.item-date {
+.resume-paper .item-date {
   font-size: 0.88em;
   color: #64748b;
   font-weight: 500;
   white-space: nowrap;
 }
 
-.item-description {
+.resume-paper .item-description {
   font-size: 0.92em;
   color: #334155;
   line-height: 1.5;
   margin: 4px 0 6px 0;
 }
 
-.item-bullets {
+.resume-paper .item-bullets {
   margin: 4px 0 6px 0;
   padding-left: 20px;
   font-size: 0.92em;
@@ -133,18 +135,18 @@
   line-height: 1.45;
 }
 
-.item-bullets li {
+.resume-paper .item-bullets li {
   margin-bottom: 3px;
 }
 
 /* Skills Grid */
-.skills-grid {
+.resume-paper .skills-grid {
   display: flex;
   flex-wrap: wrap;
   gap: 6px 12px;
 }
 
-.skill-item {
+.resume-paper .skill-item {
   display: inline-flex;
   align-items: baseline;
   gap: 4px;
@@ -155,25 +157,25 @@
   font-size: 0.88em;
 }
 
-.skill-name {
+.resume-paper .skill-name {
   font-weight: 600;
   color: #0f172a;
 }
 
-.skill-level {
+.resume-paper .skill-level {
   font-size: 0.82em;
   color: #64748b;
 }
 
 /* Languages */
-.languages-pills {
+.resume-paper .languages-pills {
   display: flex;
   flex-wrap: wrap;
   gap: 8px 16px;
   font-size: 0.92em;
 }
 
-.project-url a {
+.resume-paper .project-url a {
   font-size: 0.88em;
   color: var(--resume-accent, #2563eb);
   text-decoration: underline;

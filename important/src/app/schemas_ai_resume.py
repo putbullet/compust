@@ -56,6 +56,7 @@ class ResumeRead(BaseModel):
     filename: str
     parsed_sections: dict[str, Any] | None = None
     is_active: bool
+    is_original_upload: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -137,3 +138,39 @@ class ScraperDiagnosticResponse(BaseModel):
     browser_rendered: bool = False
     detected_result_count: int | None = None
     pages_crawled: int = 1
+    total_jobs_detected: int = 0
+    rejection_reasons: dict[str, int] = {}
+    rejected_items: list[dict[str, Any]] = []
+    max_pages: int = 3
+    stop_reason: str = "completed"
+    content_signal_count: int = 0
+    discrepancy_detected: bool = False
+    discrepancy_details: str | None = None
+    explanation: dict[str, Any] | None = None
+    suggested_action: str | None = None
+
+
+class ScraperExplainRequest(BaseModel):
+    report: dict[str, Any]
+
+
+class ScraperExplainResponse(BaseModel):
+    summary: str
+    reasons_breakdown: dict[str, str] = {}
+    discrepancy_explanation: str | None = None
+    recommendations: list[str] = []
+    provider: str = "deterministic"
+
+
+class ScraperDecisionRequest(BaseModel):
+    target_url: str
+    decision: str  # "keep_accepted" | "force_integrate_all"
+    rejected_items: list[dict[str, Any]] = []
+
+
+class ScraperDecisionResponse(BaseModel):
+    status: str
+    action: str
+    integrated_count: int
+    message: str
+

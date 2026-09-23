@@ -108,30 +108,9 @@ def _get_active_resume(user: User) -> Any | None:
 
 def _extract_all_user_skills(user: User) -> tuple[set[str], dict[str, str]]:
     """Returns (canonical_skills_set, canonical_to_original_display_map)."""
-    raw_skills: list[str] = []
-    if user.skills:
-        raw_skills.extend(s.skill for s in user.skills if s.skill)
-
+    from ..repositories.resume import extract_canonical_skills_map
     resume = _get_active_resume(user)
-    if resume and getattr(resume, "structured_data", None):
-        sdata = resume.structured_data or {}
-        r_skills = sdata.get("skills", [])
-        for item in r_skills:
-            if isinstance(item, str) and item.strip():
-                raw_skills.append(item.strip())
-            elif isinstance(item, dict):
-                val = item.get("name") or item.get("skill")
-                if val and isinstance(val, str) and val.strip():
-                    raw_skills.append(val.strip())
-
-    canonical_set: set[str] = set()
-    display_map: dict[str, str] = {}
-    for raw in raw_skills:
-        c = _canonical_skill(raw)
-        if c:
-            canonical_set.add(c)
-            if c not in display_map:
-                display_map[c] = raw
+    canonical_set, display_map, _ = extract_canonical_skills_map(resume, user)
     return canonical_set, display_map
 
 

@@ -16,12 +16,16 @@ import {
   ShieldAlert,
   Check,
   X,
+  Sparkles,
+  CheckCircle2,
+  Layers,
 } from 'lucide-react';
 import {
   api,
   type Job,
   type ScrapingRunItem,
   type ScraperDiagnosticResponse,
+  type ScraperExplainResponse,
   type JobSupervisionUpdate,
 } from '../api/client';
 
@@ -61,6 +65,11 @@ export const MyDataSupervisionView: React.FC = () => {
   const [runningTest, setRunningTest] = useState(false);
   const [testResult, setTestResult] = useState<ScraperDiagnosticResponse | null>(null);
   const [testError, setTestError] = useState<string | null>(null);
+  const [explanation, setExplanation] = useState<ScraperExplainResponse | null>(null);
+  const [loadingExplanation, setLoadingExplanation] = useState(false);
+  const [applyingDecision, setApplyingDecision] = useState(false);
+  const [decisionFeedback, setDecisionFeedback] = useState<{ status: string; message: string } | null>(null);
+  const [showRejectedDetails, setShowRejectedDetails] = useState(false);
 
   // Load jobs
   const fetchJobs = async () => {
@@ -194,12 +203,28 @@ export const MyDataSupervisionView: React.FC = () => {
     }
   };
 
+  const handleFetchExplanation = async (reportToExplain?: ScraperDiagnosticResponse) => {
+    const targetReport = reportToExplain || testResult;
+    if (!targetReport) return;
+    try {
+      setLoadingExplanation(true);
+      const res = await api.explainScraperDiagnostic(targetReport);
+      setExplanation(res);
+    } catch (err: any) {
+      console.warn('Could not fetch explanation:', err);
+    } finally {
+      setLoadingExplanation(false);
+    }
+  };
+
   const handleRunDiagnostic = async () => {
     if (!testUrl.trim()) return;
     try {
       setRunningTest(true);
       setTestError(null);
       setTestResult(null);
+      setExplanation(null);
+      setDecisionFeedback(null);
       const strat = testStrategy === 'auto' ? undefined : testStrategy;
       const res = await api.testScraperDiagnostic({
         url: testUrl.trim(),
@@ -207,10 +232,38 @@ export const MyDataSupervisionView: React.FC = () => {
         max_pages: testMaxPages,
       });
       setTestResult(res);
+      handleFetchExplanation(res);
     } catch (err: any) {
       setTestError(err.message || 'Diagnostic execution failed');
     } finally {
       setRunningTest(false);
+    }
+  };
+
+  const handleApplyDecision = async (decision: 'keep_accepted' | 'force_integrate_all') => {
+    if (!testResult) return;
+    try {
+      setApplyingDecision(true);
+      setDecisionFeedback(null);
+      const res = await api.applyScraperDecision({
+        target_url: testResult.target_url,
+        decision,
+        rejected_items: testResult.rejected_items || [],
+      });
+      setDecisionFeedback({
+        status: res.status,
+        message: res.message,
+      });
+      if (decision === 'force_integrate_all') {
+        fetchJobs();
+      }
+    } catch (err: any) {
+      setDecisionFeedback({
+        status: 'error',
+        message: err.message || 'Failed to apply scraper decision',
+      });
+    } finally {
+      setApplyingDecision(false);
     }
   };
 
@@ -576,6 +629,9 @@ export const MyDataSupervisionView: React.FC = () => {
                     {testResult.discovery_method && (
                       <span className="time-tag">Discovery: {testResult.discovery_method}</span>
                     )}
+                    {testResult.stop_reason && (
+                      <span className="time-tag">Stop: {testResult.stop_reason}</span>
+                    )}
                   </div>
 
                   <div className="metrics-cluster">
@@ -588,28 +644,128 @@ export const MyDataSupervisionView: React.FC = () => {
                       <span className="metric-val highlight">{testResult.strategy_used}</span>
                     </div>
                     <div className="metric">
-                      <span className="metric-label">Discovered</span>
-                      <span className="metric-val">{testResult.jobs_discovered}</span>
+                      <span className="metric-label">Total Detected</span>
+                      <span className="metric-val highlight">{testResult.total_jobs_detected || testResult.jobs_discovered}</span>
                     </div>
                     <div className="metric">
                       <span className="metric-label">Accepted</span>
                       <span className="metric-val success">{testResult.jobs_accepted}</span>
                     </div>
                     <div className="metric">
-                      <span className="metric-label">Confidence</span>
-                      <span className="metric-val">{Math.round(testResult.confidence_score * 100)}%</span>
+                      <span className="metric-label">Rejected</span>
+                      <span className="metric-val error">{testResult.jobs_rejected}</span>
                     </div>
                     <div className="metric">
                       <span className="metric-label">Pages Crawled</span>
-                      <span className="metric-val">{testResult.pages_crawled || 1}</span>
+                      <span className="metric-val">{testResult.pages_crawled || 1} / {testResult.max_pages || 3}</span>
                     </div>
-                    {testResult.detected_result_count !== undefined && testResult.detected_result_count !== null && (
+                    {testResult.content_signal_count !== undefined && testResult.content_signal_count > 0 && (
                       <div className="metric">
-                        <span className="metric-label">Detected Total</span>
-                        <span className="metric-val highlight">{testResult.detected_result_count}</span>
+                        <span className="metric-label">DOM Signals</span>
+                        <span className="metric-val">{testResult.content_signal_count}</span>
                       </div>
                     )}
+                    <div className="metric">
+                      <span className="metric-label">Confidence</span>
+                      <span className="metric-val">{Math.round(testResult.confidence_score * 100)}%</span>
+                    </div>
                   </div>
+                </div>
+
+                {/* Discrepancy Alert */}
+                {testResult.discrepancy_detected && (
+                  <div className="discrepancy-banner">
+                    <AlertTriangle size={18} className="warn-icon" />
+                    <div className="banner-text">
+                      <strong>Listing Signal Discrepancy Detected</strong>
+                      <p>
+                        {testResult.discrepancy_details ||
+                          `Raw HTML contains ${testResult.content_signal_count} job card markers, but universal parser extracted only ${testResult.total_jobs_detected || testResult.jobs_discovered} candidate positions.`}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Rejection Reasons Pills */}
+                {testResult.rejection_reasons && Object.keys(testResult.rejection_reasons).length > 0 && (
+                  <div className="rejection-breakdown-section">
+                    <h4>Candidate Filtering Breakdown:</h4>
+                    <div className="rejection-pill-row">
+                      {Object.entries(testResult.rejection_reasons).map(([reason, count]) => (
+                        <div key={reason} className="rejection-pill">
+                          <span className="reason-code">{reason}</span>
+                          <span className="reason-count">{count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* AI Explanation Box */}
+                <div className="ai-explanation-card">
+                  <div className="ai-header">
+                    <div className="ai-title">
+                      <Sparkles size={16} className="sparkle-icon" />
+                      <span>Diagnostics Intelligence Explanation</span>
+                    </div>
+                    {explanation && (
+                      <span className={`provider-tag ${explanation.provider === 'ollama' ? 'provider-ollama' : 'provider-deterministic'}`}>
+                        {explanation.provider === 'ollama' ? 'Ollama Local LLM' : 'Deterministic Grounding'}
+                      </span>
+                    )}
+                  </div>
+
+                  {loadingExplanation ? (
+                    <div className="ai-loading">
+                      <Loader2 size={16} className="spin" />
+                      <span>Synthesizing diagnostics explanation grounded in scraper architecture...</span>
+                    </div>
+                  ) : explanation ? (
+                    <div className="ai-body">
+                      <p className="ai-summary">{explanation.summary}</p>
+
+                      {explanation.discrepancy_explanation && (
+                        <div className="ai-discrepancy-note">
+                          <AlertTriangle size={14} />
+                          <span>{explanation.discrepancy_explanation}</span>
+                        </div>
+                      )}
+
+                      {explanation.reasons_breakdown && Object.keys(explanation.reasons_breakdown).length > 0 && (
+                        <div className="ai-reasons-grid">
+                          <h5>Filtering Reasons Grounding:</h5>
+                          <ul>
+                            {Object.entries(explanation.reasons_breakdown).map(([code, desc]) => (
+                              <li key={code}>
+                                <code>{code}</code>: {desc}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {explanation.recommendations && explanation.recommendations.length > 0 && (
+                        <div className="ai-recommendations">
+                          <h5>Recommended Next Steps:</h5>
+                          <ul>
+                            {explanation.recommendations.map((rec, idx) => (
+                              <li key={idx}>
+                                <CheckCircle2 size={13} className="check-icon" />
+                                <span>{rec}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="ai-trigger">
+                      <button className="explain-btn" onClick={() => handleFetchExplanation()}>
+                        <Sparkles size={14} />
+                        <span>Explain Run with AI Assistant</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {testResult.failure_reason && (
@@ -632,7 +788,7 @@ export const MyDataSupervisionView: React.FC = () => {
 
                 {testResult.sample_jobs.length > 0 && (
                   <div className="sample-jobs-list">
-                    <h4>Sample Candidates Extracted:</h4>
+                    <h4>Sample Candidates Extracted ({testResult.jobs_accepted} accepted):</h4>
                     <div className="sample-grid">
                       {testResult.sample_jobs.map((s, idx) => (
                         <div key={idx} className="sample-card">
@@ -645,6 +801,71 @@ export const MyDataSupervisionView: React.FC = () => {
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {/* Rejected Items Preview */}
+                {testResult.rejected_items && testResult.rejected_items.length > 0 && (
+                  <div className="rejected-items-section">
+                    <div className="section-head-row">
+                      <h4>Rejected Candidate Elements ({testResult.jobs_rejected} rejected)</h4>
+                      <button
+                        className="toggle-rejected-btn"
+                        onClick={() => setShowRejectedDetails(!showRejectedDetails)}
+                      >
+                        {showRejectedDetails ? 'Hide Details' : 'Show Rejected Samples'}
+                      </button>
+                    </div>
+                    {showRejectedDetails && (
+                      <div className="sample-grid rejected-grid">
+                        {testResult.rejected_items.map((rej, idx) => (
+                          <div key={idx} className="sample-card rejected-card">
+                            <div className="rejected-head">
+                              <span className="sample-title">{rej.title || 'Untitled Element'}</span>
+                              <span className="rej-badge">{rej.reason || 'Filtered'}</span>
+                            </div>
+                            <span className="sample-loc">{rej.url || rej.job_url || 'No URL'}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Administrative Decision Bar */}
+                <div className="decision-action-bar">
+                  <div className="action-prompt">
+                    <strong>Administrative Decision:</strong>
+                    <span>Choose how to proceed with the extracted data for this source.</span>
+                  </div>
+                  <div className="action-buttons">
+                    <button
+                      className="decision-btn keep-btn"
+                      onClick={() => handleApplyDecision('keep_accepted')}
+                      disabled={applyingDecision || testResult.jobs_accepted === 0}
+                    >
+                      <Check size={15} />
+                      <span>Keep Accepted Only ({testResult.jobs_accepted})</span>
+                    </button>
+                    <button
+                      className="decision-btn force-btn"
+                      onClick={() => handleApplyDecision('force_integrate_all')}
+                      disabled={applyingDecision || !testResult.rejected_items || testResult.rejected_items.length === 0}
+                    >
+                      <Layers size={15} />
+                      <span>
+                        Force-Integrate All (Override Filters)
+                        {testResult.rejected_items && testResult.rejected_items.length > 0 && ` (+${testResult.rejected_items.length})`}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Decision Feedback Banner */}
+                {decisionFeedback && (
+                  <div className={`decision-feedback-banner ${decisionFeedback.status === 'error' ? 'err' : 'ok'}`}>
+                    {decisionFeedback.status === 'error' ? <AlertTriangle size={16} /> : <CheckCircle2 size={16} />}
+                    <span>{decisionFeedback.message}</span>
                   </div>
                 )}
               </DiagnosticReportCard>
@@ -1325,6 +1546,228 @@ const DiagnosticReportCard = styled.div`
         color: #f8fafc;
         &.highlight { color: #60a5fa; }
         &.success { color: #34d399; }
+        &.error { color: #f87171; }
+      }
+    }
+  }
+
+  .discrepancy-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    margin-top: 14px;
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    border-radius: 8px;
+
+    .warn-icon {
+      color: #f59e0b;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .banner-text {
+      font-size: 0.82rem;
+      color: #fef3c7;
+      strong {
+        display: block;
+        font-size: 0.86rem;
+        color: #fbbf24;
+        margin-bottom: 3px;
+      }
+      p {
+        margin: 0;
+        line-height: 1.4;
+      }
+    }
+  }
+
+  .rejection-breakdown-section {
+    margin-top: 14px;
+    h4 {
+      font-size: 0.8rem;
+      color: #94a3b8;
+      margin: 0 0 8px;
+      font-weight: 600;
+    }
+    .rejection-pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .rejection-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(239, 68, 68, 0.25);
+      border-radius: 6px;
+      font-size: 0.78rem;
+
+      .reason-code {
+        color: #fca5a5;
+        font-family: monospace;
+      }
+      .reason-count {
+        background: rgba(239, 68, 68, 0.3);
+        color: #ffffff;
+        font-weight: 700;
+        padding: 1px 6px;
+        border-radius: 4px;
+        font-size: 0.72rem;
+      }
+    }
+  }
+
+  .ai-explanation-card {
+    margin-top: 16px;
+    padding: 16px;
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    border-radius: 10px;
+
+    .ai-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+      padding-bottom: 8px;
+    }
+
+    .ai-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.86rem;
+      font-weight: 600;
+      color: #c4b5fd;
+      .sparkle-icon { color: #a78bfa; }
+    }
+
+    .provider-tag {
+      font-size: 0.72rem;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+      &.provider-ollama {
+        background: rgba(168, 85, 247, 0.2);
+        color: #d8b4fe;
+        border: 1px solid rgba(168, 85, 247, 0.35);
+      }
+      &.provider-deterministic {
+        background: rgba(59, 130, 246, 0.2);
+        color: #93c5fd;
+        border: 1px solid rgba(59, 130, 246, 0.35);
+      }
+    }
+
+    .ai-loading {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #94a3b8;
+      font-size: 0.82rem;
+      padding: 12px 0;
+    }
+
+    .ai-body {
+      .ai-summary {
+        font-size: 0.84rem;
+        color: #e2e8f0;
+        line-height: 1.5;
+        margin: 0 0 10px;
+      }
+
+      .ai-discrepancy-note {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: rgba(245, 158, 11, 0.15);
+        border-radius: 6px;
+        font-size: 0.8rem;
+        color: #fde68a;
+        margin-bottom: 10px;
+      }
+
+      .ai-reasons-grid {
+        margin-top: 10px;
+        h5 {
+          font-size: 0.78rem;
+          color: #94a3b8;
+          margin: 0 0 6px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        ul {
+          margin: 0;
+          padding-left: 18px;
+          font-size: 0.8rem;
+          color: #cbd5e1;
+          line-height: 1.5;
+          code {
+            color: #fca5a5;
+            background: rgba(0, 0, 0, 0.25);
+            padding: 1px 4px;
+            border-radius: 3px;
+          }
+        }
+      }
+
+      .ai-recommendations {
+        margin-top: 12px;
+        h5 {
+          font-size: 0.78rem;
+          color: #94a3b8;
+          margin: 0 0 6px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        ul {
+          list-style: none;
+          margin: 0;
+          padding: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          li {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            font-size: 0.8rem;
+            color: #e2e8f0;
+            line-height: 1.4;
+            .check-icon {
+              color: #34d399;
+              flex-shrink: 0;
+              margin-top: 2px;
+            }
+          }
+        }
+      }
+    }
+
+    .ai-trigger {
+      padding: 6px 0;
+      .explain-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        background: rgba(139, 92, 246, 0.2);
+        border: 1px solid rgba(139, 92, 246, 0.4);
+        border-radius: 6px;
+        color: #c4b5fd;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        &:hover {
+          background: rgba(139, 92, 246, 0.35);
+        }
       }
     }
   }
@@ -1365,6 +1808,127 @@ const DiagnosticReportCard = styled.div`
         text-decoration: none;
         margin-top: 4px;
       }
+    }
+  }
+
+  .rejected-items-section {
+    margin-top: 16px;
+    .section-head-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      h4 { font-size: 0.82rem; color: #f87171; margin: 0; }
+      .toggle-rejected-btn {
+        background: none;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+        color: #94a3b8;
+        font-size: 0.72rem;
+        padding: 3px 8px;
+        cursor: pointer;
+        &:hover { color: #f8fafc; border-color: rgba(255, 255, 255, 0.2); }
+      }
+    }
+    .rejected-card {
+      border-left: 3px solid #ef4444;
+      .rejected-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 6px;
+      }
+      .rej-badge {
+        font-size: 0.68rem;
+        padding: 2px 6px;
+        background: rgba(239, 68, 68, 0.2);
+        color: #fca5a5;
+        border-radius: 4px;
+        font-family: monospace;
+      }
+    }
+  }
+
+  .decision-action-bar {
+    margin-top: 18px;
+    padding: 14px 16px;
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+
+    .action-prompt {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      strong { font-size: 0.86rem; color: #f8fafc; }
+      span { font-size: 0.78rem; color: #94a3b8; }
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .decision-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      &.keep-btn {
+        background: rgba(16, 185, 129, 0.2);
+        color: #34d399;
+        border: 1px solid rgba(16, 185, 129, 0.35);
+        &:hover:not(:disabled) {
+          background: rgba(16, 185, 129, 0.3);
+        }
+      }
+
+      &.force-btn {
+        background: #4f46e5;
+        color: #ffffff;
+        &:hover:not(:disabled) {
+          background: #4338ca;
+        }
+      }
+    }
+  }
+
+  .decision-feedback-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+
+    &.ok {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #34d399;
+    }
+    &.err {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #f87171;
     }
   }
 `;

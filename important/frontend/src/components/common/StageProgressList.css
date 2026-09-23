@@ -1,0 +1,123 @@
+/* StageProgressList.css
+   Reusable pipeline progress feedback mirroring Compust browser extension
+*/
+
+.compust-progress-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 20px;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(8px);
+  animation: compust-fade-in 0.25s ease-out;
+}
+
+@keyframes compust-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.compust-progress-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.compust-stage-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(59, 130, 246, 0.3);
+  border-top-color: #60a5fa;
+  border-radius: 50%;
+  animation: compust-spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes compust-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.compust-stage-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding-left: 2px;
+}
+
+.compust-stage-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.82rem;
+  transition: all 0.25s ease;
+}
+
+.compust-stage-icon {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.compust-stage-label {
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+}
+
+/* Completed stage */
+.compust-stage-item.completed {
+  color: #86efac;
+}
+
+.compust-stage-item.completed .compust-stage-icon {
+  color: #86efac;
+}
+
+/* Active stage */
+.compust-stage-item.active {
+  color: #60a5fa;
+  font-weight: 600;
+}
+
+.compust-stage-item.active .compust-stage-icon {
+  color: #60a5fa;
+  animation: compust-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes compust-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.25);
+    opacity: 0.8;
+  }
+}
+
+/* Pending stage */
+.compust-stage-item.pending {
+  color: #64748b;
+}
+
+.compust-stage-item.pending .compust-stage-icon {
+  color: #475569;
+}

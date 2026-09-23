@@ -25,13 +25,11 @@ import type {
   ResumeLanguageEntry,
 } from '../../api/client';
 import {
-  normalizeSkillProficiency,
   normalizeLanguageProficiency,
-  getSkillProficiencyLabel,
   getLanguageProficiencyLabel,
-  getSkillDropdownOptions,
   getLanguageDropdownOptions,
   getLocalizedSectionTitle,
+  getLocalizedPresentLabel,
 } from './resumeLocalization';
 import './ResumeEditor.css';
 
@@ -198,35 +196,22 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
     });
   };
 
-  // Skills helpers
+  // Skills helpers (B4: plain keywords only, no proficiency levels)
   const [newSkillName, setNewSkillName] = useState('');
   const [newSkillCategory] = useState('Core & Technical');
-  const [newSkillProficiency, setNewSkillProficiency] = useState('ADVANCED');
 
   const handleAddSkill = () => {
     if (!newSkillName.trim()) return;
-    const profToken = normalizeSkillProficiency(newSkillProficiency);
     const newSkill: ResumeSkillEntry = {
       id: `sk-${Date.now()}`,
       name: newSkillName.trim(),
       category: newSkillCategory,
-      proficiency: profToken === 'NONE' ? null : profToken,
     };
     onChangeData({
       ...data,
       skills: [...(data.skills || []), newSkill],
     });
     setNewSkillName('');
-  };
-
-  const handleUpdateSkillProficiency = (id: string, profValue: string) => {
-    const profToken = normalizeSkillProficiency(profValue);
-    onChangeData({
-      ...data,
-      skills: (data.skills || []).map((s) =>
-        s.id === id ? { ...s, proficiency: profToken === 'NONE' ? null : profToken } : s
-      ),
-    });
   };
 
   const handleRemoveSkill = (id: string) => {
@@ -460,7 +445,7 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
                 <input
                   type="text"
                   className="editor-input"
-                  placeholder="Casablanca, Morocco"
+                  placeholder="e.g. San Francisco, CA or Remote"
                   value={data.profile?.location || ''}
                   onChange={(e) => handleProfileChange('location', e.target.value)}
                 />
@@ -641,7 +626,7 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
                           className="editor-input"
                           placeholder="YYYY-MM or Present"
                           disabled={exp.is_current}
-                          value={exp.is_current ? 'Present' : (exp.end_date || '')}
+                          value={exp.is_current ? getLocalizedPresentLabel(settings.language || 'en') : (exp.end_date || '')}
                           onChange={(e) => handleUpdateExperience(exp.id, { end_date: e.target.value })}
                         />
                         <label className="inline-checkbox">
@@ -651,7 +636,7 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
                             onChange={(e) =>
                               handleUpdateExperience(exp.id, {
                                 is_current: e.target.checked,
-                                end_date: e.target.checked ? 'Present' : '',
+                                end_date: e.target.checked ? getLocalizedPresentLabel(settings.language || 'en') : '',
                               })
                             }
                           />
@@ -816,7 +801,7 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
                         <input
                           type="text"
                           className="editor-input"
-                          placeholder="e.g. Casablanca, Morocco"
+                          placeholder="e.g. Boston, MA or Remote"
                           value={edu.location || ''}
                           onChange={(e) => handleUpdateEducation(edu.id, { location: e.target.value })}
                         />
@@ -887,18 +872,6 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
                 onChange={(e) => setNewSkillName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddSkill())}
               />
-              <select
-                className="editor-select"
-                value={newSkillProficiency}
-                onChange={(e) => setNewSkillProficiency(e.target.value)}
-                title="Proficiency (optional)"
-              >
-                {getSkillDropdownOptions(settings.language || 'en').map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
               <button type="button" className="add-btn" onClick={handleAddSkill}>
                 <Plus size={15} />
                 <span>Add Skill</span>
@@ -911,23 +884,9 @@ export const ResumeEditor: React.FC<ResumeEditorProps> = ({
                 <p className="empty-subtext">No skills added yet. Add some above or import from your profile.</p>
               ) : (
                 data.skills.map((s) => {
-                  const profLabel = getSkillProficiencyLabel(s.proficiency, settings.language || 'en');
                   return (
                     <div key={s.id} className="skill-edit-pill">
                       <span className="skill-pill-name">{s.name}</span>
-                      {profLabel ? <span className="skill-pill-level">({profLabel})</span> : null}
-                      <select
-                        className="pill-prof-select"
-                        value={normalizeSkillProficiency(s.proficiency)}
-                        onChange={(e) => handleUpdateSkillProficiency(s.id, e.target.value)}
-                        title="Change proficiency level"
-                      >
-                        {getSkillDropdownOptions(settings.language || 'en').map((opt) => (
-                          <option key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </option>
-                        ))}
-                      </select>
                       <button
                         type="button"
                         className="remove-pill-btn"

@@ -14,3 +14,7 @@ data/raw/
 data/processed/
 scratch/
 storage/
+
+# AMO submission packages — never commit these
+release/firefox-amo/
+

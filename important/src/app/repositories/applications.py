@@ -57,6 +57,8 @@ def save_or_update_application(
         existing.status = data.status
         if data.notes is not None:
             existing.notes = data.notes
+        if data.resume_suggestions is not None:
+            existing.resume_suggestions = data.resume_suggestions
         if data.status == "applied" and not existing.applied_at:
             existing.applied_at = now
         existing.updated_at = now
@@ -75,6 +77,12 @@ def save_or_update_application(
         return existing
 
     applied_at = now if data.status == "applied" else None
+    sugg = data.resume_suggestions
+    if sugg is None:
+        job = db.scalar(select(Job).where(Job.id == job_id))
+        if job and job.resume_suggestions:
+            sugg = job.resume_suggestions
+
     app = UserApplication(
         user_id=user.id,
         job_id=job_id,
@@ -84,6 +92,7 @@ def save_or_update_application(
         applied_at=applied_at,
         created_at=now,
         updated_at=now,
+        resume_suggestions=sugg,
     )
     db.add(app)
     db.flush()

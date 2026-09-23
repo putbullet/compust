@@ -10,12 +10,14 @@ import {
   AlertCircle,
   Loader2,
   Target,
+  ShieldCheck,
 } from 'lucide-react';
 import type { StructuredResumeItem, StructuredResumeData, ResumeSettings, UserProfile } from '../../api/client';
 import { api } from '../../api/client';
 import { ResumeEditor } from './ResumeEditor';
 import { ResumePreview } from './ResumePreview';
 import { JobTargetPanel } from './JobTargetPanel';
+import { ATSCheckerModal } from './ATSCheckerModal';
 import './ResumeBuilderView.css';
 
 interface ResumeBuilderViewProps {
@@ -42,6 +44,7 @@ export const ResumeBuilderView: React.FC<ResumeBuilderViewProps> = ({
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [showATSModal, setShowATSModal] = useState(false);
 
   // Fetch all resumes on load
   const loadResumes = useCallback(async () => {
@@ -133,17 +136,13 @@ export const ResumeBuilderView: React.FC<ResumeBuilderViewProps> = ({
     setSaving(true);
     setStatusMsg(null);
     try {
-      // Clean and normalize skills & languages so no invalid nulls or tokens are passed
+      // Clean and normalize skills (B4: plain keywords only) & languages
       const sanitizedData: StructuredResumeData = {
         ...currentData,
         skills: (currentData.skills || []).map((s) => ({
-          ...s,
           id: String(s.id || `sk-${Date.now()}`),
           name: s.name || '',
           category: s.category || 'Core & Technical',
-          proficiency: s.proficiency && !['NONE', 'NO_LABEL', 'NO LABEL', 'BLANK'].includes(String(s.proficiency).trim().toUpperCase())
-            ? s.proficiency
-            : null,
         })),
         languages: (currentData.languages || []).map((l) => ({
           ...l,
@@ -172,6 +171,23 @@ export const ResumeBuilderView: React.FC<ResumeBuilderViewProps> = ({
       setStatusMsg({ type: 'error', text: msg });
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Create an editable Studio version from original upload (B3)
+  const handleCreateStudioCopy = async () => {
+    if (!activeResumeId) return;
+    try {
+      setLoading(true);
+      const copy = await api.createStudioCopy(activeResumeId);
+      setResumes((prev) => [copy, ...prev]);
+      selectResume(copy);
+      setStatusMsg({ type: 'success', text: `Created Studio version: "${copy.title}"` });
+      setTimeout(() => setStatusMsg(null), 3500);
+    } catch (err: any) {
+      setStatusMsg({ type: 'error', text: err.message || 'Failed to create Studio copy' });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -426,6 +442,16 @@ export const ResumeBuilderView: React.FC<ResumeBuilderViewProps> = ({
 
             <button
               type="button"
+              className="action-btn secondary ats-audit-btn"
+              onClick={() => setShowATSModal(true)}
+              title="Audit resume parseability, keywords, and ATS criteria"
+            >
+              <ShieldCheck size={14} className="text-primary" />
+              <span>ATS Audit</span>
+            </button>
+
+            <button
+              type="button"
               className="action-btn secondary"
               onClick={() => {
                 const el = document.getElementById('resume-job-target-section');
@@ -459,6 +485,50 @@ export const ResumeBuilderView: React.FC<ResumeBuilderViewProps> = ({
             </button>
           </div>
         </header>
+
+        {/* Original Upload & Parsing Review Banners (B3) */}
+        {(() => {
+          const activeResume = resumes.find((r) => r.id === activeResumeId);
+          const isOriginalUpload = Boolean(activeResume?.is_original_upload);
+          const missingSections = [
+            (!currentData?.experience || currentData.experience.length === 0) ? 'Experience' : null,
+            (!currentData?.education || currentData.education.length === 0) ? 'Education' : null,
+            (!currentData?.skills || currentData.skills.length === 0) ? 'Skills' : null,
+          ].filter(Boolean);
+
+          return (
+            <>
+              {isOriginalUpload && (
+                <div className="original-upload-banner">
+                  <div className="banner-text-group">
+                    <strong>📄 Original Uploaded Resume:</strong>
+                    <span>
+                      {' '}This document was uploaded as a PDF file. Resume Studio compiles documents with its own ATS-optimized RenderCV/Typst templates. To preserve your original document's styling and layout intact on your Profile, Compust protects this upload from being overwritten.
+                    </span>
+                  </div>
+                  <div className="banner-actions">
+                    <button
+                      type="button"
+                      className="action-btn primary"
+                      onClick={handleCreateStudioCopy}
+                    >
+                      <span>Create Editable Studio Version</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {isOriginalUpload && missingSections.length > 0 && (
+                <div className="parsing-review-warning-banner">
+                  <AlertCircle size={15} />
+                  <span>
+                    <strong>Parsing Review Needed:</strong> Some sections ({missingSections.join(', ')}) could not be automatically structured from this PDF with high confidence. Please review the editor and verify your details before exporting.
+                  </span>
+                </div>
+              )}
+            </>
+          );
+        })()}
 
         {/* Two-Panel Main Body */}
         <div className="builder-two-panel-grid">
@@ -507,6 +577,17 @@ export const ResumeBuilderView: React.FC<ResumeBuilderViewProps> = ({
             onNavigateToApplications={onNavigateToApplications}
           />
         </section>
+      )}
+
+      {activeResumeId && currentData && (
+        <ATSCheckerModal
+          isOpen={showATSModal}
+          onClose={() => setShowATSModal(false)}
+          resumeId={activeResumeId}
+          resumeTitle={currentTitle}
+          structuredData={currentData}
+          initialRole={initialJobTarget?.role || currentData.profile?.headline || ''}
+        />
       )}
     </div>
   );

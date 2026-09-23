@@ -9,6 +9,7 @@ import {
   Briefcase,
   History,
   X,
+  Sparkles,
 } from 'lucide-react';
 import type { ApplicationItem, ApplicationStatus, Job } from '../../api/client';
 
@@ -292,6 +293,21 @@ export const ApplicationSpreadsheet: React.FC<ApplicationSpreadsheetProps> = ({
                         >
                           <ExternalLink size={12} />
                         </a>
+                      )}
+                      {Boolean(
+                        (Array.isArray(app.resume_suggestions) && app.resume_suggestions.length > 0) ||
+                        (app.resume_suggestions?.suggestions && app.resume_suggestions.suggestions.length > 0) ||
+                        (Array.isArray(app.job?.resume_suggestions) && app.job?.resume_suggestions.length > 0) ||
+                        (app.job?.resume_suggestions?.suggestions && app.job.resume_suggestions.suggestions.length > 0)
+                      ) && (
+                        <span
+                          className="table-sugg-badge"
+                          onClick={() => app.job && onSelectJob && onSelectJob(app.job)}
+                          title="Resume edits suggested for this job"
+                        >
+                          <Sparkles size={10} />
+                          <span>Suggestions</span>
+                        </span>
                       )}
                     </div>
                     {(app.effective_location || app.effective_country) && (
@@ -707,6 +723,26 @@ const StyledTable = styled.table`
 
         &:hover {
           color: #6366f1;
+        }
+      }
+
+      .table-sugg-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        font-size: 0.68rem;
+        font-weight: 600;
+        color: #fbbf24;
+        background: rgba(245, 158, 11, 0.14);
+        border: 1px solid rgba(245, 158, 11, 0.35);
+        padding: 1px 6px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.15s;
+
+        &:hover {
+          background: rgba(245, 158, 11, 0.25);
+          color: #fef08a;
         }
       }
     }

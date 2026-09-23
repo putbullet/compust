@@ -232,3 +232,37 @@ export function getLocalizedSectionTitle(
   const defaults = DEFAULT_SECTION_TITLES_BY_LANG[langKey] || DEFAULT_SECTION_TITLES_BY_LANG.en;
   return defaults[sectionId] || DEFAULT_SECTION_TITLES_BY_LANG.en[sectionId] || sectionId.replace(/_/g, ' ');
 }
+
+export const PRESENT_LABELS: Record<SupportedResumeLanguage, string> = {
+  en: 'Present',
+  fr: 'Présent',
+  de: 'Heute',
+};
+
+export function getLocalizedPresentLabel(lang: string = 'en'): string {
+  const langKey = (lang && ['en', 'fr', 'de'].includes(lang.toLowerCase()) ? lang.toLowerCase() : 'en') as SupportedResumeLanguage;
+  return PRESENT_LABELS[langKey] || PRESENT_LABELS.en;
+}
+
+export const DEGREE_CONNECTORS: Record<SupportedResumeLanguage, string> = {
+  en: 'in',
+  fr: 'en',
+  de: 'in',
+};
+
+export function getLocalizedDegreeConnector(lang: string = 'en'): string {
+  const langKey = (lang && ['en', 'fr', 'de'].includes(lang.toLowerCase()) ? lang.toLowerCase() : 'en') as SupportedResumeLanguage;
+  return DEGREE_CONNECTORS[langKey] || DEGREE_CONNECTORS.en;
+}
+
+export const HONORS_LABELS: Record<SupportedResumeLanguage, string> = {
+  en: 'GPA / Honors:',
+  fr: 'Mention / Moyenne :',
+  de: 'Abschlussnote / Auszeichnungen:',
+};
+
+export function getLocalizedHonorsLabel(lang: string = 'en'): string {
+  const langKey = (lang && ['en', 'fr', 'de'].includes(lang.toLowerCase()) ? lang.toLowerCase() : 'en') as SupportedResumeLanguage;
+  return HONORS_LABELS[langKey] || HONORS_LABELS.en;
+}
+

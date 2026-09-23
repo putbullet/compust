@@ -11,7 +11,14 @@ def analyze_ats_formatting(resume: Resume) -> list[str]:
     """Inspect structured resume characteristics and detect ATS compatibility improvements."""
     improvements = []
     parsed = resume.parsed_sections or {}
+    if (not parsed or not parsed.get("skills")) and resume.structured_data:
+        from ..repositories.resume import build_parsed_sections_from_structured_data
+        parsed = build_parsed_sections_from_structured_data(resume.structured_data)
+
     raw = resume.raw_text or ""
+    if not raw and resume.structured_data:
+        from ..repositories.resume import build_raw_text_from_structured_data
+        raw = build_raw_text_from_structured_data(resume.structured_data)
 
     # 1. Check section presence
     essential_sections = ["experience", "education", "skills"]
@@ -50,53 +57,91 @@ def analyze_resume_alignment(
     job: Job,
     job_skills: list[str],
     resume: Resume,
+    user: Any | None = None,
 ) -> dict[str, Any]:
     """Compare job skills/description with structured resume deterministically with actionable recommendations."""
-    parsed = resume.parsed_sections or {}
-    resume_skills = [s.strip().lower() for s in (parsed.get("skills") or []) if s]
+    import unicodedata
+    from ..repositories.resume import (
+        extract_canonical_skills_map,
+        get_canonical_resume_sections,
+        build_raw_text_from_structured_data,
+    )
+    from ..scraper.vocabulary import SKILL_SYNONYMS
+
+    def _canonical(s: str) -> str:
+        cleaned = s.strip().lower()
+        unacc = unicodedata.normalize("NFKD", cleaned).encode("ASCII", "ignore").decode("utf-8")
+        if cleaned in SKILL_SYNONYMS:
+            return SKILL_SYNONYMS[cleaned].lower()
+        if unacc in SKILL_SYNONYMS:
+            return SKILL_SYNONYMS[unacc].lower()
+        return unacc
+
+    canonical_candidate_skills, candidate_display_map, raw_candidate_skills = extract_canonical_skills_map(resume, user)
+
     resume_raw_lower = (resume.raw_text or "").lower()
+    if not resume_raw_lower and resume.structured_data:
+        resume_raw_lower = build_raw_text_from_structured_data(resume.structured_data).lower()
 
     # Job requirements
-    req_skills = [s.strip() for s in job_skills if s.strip()]
+    req_skills = [s.strip() for s in job_skills if s and s.strip()]
 
-    # If no explicit job skills in DB, extract from job description
-    if not req_skills and job.description:
-        from ..scraper.vocabulary import SKILL_SYNONYMS
-        desc_lower = job.description.lower()
-        unique_skills = sorted(list(set(SKILL_SYNONYMS.values())))
-        for skill in unique_skills:
-            if re.search(rf"\b{re.escape(skill.lower())}\b", desc_lower):
-                req_skills.append(skill)
+    # If no explicit job skills in DB, extract from job description & title
+    if not req_skills and (job.description or job.title):
+        full_text = f"{job.title or ''} {job.description or ''}".lower()
+        full_text_unacc = unicodedata.normalize("NFKD", full_text).encode("ASCII", "ignore").decode("utf-8")
+
+        extracted_from_desc = []
+        for alias, canon in SKILL_SYNONYMS.items():
+            pattern = rf"\b{re.escape(alias.lower())}\b"
+            if re.search(pattern, full_text) or re.search(pattern, full_text_unacc):
+                if canon not in extracted_from_desc:
+                    extracted_from_desc.append(canon)
+
+        req_skills = extracted_from_desc
 
     already_demonstrated = []
     missing_or_weak = []
     recommendations_list = []
 
     for req in req_skills:
-        req_clean = req.lower()
-        # Direct match in parsed skills or in raw text
-        in_skills = req_clean in resume_skills
-        in_raw = bool(re.search(rf"\b{re.escape(req_clean)}\b", resume_raw_lower))
+        req_clean = req.strip()
+        req_canon = _canonical(req_clean)
+        req_unacc = unicodedata.normalize("NFKD", req_clean.lower()).encode("ASCII", "ignore").decode("utf-8")
 
-        if in_skills and in_raw:
-            already_demonstrated.append(req)
-        elif in_skills and not in_raw:
-            # Present in skill list but not in experience
-            missing_or_weak.append(req)
-            recommendations_list.append({
-                "requirement": req,
-                "status": "Present in Skills only",
-                "weakness": f"'{req}' is listed in your skills section but not substantiated in your work experience or projects.",
-                "suggested_action": f"Add an achievement or task in your Experience or Projects section explicitly highlighting your genuine practical use of {req}.",
-                "location": "Experience or Projects section",
-            })
+        is_candidate_skill = (
+            req_canon in canonical_candidate_skills
+            or any(
+                req_canon == _canonical(r)
+                or req_unacc in unicodedata.normalize("NFKD", r.lower()).encode("ASCII", "ignore").decode("utf-8")
+                or unicodedata.normalize("NFKD", r.lower()).encode("ASCII", "ignore").decode("utf-8") in req_unacc
+                for r in raw_candidate_skills
+            )
+        )
+
+        in_raw = (
+            bool(re.search(rf"\b{re.escape(req_clean.lower())}\b", resume_raw_lower))
+            or bool(re.search(rf"\b{re.escape(req_unacc)}\b", resume_raw_lower))
+            or (req_canon in candidate_display_map and bool(re.search(rf"\b{re.escape(candidate_display_map[req_canon].lower())}\b", resume_raw_lower)))
+        )
+
+        if is_candidate_skill or in_raw:
+            already_demonstrated.append(req_clean)
+            if not in_raw:
+                recommendations_list.append({
+                    "requirement": req_clean,
+                    "status": "Demonstrated (Reinforce in Experience)",
+                    "weakness": f"'{req_clean}' is declared in your skills profile. To pass strict ATS work-history filters, substantiate it with a concrete achievement in your Experience or Projects section.",
+                    "suggested_action": f"Add an achievement or task highlighting your hands-on use of {req_clean} in your Experience or Projects.",
+                    "location": "Experience or Projects section",
+                })
         else:
-            missing_or_weak.append(req)
+            missing_or_weak.append(req_clean)
             recommendations_list.append({
-                "requirement": req,
+                "requirement": req_clean,
                 "status": "Missing",
-                "weakness": f"'{req}' is not mentioned in your resume.",
-                "suggested_action": f"Do not invent experience. If you have legitimate project or lab exposure to {req}, consider incorporating it.",
+                "weakness": f"'{req_clean}' is not mentioned in your resume or profile.",
+                "suggested_action": f"Do not invent experience. If you have legitimate project or lab exposure to {req_clean}, consider incorporating it.",
                 "location": "Skills or Projects section",
             })
 
@@ -146,9 +191,10 @@ def get_ai_resume_customization(
     db: Session,
     job: Job,
     resume: Resume,
+    user: Any | None = None,
 ) -> dict[str, Any]:
     skills = get_job_skills(db, job.id)
-    analysis = analyze_resume_alignment(job, skills, resume)
+    analysis = analyze_resume_alignment(job, skills, resume, user=user)
 
     runtime = check_ollama_runtime()
     if runtime["status"] != "connected" or not runtime["models"]:

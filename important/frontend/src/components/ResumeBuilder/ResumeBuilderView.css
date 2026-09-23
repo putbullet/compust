@@ -10,8 +10,8 @@
 .resume-studio-card {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 130px);
-  min-height: 760px;
+  height: calc(100vh - 120px);
+  min-height: 560px;
   background: var(--bg-surface, #0f1623);
   border-radius: var(--radius-lg, 20px);
   border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
@@ -217,7 +217,7 @@
 /* Two-Panel Layout */
 .builder-two-panel-grid {
   display: grid;
-  grid-template-columns: minmax(480px, 1fr) minmax(540px, 1.15fr);
+  grid-template-columns: minmax(360px, 1fr) minmax(380px, 1.15fr);
   flex: 1;
   min-height: 0;
   overflow: hidden;
@@ -242,7 +242,7 @@
   color: var(--text-secondary, #94a3b8);
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1240px) {
   .resume-studio-card {
     height: auto;
     min-height: auto;
@@ -254,8 +254,8 @@
     gap: 16px;
   }
   .builder-panel {
-    min-height: 640px;
-    height: 640px;
+    min-height: 540px;
+    height: 540px;
   }
 }
 
@@ -276,3 +276,38 @@
     height: 520px;
   }
 }
+
+/* Original Upload & Parsing Review Banners */
+.original-upload-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.12) 0%, rgba(59, 130, 246, 0.05) 100%);
+  border-bottom: 1px solid rgba(59, 130, 246, 0.3);
+  padding: 12px 20px;
+  color: var(--text-primary, #f1f5f9);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.original-upload-banner .banner-text-group strong {
+  color: #60a5fa;
+  margin-right: 4px;
+}
+
+.original-upload-banner .banner-actions {
+  flex-shrink: 0;
+}
+
+.parsing-review-warning-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(245, 158, 11, 0.12);
+  border-bottom: 1px solid rgba(245, 158, 11, 0.3);
+  padding: 10px 20px;
+  color: #fbbf24;
+  font-size: 12.5px;
+}
+

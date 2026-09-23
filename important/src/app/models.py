@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, CHAR, Date, DateTime, ForeignKey, Integer, JSON, Numeric, String, Table, Column, Text
+from sqlalchemy import Boolean, CHAR, Date, DateTime, ForeignKey, Integer, JSON, Numeric, String, Table, Column, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -103,6 +103,7 @@ class Job(Base):
     salary_max: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
     salary_currency: Mapped[str | None] = mapped_column(CHAR(3), nullable=True)
     salary_period: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    resume_suggestions: Mapped[dict | list | None] = mapped_column(JSON, nullable=True)
     scrape_target_id: Mapped[int | None] = mapped_column(ForeignKey("scrape_targets.id"), nullable=True)
     scrape_target: Mapped["ScrapeTarget | None"] = relationship(foreign_keys=[scrape_target_id])
     company: Mapped["Company | None"] = relationship(foreign_keys=[company_id], lazy="selectin")
@@ -300,6 +301,7 @@ class UserApplication(Base):
     priority: Mapped[str] = mapped_column(String(50), default="medium")
     next_follow_up: Mapped[datetime | None] = mapped_column(Date, nullable=True)
     interview_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    resume_suggestions: Mapped[dict | list | None] = mapped_column(JSON, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime)
     updated_at: Mapped[datetime] = mapped_column(DateTime)
@@ -340,6 +342,7 @@ class Resume(Base):
     settings: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_original_upload: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     target_job_id: Mapped[int | None] = mapped_column(ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True)
     source_resume_id: Mapped[int | None] = mapped_column(ForeignKey("resumes.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime)
@@ -369,4 +372,34 @@ class CustomizedResume(Base):
     user: Mapped[User] = relationship()
     base_resume: Mapped[Resume] = relationship()
     job: Mapped[Job] = relationship()
+
+
+class InterviewQuestion(Base):
+    __tablename__ = "interview_questions"
+
+    id: Mapped[str] = mapped_column(String(100), primary_key=True)
+    track: Mapped[str] = mapped_column(String(50), index=True)  # data | security | ai | behavioral
+    category: Mapped[str] = mapped_column(String(100), index=True)
+    difficulty: Mapped[str] = mapped_column(String(50))
+    question_text: Mapped[str] = mapped_column(Text)
+    answer_text: Mapped[str] = mapped_column(Text)
+    language: Mapped[str] = mapped_column(String(10), default="en")
+    source_reference: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class InterviewExplanation(Base):
+    __tablename__ = "interview_explanations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    question_id: Mapped[str] = mapped_column(String(100), index=True)
+    language: Mapped[str] = mapped_column(String(10), index=True)
+    model_name: Mapped[str] = mapped_column(String(100))
+    payload: Mapped[dict] = mapped_column(JSON)
+    schema_version: Mapped[int] = mapped_column(Integer, default=1)
+    generated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("question_id", "language", "model_name", "schema_version", name="uq_interview_exp_q_lang_model_ver"),
+    )
 

@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Literal
+from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from .schemas import JobRead
@@ -25,6 +25,7 @@ class ApplicationCreate(BaseModel):
     status: str = "saved"
     notes: str | None = None
     source: str = "Compust"
+    resume_suggestions: Any | None = None
 
 
 class ManualApplicationCreate(BaseModel):
@@ -48,6 +49,7 @@ class ManualApplicationCreate(BaseModel):
     notes: str | None = None
     next_follow_up: date | None = None
     interview_date: datetime | None = None
+    resume_suggestions: Any | None = None
 
 
 class ApplicationUpdate(BaseModel):
@@ -71,6 +73,7 @@ class ApplicationUpdate(BaseModel):
     priority: str | None = None
     next_follow_up: date | None = None
     interview_date: datetime | None = None
+    resume_suggestions: Any | None = None
 
 
 class ApplicationHistoryRead(BaseModel):
@@ -114,6 +117,7 @@ class ApplicationRead(BaseModel):
 
     created_at: datetime
     updated_at: datetime
+    resume_suggestions: Any | None = None
     job: JobRead | None = None
     history: list[ApplicationHistoryRead] = []
 

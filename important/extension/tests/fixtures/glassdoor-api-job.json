@@ -1,0 +1,27 @@
+[
+  {
+    "data": {
+      "jobview": {
+        "header": {
+          "jobTitleText": "Staff Cloud Software Engineer",
+          "employerNameFromSearch": "Datadog",
+          "locationName": "Boston, MA",
+          "locationType": "C",
+          "payCurrency": "USD",
+          "payPeriod": "ANNUAL",
+          "payPeriodAdjustedPay": {
+            "p10": 175000,
+            "p50": 195000,
+            "p90": 225000
+          },
+          "adOrderSponsorshipLevel": "SPONSORED"
+        },
+        "job": {
+          "listingId": 1009876543,
+          "jobTitleText": "Staff Cloud Software Engineer",
+          "description": "<div><h2>About the Role</h2><p>We are seeking a Staff Cloud Software Engineer to build resilient distributed systems using Go, Python, and Kubernetes in multi-cloud environments.</p><ul><li>Design high-throughput ingestion pipelines</li><li>Mentor junior engineers and lead architecture reviews</li></ul></div>"
+        }
+      }
+    }
+  }
+]

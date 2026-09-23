@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from ..models import Company, Job, JobSkill
+from ..models import Company, Country, Job, JobSkill
 from ..scraper.orange_parser import JobCandidate
 from ..scraper.sanitizer import sanitize_html, sanitize_plain_text
 from ..scraper.url_normalizer import normalize_url
@@ -20,6 +20,191 @@ def normalize_job_text(text: str | None) -> str:
     return clean
 
 
+def resolve_or_create_company(
+    db: Session,
+    name: str,
+    default_country_id: int | None = None,
+) -> Company:
+    clean_name = sanitize_plain_text(name) or "Unknown Company"
+    company = db.scalar(
+        select(Company).where(Company.name.ilike(clean_name))
+    )
+    if not company:
+        company = Company(
+            name=clean_name,
+            website_url="",
+            active=True,
+        )
+        if default_country_id:
+            country = db.scalar(select(Country).where(Country.id == default_country_id))
+            if country:
+                company.countries = [country]
+        db.add(company)
+        db.flush()
+        db.commit()
+        db.refresh(company)
+    return company
+
+
+def persist_candidate(
+    db: Session,
+    *,
+    company_id: int,
+    country_id: int,
+    source: str,
+    candidate: JobCandidate,
+    scrape_target_id: int | None = None,
+    commit: bool = False,
+) -> tuple[Job, bool]:
+    from .countries import resolve_country_by_location
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    norm_url = normalize_url(candidate.job_url)
+    clean_title = sanitize_plain_text(candidate.title) or "Untitled Position"
+    clean_description = sanitize_html(candidate.description)
+    clean_location = sanitize_plain_text(candidate.location)
+    clean_department = sanitize_plain_text(candidate.department)
+    clean_employment = sanitize_plain_text(candidate.employment_type)
+    clean_remote = sanitize_plain_text(candidate.remote_type)
+
+    # Resolve actual job country from location, falling back to company country
+    actual_country = resolve_country_by_location(db, clean_location)
+    effective_country_id = actual_country.id if actual_country else country_id
+
+    job = None
+    # Tier 1: Match by Company + External Job ID (highest confidence)
+    if candidate.external_job_id:
+        job = db.scalar(
+            select(Job).where(
+                Job.company_id == company_id,
+                Job.external_job_id == candidate.external_job_id,
+            )
+        )
+
+    # Tier 2: Match by Company + Normalized Canonical URL
+    if job is None and norm_url:
+        matched_by_url = db.scalar(
+            select(Job).where(
+                Job.company_id == company_id,
+                Job.job_url == norm_url,
+            )
+        )
+        # Guard: Only reuse matched job if external_job_ids do not conflict
+        if matched_by_url:
+            if not candidate.external_job_id or not matched_by_url.external_job_id or candidate.external_job_id == matched_by_url.external_job_id:
+                job = matched_by_url
+
+    # Tier 3: Content Fingerprint & Composite Match (for jobs lacking unique external IDs or URLs)
+    if job is None:
+        cand_norm_title = normalize_job_text(candidate.title)
+        cand_norm_loc = normalize_job_text(candidate.location)
+        cand_norm_desc = normalize_job_text(candidate.description)[:200]
+
+        # Look up candidates in same company with matching title
+        potential_matches = list(
+            db.scalars(
+                select(Job).where(
+                    Job.company_id == company_id,
+                    Job.active == True,
+                )
+            ).all()
+        )
+        for existing in potential_matches:
+            # Must have identical normalized title
+            if normalize_job_text(existing.title) != cand_norm_title:
+                continue
+
+            # Guard against conflicting external job IDs
+            if candidate.external_job_id and existing.external_job_id and candidate.external_job_id != existing.external_job_id:
+                continue
+
+            # Guard against conflicting locations (e.g. Casablanca vs Rabat)
+            exist_norm_loc = normalize_job_text(existing.location)
+            if cand_norm_loc and exist_norm_loc and cand_norm_loc != exist_norm_loc:
+                continue
+
+            # Guard against different posting dates (e.g. spring posting vs fall posting)
+            if candidate.posted_at and existing.posted_at:
+                c_dt = candidate.posted_at.replace(tzinfo=None)
+                e_dt = existing.posted_at.replace(tzinfo=None)
+                if abs((c_dt - e_dt).days) > 14:
+                    continue
+
+            # Compare description plain-text fingerprint
+            exist_norm_desc = normalize_job_text(existing.description)[:200]
+            if cand_norm_desc and exist_norm_desc:
+                if cand_norm_desc == exist_norm_desc or cand_norm_desc.startswith(exist_norm_desc[:100]) or exist_norm_desc.startswith(cand_norm_desc[:100]):
+                    job = existing
+                    break
+            elif not cand_norm_desc and not exist_norm_desc:
+                job = existing
+                break
+
+    is_created = False
+    if job is None:
+        job = Job(
+            company_id=company_id,
+            country_id=effective_country_id,
+            title=clean_title,
+            location=clean_location,
+            job_url=norm_url,
+            description=clean_description,
+            employment_type=clean_employment,
+            remote_type=clean_remote,
+            department=clean_department,
+            source=source,
+            external_job_id=candidate.external_job_id,
+            posted_at=candidate.posted_at.replace(tzinfo=None) if candidate.posted_at else None,
+            discovered_at=now,
+            last_seen_at=now,
+            created_at=now,
+            updated_at=now,
+            active=True,
+            salary_min=candidate.salary_min,
+            salary_max=candidate.salary_max,
+            salary_currency=candidate.salary_currency,
+            salary_period=candidate.salary_period,
+            scrape_target_id=scrape_target_id,
+        )
+        db.add(job)
+        db.flush()
+        is_created = True
+    else:
+        if scrape_target_id is not None:
+            job.scrape_target_id = scrape_target_id
+
+    job.country_id = effective_country_id
+    job.title = clean_title
+    job.location = clean_location
+    job.job_url = norm_url
+    job.description = clean_description
+    job.employment_type = clean_employment
+    job.remote_type = clean_remote
+    job.department = clean_department
+    job.source = source
+    job.external_job_id = candidate.external_job_id
+    job.posted_at = candidate.posted_at.replace(tzinfo=None) if candidate.posted_at else None
+    job.last_seen_at = now
+    job.active = True
+    job.updated_at = now
+    job.salary_min = candidate.salary_min
+    job.salary_max = candidate.salary_max
+    job.salary_currency = candidate.salary_currency
+    job.salary_period = candidate.salary_period
+    db.execute(delete(JobSkill).where(JobSkill.job_id == job.id))
+    db.add_all(
+        [
+            JobSkill(job_id=job.id, skill=sanitize_plain_text(skill) or skill)
+            for skill in dict.fromkeys(candidate.skills)
+            if skill
+        ]
+    )
+    if commit:
+        db.commit()
+        db.refresh(job)
+    return job, is_created
+
+
 def persist_candidates(
     db: Session,
     *,
@@ -29,150 +214,22 @@ def persist_candidates(
     candidates: list[JobCandidate],
     scrape_target_id: int | None = None,
 ) -> tuple[int, int]:
-    from .countries import resolve_country_by_location
-
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
     added = 0
     updated = 0
     for candidate in candidates:
-        norm_url = normalize_url(candidate.job_url)
-        clean_title = sanitize_plain_text(candidate.title) or "Untitled Position"
-        clean_description = sanitize_html(candidate.description)
-        clean_location = sanitize_plain_text(candidate.location)
-        clean_department = sanitize_plain_text(candidate.department)
-        clean_employment = sanitize_plain_text(candidate.employment_type)
-        clean_remote = sanitize_plain_text(candidate.remote_type)
-
-        # Resolve actual job country from location, falling back to company country
-        actual_country = resolve_country_by_location(db, clean_location)
-        effective_country_id = actual_country.id if actual_country else country_id
-
-        job = None
-        # Tier 1: Match by Company + External Job ID (highest confidence)
-        if candidate.external_job_id:
-            job = db.scalar(
-                select(Job).where(
-                    Job.company_id == company_id,
-                    Job.external_job_id == candidate.external_job_id,
-                )
-            )
-
-        # Tier 2: Match by Company + Normalized Canonical URL
-        if job is None and norm_url:
-            matched_by_url = db.scalar(
-                select(Job).where(
-                    Job.company_id == company_id,
-                    Job.job_url == norm_url,
-                )
-            )
-            # Guard: Only reuse matched job if external_job_ids do not conflict
-            if matched_by_url:
-                if not candidate.external_job_id or not matched_by_url.external_job_id or candidate.external_job_id == matched_by_url.external_job_id:
-                    job = matched_by_url
-
-        # Tier 3: Content Fingerprint & Composite Match (for jobs lacking unique external IDs or URLs)
-        if job is None:
-            cand_norm_title = normalize_job_text(candidate.title)
-            cand_norm_loc = normalize_job_text(candidate.location)
-            cand_norm_desc = normalize_job_text(candidate.description)[:200]
-
-            # Look up candidates in same company with matching title
-            potential_matches = list(
-                db.scalars(
-                    select(Job).where(
-                        Job.company_id == company_id,
-                        Job.active == True,
-                    )
-                ).all()
-            )
-            for existing in potential_matches:
-                # Must have identical normalized title
-                if normalize_job_text(existing.title) != cand_norm_title:
-                    continue
-
-                # Guard against conflicting external job IDs
-                if candidate.external_job_id and existing.external_job_id and candidate.external_job_id != existing.external_job_id:
-                    continue
-
-                # Guard against conflicting locations (e.g. Casablanca vs Rabat)
-                exist_norm_loc = normalize_job_text(existing.location)
-                if cand_norm_loc and exist_norm_loc and cand_norm_loc != exist_norm_loc:
-                    continue
-
-                # Guard against different posting dates (e.g. spring posting vs fall posting)
-                if candidate.posted_at and existing.posted_at:
-                    c_dt = candidate.posted_at.replace(tzinfo=None)
-                    e_dt = existing.posted_at.replace(tzinfo=None)
-                    if abs((c_dt - e_dt).days) > 14:
-                        continue
-
-                # Compare description plain-text fingerprint
-                exist_norm_desc = normalize_job_text(existing.description)[:200]
-                if cand_norm_desc and exist_norm_desc:
-                    if cand_norm_desc == exist_norm_desc or cand_norm_desc.startswith(exist_norm_desc[:100]) or exist_norm_desc.startswith(cand_norm_desc[:100]):
-                        job = existing
-                        break
-                elif not cand_norm_desc and not exist_norm_desc:
-                    job = existing
-                    break
-        if job is None:
-            job = Job(
-                company_id=company_id,
-                country_id=effective_country_id,
-                title=clean_title,
-                location=clean_location,
-                job_url=norm_url,
-                description=clean_description,
-                employment_type=clean_employment,
-                remote_type=clean_remote,
-                department=clean_department,
-                source=source,
-                external_job_id=candidate.external_job_id,
-                posted_at=candidate.posted_at.replace(tzinfo=None) if candidate.posted_at else None,
-                discovered_at=now,
-                last_seen_at=now,
-                created_at=now,
-                updated_at=now,
-                active=True,
-                salary_min=candidate.salary_min,
-                salary_max=candidate.salary_max,
-                salary_currency=candidate.salary_currency,
-                salary_period=candidate.salary_period,
-                scrape_target_id=scrape_target_id,
-            )
-            db.add(job)
-            db.flush()
+        _, is_created = persist_candidate(
+            db,
+            company_id=company_id,
+            country_id=country_id,
+            source=source,
+            candidate=candidate,
+            scrape_target_id=scrape_target_id,
+            commit=False,
+        )
+        if is_created:
             added += 1
         else:
             updated += 1
-            if scrape_target_id is not None:
-                job.scrape_target_id = scrape_target_id
-        job.country_id = effective_country_id
-        job.title = clean_title
-        job.location = clean_location
-        job.job_url = norm_url
-        job.description = clean_description
-        job.employment_type = clean_employment
-        job.remote_type = clean_remote
-        job.department = clean_department
-        job.source = source
-        job.external_job_id = candidate.external_job_id
-        job.posted_at = candidate.posted_at.replace(tzinfo=None) if candidate.posted_at else None
-        job.last_seen_at = now
-        job.active = True
-        job.updated_at = now
-        job.salary_min = candidate.salary_min
-        job.salary_max = candidate.salary_max
-        job.salary_currency = candidate.salary_currency
-        job.salary_period = candidate.salary_period
-        db.execute(delete(JobSkill).where(JobSkill.job_id == job.id))
-        db.add_all(
-            [
-                JobSkill(job_id=job.id, skill=sanitize_plain_text(skill) or skill)
-                for skill in dict.fromkeys(candidate.skills)
-                if skill
-            ]
-        )
     db.commit()
     return added, updated
 

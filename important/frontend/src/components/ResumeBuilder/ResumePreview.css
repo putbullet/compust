@@ -97,6 +97,56 @@
   box-shadow: 0 0 8px rgba(37, 99, 235, 0.4);
 }
 
+/* Responsive adjustments */
+@media (max-width: 900px) {
+  .preview-toolbar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+
+/* Real Typeset Rendered Page Cards */
+.rendered-pages-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  align-items: center;
+}
+
+.rendered-page-sheet {
+  position: relative;
+  background: #ffffff;
+  border-radius: 3px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.rendered-page-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+}
+
+.typeset-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72em;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.typeset-badge.rendering {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
 /* Download Actions: Guaranteed 100% visible, never pushed out */
 .download-actions {
   display: flex;

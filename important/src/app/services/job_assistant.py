@@ -165,8 +165,10 @@ def _safe_str(v: Any) -> str:
 
 def build_candidate_context(db: Session, user_id: int, resume: Resume) -> CandidateContext:
     """Merge resume + profile into a validated CandidateContext. Conflicts flagged."""
+    from ..repositories.resume import get_canonical_resume_sections
     ctx = CandidateContext()
     structured = resume.structured_data or {}
+    canonical_sections = get_canonical_resume_sections(resume)
     res_profile = structured.get("profile", {})
 
     ctx.profile = CandidateContextProfile(
@@ -175,20 +177,30 @@ def build_candidate_context(db: Session, user_id: int, resume: Resume) -> Candid
         email=res_profile.get("email", ""),
         phone=res_profile.get("phone", ""),
         location=res_profile.get("location", ""),
-        summary=res_profile.get("summary", ""),
+        summary=res_profile.get("summary", "") or canonical_sections.get("summary", ""),
         linkedin=res_profile.get("linkedin", ""),
         github=res_profile.get("github", ""),
         website=res_profile.get("website", ""),
     )
 
     resume_skill_names: set[str] = set()
-    for s in structured.get("skills", []):
-        name = (s.get("name") or "").strip()
+    raw_skills_source = structured.get("skills") or canonical_sections.get("skills") or []
+    for s in raw_skills_source:
+        if isinstance(s, dict):
+            name = (s.get("name") or s.get("skill") or "").strip()
+            cat = s.get("category", "")
+            prof = s.get("proficiency") or ""
+        elif isinstance(s, str):
+            name = s.strip()
+            cat = ""
+            prof = ""
+        else:
+            continue
         if name:
             ctx.skills.append(CandidateContextSkill(
                 name=name,
-                category=s.get("category", ""),
-                proficiency=s.get("proficiency") or "",
+                category=cat,
+                proficiency=prof,
                 source="resume",
             ))
             resume_skill_names.add(normalize_skill(name))
@@ -227,12 +239,20 @@ def build_candidate_context(db: Session, user_id: int, resume: Resume) -> Candid
         ))
 
     resume_lang_names: set[str] = set()
-    for lang in structured.get("languages", []):
-        lname = (lang.get("language") or "").strip()
+    raw_langs_source = structured.get("languages") or canonical_sections.get("languages") or []
+    for lang in raw_langs_source:
+        if isinstance(lang, dict):
+            lname = (lang.get("language") or "").strip()
+            lprof = lang.get("proficiency") or ""
+        elif isinstance(lang, str):
+            lname = lang.strip()
+            lprof = ""
+        else:
+            continue
         if lname:
             ctx.languages.append(CandidateContextLanguage(
                 language=lname,
-                proficiency=lang.get("proficiency") or "",
+                proficiency=lprof,
                 source="resume",
             ))
             resume_lang_names.add(lname.lower())

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { X, Lock, Mail, User, ArrowRight } from 'lucide-react';
+import { X, Lock, Mail, User, ArrowRight, KeyRound } from 'lucide-react';
 import { api, setStoredToken } from '../api/client';
 import type { UserProfile } from '../api/client';
 
@@ -10,16 +10,27 @@ interface AuthModalProps {
   onSuccess: (user: UserProfile) => void;
 }
 
+type ModalMode = 'login' | 'register' | 'forgot_password';
+
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => {
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [mode, setMode] = useState<ModalMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  // Reset password state
+  const [resetEmail, setResetEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
+
+  const switchMode = (nextMode: ModalMode) => {
+    setMode(nextMode);
+    setError(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,7 +43,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
         setStoredToken(res.access_token);
         onSuccess(res.user);
         onClose();
-      } else {
+      } else if (mode === 'register') {
         const res = await api.register({
           email,
           password,
@@ -50,6 +61,128 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
     }
   };
 
+  const handleResetSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (newPassword.length < 6) {
+      setError('New password must be at least 6 characters.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await api.resetPassword(resetEmail, newPassword);
+      setStoredToken(res.access_token);
+      onSuccess(res.user);
+      onClose();
+    } catch (err: any) {
+      setError(err.message || 'Password reset failed. Please check your email address.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── Forgot Password View ──────────────────────────────────────────────────
+  if (mode === 'forgot_password') {
+    return (
+      <StyledAuthBackdrop onClick={onClose}>
+        <div className="form-card" onClick={(e) => e.stopPropagation()}>
+          <button className="close-btn" onClick={onClose} aria-label="Close">
+            <X size={18} />
+          </button>
+
+          <div className="auth-brand-badge">
+            <img src="/logo-transparent.png" alt="Compust Logo" className="auth-logo" />
+            <span className="auth-brand-name">Compust</span>
+          </div>
+
+          <div className="reset-icon-wrap">
+            <KeyRound size={28} className="reset-icon" />
+          </div>
+
+          <h3 className="auth-title">Reset Password</h3>
+          <p className="auth-subtitle">
+            Enter your account email and choose a new password. No email required — reset happens instantly.
+          </p>
+
+          {error && <div className="error-banner">{error}</div>}
+
+          <form className="auth-form" onSubmit={handleResetSubmit}>
+            <div className="input-group">
+              <label htmlFor="reset-email">Account Email</label>
+              <div className="input-field">
+                <Mail size={16} className="icon" />
+                <input
+                  id="reset-email"
+                  type="email"
+                  required
+                  placeholder="your@email.com"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="input-group">
+              <label htmlFor="reset-new-password">New Password</label>
+              <div className="input-field">
+                <Lock size={16} className="icon" />
+                <input
+                  id="reset-new-password"
+                  type="password"
+                  required
+                  minLength={6}
+                  placeholder="At least 6 characters"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="input-group">
+              <label htmlFor="reset-confirm-password">Confirm New Password</label>
+              <div className="input-field">
+                <Lock size={16} className="icon" />
+                <input
+                  id="reset-confirm-password"
+                  type="password"
+                  required
+                  placeholder="Repeat new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              id="reset-password-submit-btn"
+              className="submit-btn"
+              disabled={loading}
+            >
+              <span>{loading ? 'Resetting...' : 'Reset & Sign In'}</span>
+              <ArrowRight size={16} />
+            </button>
+          </form>
+
+          <button
+            type="button"
+            className="back-to-login-btn"
+            onClick={() => switchMode('login')}
+          >
+            ← Back to Sign In
+          </button>
+        </div>
+      </StyledAuthBackdrop>
+    );
+  }
+
+  // ── Login / Register View ─────────────────────────────────────────────────
   return (
     <StyledAuthBackdrop onClick={onClose}>
       <div className="form-card" onClick={(e) => e.stopPropagation()}>
@@ -69,14 +202,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
           <button
             type="button"
             className={`tab ${mode === 'login' ? 'active' : ''}`}
-            onClick={() => { setMode('login'); setError(null); }}
+            onClick={() => switchMode('login')}
           >
             Sign In
           </button>
           <button
             type="button"
             className={`tab ${mode === 'register' ? 'active' : ''}`}
-            onClick={() => { setMode('register'); setError(null); }}
+            onClick={() => switchMode('register')}
           >
             Create Account
           </button>
@@ -156,7 +289,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
             </div>
           </div>
 
-          <button type="submit" className="submit-btn" disabled={loading}>
+          {mode === 'login' && (
+            <button
+              type="button"
+              id="forgot-password-btn"
+              className="forgot-password-btn"
+              onClick={() => switchMode('forgot_password')}
+            >
+              Forgot password?
+            </button>
+          )}
+
+          <button
+            type="submit"
+            id="auth-submit-btn"
+            className="submit-btn"
+            disabled={loading}
+          >
             <span>{loading ? 'Processing...' : (mode === 'login' ? 'Sign In' : 'Get Started')}</span>
             <ArrowRight size={16} />
           </button>
@@ -227,6 +376,17 @@ const StyledAuthBackdrop = styled.div`
     font-weight: 800;
     letter-spacing: -0.02em;
     color: #ffffff;
+  }
+
+  .reset-icon-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 14px;
+
+    .reset-icon {
+      color: #38bdf8;
+      filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.5));
+    }
   }
 
   .tab-switcher {
@@ -330,6 +490,53 @@ const StyledAuthBackdrop = styled.div`
       &::placeholder {
         color: #94a3b8;
       }
+    }
+  }
+
+  .forgot-password-btn {
+    align-self: flex-end;
+    margin-top: -6px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: #60a5fa;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px 0;
+    transition: color 0.18s;
+
+    &:hover {
+      color: #93c5fd;
+      text-decoration: underline;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--border-focus);
+      outline-offset: 2px;
+      border-radius: 4px;
+    }
+  }
+
+  .back-to-login-btn {
+    margin-top: 18px;
+    width: 100%;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: #94a3b8;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: center;
+    transition: color 0.18s;
+
+    &:hover {
+      color: #cbd5e1;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--border-focus);
+      outline-offset: 2px;
+      border-radius: 4px;
     }
   }
 

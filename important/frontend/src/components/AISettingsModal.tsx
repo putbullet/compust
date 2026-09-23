@@ -277,6 +277,8 @@ const ModalCard = styled.div`
   border-radius: 20px;
   width: 100%;
   max-width: 580px;
+  max-height: 88vh;
+  overflow-y: auto;
   padding: 24px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
 

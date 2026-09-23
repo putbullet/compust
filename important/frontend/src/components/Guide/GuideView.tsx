@@ -348,7 +348,7 @@ export const GuideView: React.FC = () => {
                 <div style={{ background: 'rgba(0, 0, 0, 0.3)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
                   <h4 style={{ color: '#38bdf8', margin: '0 0 8px 0' }}>Company vs. Job Country</h4>
                   <p style={{ fontSize: '0.86rem', color: '#94a3b8', margin: 0, lineHeight: 1.5 }}>
-                    A <strong>Company</strong> (e.g., Orange or Capgemini) can operate across multiple countries (Morocco, France, etc.). However, a <strong>Job</strong> has its own specific normalized country and location where the position is stationed.
+                    A <strong>Company</strong> (e.g., Google, Capgemini, or Siemens) can operate across multiple countries (Germany, France, United States, Canada, etc.). However, a <strong>Job</strong> has its own specific normalized country and location where the position is stationed.
                   </p>
                 </div>
 

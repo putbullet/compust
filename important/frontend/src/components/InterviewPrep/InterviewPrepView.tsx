@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   BrainCircuit,
-  Globe,
   Search,
   BookOpen,
   CheckCircle2,
@@ -25,7 +24,6 @@ import {
   X,
   Briefcase,
   GraduationCap,
-  Award,
 } from 'lucide-react';
 import { api } from '../../api/client';
 import type {
@@ -36,7 +34,22 @@ import type {
   InterviewQuestionSummary,
   QuestionAIExplainResponse,
 } from '../../api/client';
+import {
+  STARProportionBar,
+  ExpandableSTARCards,
+  StoryThemeCoverageMatrix,
+  STAREvaluatorWidget,
+} from './STARVisuals';
+import { VisualAIExplanation } from './VisualAIExplanation';
+import { useTranslation } from '../../i18n';
 import './InterviewPrepView.css';
+
+export const STAR_TARGET_SPLIT = {
+  situation: 15,
+  task: 10,
+  action: 60,
+  result: 15,
+};
 
 interface InterviewPrepViewProps {
   onNavigateToProfile?: () => void;
@@ -46,14 +59,17 @@ type PrepTab = 'behavioral' | 'technical';
 type SupportedPrepLang = 'en' | 'fr' | 'de';
 
 export const InterviewPrepView: React.FC<InterviewPrepViewProps> = ({ onNavigateToProfile }) => {
-  // Navigation & Language state
+  const { language } = useTranslation();
+  // Navigation & Language state synchronized with global switcher
   const [activeTab, setActiveTab] = useState<PrepTab>('behavioral');
-  const [prepLanguage, setPrepLanguage] = useState<SupportedPrepLang>('en');
+  const prepLanguage: SupportedPrepLang = language === 'fr' ? 'fr' : 'en';
 
   // Behavioral Prep data
   const [behavioralData, setBehavioralData] = useState<BehavioralPrepResponse | null>(null);
   const [loadingBehavioral, setLoadingBehavioral] = useState(false);
   const [expandedQuestionId, setExpandedQuestionId] = useState<string | null>('q1');
+  const [expandedStarStep, setExpandedStarStep] = useState<string | null>('Action');
+  const [expandedAnchorIndex, setExpandedAnchorIndex] = useState<number | null>(0);
 
   // Technical Prep data
   const [domains, setDomains] = useState<InterviewDomainSummary[]>([]);
@@ -99,7 +115,7 @@ export const InterviewPrepView: React.FC<InterviewPrepViewProps> = ({ onNavigate
 
   // Copy code feedback
   const [copiedCodeIndex, setCopiedCodeIndex] = useState<number | null>(null);
-  const [copiedAiCode, setCopiedAiCode] = useState(false);
+
 
   // Sidebar Smart Navigation, Filtering & Level Scoping
   const [sidebarFilterText, setSidebarFilterText] = useState('');
@@ -226,17 +242,18 @@ export const InterviewPrepView: React.FC<InterviewPrepViewProps> = ({ onNavigate
         activeQuestion.domain_id,
         activeQuestion.slug,
         mode,
-        mode === 'mock_feedback' ? userDraftAnswer : undefined
+        mode === 'mock_feedback' ? userDraftAnswer : undefined,
+        prepLanguage
       );
       setAiExplainResult(res);
     } catch (err: any) {
       setAiExplainResult({
         question_id: activeQuestion.id,
         mode,
-        explanation: `Unable to contact local AI model: ${err.message}`,
-        ai_model_used: 'none',
+        explanation: `Local AI service is currently offline or unreachable: ${err.message}. Question content, educational diagrams, and repository material remain fully functional.`,
+        ai_model_used: 'none (offline)',
         is_ai_generated: true,
-        disclaimer: 'AI model offline.',
+        disclaimer: 'Ollama local LLM offline. Run "ollama serve" to enable dynamic generation.',
       });
     } finally {
       setAiExplainLoading(false);
@@ -444,22 +461,6 @@ export const InterviewPrepView: React.FC<InterviewPrepViewProps> = ({ onNavigate
         </div>
 
         <div className="hero-actions-right">
-          {/* Language Selector */}
-          <div className="prep-lang-box" title="Select Preparation Language">
-            <Globe size={15} className="lang-icon" />
-            <label htmlFor="prep-lang-select" className="sr-only">Preparation Language</label>
-            <select
-              id="prep-lang-select"
-              value={prepLanguage}
-              onChange={(e) => setPrepLanguage(e.target.value as SupportedPrepLang)}
-              className="prep-lang-select"
-            >
-              <option value="en">English (Professional)</option>
-              <option value="fr">Français (Recrutement)</option>
-              <option value="de">Deutsch (Karriere)</option>
-            </select>
-          </div>
-
           {/* User Progress Stats */}
           <div className="progress-pills">
             <span className="pill" title="Bookmarked Questions">
@@ -583,21 +584,18 @@ export const InterviewPrepView: React.FC<InterviewPrepViewProps> = ({ onNavigate
                   </div>
                 </div>
 
-                <div className="star-steps-grid">
-                  {behavioralData.star_guide.steps.map((step, idx) => (
-                    <div key={idx} className="star-step-box">
-                      <div className="step-letter-row">
-                        <span className="step-letter">{step.step[0]}</span>
-                        <span className="step-name">{step.step}</span>
-                      </div>
-                      <p className="step-desc">{step.definition}</p>
-                      <div className="step-example-box">
-                        <span className="ex-label">Example Excerpt:</span>
-                        <p className="ex-text">"{step.example}"</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                {/* Calibrated STAR Horizontal Proportion Bar */}
+                <STARProportionBar
+                  activeStep={expandedStarStep}
+                  onSelectStep={(step) => setExpandedStarStep(step)}
+                />
+
+                {/* Expandable STAR Quadrant Cards */}
+                <ExpandableSTARCards
+                  starGuide={behavioralData.star_guide}
+                  expandedStep={expandedStarStep}
+                  onToggleStep={(step) => setExpandedStarStep(expandedStarStep === step ? null : step)}
+                />
 
                 {/* What Makes an Answer Strong & Common Mistakes */}
                 <div className="star-advice-split">
@@ -620,7 +618,7 @@ export const InterviewPrepView: React.FC<InterviewPrepViewProps> = ({ onNavigate
                 </div>
               </section>
 
-              {/* Story Matrix (nas5w/interview-guide) */}
+              {/* Story Matrix: 5 Engineering Anchors */}
               {behavioralData.story_matrix && (
                 <section className="story-matrix-card glass-panel">
                   <div className="story-matrix-header">
@@ -634,26 +632,51 @@ export const InterviewPrepView: React.FC<InterviewPrepViewProps> = ({ onNavigate
                     <span className="matrix-badge">5 Engineering Anchors</span>
                   </div>
                   <div className="story-pillars-grid">
-                    {behavioralData.story_matrix.pillars.map((pillar, idx) => (
-                      <div key={idx} className="story-pillar-item">
-                        <div className="pillar-top">
-                          <span className="pillar-num">{idx + 1}</span>
-                          <h4 className="pillar-name">{pillar.name.replace(/^Pillar \d+:\s*/, '')}</h4>
+                    {behavioralData.story_matrix.pillars.map((pillar, idx) => {
+                      const isExpanded = expandedAnchorIndex === idx;
+                      return (
+                        <div
+                          key={idx}
+                          className={`story-pillar-item ${isExpanded ? 'expanded' : ''}`}
+                          onClick={() => setExpandedAnchorIndex(isExpanded ? null : idx)}
+                          role="button"
+                          tabIndex={0}
+                          aria-expanded={isExpanded}
+                        >
+                          <div className="pillar-top">
+                            <span className="pillar-num">{idx + 1}</span>
+                            <h4 className="pillar-name">{pillar.name.replace(/^Pillar \d+:\s*/, '')}</h4>
+                            <span className="pillar-toggle-hint">{isExpanded ? '▲' : '▼'}</span>
+                          </div>
+                          <p className="pillar-focus">{pillar.focus}</p>
+                          <div className="pillar-triggers">
+                            <span className="triggers-label">High-Yield Interview Prompts:</span>
+                            <ul>
+                              {pillar.applies_to.map((prompt, pi) => (
+                                <li key={pi}>"{prompt}"</li>
+                              ))}
+                            </ul>
+                          </div>
                         </div>
-                        <p className="pillar-focus">{pillar.focus}</p>
-                        <div className="pillar-triggers">
-                          <span className="triggers-label">High-Yield Prompts:</span>
-                          <ul>
-                            {pillar.applies_to.map((prompt, pi) => (
-                              <li key={pi}>"{prompt}"</li>
-                            ))}
-                          </ul>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </section>
               )}
+
+              {/* Story ↔ Behavioral Theme Coverage Matrix */}
+              <StoryThemeCoverageMatrix />
+
+              {/* Interactive AI STAR Draft Story Evaluator */}
+              <STAREvaluatorWidget
+                prepLanguage={prepLanguage}
+                questionTitle={
+                  expandedQuestionId && behavioralData
+                    ? behavioralData.questions.find((q) => q.id === expandedQuestionId)?.question
+                    : undefined
+                }
+              />
+
 
               {/* Interview Preparation Lifecycle Modules */}
               {behavioralData.interview_modules && behavioralData.interview_modules.length > 0 && (
@@ -1152,66 +1175,10 @@ export const InterviewPrepView: React.FC<InterviewPrepViewProps> = ({ onNavigate
                         </div>
                       ) : aiExplainResult ? (
                         <div className="ai-result-box">
-                          {/* Core Conceptual Breakdown */}
-                          <div className="ai-markdown-content">
-                            {renderMarkdown(aiExplainResult.explanation)}
-                          </div>
-
-                          {/* Real-World Scenario & Analogy Card */}
-                          {aiExplainResult.real_world_scenario && (
-                            <div className="ai-scenario-card glass-panel">
-                              <div className="ai-section-badge scenario">
-                                <Globe size={15} />
-                                <span>Real-World Scenario & Practical Analogy</span>
-                              </div>
-                              <p className="ai-scenario-text">{aiExplainResult.real_world_scenario}</p>
-                            </div>
-                          )}
-
-                          {/* Production Code Blueprint Card */}
-                          {aiExplainResult.code_sample && (
-                            <div className="ai-code-card glass-panel">
-                              <div className="ai-code-header">
-                                <div className="ai-section-badge code">
-                                  <Terminal size={15} />
-                                  <span>Production Implementation / Verification Blueprint</span>
-                                </div>
-                                <button
-                                  type="button"
-                                  className="copy-ai-code-btn"
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(aiExplainResult.code_sample!);
-                                    setCopiedAiCode(true);
-                                    setTimeout(() => setCopiedAiCode(false), 2000);
-                                  }}
-                                >
-                                  {copiedAiCode ? <Check size={13} color="#34d399" /> : <Copy size={13} />}
-                                  <span>{copiedAiCode ? 'Copied' : 'Copy Code'}</span>
-                                </button>
-                              </div>
-                              <pre className="ai-code-pre">
-                                <code>{aiExplainResult.code_sample}</code>
-                              </pre>
-                            </div>
-                          )}
-
-                          {/* Key Interviewer Talking Points & Evaluation Criteria */}
-                          {aiExplainResult.key_interview_takeaways && aiExplainResult.key_interview_takeaways.length > 0 && (
-                            <div className="ai-takeaways-card glass-panel">
-                              <div className="ai-section-badge takeaways">
-                                <Award size={15} />
-                                <span>Key Interviewer Talking Points & Evaluation Criteria</span>
-                              </div>
-                              <ul className="ai-takeaways-list">
-                                {aiExplainResult.key_interview_takeaways.map((item, idx) => (
-                                  <li key={idx}>
-                                    <CheckCircle2 size={14} className="takeaway-icon" />
-                                    <span>{item}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
+                          <VisualAIExplanation
+                            result={aiExplainResult}
+                            renderMarkdown={renderMarkdown}
+                          />
 
                           <div className="ai-drawer-footer">
                             <span className="disclaimer-text">{aiExplainResult.disclaimer}</span>

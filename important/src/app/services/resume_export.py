@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from typing import Any
 from pypdf import PdfReader
@@ -11,6 +12,8 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 from ..schemas_resume import resolve_section_title
 from .resume_localization import format_skill_display, format_language_display
+
+logger = logging.getLogger("compust.resume_export")
 
 
 class ResumeExportError(Exception):
@@ -46,6 +49,17 @@ def render_template_pdf(
     dest_path: Path,
 ) -> None:
     dest_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # 1. Primary typesetting engine: RenderCV (Typst)
+    try:
+        from .rendercv_service import render_rendercv_artifacts
+        render_rendercv_artifacts(structured_data, settings, dest_pdf_path=dest_path)
+        validate_pdf_file(dest_path)
+        return
+    except Exception as exc:
+        logger.warning(f"RenderCV rendering failed ({exc}). Falling back to ReportLab engine.")
+
+    # 2. Resilient fallback: ReportLab engine
     doc_size = A4 if settings.get("document_size", "A4").upper() == "A4" else letter
     doc = SimpleDocTemplate(
         str(dest_path),

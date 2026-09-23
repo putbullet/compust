@@ -63,6 +63,10 @@ export const JobCard: React.FC<JobCardProps> = ({
   };
 
   const salaryString = formatSalary();
+  const rawSuggestions = job.resume_suggestions;
+  const hasResumeSuggestions = Array.isArray(rawSuggestions)
+    ? rawSuggestions.length > 0
+    : Boolean(rawSuggestions?.suggestions && rawSuggestions.suggestions.length > 0);
 
   return (
     <CardPerspectiveWrapper>
@@ -125,6 +129,12 @@ export const JobCard: React.FC<JobCardProps> = ({
             )}
             {job.employment_type && (
               <span className="badge badge-blue">{job.employment_type}</span>
+            )}
+            {hasResumeSuggestions && (
+              <span className="badge badge-amber" title="Attached resume edit guidance available">
+                <Sparkles size={11} style={{ marginRight: 3, verticalAlign: 'text-bottom' }} />
+                Resume edits suggested
+              </span>
             )}
           </div>
 
@@ -317,6 +327,13 @@ const StyledCard = styled.div`
       background: rgba(59, 130, 246, 0.12);
       color: #60a5fa;
       border: 1px solid rgba(59, 130, 246, 0.2);
+    }
+    &.badge-amber {
+      background: rgba(245, 158, 11, 0.14);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      display: inline-flex;
+      align-items: center;
     }
   }
 

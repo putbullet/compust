@@ -25,6 +25,7 @@ import { MyDataSupervisionView } from './components/MyDataSupervisionView';
 import { GuideView } from './components/Guide/GuideView';
 import { InternshipScraperView } from './components/Internships/InternshipScraperView';
 import { InterviewPrepView } from './components/InterviewPrep/InterviewPrepView';
+import { ExtensionInstallView } from './components/ExtensionInstallView';
 import { FloatingHelpControls } from './components/Guide/FloatingHelpControls';
 import { AISettingsModal } from './components/AISettingsModal';
 import { AIAssistantWidget } from './components/AIAssistantWidget';
@@ -32,7 +33,7 @@ import { Loader } from './components/Loader';
 import { Sparkles, Layers, ShieldCheck, ChevronLeft, ChevronRight, Bookmark } from 'lucide-react';
 import { useTranslation } from './i18n';
 
-type AppTab = 'directory' | 'profile' | 'scraper' | 'applications' | 'companies' | 'supervision' | 'guide' | 'internships' | 'interview-prep';
+type AppTab = 'directory' | 'profile' | 'scraper' | 'applications' | 'companies' | 'supervision' | 'guide' | 'internships' | 'interview-prep' | 'extension';
 
 export const App: React.FC = () => {
   const { t } = useTranslation();
@@ -42,11 +43,14 @@ export const App: React.FC = () => {
     try {
       const params = new URLSearchParams(window.location.search);
       const tab = params.get('tab');
-      if (tab && ['directory', 'profile', 'scraper', 'applications', 'companies', 'supervision', 'guide', 'internships', 'interview-prep'].includes(tab)) {
+      if (tab && ['directory', 'profile', 'scraper', 'applications', 'companies', 'supervision', 'guide', 'internships', 'interview-prep', 'extension'].includes(tab)) {
         return tab as AppTab;
       }
       if (window.location.pathname.includes('/interview-prep') || window.location.hash.startsWith('#interview-prep')) {
         return 'interview-prep';
+      }
+      if (window.location.hash.startsWith('#extension')) {
+        return 'extension';
       }
       if (window.location.hash.startsWith('#guide')) {
         return 'guide';
@@ -468,6 +472,11 @@ export const App: React.FC = () => {
         {/* VIEW 8: INTERVIEW PREPARATION KNOWLEDGE CENTER */}
         {activeTab === 'interview-prep' && (
           <InterviewPrepView onNavigateToProfile={() => setActiveTab('profile')} />
+        )}
+
+        {/* VIEW 9: EXTENSION ONBOARDING & INSTALLATION */}
+        {activeTab === 'extension' && (
+          <ExtensionInstallView />
         )}
       </main>
 

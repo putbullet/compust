@@ -18,6 +18,8 @@ import {
   FileText,
   Download,
   Wand2,
+  Copy,
+  RefreshCw,
 } from 'lucide-react';
 import {
   api,
@@ -25,8 +27,18 @@ import {
   type JobTranslationItem,
   type ResumeSuggestion,
   type CustomizedResumeItem,
+  type ResumeEditSuggestionItem,
 } from '../api/client';
 import { ResumeTailorDrawer } from './ResumeBuilder/ResumeTailorDrawer';
+import { StageProgressList, useStageProgress } from './common/StageProgressList';
+
+const RESUME_SUGGESTION_STAGES = [
+  'Reading target job requirements…',
+  'Checking active resume…',
+  'Analyzing skill alignment & ATS formatting…',
+  'Generating tailored suggestions…',
+  'Done',
+];
 
 interface JobDetailModalProps {
   job: JobDetail | null;
@@ -55,12 +67,71 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [suggestions, setSuggestions] = useState<ResumeSuggestion | null>(null);
   const [suggestionError, setSuggestionError] = useState<string | null>(null);
+  const suggestionStage = useStageProgress(RESUME_SUGGESTION_STAGES, loadingSuggestions, 450);
 
   // Resume customization state
   const [customizedResume, setCustomizedResume] = useState<CustomizedResumeItem | null>(null);
   const [recreationError, setRecreationError] = useState<string | null>(null);
   const [downloadingFormat, setDownloadingFormat] = useState<'pdf' | 'docx' | null>(null);
   const [showTailorDrawer, setShowTailorDrawer] = useState(false);
+
+  // Feature 2: Attached Actionable Resume Edit Guidance
+  const [attachedSuggestions, setAttachedSuggestions] = useState<ResumeEditSuggestionItem[]>([]);
+  const [refreshingAttached, setRefreshingAttached] = useState(false);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [attachedError, setAttachedError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!job) return;
+    const raw = job.resume_suggestions;
+    const list = Array.isArray(raw) ? raw : (Array.isArray(raw?.suggestions) ? raw.suggestions : []);
+    setAttachedSuggestions(list);
+    setAttachedError(null);
+  }, [job]);
+
+  const handleRefreshAttached = async () => {
+    if (!job || refreshingAttached) return;
+    try {
+      setRefreshingAttached(true);
+      setAttachedError(null);
+      const updatedJob = await api.refreshJobResumeSuggestions(job.id);
+      const raw = updatedJob.resume_suggestions;
+      const list = Array.isArray(raw) ? raw : (Array.isArray(raw?.suggestions) ? raw.suggestions : []);
+      setAttachedSuggestions(list);
+    } catch (err: any) {
+      setAttachedError(err.message || 'Failed to refresh resume suggestions.');
+    } finally {
+      setRefreshingAttached(false);
+    }
+  };
+
+  const handleCopySuggestion = (text: string, idx: number) => {
+    navigator.clipboard.writeText(text);
+    setCopiedIndex(idx);
+    setTimeout(() => setCopiedIndex(null), 1600);
+  };
+
+  const sectionsGrouped = React.useMemo(() => {
+    const groups: { [key: string]: ResumeEditSuggestionItem[] } = {
+      Skills: [],
+      Experience: [],
+      Summary: [],
+    };
+    const other: ResumeEditSuggestionItem[] = [];
+
+    attachedSuggestions.forEach((item) => {
+      const sec = (item.section || '').trim();
+      if (/skill/i.test(sec)) groups.Skills.push(item);
+      else if (/exp|work|employ/i.test(sec)) groups.Experience.push(item);
+      else if (/summary|profile|objective/i.test(sec)) groups.Summary.push(item);
+      else other.push(item);
+    });
+
+    if (other.length > 0) {
+      groups.Other = other;
+    }
+    return groups;
+  }, [attachedSuggestions]);
 
   const handleDownloadCustomizedResume = async (format: 'pdf' | 'docx') => {
     if (!customizedResume || downloadingFormat) return;
@@ -393,6 +464,139 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
             </button>
           </div>
 
+          {/* Feature 2: Attached Actionable Resume Guidance */}
+          <div className="attached-guidance-panel">
+            <div className="guidance-panel-header">
+              <div className="guidance-header-left">
+                <Sparkles size={18} className="guidance-icon" />
+                <div>
+                  <h4 className="guidance-title">Actionable Resume Edit Guidance</h4>
+                  <p className="guidance-subtitle">
+                    Section-grouped edits tailored for this vacancy. Missing skills flagged for verification.
+                  </p>
+                </div>
+              </div>
+              <div className="guidance-header-right">
+                {attachedSuggestions.length > 0 && (
+                  <span className="guidance-count-pill">
+                    {attachedSuggestions.length} suggestions
+                  </span>
+                )}
+                <button
+                  type="button"
+                  className="refresh-guidance-btn"
+                  onClick={handleRefreshAttached}
+                  disabled={refreshingAttached}
+                  title="Recalculate suggestions against your active resume"
+                >
+                  <RefreshCw size={13} className={refreshingAttached ? 'spin' : ''} />
+                  <span>{refreshingAttached ? 'Refreshing…' : 'Refresh Guidance'}</span>
+                </button>
+              </div>
+            </div>
+
+            {attachedError && (
+              <div className="guidance-error">
+                <AlertCircle size={14} />
+                <span>{attachedError}</span>
+              </div>
+            )}
+
+            {attachedSuggestions.length === 0 ? (
+              <div className="guidance-empty">
+                <p>No resume edit guidance attached to this job record yet.</p>
+                <button
+                  type="button"
+                  className="generate-guidance-btn"
+                  onClick={handleRefreshAttached}
+                  disabled={refreshingAttached}
+                >
+                  {refreshingAttached ? <Loader2 size={13} className="spin" /> : <Sparkles size={13} />}
+                  <span>{refreshingAttached ? 'Generating suggestions…' : 'Generate Suggestions Now'}</span>
+                </button>
+              </div>
+            ) : (
+              <div className="guidance-sections-list">
+                {Object.entries(sectionsGrouped).map(([sectionName, items]) => {
+                  if (!items || items.length === 0) return null;
+                  return (
+                    <div key={sectionName} className="guidance-section-block">
+                      <h5 className="section-group-heading">
+                        <span>{sectionName}</span>
+                        <span className="section-count">({items.length})</span>
+                      </h5>
+                      <div className="guidance-cards-grid">
+                        {items.map((item, idx) => {
+                          const globalIdx = idx + sectionName.charCodeAt(0) * 100;
+                          return (
+                            <div key={idx} className={`guidance-card ${!item.grounded ? 'unverified' : 'grounded'}`}>
+                              <div className="card-top-bar">
+                                <div className="location-tag">
+                                  <span>{item.target_location || item.section}</span>
+                                </div>
+                                <div className="grounding-status">
+                                  {item.grounded ? (
+                                    <span className="badge-grounded">
+                                      <CheckCircle2 size={11} />
+                                      Grounded in Profile
+                                    </span>
+                                  ) : (
+                                    <span className="badge-unverified" title="Missing from your profile. Add only if you have genuine experience.">
+                                      <AlertCircle size={11} />
+                                      ⚠️ Verify Experience First
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <p className="guidance-rationale">{item.rationale}</p>
+
+                              {(!item.grounded || item.warning) && (
+                                <div className="unverified-warning-banner">
+                                  <AlertCircle size={12} className="warning-icon" />
+                                  <span>{item.warning || 'Add this only if you actually have this experience — never invent qualifications.'}</span>
+                                </div>
+                              )}
+
+                              {item.original_text && (
+                                <div className="original-box">
+                                  <span className="orig-label">Original:</span>
+                                  <span className="orig-val">{item.original_text}</span>
+                                </div>
+                              )}
+
+                              <div className="suggested-box">
+                                <div className="suggested-text">{item.suggested_text}</div>
+                                <button
+                                  type="button"
+                                  className="copy-suggestion-btn"
+                                  onClick={() => handleCopySuggestion(item.suggested_text, globalIdx)}
+                                  title="Copy to clipboard"
+                                >
+                                  {copiedIndex === globalIdx ? (
+                                    <>
+                                      <Check size={12} />
+                                      <span>Copied</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Copy size={12} />
+                                      <span>Copy</span>
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {/* Phase 20: Resume Customization Panel */}
           {showSuggestions && (
             <div className="resume-customization-panel">
@@ -409,10 +613,12 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
               </div>
 
               {loadingSuggestions ? (
-                <div className="suggestions-loading">
-                  <Loader2 size={20} className="spin" />
-                  <span>Analyzing vacancy requirements against your active resume...</span>
-                </div>
+                <StageProgressList
+                  title="Analyzing Vacancy Requirements Against Your Resume…"
+                  stages={RESUME_SUGGESTION_STAGES}
+                  currentStage={suggestionStage}
+                  className="modal-stage-progress"
+                />
               ) : suggestionError ? (
                 <div className="suggestions-error">
                   <AlertCircle size={16} />
@@ -1451,6 +1657,316 @@ const StyledModalBackdrop = styled.div`
             background: #2563eb;
             color: #ffffff;
             &:hover:not(:disabled) { background: #1d4ed8; }
+          }
+        }
+      }
+    }
+
+    .attached-guidance-panel {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(59, 130, 246, 0.25);
+      border-radius: 14px;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+
+      .guidance-panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+
+        .guidance-header-left {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+
+          .guidance-icon {
+            color: #60a5fa;
+            flex-shrink: 0;
+          }
+
+          .guidance-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #f8fafc;
+            margin: 0 0 2px;
+          }
+
+          .guidance-subtitle {
+            font-size: 0.78rem;
+            color: #94a3b8;
+            margin: 0;
+          }
+        }
+
+        .guidance-header-right {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+
+          .guidance-count-pill {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 6px;
+            background: rgba(59, 130, 246, 0.15);
+            color: #93c5fd;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+          }
+
+          .refresh-guidance-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 10px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #cbd5e1;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+
+            &:hover:not(:disabled) {
+              background: rgba(59, 130, 246, 0.15);
+              border-color: rgba(59, 130, 246, 0.4);
+              color: #60a5fa;
+            }
+
+            &:disabled {
+              opacity: 0.6;
+              cursor: not-allowed;
+            }
+
+            .spin {
+              animation: spin 1s linear infinite;
+            }
+          }
+        }
+      }
+
+      .guidance-error {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.25);
+        color: #fca5a5;
+        font-size: 0.78rem;
+      }
+
+      .guidance-empty {
+        padding: 16px;
+        text-align: center;
+        background: rgba(255, 255, 255, 0.02);
+        border-radius: 8px;
+        border: 1px dashed rgba(255, 255, 255, 0.1);
+
+        p {
+          font-size: 0.82rem;
+          color: #94a3b8;
+          margin-bottom: 8px;
+        }
+
+        .generate-guidance-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 6px 12px;
+          border-radius: 6px;
+          background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+          border: none;
+          color: #fff;
+          font-size: 0.78rem;
+          font-weight: 600;
+          cursor: pointer;
+
+          .spin {
+            animation: spin 1s linear infinite;
+          }
+        }
+      }
+
+      .guidance-sections-list {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .guidance-section-block {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .section-group-heading {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.82rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #93c5fd;
+        margin: 0 0 4px;
+
+        .section-count {
+          color: #64748b;
+          font-weight: 500;
+        }
+      }
+
+      .guidance-cards-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .guidance-card {
+        background: rgba(2, 6, 23, 0.6);
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        padding: 12px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        transition: border-color 0.2s;
+
+        &.unverified {
+          border-color: rgba(245, 158, 11, 0.35);
+          background: rgba(30, 20, 10, 0.35);
+        }
+
+        &.grounded {
+          border-color: rgba(16, 185, 129, 0.25);
+        }
+
+        .card-top-bar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+
+          .location-tag {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #cbd5e1;
+            background: rgba(255, 255, 255, 0.06);
+            padding: 2px 8px;
+            border-radius: 4px;
+          }
+
+          .badge-grounded {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #34d399;
+            background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            padding: 2px 6px;
+            border-radius: 4px;
+          }
+
+          .badge-unverified {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #fbbf24;
+            background: rgba(245, 158, 11, 0.12);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+          }
+        }
+
+        .guidance-rationale {
+          font-size: 0.8rem;
+          color: #94a3b8;
+          line-height: 1.4;
+          margin: 0;
+        }
+
+        .unverified-warning-banner {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 5px 8px;
+          border-radius: 6px;
+          background: rgba(245, 158, 11, 0.1);
+          border: 1px solid rgba(245, 158, 11, 0.25);
+          color: #fde68a;
+          font-size: 0.72rem;
+
+          .warning-icon {
+            color: #fbbf24;
+            flex-shrink: 0;
+          }
+        }
+
+        .original-box {
+          font-size: 0.75rem;
+          color: #64748b;
+          background: rgba(0, 0, 0, 0.2);
+          padding: 6px 10px;
+          border-radius: 6px;
+          border-left: 2px solid #64748b;
+
+          .orig-label {
+            font-weight: 600;
+            margin-right: 4px;
+          }
+        }
+
+        .suggested-box {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 10px;
+          background: rgba(15, 23, 42, 0.9);
+          border: 1px solid rgba(59, 130, 246, 0.25);
+          border-radius: 8px;
+          padding: 10px 12px;
+
+          .suggested-text {
+            font-family: 'JetBrains Mono', monospace, ui-monospace;
+            font-size: 0.82rem;
+            color: #e2e8f0;
+            line-height: 1.45;
+            flex: 1;
+            white-space: pre-wrap;
+            word-break: break-word;
+          }
+
+          .copy-suggestion-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            border-radius: 5px;
+            background: rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.35);
+            color: #93c5fd;
+            font-size: 0.72rem;
+            font-weight: 600;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: all 0.15s;
+
+            &:hover {
+              background: rgba(59, 130, 246, 0.35);
+              color: #fff;
+            }
           }
         }
       }

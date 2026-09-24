@@ -25,7 +25,7 @@
 
 *Watch how Compust Capture extracts job postings in real time, computes instant resume alignment, and routes vacancies directly to your tracking board:*
 
-[![Click to see how the extension works!](docs/media/extension-demo-thumbnail.png)](https://raw.githubusercontent.com/putbullet/compust/master/docs/media/compust-capture-demo.mp4)
+[![Click to see how the extension works!](docs/media/extension-demo-thumbnail.png)](https://media.githubusercontent.com/media/putbullet/compust/master/docs/media/compust-capture-demo.mp4)
 
 <p align="center">
   <strong>A high-transparency employment intelligence platform combining automated multi-source career portal ingestion, deterministic resume parsing, vacancy match scoring, omnipresent browser job capture, and interactive gap analysis.</strong>

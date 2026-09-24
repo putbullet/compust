@@ -480,32 +480,25 @@ def get_sankey_pipeline(
     def add_flow(src: str, tgt: str):
         link_counts[(src, tgt)] = link_counts.get((src, tgt), 0) + 1
 
-    for app in apps:
-        hist_statuses = [h.to_status for h in (app.history or [])]
-        all_statuses = set(hist_statuses) | {app.status}
+    # Stage membership sets — funnel placement is determined exclusively by the
+    # application's *current* status.  History entries record when transitions
+    # happened (useful for time metrics) but must NOT influence funnel counts:
+    # an app that was once "accepted" and is now "rejected" must appear in the
+    # rejected bucket, not in the accepted bucket.
+    _STAGES_GTE_1ST   = {"interviewing", "1st_interview", "2nd_interview",
+                          "3rd_interview", "final_interview", "offer", "accepted"}
+    _STAGES_GTE_2ND   = {"2nd_interview", "3rd_interview", "final_interview", "offer", "accepted"}
+    _STAGES_GTE_3RD   = {"3rd_interview", "final_interview", "offer", "accepted"}
+    _STAGES_GTE_4TH   = {"final_interview", "offer", "accepted"}
+    _STAGES_GTE_OFFER = {"offer", "accepted"}
 
-        reached_1st = bool(
-            all_statuses
-            & {
-                "interviewing",
-                "1st_interview",
-                "2nd_interview",
-                "3rd_interview",
-                "final_interview",
-                "offer",
-                "accepted",
-            }
-        )
-        reached_2nd = bool(
-            all_statuses
-            & {"2nd_interview", "3rd_interview", "final_interview", "offer", "accepted"}
-        )
-        reached_3rd = bool(
-            all_statuses & {"3rd_interview", "final_interview", "offer", "accepted"}
-        )
-        reached_4th = bool(all_statuses & {"final_interview", "offer", "accepted"})
-        reached_offer = bool(all_statuses & {"offer", "accepted"})
-        reached_accepted = app.status == "accepted" or "accepted" in all_statuses
+    for app in apps:
+        reached_1st      = app.status in _STAGES_GTE_1ST
+        reached_2nd      = app.status in _STAGES_GTE_2ND
+        reached_3rd      = app.status in _STAGES_GTE_3RD
+        reached_4th      = app.status in _STAGES_GTE_4TH
+        reached_offer    = app.status in _STAGES_GTE_OFFER
+        reached_accepted = app.status == "accepted"
 
         if not reached_1st:
             if app.status == "no_answer":

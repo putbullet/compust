@@ -114,6 +114,25 @@ export interface Translations {
     export: string;
     all: string;
   };
+  guide: {
+    tableOfContents: string;
+    searchPlaceholder: string;
+    groupGettingStarted: string;
+    groupResumeStudio: string;
+    groupBrowserExtension: string;
+    groupJobDiscovery: string;
+    groupApplicationTracking: string;
+    groupDataSupervision: string;
+    groupDeveloper: string;
+    groupHelp: string;
+    githubRepo: string;
+    reportIssue: string;
+    discussions: string;
+    watchDemo: string;
+    copyCode: string;
+    copied: string;
+    searchNoResults: string;
+  };
 }
 
 export const translations: Record<Language, Translations> = {
@@ -229,6 +248,25 @@ export const translations: Record<Language, Translations> = {
       export: 'Export',
       all: 'All',
     },
+    guide: {
+      tableOfContents: 'Table of Contents',
+      searchPlaceholder: 'Search documentation, extension, ATS, matching, FAQ...',
+      groupGettingStarted: 'Getting Started',
+      groupResumeStudio: 'Resume Studio',
+      groupBrowserExtension: 'Browser Extension',
+      groupJobDiscovery: 'Job Discovery',
+      groupApplicationTracking: 'Application Tracking',
+      groupDataSupervision: 'Data Supervision & Scraping',
+      groupDeveloper: 'Developer Guide',
+      groupHelp: 'Help & FAQ',
+      githubRepo: 'GitHub Repository',
+      reportIssue: 'Report Issue',
+      discussions: 'Discussions',
+      watchDemo: 'Watch Demo',
+      copyCode: 'Copy',
+      copied: 'Copied!',
+      searchNoResults: 'No sections match your search.',
+    },
   },
   fr: {
     nav: {
@@ -342,6 +380,25 @@ export const translations: Record<Language, Translations> = {
       export: 'Exporter',
       all: 'Tous',
     },
+    guide: {
+      tableOfContents: 'Table des matières',
+      searchPlaceholder: 'Rechercher dans la documentation, extension, ATS, matching, FAQ...',
+      groupGettingStarted: 'Prise en main',
+      groupResumeStudio: 'Studio CV',
+      groupBrowserExtension: 'Extension Navigateur',
+      groupJobDiscovery: 'Découverte d\'Offres',
+      groupApplicationTracking: 'Suivi des Candidatures',
+      groupDataSupervision: 'Supervision & Scraping',
+      groupDeveloper: 'Guide Développeur',
+      groupHelp: 'Aide & FAQ',
+      githubRepo: 'Dépôt GitHub',
+      reportIssue: 'Signaler un problème',
+      discussions: 'Discussions',
+      watchDemo: 'Voir la démo',
+      copyCode: 'Copier',
+      copied: 'Copié !',
+      searchNoResults: 'Aucune section ne correspond à votre recherche.',
+    },
   },
   nl: {
     nav: {
@@ -454,6 +511,25 @@ export const translations: Record<Language, Translations> = {
       close: 'Sluiten',
       export: 'Exporteren',
       all: 'Alle',
+    },
+    guide: {
+      tableOfContents: 'Inhoudsopgave',
+      searchPlaceholder: 'Zoek in documentatie, extensie, ATS, matching, FAQ...',
+      groupGettingStarted: 'Aan de slag',
+      groupResumeStudio: 'CV Studio',
+      groupBrowserExtension: 'Browserextensie',
+      groupJobDiscovery: 'Vacature Ontdekking',
+      groupApplicationTracking: 'Sollicitatiebeheer',
+      groupDataSupervision: 'Gegevenstoezicht & Scraping',
+      groupDeveloper: 'Ontwikkelaarsgids',
+      groupHelp: 'Hulp & FAQ',
+      githubRepo: 'GitHub Repository',
+      reportIssue: 'Probleem Melden',
+      discussions: 'Discussies',
+      watchDemo: 'Demo Bekijken',
+      copyCode: 'Kopiëren',
+      copied: 'Gekopieerd!',
+      searchNoResults: 'Geen secties gevonden die overeenkomen met uw zoekopdracht.',
     },
   },
 };

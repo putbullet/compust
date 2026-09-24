@@ -574,11 +574,12 @@ Compust is designed to be extensible. If a company's career site is not currentl
 
 ## Contributing & Community
 
-Contributions are warmly welcome! Whether you are submitting a new career portal adapter, fixing a parser edge case, improving the match engine, or refining the UI:
-1. Fork and clone the repository: `https://github.com/putbullet/compust`
-2. Follow the detailed developer guidelines inside the in-app **Guide & Docs** center and [COMPUS_DEVELOPER_GUIDE.md](COMPUS_DEVELOPER_GUIDE.md).
-3. Keep changes modular, well-tested, and clean.
-4. Note: Contribution is completely optional—you are free to use Compust simply as a user or build private custom solutions.
+Contributions are warmly welcome! Whether you are submitting a new career portal adapter, fixing a parser edge case, improving the match engine, refining documentation, or enhancing the browser extension:
+
+- Please review our comprehensive [Contributing Guide](CONTRIBUTING.md) for local environment setup, code quality expectations, extension points, and test requirements.
+- By participating in this project, you agree to abide by our [Code of Conduct](CODE_OF_CONDUCT.md).
+- To report a security vulnerability, please consult our [Security Policy](SECURITY.md).
+- You can also explore developer specifications in [COMPUS_DEVELOPER_GUIDE.md](COMPUS_DEVELOPER_GUIDE.md) or open the in-app **Guide & Docs** tab directly inside Compust.
 
 ---
 

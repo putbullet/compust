@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: "Compust In-App Guide & Documentation"
+    url: "https://github.com/putbullet/compust#overview"
+    about: "Inspect system architecture, scraper diagnostics, and quick start guides inside the app or repository."
+  - name: "Security Vulnerability Advisory"
+    url: "https://github.com/putbullet/compust/security/advisories/new"
+    about: "Privately disclose a potential security vulnerability to project maintainers."

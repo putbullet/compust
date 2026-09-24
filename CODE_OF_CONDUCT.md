@@ -63,7 +63,7 @@ Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported to the community maintainers at:
 
 <!-- TODO: add a real contact email or reporting channel here (e.g. contact@compust.ma or personal maintainer email) -->
-**Contact**: `[Reporting contact to be configured by maintainer - see repository owner @putbullet]`
+**Contact**: `soulaimanettabaas@gmail.com`
 
 All complaints will be reviewed and investigated promptly and fairly. All
 community leaders are obligated to respect the privacy and security of the

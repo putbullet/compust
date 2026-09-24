@@ -4,6 +4,13 @@ A Manifest V3 browser extension for **Chrome, Edge, Brave, and Firefox** that in
 
 While browsing job postings on **LinkedIn**, **Indeed**, or **Glassdoor**, Compust Capture injects a subtle floating button into an isolated Shadow DOM container. With one click, it extracts clean job details, creates/deduplicates the posting in your local Compust database, generates an instant **Requirements Match Analysis** against your active resume, and enables one-click tracking to your Kanban board at `Applied` or `Interested` status.
 
+<p align="center">
+  <video src="https://raw.githubusercontent.com/putbullet/compust/master/docs/media/compust-capture-demo.mp4" poster="https://raw.githubusercontent.com/putbullet/compust/master/docs/media/compust-capture-demo-poster.png" controls width="720">
+    Your browser does not support the video tag —
+    <a href="https://raw.githubusercontent.com/putbullet/compust/master/docs/media/compust-capture-demo.mp4">watch the demo video here</a>.
+  </video>
+</p>
+
 ---
 
 ## Key Architecture & Security Decisions

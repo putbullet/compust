@@ -32,5 +32,6 @@ logs/
 *.log
 *.lnk
 *.mp4
+!docs/media/*.mp4
 *.db
 release/

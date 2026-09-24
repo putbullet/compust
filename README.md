@@ -27,6 +27,7 @@
 <p align="center">
   <a href="#overview">Overview</a> •
   <a href="#key-features">Key Features</a> •
+  <a href="#compust-capture-demo">Extension Demo</a> •
   <a href="#system-architecture">Architecture</a> •
   <a href="#quick-start-guide">Quick Start</a> •
   <a href="#testing--verification">Testing</a> •
@@ -63,6 +64,18 @@ In addition to job discovery, Compust provides a **Career Intelligence & Resume 
 - Multi-lingual user interface with instantaneous **English (EN), French (FR), and Dutch (NL)** locale toggles via a unified top-navigation language switcher.
 
 ### 2. Compust Capture Browser Extension (Chrome, Edge, Brave & Firefox)
+
+<a id="compust-capture-demo"></a>
+#### 🎥 Compust Capture — Walkthrough Demo
+*Watch how Compust Capture extracts job postings in real time, computes instant resume alignment, and routes vacancies directly to your tracking board:*
+
+<p align="center">
+  <video src="https://raw.githubusercontent.com/putbullet/compust/master/docs/media/compust-capture-demo.mp4" poster="https://raw.githubusercontent.com/putbullet/compust/master/docs/media/compust-capture-demo-poster.png" controls width="720">
+    Your browser does not support the video tag —
+    <a href="https://raw.githubusercontent.com/putbullet/compust/master/docs/media/compust-capture-demo.mp4">watch the demo video here</a>.
+  </video>
+</p>
+
 - **Omnipresent Job Capture**: Ingest opportunities directly while browsing without leaving external job portals.
 - **Native Platform Adapters**: Instant auto-detection and extraction on **LinkedIn, Indeed, Glassdoor, and Welcome to the Jungle**.
 - **Universal Context Menu & Generic Extractor**: Right-click anywhere on arbitrary career portals (Workday, Greenhouse, Ashby, Lever, company career pages) to extract vacancy metadata from semantic HTML cards and embedded JSON-LD.

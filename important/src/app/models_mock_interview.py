@@ -29,10 +29,15 @@ class MockInterviewSession(Base):
     user_id: Mapped[int | None] = mapped_column(UnsignedInt, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
 
     # Configuration
-    domain_id: Mapped[str] = mapped_column(String(100))           # "data_engineering"
-    role: Mapped[str | None] = mapped_column(String(255), nullable=True)  # optional role filter
-    difficulty: Mapped[str] = mapped_column(String(50))            # "Fundamental"|"Intermediate"|"Advanced"|"Mixed"
-    duration_minutes: Mapped[int] = mapped_column(Integer)         # 10|20|30|45
+    domain_id: Mapped[str] = mapped_column(String(100), default="behavioral")
+    role: Mapped[str | None] = mapped_column(String(255), nullable=True)  # optional target role
+    difficulty: Mapped[str] = mapped_column(String(50), default="Standard")
+    duration_minutes: Mapped[int] = mapped_column(Integer, default=15)
+    language: Mapped[str] = mapped_column(String(10), default="en")
+    interview_type: Mapped[str] = mapped_column(String(50), default="behavioral")
+    personalize_resume: Mapped[bool] = mapped_column(Boolean, default=True)
+    voice_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    avatar_mode: Mapped[str] = mapped_column(String(50), default="voice_avatar")
 
     # Job-linked context (optional)
     job_id: Mapped[int | None] = mapped_column(UnsignedInt, ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True)
@@ -48,7 +53,7 @@ class MockInterviewSession(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Serialized interview plan (selected question IDs in order, per-subdomain weights)
+    # Serialized interview plan (selected question IDs in order, competency distribution)
     interview_plan: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     # Evaluation status
@@ -79,12 +84,13 @@ class MockInterviewTurn(Base):
     turn_index: Mapped[int] = mapped_column(Integer)               # 0-based position in session
 
     # Question reference — points at static JSON question bank
-    question_id: Mapped[str] = mapped_column(String(100))          # e.g. "de_spark_2"
-    question_domain_id: Mapped[str] = mapped_column(String(100))   # e.g. "data_engineering"
+    question_id: Mapped[str] = mapped_column(String(100))          # e.g. "teamwork_1"
+    question_domain_id: Mapped[str] = mapped_column(String(100), default="behavioral")
     question_title: Mapped[str] = mapped_column(String(500))       # denormalized for display
-    question_category: Mapped[str] = mapped_column(String(255))    # category_name
-    question_topic: Mapped[str] = mapped_column(String(255))       # topic
-    question_difficulty: Mapped[str] = mapped_column(String(50))   # difficulty
+    question_category: Mapped[str] = mapped_column(String(255))    # competency_label
+    question_topic: Mapped[str] = mapped_column(String(255), default="behavioral")
+    question_difficulty: Mapped[str] = mapped_column(String(50), default="Standard")
+    competency: Mapped[str | None] = mapped_column(String(100), nullable=True)
     is_follow_up: Mapped[bool] = mapped_column(Boolean, default=False)
     follow_up_focus: Mapped[str | None] = mapped_column(String(500), nullable=True)  # from classification
     parent_question_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
@@ -100,12 +106,23 @@ class MockInterviewTurn(Base):
         """Alias for transcript_text representing the original raw ASR speech recognition output."""
         return self.transcript_text
 
-    # Timing
+    # Timing & Timeline Anchors
     asked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     answered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     answer_duration_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
+    start_time_offset_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
+    end_time_offset_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
 
-    # Follow-up classification verdict (compact JSON from realtime LLM call)
+    # Deterministic delivery metrics computed in pure Python
+    wpm: Mapped[float | None] = mapped_column(Float, nullable=True)
+    filler_word_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    filler_words: Mapped[dict | list | None] = mapped_column(JSON, nullable=True)
+    longest_pause_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
+    time_to_first_word_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
+    i_vs_we_ratio: Mapped[float | None] = mapped_column(Float, nullable=True)
+    word_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # Follow-up classification verdict (compact JSON from realtime gate)
     followup_verdict: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     # {"strength": "weak|adequate|strong", "follow_up_suggested": bool, "follow_up_focus": str}
 
@@ -134,6 +151,17 @@ class MockAnswerEvaluation(Base):
     clarity: Mapped[float | None] = mapped_column(Float, nullable=True)
     star_breakdown: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
+    # Grounded STAR Evaluation fields
+    star_situation: Mapped[str | None] = mapped_column(String(50), nullable=True)  # "present" | "partial" | "missing"
+    star_task: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    star_action: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    star_result: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    star_evidence: Mapped[dict | None] = mapped_column(JSON, nullable=True)  # {"situation": "...", "task": "...", ...}
+    stronger_version: Mapped[str | None] = mapped_column(Text, nullable=True)
+    specificity_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    ownership_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    measurable_outcome_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+
     # Structured feedback
     missing_concepts: Mapped[list | None] = mapped_column(JSON, nullable=True)
     incorrect_claims: Mapped[list | None] = mapped_column(JSON, nullable=True)
@@ -160,16 +188,18 @@ class MockInterviewAssessment(Base):
     # Overall score 0–100
     overall_score: Mapped[float | None] = mapped_column(Float, nullable=True)
 
-    # Skill matrix: per-category/topic ratings
-    # {"category_name": {"rating": "Strong|Moderate|Weak", "score": 0.0-1.0, "question_count": int}}
+    # Competency matrix & Timeline chart
     skill_matrix: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    competency_scores: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    timeline_data: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    delivery_summary: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    action_plan: Mapped[list | None] = mapped_column(JSON, nullable=True)
 
-    # Detected weak areas (category/topic names needing focus)
+    # Detected weak areas (competencies needing focus)
     weak_areas: Mapped[list | None] = mapped_column(JSON, nullable=True)
 
-    # Recommendations tied back to question bank content
+    # Recommendations tied back to behavioral question bank / HR prep
     recommendations: Mapped[list | None] = mapped_column(JSON, nullable=True)
-    # [{"area": "Streaming & Event Messaging", "action": "Revisit Kafka consumer groups subdomain", "domain_id": "data_engineering", "category_id": "streaming-messaging"}]
 
     # Summary text
     summary_text: Mapped[str | None] = mapped_column(Text, nullable=True)

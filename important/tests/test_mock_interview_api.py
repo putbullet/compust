@@ -686,4 +686,42 @@ class TestMockInterviewAPI:
         assert double_start.status_code == 400
         assert "not in setup state" in double_start.json()["detail"]
 
+    def test_delete_mock_interview_session(self, auth_client):
+        """Verifies DELETE /api/v1/mock-interview/sessions/{session_id} deletes the session cleanly."""
+        client, _, _ = auth_client
+        setup_resp = client.post(
+            "/api/v1/mock-interview/sessions",
+            json={
+                "domain_id": "behavioral",
+                "target_role": "Project Manager",
+                "duration_minutes": 10,
+            },
+        )
+        assert setup_resp.status_code == 200
+        session_id = setup_resp.json()["session_id"]
+
+        # Verify session is present in list
+        list_resp = client.get("/api/v1/mock-interview/sessions")
+        assert list_resp.status_code == 200
+        session_ids = [s["session_id"] for s in list_resp.json()["sessions"]]
+        assert session_id in session_ids
+
+        # Delete session
+        del_resp = client.delete(f"/api/v1/mock-interview/sessions/{session_id}")
+        assert del_resp.status_code == 200
+        del_data = del_resp.json()
+        assert del_data["session_id"] == session_id
+        assert del_data["deleted"] is True
+
+        # Verify session is no longer present in list
+        list_resp2 = client.get("/api/v1/mock-interview/sessions")
+        assert list_resp2.status_code == 200
+        session_ids2 = [s["session_id"] for s in list_resp2.json()["sessions"]]
+        assert session_id not in session_ids2
+
+        # Second deletion should return 404
+        del_resp2 = client.delete(f"/api/v1/mock-interview/sessions/{session_id}")
+        assert del_resp2.status_code == 404
+
+
 

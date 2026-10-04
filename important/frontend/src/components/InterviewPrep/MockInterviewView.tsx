@@ -17,17 +17,19 @@ import {
   FileText,
   Loader2,
   Play,
+  Pause,
   Award,
   BookOpen,
   ArrowLeft,
-  Database,
-  Shield,
-  BrainCircuit,
   User,
   MessageSquare,
   Check,
   FastForward,
-  Video,
+  Trash2,
+  ExternalLink,
+  Briefcase,
+  Globe,
+  Sliders,
 } from 'lucide-react';
 import { api } from '../../api/client';
 import type {
@@ -35,13 +37,15 @@ import type {
   NextQuestionItem,
   MockInterviewAssessmentResponse,
   SessionHistorySummary,
-  ResumeDomainDetectResponse,
   STTStatusResponse,
   TTSStatusResponse,
+  ApplicationItem,
+  ResumeItem,
 } from '../../api/client';
 import { useTranslation } from '../../i18n';
 import { InterviewerPresentation, type PresentationMode } from './InterviewerPresentation';
 import type { InterviewTurnState } from './VisualInterviewerAvatar';
+import { InterviewTimelineChart } from './InterviewTimelineChart';
 import './MockInterviewView.css';
 
 type Phase = 'setup' | 'permission' | 'interview' | 'evaluating' | 'assessment' | 'history';
@@ -49,52 +53,45 @@ type Phase = 'setup' | 'permission' | 'interview' | 'evaluating' | 'assessment' 
 interface MockInterviewViewProps {
   initialDomainId?: string;
   onNavigateBack?: () => void;
+  onNavigateToPrepSection?: (sectionId: string) => void;
 }
 
-const DOMAIN_OPTIONS = [
-  {
-    id: 'data_engineering',
-    name: 'Data Engineering',
-    desc: 'SQL, Spark, Distributed Systems, Data Modeling, Warehousing & Streaming',
-    icon: Database,
-  },
-  {
-    id: 'security_engineering',
-    name: 'Security Engineering',
-    desc: 'OAuth2/OIDC, AppSec, Cryptography, Cloud Security & Threat Modeling',
-    icon: Shield,
-  },
-  {
-    id: 'ai_tech_interview',
-    name: 'AI Engineering',
-    desc: 'LLMs, Prompt Engineering, RAG Systems, Vectors, Embeddings & Fine-tuning',
-    icon: BrainCircuit,
-  },
+const DURATION_OPTIONS = [5, 10, 15, 20];
+const LANGUAGE_OPTIONS = [
+  { code: 'en', label: 'English', flag: '🇬🇧' },
+  { code: 'fr', label: 'Français', flag: '🇫🇷' },
+  { code: 'nl', label: 'Nederlands', flag: '🇳🇱' },
 ];
 
-const DIFFICULTY_OPTIONS = ['Fundamental', 'Intermediate', 'Advanced', 'Mixed'];
-const DURATION_OPTIONS = [10, 20, 30, 45];
-
 export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
-  initialDomainId = 'data_engineering',
+  initialDomainId: _initialDomainId = 'behavioral',
   onNavigateBack,
+  onNavigateToPrepSection,
 }) => {
-  const { t } = useTranslation();
+  const { t, language: currentAppLang } = useTranslation();
   const tr = t.mockInterview;
 
   // Phase State
   const [phase, setPhase] = useState<Phase>('setup');
 
-  // Presentation Mode: Alex Video / Visual Interviewer / Minimal Orb
-  const [presentationMode, setPresentationMode] = useState<PresentationMode>('auto');
+  // Presentation Mode: Video / Visual Avatar / Minimal Orb
+  const [presentationMode, setPresentationMode] = useState<PresentationMode>(() => {
+    const saved = localStorage.getItem('compust_mock_avatar_mode');
+    return saved === 'minimal' ? 'minimal' : 'visual';
+  });
 
   // Setup Form State
-  const [domainId, setDomainId] = useState<string>(initialDomainId);
-  const [role, setRole] = useState<string>('');
-  const [difficulty, setDifficulty] = useState<string>('Mixed');
-  const [durationMinutes, setDurationMinutes] = useState<number>(20);
-  const [resumeSuggestion, setResumeSuggestion] = useState<ResumeDomainDetectResponse | null>(null);
-  const [analyzingResume, setAnalyzingResume] = useState<boolean>(false);
+  const [targetRole, setTargetRole] = useState<string>('');
+  const [personalizeResume, setPersonalizeResume] = useState<boolean>(true);
+  const [hasActiveResume, setHasActiveResume] = useState<boolean>(false);
+  const [activeResumeTitle, setActiveResumeTitle] = useState<string>('');
+  const [savedJobs, setSavedJobs] = useState<ApplicationItem[]>([]);
+  const [selectedJobId, setSelectedJobId] = useState<number | undefined>(undefined);
+  const [durationMinutes, setDurationMinutes] = useState<number>(15);
+  const [interviewLanguage, setInterviewLanguage] = useState<string>(() => {
+    if (currentAppLang === 'fr' || currentAppLang === 'nl') return currentAppLang;
+    return 'en';
+  });
   const [creatingSession, setCreatingSession] = useState<boolean>(false);
   const [setupError, setSetupError] = useState<string | null>(null);
 
@@ -103,21 +100,17 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
   const sessionIdRef = useRef<number | null>(null);
   const [setupInfo, setSetupInfo] = useState<MockInterviewSetupResponse | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState<NextQuestionItem | null>(null);
-  const [remainingSeconds, setRemainingSeconds] = useState<number>(1200);
+  const [remainingSeconds, setRemainingSeconds] = useState<number>(900);
   const [questionsAsked, setQuestionsAsked] = useState<number>(0);
   const [isMuted, setIsMuted] = useState<boolean>(false);
+  const [isPaused, setIsPaused] = useState<boolean>(false);
+  const isPausedRef = useRef<boolean>(false);
   const [confirmEndModal, setConfirmEndModal] = useState<boolean>(false);
   const [submittingTurn, setSubmittingTurn] = useState<boolean>(false);
   const submittingTurnRef = useRef<boolean>(false);
 
-  // STT Status
+  // STT & TTS Status
   const [sttStatus, setSttStatus] = useState<STTStatusResponse | null>(null);
-
-  // Turn-Taking State Machine
-  const [turnState, setTurnState] = useState<InterviewTurnState>('interviewer_speaking');
-  const turnStateRef = useRef<InterviewTurnState>('interviewer_speaking');
-
-  // TTS Voice Engine State
   const [ttsStatus, setTtsStatus] = useState<TTSStatusResponse | null>(null);
   const [selectedVoiceMode, setSelectedVoiceMode] = useState<'neural' | 'browser'>('neural');
   const [selectedNeuralVoice, setSelectedNeuralVoice] = useState<string>('en-US-AndrewMultilingualNeural');
@@ -126,15 +119,19 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
   const [isPlayingPreview, setIsPlayingPreview] = useState<boolean>(false);
   const activeAudioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Turn-Taking State Machine
+  const [turnState, setTurnState] = useState<InterviewTurnState>('interviewer_speaking');
+  const turnStateRef = useRef<InterviewTurnState>('interviewer_speaking');
+
   // Audio Recording & Activity Detection State
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const [recordingSeconds, setRecordingSeconds] = useState<number>(0);
   const recordingSecondsRef = useRef<number>(0);
   const [candidateTranscript, setCandidateTranscript] = useState<string>('');
   const [micAudioLevel, setMicAudioLevel] = useState<number>(0);
-  const [silenceThresholdSec, setSilenceThresholdSec] = useState<number>(2.8);
-  const silenceThresholdSecRef = useRef<number>(2.8);
-  const [silenceSecondsRemaining, setSilenceSecondsRemaining] = useState<number>(2.8);
+  const [silenceThresholdSec, setSilenceThresholdSec] = useState<number>(2.2);
+  const silenceThresholdSecRef = useRef<number>(2.2);
+  const [silenceSecondsRemaining, setSilenceSecondsRemaining] = useState<number>(2.2);
   const [micTesting, setMicTesting] = useState<boolean>(false);
   const [micReady, setMicReady] = useState<boolean>(false);
   const [micError, setMicError] = useState<string | null>(null);
@@ -145,10 +142,12 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
   const [evaluatingStage, setEvaluatingStage] = useState<number>(1);
   const [assessment, setAssessment] = useState<MockInterviewAssessmentResponse | null>(null);
   const [expandedTurnId, setExpandedTurnId] = useState<number | null>(null);
+  const [selectedTimelineTurnId, setSelectedTimelineTurnId] = useState<number | null>(null);
 
   // History State
   const [historySessions, setHistorySessions] = useState<SessionHistorySummary[]>([]);
   const [loadingHistory, setLoadingHistory] = useState<boolean>(false);
+  const [deletingSessionId, setDeletingSessionId] = useState<number | null>(null);
 
   // References
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -184,8 +183,12 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
     silenceThresholdSecRef.current = silenceThresholdSec;
   }, [silenceThresholdSec]);
 
+  useEffect(() => {
+    isPausedRef.current = isPaused;
+  }, [isPaused]);
+
   // --------------------------------------------------------------------------
-  // Check Local STT & Neural TTS Status on Mount
+  // Check Local STT, Neural TTS, Active Resume & Saved Applications on Mount
   // --------------------------------------------------------------------------
   useEffect(() => {
     api.getMockInterviewSTTStatus()
@@ -200,6 +203,40 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
         }
       })
       .catch((err: any) => console.warn('Could not query TTS status:', err));
+
+    // Check for active profile resume to default personalization toggle
+    api.getActiveResume()
+      .then((res: ResumeItem) => {
+        if (res && res.id) {
+          setHasActiveResume(true);
+          setActiveResumeTitle(res.filename || 'Active Profile Resume');
+          setPersonalizeResume(true);
+        }
+      })
+      .catch(() => {
+        setHasActiveResume(false);
+        setPersonalizeResume(false);
+      });
+
+    // Load user's saved applications for optional job tying
+    api.getApplications()
+      .then((apps: ApplicationItem[]) => {
+        if (Array.isArray(apps)) {
+          setSavedJobs(apps);
+        }
+      })
+      .catch(() => {});
+
+    // Check for safe refresh recovery
+    try {
+      const storedSessionId = sessionStorage.getItem('compust_mock_active_session_id');
+      if (storedSessionId) {
+        const parsed = parseInt(storedSessionId, 10);
+        if (!isNaN(parsed) && parsed > 0) {
+          console.log('[MockInterview] Found in-progress session in session storage:', parsed);
+        }
+      }
+    } catch (_) {}
   }, []);
 
   // --------------------------------------------------------------------------
@@ -217,29 +254,15 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
         if (current && voices.some((v) => v.name === current)) {
           return current;
         }
-        // Priority 1: Natural / Online English voices (e.g. Microsoft Jenny / Guy Online (Natural))
         const naturalVoice = voices.find(
           (v) =>
-            v.lang.startsWith('en') &&
+            v.lang.startsWith(interviewLanguage) &&
             (v.name.includes('Natural') || v.name.includes('Online'))
         );
         if (naturalVoice) return naturalVoice.name;
 
-        // Priority 2: Google US English or Google UK English
-        const googleVoice = voices.find(
-          (v) => v.lang.startsWith('en') && v.name.includes('Google')
-        );
-        if (googleVoice) return googleVoice.name;
-
-        // Priority 3: Non-legacy desktop English voice (avoid robotic Microsoft David)
-        const modernVoice = voices.find(
-          (v) => v.lang.startsWith('en') && !v.name.includes('David')
-        );
-        if (modernVoice) return modernVoice.name;
-
-        // Priority 4: Any English voice
-        const anyEnVoice = voices.find((v) => v.lang.startsWith('en'));
-        if (anyEnVoice) return anyEnVoice.name;
+        const anyLangVoice = voices.find((v) => v.lang.startsWith(interviewLanguage));
+        if (anyLangVoice) return anyLangVoice.name;
 
         return voices[0]?.name || '';
       });
@@ -253,13 +276,21 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
         window.speechSynthesis.onvoiceschanged = null;
       }
     };
-  }, []);
+  }, [interviewLanguage]);
+
+  // Save avatar mode in localStorage
+  const handleSetPresentationMode = (mode: PresentationMode) => {
+    setPresentationMode(mode);
+    try {
+      localStorage.setItem('compust_mock_avatar_mode', mode);
+    } catch (_) {}
+  };
 
   // --------------------------------------------------------------------------
-  // Interview Timer Management
+  // Interview Timer Management (with Pause/Resume support)
   // --------------------------------------------------------------------------
   useEffect(() => {
-    if (phase === 'interview') {
+    if (phase === 'interview' && !isPaused) {
       timerIntervalRef.current = window.setInterval(() => {
         setRemainingSeconds((prev) => {
           if (prev <= 1) {
@@ -278,7 +309,7 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
     return () => {
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     };
-  }, [phase]);
+  }, [phase, isPaused]);
 
   // Clean up all resources on unmount
   useEffect(() => {
@@ -303,7 +334,7 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
   }, []);
 
   // --------------------------------------------------------------------------
-  // Audio Activity & VAD Level Monitoring
+  // Audio Activity & VAD Level Monitoring (Client-side Web Audio AnalyserNode)
   // --------------------------------------------------------------------------
   const startAudioLevelMonitoring = useCallback(() => {
     if (analyserLoopIdRef.current) {
@@ -312,7 +343,7 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
     }
 
     const checkLevel = () => {
-      if (!analyserRef.current) return;
+      if (!analyserRef.current || isPausedRef.current) return;
       const bufferLength = analyserRef.current.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
       analyserRef.current.getByteFrequencyData(dataArray);
@@ -344,11 +375,11 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
         setSilenceSecondsRemaining(silenceThresholdSecRef.current);
       } else if (level < SPEECH_THRESHOLD && hasSpokenThisTurnRef.current) {
         // Candidate has spoken and is now silent
-        // Only trigger sustained silence timer if candidate has been speaking for at least ~2s to avoid cutoffs on brief opening pauses
+        // Only trigger sustained silence timer if candidate has spoken for at least ~1.8s
         if (turnStateRef.current === 'user_speaking' && recordingSecondsRef.current >= 2) {
           setTurnState('detecting_silence');
 
-          // Start sustained silence timer
+          // Start sustained silence timer (~1.5–2.5s)
           if (!silenceTimerRef.current) {
             const startTime = Date.now();
             const thresholdMs = Math.round(silenceThresholdSecRef.current * 1000);
@@ -378,7 +409,7 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
   }, []);
 
   // --------------------------------------------------------------------------
-  // Automatic Listening: Starts mic recording after AI speech finishes
+  // Automatic Listening: Starts mic recording immediately after AI speech finishes
   // --------------------------------------------------------------------------
   const startAutoListening = useCallback(async () => {
     if (window.speechSynthesis) {
@@ -463,7 +494,12 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
     }
 
     setIsPlayingPreview(true);
-    const sampleText = "Hello! It's great to meet you. I'm looking forward to our interview today.";
+    const sampleText =
+      interviewLanguage === 'fr'
+        ? "Bonjour ! Ravie de vous rencontrer. Nous allons commencer notre entretien comportemental."
+        : interviewLanguage === 'nl'
+        ? "Hallo! Fijn u te ontmoeten. We beginnen zo met ons competentiegerichte gesprek."
+        : "Hello! It's great to meet you. We are ready to begin our behavioral interview.";
 
     if (selectedVoiceMode === 'neural' || voiceId.includes('Neural')) {
       const url = api.getMockInterviewTTSUrl(sampleText, voiceId, '-3%');
@@ -507,7 +543,52 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
   }, [startAutoListening]);
 
   // --------------------------------------------------------------------------
-  // TTS (Neural Edge-TTS + SpeechSynthesis Fallback) with Automatic Turn Hand-off
+  // Repeat Question Action
+  // --------------------------------------------------------------------------
+  const handleRepeatQuestion = useCallback(() => {
+    if (!currentQuestion?.tts_text) return;
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
+    speakInterviewer(currentQuestion.tts_text, () => {
+      startAutoListening();
+    });
+  }, [currentQuestion, startAutoListening]);
+
+  // --------------------------------------------------------------------------
+  // Pause / Resume Interview Action
+  // --------------------------------------------------------------------------
+  const handleTogglePause = () => {
+    const nextPaused = !isPaused;
+    setIsPaused(nextPaused);
+    if (nextPaused) {
+      // Pause active speech or recording
+      if (activeAudioRef.current) {
+        activeAudioRef.current.pause();
+      }
+      if (window.speechSynthesis) {
+        window.speechSynthesis.pause();
+      }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        mediaRecorderRef.current.pause();
+      }
+    } else {
+      // Resume
+      if (activeAudioRef.current && activeAudioRef.current.paused) {
+        activeAudioRef.current.play().catch(() => {});
+      }
+      if (window.speechSynthesis && window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+      }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'paused') {
+        mediaRecorderRef.current.resume();
+      }
+    }
+  };
+
+  // --------------------------------------------------------------------------
+  // TTS (Neural Piper / Edge-TTS + SpeechSynthesis Fallback) with Automatic Hand-off
   // --------------------------------------------------------------------------
   const speakInterviewer = useCallback(
     (text: string, onSpeechFinished?: () => void, isIntro: boolean = false) => {
@@ -773,27 +854,6 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
   };
 
   // --------------------------------------------------------------------------
-  // Resume Analysis
-  // --------------------------------------------------------------------------
-  const handleAnalyzeResume = async () => {
-    setAnalyzingResume(true);
-    try {
-      const res = await api.detectMockInterviewDomain();
-      setResumeSuggestion(res);
-      if (res.suggested_domain_id) {
-        setDomainId(res.suggested_domain_id);
-      }
-      if (res.suggested_difficulty) {
-        setDifficulty(res.suggested_difficulty);
-      }
-    } catch {
-      // Fallback
-    } finally {
-      setAnalyzingResume(false);
-    }
-  };
-
-  // --------------------------------------------------------------------------
   // Session Creation & Progression
   // --------------------------------------------------------------------------
   const handleProceedToPermission = async () => {
@@ -801,19 +861,30 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
     setSetupError(null);
     try {
       const res = await api.createMockInterviewSession({
-        domain_id: domainId,
-        role: role.trim() || undefined,
-        difficulty,
+        domain_id: 'behavioral',
+        role: targetRole.trim() || undefined,
+        target_role: targetRole.trim() || undefined,
+        difficulty: 'Mixed',
         duration_minutes: durationMinutes,
+        personalize_resume: personalizeResume,
+        saved_job_id: selectedJobId,
+        job_id: selectedJobId,
+        language: interviewLanguage,
       });
       setSetupInfo(res);
       setSessionId(res.session_id);
       sessionIdRef.current = res.session_id;
       setRemainingSeconds(durationMinutes * 60);
+
+      // Persist active session in sessionStorage for safe refresh recovery
+      try {
+        sessionStorage.setItem('compust_mock_active_session_id', String(res.session_id));
+      } catch (_) {}
+
       setPhase('permission');
     } catch (err: any) {
       console.error('Failed to create mock interview session:', err);
-      setSetupError(err.message || 'Failed to initialize session.');
+      setSetupError(err.message || 'Failed to initialize behavioral interview session.');
     } finally {
       setCreatingSession(false);
     }
@@ -879,10 +950,13 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
       if (firstTurn.next_question?.interviewer_video_url) {
         setTurnState('introducing');
       } else if (firstTurn.next_question?.tts_text) {
-        speakInterviewer(firstTurn.next_question.tts_text, () => {
-          // Automatic transition to listening mode when speech finishes
-          startAutoListening();
-        }, true);
+        speakInterviewer(
+          firstTurn.next_question.tts_text,
+          () => {
+            startAutoListening();
+          },
+          true
+        );
       } else {
         startAutoListening();
       }
@@ -926,6 +1000,10 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
   // Evaluating Screen & Background Polling
   // --------------------------------------------------------------------------
   const startEvaluationPoll = () => {
+    try {
+      sessionStorage.removeItem('compust_mock_active_session_id');
+    } catch (_) {}
+
     setPhase('evaluating');
     setEvaluatingStage(1);
     let stage = 1;
@@ -939,7 +1017,10 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
       if (!sessionIdRef.current) return;
       try {
         const assessmentRes = await api.getMockInterviewAssessment(sessionIdRef.current);
-        if (assessmentRes.evaluation_status === 'completed' || assessmentRes.evaluation_status === 'failed') {
+        if (
+          assessmentRes.evaluation_status === 'completed' ||
+          assessmentRes.evaluation_status === 'failed'
+        ) {
           clearInterval(stageInterval);
           clearInterval(pollInterval);
           setAssessment(assessmentRes);
@@ -971,7 +1052,7 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
   };
 
   // --------------------------------------------------------------------------
-  // History View
+  // History View & Session Deletion
   // --------------------------------------------------------------------------
   const handleOpenHistory = async () => {
     setLoadingHistory(true);
@@ -990,9 +1071,26 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
     try {
       const res = await api.getMockInterviewAssessment(pastSessionId);
       setAssessment(res);
+      setSessionId(pastSessionId);
+      sessionIdRef.current = pastSessionId;
       setPhase('assessment');
     } catch (err: any) {
       alert(err.message || 'Could not load past assessment.');
+    }
+  };
+
+  const handleDeleteSession = async (sessId: number) => {
+    if (!confirm('Are you sure you want to permanently delete this interview session and its report?')) {
+      return;
+    }
+    setDeletingSessionId(sessId);
+    try {
+      await api.deleteMockInterviewSession(sessId);
+      setHistorySessions((prev) => prev.filter((s) => s.session_id !== sessId));
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete session.');
+    } finally {
+      setDeletingSessionId(null);
     }
   };
 
@@ -1005,8 +1103,28 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
+  // Render highlighted text with [placeholders]
+  const renderStrongerVersion = (text?: string | null) => {
+    if (!text) return null;
+    const parts = text.split(/(\[[^\]]+\])/g);
+    return (
+      <p className="stronger-version-text">
+        {parts.map((part, i) => {
+          if (part.startsWith('[') && part.endsWith(']')) {
+            return (
+              <span key={i} className="placeholder-tag">
+                {part}
+              </span>
+            );
+          }
+          return part;
+        })}
+      </p>
+    );
+  };
+
   // ==========================================================================
-  // RENDER: SETUP SCREEN
+  // RENDER: SETUP SCREEN (BEHAVIORAL/HR FOCUS)
   // ==========================================================================
   if (phase === 'setup') {
     return (
@@ -1028,64 +1146,79 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
 
           <div className="setup-grid">
             <div className="setup-section">
-              {/* Domain / Track Selector */}
+              {/* Target Role (Optional Free Text) */}
               <div className="setup-field">
                 <label className="setup-field-label">
-                  <BookOpen size={15} />
-                  {tr.setup.domainLabel}
+                  <Briefcase size={15} />
+                  <span>{tr.setup.roleLabel}</span>
+                  <span style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 400 }}>(Optional)</span>
                 </label>
-                <div className="tracks-grid">
-                  {DOMAIN_OPTIONS.map((track) => {
-                    const IconComp = track.icon;
-                    return (
-                      <button
-                        key={track.id}
-                        type="button"
-                        className={`track-card-btn ${domainId === track.id ? 'active' : ''}`}
-                        onClick={() => setDomainId(track.id)}
-                      >
-                        <div className="track-icon-wrapper">
-                          <IconComp size={18} />
-                        </div>
-                        <span className="track-name">{track.name}</span>
-                        <span className="track-desc">{track.desc}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Target Role (Optional) */}
-              <div className="setup-field">
-                <label className="setup-field-label">{tr.setup.roleLabel}</label>
                 <input
                   type="text"
-                  placeholder="e.g. Senior Data Engineer / Staff Security Architect"
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  className="transcript-textarea"
-                  style={{ minHeight: '44px', padding: '10px 14px' }}
+                  placeholder={tr.setup.rolePlaceholder}
+                  value={targetRole}
+                  onChange={(e) => setTargetRole(e.target.value)}
+                  className="custom-select-input"
                 />
+                <span style={{ fontSize: '0.74rem', color: '#64748b' }}>
+                  {tr.setup.roleHelp}
+                </span>
               </div>
 
-              {/* Difficulty Level */}
-              <div className="setup-field">
-                <label className="setup-field-label">{tr.setup.difficultyLabel}</label>
-                <div className="pill-options-group">
-                  {DIFFICULTY_OPTIONS.map((diff) => (
-                    <button
-                      key={diff}
-                      type="button"
-                      className={`pill-option-btn ${difficulty === diff ? 'active' : ''}`}
-                      onClick={() => setDifficulty(diff)}
-                    >
-                      {diff === 'Mixed' ? tr.setup.difficultyMixed : diff}
-                    </button>
-                  ))}
+              {/* Personalize using Profile / Resume Toggle */}
+              <div className="personalize-toggle-card">
+                <div className="personalize-toggle-text">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <FileText size={16} color="#c084fc" />
+                    <span style={{ fontWeight: 600, color: '#f1f5f9', fontSize: '0.88rem' }}>
+                      {tr.setup.personalizeResume}
+                    </span>
+                    {hasActiveResume && (
+                      <span className="resume-active-badge">
+                        <CheckCircle2 size={12} />
+                        {activeResumeTitle}
+                      </span>
+                    )}
+                  </div>
+                  <span style={{ fontSize: '0.76rem', color: '#94a3b8' }}>
+                    {tr.setup.personalizeResumeHelp}
+                  </span>
                 </div>
+                <label className="toggle-switch-wrapper">
+                  <input
+                    type="checkbox"
+                    checked={personalizeResume}
+                    onChange={(e) => setPersonalizeResume(e.target.checked)}
+                    className="toggle-switch-input"
+                  />
+                  <span className="toggle-switch-slider" />
+                </label>
               </div>
 
-              {/* Duration */}
+              {/* Optional: Tie to a Saved Job Application */}
+              {savedJobs.length > 0 && (
+                <div className="setup-field">
+                  <label className="setup-field-label">
+                    <Briefcase size={15} />
+                    <span>{tr.setup.savedJobLabel}</span>
+                    <span style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 400 }}>(Optional)</span>
+                  </label>
+                  <select
+                    className="custom-select-input"
+                    value={selectedJobId || ''}
+                    onChange={(e) => setSelectedJobId(e.target.value ? Number(e.target.value) : undefined)}
+                  >
+                    <option value="">None (General Interview)</option>
+                    {savedJobs.map((job) => (
+                      <option key={job.id} value={job.id}>
+                        {job.effective_title || 'Application'} {job.effective_company ? `— ${job.effective_company}` : ''} ({job.status || 'Applied'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Interview Duration Pills: 5 / 10 / 15 / 20 Minutes */}
               <div className="setup-field">
                 <label className="setup-field-label">
                   <Clock size={15} />
@@ -1105,106 +1238,69 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
                 </div>
               </div>
 
-              {/* Presentation Mode Selector */}
+              {/* Interview Language Selector (EN / FR / NL) */}
+              <div className="setup-field">
+                <label className="setup-field-label">
+                  <Globe size={15} />
+                  {tr.setup.languageLabel}
+                </label>
+                <div className="pill-options-group">
+                  {LANGUAGE_OPTIONS.map((lang) => (
+                    <button
+                      key={lang.code}
+                      type="button"
+                      className={`pill-option-btn ${interviewLanguage === lang.code ? 'active' : ''}`}
+                      onClick={() => setInterviewLanguage(lang.code)}
+                    >
+                      <span style={{ marginRight: '6px' }}>{lang.flag}</span>
+                      <span>{lang.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Avatar Mode: Voice + Avatar vs Voice Only */}
               <div className="setup-field">
                 <label className="setup-field-label">
                   <User size={15} />
-                  Interviewer Presentation Mode
+                  {tr.setup.presentationModeLabel}
                 </label>
                 <div className="pill-options-group">
                   <button
                     type="button"
-                    className={`pill-option-btn ${presentationMode === 'auto' || presentationMode === 'video' ? 'active' : ''}`}
-                    onClick={() => setPresentationMode('auto')}
-                  >
-                    <Video size={13} style={{ display: 'inline', marginRight: '6px' }} />
-                    Alex Video (Realistic AI Interviewer)
-                  </button>
-                  <button
-                    type="button"
-                    className={`pill-option-btn ${presentationMode === 'visual' ? 'active' : ''}`}
-                    onClick={() => setPresentationMode('visual')}
+                    className={`pill-option-btn ${presentationMode === 'visual' || presentationMode === 'auto' ? 'active' : ''}`}
+                    onClick={() => handleSetPresentationMode('visual')}
                   >
                     <User size={13} style={{ display: 'inline', marginRight: '6px' }} />
-                    Visual Avatar
+                    {tr.setup.modeVoiceAvatar}
                   </button>
                   <button
                     type="button"
                     className={`pill-option-btn ${presentationMode === 'minimal' ? 'active' : ''}`}
-                    onClick={() => setPresentationMode('minimal')}
+                    onClick={() => handleSetPresentationMode('minimal')}
                   >
                     <MessageSquare size={13} style={{ display: 'inline', marginRight: '6px' }} />
-                    Minimal Wave
+                    {tr.setup.modeVoiceOnly}
                   </button>
                 </div>
               </div>
             </div>
 
-            {/* AI Resume Analyzer Side Panel & STT Local Guarantee */}
+            {/* Right Column: Voice Engine Picker & Honest Privacy Guarantee */}
             <div className="setup-section">
-              <div className="resume-assist-panel">
-                <div className="resume-assist-header">
-                  <div className="setup-field-label">
-                    <FileText size={16} color="#c084fc" />
-                    <span>Smart Resume Match</span>
-                  </div>
-                  <span className="ai-badge">
-                    <Sparkles size={11} />
-                    {tr.setup.aiSuggestedBadge}
-                  </span>
-                </div>
-
-                <p className="mock-subtitle" style={{ fontSize: '0.82rem' }}>
-                  Analyze your stored profile resume to automatically identify the most aligned technical track and
-                  difficulty level.
-                </p>
-
-                {resumeSuggestion && (
-                  <div className="ai-suggestion-box">
-                    <strong>Suggested: {resumeSuggestion.suggested_domain_title}</strong>
-                    <div style={{ marginTop: '4px', fontSize: '0.8rem', color: '#94a3b8' }}>
-                      {resumeSuggestion.reasoning}
-                    </div>
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  className="resume-detect-btn"
-                  onClick={handleAnalyzeResume}
-                  disabled={analyzingResume}
-                >
-                  {analyzingResume ? (
-                    <>
-                      <Loader2 size={14} className="spin-icon" />
-                      {tr.setup.analyzingResume}
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles size={14} />
-                      {tr.setup.detectDomainBtn}
-                    </>
-                  )}
-                </button>
-
-                <p style={{ fontSize: '0.74rem', color: '#64748b', margin: 0 }}>
-                  {tr.setup.aiSuggestedNote}
-                </p>
-              </div>
-
               {/* TTS Voice Quality & Persona Picker */}
               <div className="voice-picker-panel">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div className="setup-field-label">
                     <Volume2 size={15} color="#60a5fa" />
-                    <span>Interviewer Voice & Persona</span>
+                    <span>{tr.setup.voiceLabel}</span>
                   </div>
                   <button
                     type="button"
                     className="voice-preview-btn"
                     onClick={() => handlePreviewVoice(selectedNeuralVoice)}
                     disabled={isPlayingPreview}
-                    title="Listen to a voice sample"
+                    title="Listen to a natural voice sample"
                   >
                     {isPlayingPreview ? (
                       <Loader2 size={13} className="spin-icon" />
@@ -1229,7 +1325,7 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
                     }
                   }}
                 >
-                  <optgroup label="✨ Neural AI Voices (Studio Quality - Recommended)">
+                  <optgroup label="✨ Studio Neural AI Voices (Piper / Natural CPU)">
                     {(ttsStatus?.voices || [
                       { id: 'en-US-AndrewMultilingualNeural', name: 'Alex Mercer (Male - Natural & Conversational)' },
                       { id: 'en-US-AriaNeural', name: 'Elena Vance (Female - Crisp & Professional)' },
@@ -1246,7 +1342,7 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
                   {availableVoices.length > 0 && (
                     <optgroup label="🌐 Browser-Native Voices (Fallback)">
                       {availableVoices
-                        .filter((v) => v.lang.startsWith('en'))
+                        .filter((v) => v.lang.startsWith(interviewLanguage))
                         .map((v) => (
                           <option key={`browser:${v.name}`} value={`browser:${v.name}`}>
                             {v.name} ({v.lang})
@@ -1256,7 +1352,31 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
                   )}
                 </select>
                 <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
-                  Conversational neural voices with professional pacing.
+                  Conversational neural voices with natural pacing.
+                </div>
+              </div>
+
+              {/* Honest Privacy Guarantee Card */}
+              <div className="privacy-notice-box">
+                <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#34d399', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <ShieldCheck size={18} />
+                  <span>{tr.permission.privacyHeader}</span>
+                </div>
+                <div className="privacy-notice-item">
+                  <span>✓</span>
+                  <span>{tr.permission.privacyLocalSTT}</span>
+                </div>
+                <div className="privacy-notice-item">
+                  <span>✓</span>
+                  <span>{tr.permission.privacyAudioDiscarded}</span>
+                </div>
+                <div className="privacy-notice-item">
+                  <span>✓</span>
+                  <span>{tr.permission.privacyStorage}</span>
+                </div>
+                <div className="privacy-notice-item" style={{ color: '#93c5fd' }}>
+                  <span>✓</span>
+                  <span>{tr.permission.privacyLocalLLM}</span>
                 </div>
               </div>
 
@@ -1268,7 +1388,7 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
                     {sttStatus?.available !== false ? 'Local Speech Recognition Ready' : 'Speech Recognition Notice'}
                   </div>
                   <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
-                    Engine: {sttStatus?.engine || 'faster-whisper'} ({sttStatus?.model_size || 'tiny'} CPU) • 100% Private & zero audio retained
+                    Engine: {sttStatus?.engine || 'faster-whisper'} ({sttStatus?.model_size || 'tiny'} CPU) • Zero audio retained
                   </div>
                 </div>
               </div>
@@ -1328,7 +1448,7 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
             <div className="mock-header-titles" style={{ textAlign: 'center', alignItems: 'center' }}>
               <h2 className="mock-title">{tr.permission.title}</h2>
               <p className="mock-subtitle">
-                {setupInfo?.domain_title} • {difficulty} • {durationMinutes} min • {presentationMode === 'visual' ? 'Visual Interviewer' : 'Voice+Text'}
+                {setupInfo?.domain_title || (targetRole ? `Target Role: ${targetRole}` : 'General Behavioral & HR Interview')} • {durationMinutes} min • {interviewLanguage.toUpperCase()} • {presentationMode === 'visual' ? 'Visual Avatar' : 'Voice Only'}
               </p>
             </div>
 
@@ -1348,7 +1468,7 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
               </div>
               <div className="privacy-notice-item">
                 <span>✓</span>
-                <span>Automatic turn-taking: Speaks questions, automatically listens, and detects silence when you finish answering.</span>
+                <span>Automatic turn-taking: Speaks questions, automatically starts recording, and detects silence when you finish answering.</span>
               </div>
               <div className="privacy-notice-item" style={{ color: '#93c5fd' }}>
                 <span>ℹ</span>
@@ -1452,44 +1572,78 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
 
     return (
       <div className="mock-interview-wrapper">
-        <div className="interview-stage-container">
+        <div className="interview-stage-container" style={{ position: 'relative' }}>
+          {/* Pause Overlay if Paused */}
+          {isPaused && (
+            <div className="interview-pause-overlay">
+              <Pause size={48} color="#60a5fa" />
+              <h3 style={{ margin: 0, color: '#ffffff' }}>Interview Paused</h3>
+              <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.88rem' }}>
+                Your timer and state are preserved. Click Resume when you are ready to continue.
+              </p>
+              <button
+                type="button"
+                className="mock-btn-primary"
+                onClick={handleTogglePause}
+                style={{ marginTop: '8px' }}
+              >
+                <Play size={16} />
+                <span>Resume Interview</span>
+              </button>
+            </div>
+          )}
+
           {/* Top Bar: Progress, Timer & Controls */}
           <div className="interview-top-bar">
             <div className="interview-meta-badges">
-              <span className="question-category-tag">{setupInfo?.domain_title || domainId}</span>
-              <span className="question-difficulty-tag">{difficulty}</span>
+              <span className="question-category-tag">
+                {targetRole || 'Behavioral HR Interview'}
+              </span>
+              <span className="question-difficulty-tag">
+                {interviewLanguage.toUpperCase()}
+              </span>
               <span className="question-difficulty-tag">
                 {tr.interview.turnIndicator} {questionsAsked}
               </span>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              {/* Repeat Question Button */}
+              <button
+                type="button"
+                className="mock-btn-secondary"
+                style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+                onClick={handleRepeatQuestion}
+                title="Repeat the current question audio"
+              >
+                <RotateCcw size={14} />
+                <span>Repeat Question</span>
+              </button>
+
+              {/* Pause / Resume Button */}
+              <button
+                type="button"
+                className="mock-btn-secondary"
+                style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+                onClick={handleTogglePause}
+                title={isPaused ? 'Resume interview' : 'Pause interview'}
+              >
+                {isPaused ? <Play size={14} /> : <Pause size={14} />}
+                <span>{isPaused ? 'Resume' : 'Pause'}</span>
+              </button>
+
               {/* Presentation Mode Toggle */}
               <button
                 type="button"
                 className="mock-btn-secondary"
                 style={{ padding: '6px 12px', fontSize: '0.8rem' }}
                 onClick={() => {
-                  setPresentationMode((prev) =>
-                    prev === 'auto' || prev === 'video' ? 'visual' : prev === 'visual' ? 'minimal' : 'auto'
-                  );
+                  handleSetPresentationMode(presentationMode === 'visual' ? 'minimal' : 'visual');
                 }}
-                title="Cycle presentation mode: Video (Alex) / Avatar / Minimal"
+                title="Toggle between Avatar Mode and Voice-Only Orb"
               >
-                {presentationMode === 'minimal' ? (
-                  <MessageSquare size={14} />
-                ) : presentationMode === 'visual' ? (
-                  <User size={14} />
-                ) : (
-                  <Video size={14} />
-                )}
-                <span>
-                  {presentationMode === 'minimal'
-                    ? 'Minimal Orb'
-                    : presentationMode === 'visual'
-                    ? 'Avatar Mode'
-                    : 'Alex (Video)'}
-                </span>
+                {presentationMode === 'minimal' ? <MessageSquare size={14} /> : <User size={14} />}
+                <span>{presentationMode === 'minimal' ? 'Voice Only' : 'Avatar Mode'}</span>
               </button>
 
               {/* Timer Pill */}
@@ -1533,7 +1687,7 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
             </div>
           </div>
 
-          {/* Central Interviewer Presentation: Alex Video / Visual Avatar / Minimal Orb */}
+          {/* Central Interviewer Presentation: Visual Avatar / Minimal Orb */}
           <InterviewerPresentation
             mode={presentationMode}
             videoUrl={currentQuestion?.interviewer_video_url}
@@ -1542,25 +1696,13 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
             audioLevel={micAudioLevel}
             silenceSecondsRemaining={silenceSecondsRemaining}
             personaName={getPersonaName()}
-            domainTitle={setupInfo?.domain_title || 'Lead Technical Interviewer'}
+            domainTitle={targetRole || 'Behavioral HR Interviewer'}
             isMuted={isMuted}
             onSpeakingFinished={() => {
               setTurnState('transition_to_listen');
               setTimeout(() => {
                 startAutoListening();
               }, 350);
-            }}
-            onFallbackTriggered={(reason) => {
-              console.warn('[MockInterviewView] Video fallback triggered:', reason);
-              if (currentQuestion?.tts_text && (turnState === 'interviewer_speaking' || turnState === 'introducing')) {
-                speakInterviewer(
-                  currentQuestion.tts_text,
-                  () => {
-                    startAutoListening();
-                  },
-                  turnState === 'introducing'
-                );
-              }
             }}
             onReadyToAnswer={() => {
               if (activeAudioRef.current) {
@@ -1583,11 +1725,9 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
               <div className="question-tags-row">
                 <span className="question-category-tag">{currentQuestion.category}</span>
                 <span className="question-difficulty-tag">{currentQuestion.topic}</span>
-                {currentQuestion.question_type && currentQuestion.question_type !== 'technical' && (
-                  <span className={`question-type-badge ${currentQuestion.question_type === 'behavioral' ? 'behavioral' : 'introductory'}`}>
-                    {currentQuestion.question_type === 'introductory' ? 'Introduction' : 'Behavioral & STAR'}
-                  </span>
-                )}
+                <span className="question-type-badge behavioral">
+                  Behavioral &amp; STAR
+                </span>
                 {currentQuestion.is_follow_up && (
                   <span className="followup-indicator-tag">
                     <Sparkles size={11} style={{ display: 'inline', marginRight: '4px' }} />
@@ -1621,15 +1761,15 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
                     <div className="soft-guidance-pill">
                       <Clock size={12} />
                       <span>
-                        Suggested: ~{currentQuestion?.expected_duration_seconds || 60}s (
-                        {currentQuestion?.question_type === 'behavioral'
-                          ? 'Behavioral / STAR'
-                          : currentQuestion?.question_type === 'introductory'
-                          ? 'Introductory'
-                          : 'Technical'}
-                        )
+                        Suggested: ~{currentQuestion?.expected_duration_seconds || 75}s (STAR Structure)
                       </span>
                     </div>
+                    {recordingSeconds >= 150 && (
+                      <div className="soft-guidance-pill" style={{ color: '#fca5a5', borderColor: 'rgba(239, 68, 68, 0.4)' }}>
+                        <AlertCircle size={12} />
+                        <span>Answer length &gt; 2.5m (Consider wrapping up your result)</span>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
@@ -1660,7 +1800,7 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
                 )}
                 <div className="silence-config-inline">
                   <span className="silence-label">Silence Delay:</span>
-                  {[2.2, 2.8, 3.5].map((sec) => (
+                  {[1.8, 2.2, 2.8].map((sec) => (
                     <button
                       key={sec}
                       type="button"
@@ -1680,14 +1820,14 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <label className="setup-field-label">{tr.interview.liveTranscript}</label>
                 <span style={{ fontSize: '0.74rem', color: '#64748b' }}>
-                  Processed locally via faster-whisper
+                  Processed locally via faster-whisper • Audio discarded after transcription
                 </span>
               </div>
               <textarea
                 className="transcript-textarea"
                 value={candidateTranscript}
                 onChange={(e) => setCandidateTranscript(e.target.value)}
-                placeholder="Speak naturally. When you finish speaking, the system will detect silence and automatically advance. You can also edit your answer here or click 'Finish Answer' below."
+                placeholder="Speak naturally into your microphone using the STAR method (Situation, Task, Action, Result). When you pause, the system detects silence and advances automatically. You can also edit your transcript here or click 'Finish Answer'."
                 disabled={submittingTurn}
               />
             </div>
@@ -1782,22 +1922,22 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
           <div className="evaluating-progress-list">
             <div className={`evaluating-stage-item ${evaluatingStage > 1 ? 'completed' : evaluatingStage === 1 ? 'active' : ''}`}>
               {evaluatingStage > 1 ? <CheckCircle2 size={16} color="#34d399" /> : <Loader2 size={16} className="spin-icon" />}
-              <span>{tr.evaluating.stage1}</span>
+              <span>Local Speech Normalization &amp; Timestamps</span>
             </div>
 
             <div className={`evaluating-stage-item ${evaluatingStage > 2 ? 'completed' : evaluatingStage === 2 ? 'active' : ''}`}>
               {evaluatingStage > 2 ? <CheckCircle2 size={16} color="#34d399" /> : evaluatingStage === 2 ? <Loader2 size={16} className="spin-icon" /> : <Clock size={16} />}
-              <span>Technical Concept & Semantic Analysis</span>
+              <span>Deterministic Delivery Metrics (WPM, Fillers, Pauses)</span>
             </div>
 
             <div className={`evaluating-stage-item ${evaluatingStage > 3 ? 'completed' : evaluatingStage === 3 ? 'active' : ''}`}>
               {evaluatingStage > 3 ? <CheckCircle2 size={16} color="#34d399" /> : evaluatingStage === 3 ? <Loader2 size={16} className="spin-icon" /> : <Clock size={16} />}
-              <span>Behavioral & STAR Communication Framework Scoring</span>
+              <span>Grounded STAR &amp; Competency Assessment</span>
             </div>
 
             <div className={`evaluating-stage-item ${evaluatingStage >= 4 ? 'active' : ''}`}>
               {evaluatingStage >= 4 ? <Loader2 size={16} className="spin-icon" /> : <Clock size={16} />}
-              <span>Synthesizing Practice Assessment Report</span>
+              <span>Building Minute-by-Minute Timeline &amp; Action Plan</span>
             </div>
           </div>
 
@@ -1810,14 +1950,20 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
   }
 
   // ==========================================================================
-  // RENDER: ASSESSMENT SCREEN (POLISHED REPORT WITH BEHAVIORAL + TECHNICAL)
+  // RENDER: ASSESSMENT SCREEN (BEHAVIORAL REPORT + TIMELINE CHART)
   // ==========================================================================
   if (phase === 'assessment' && assessment) {
     const overallScoreVal = Math.round(assessment.overall_score || 0);
-    const techScoreVal = Math.round(assessment.technical_score ?? assessment.overall_score ?? 0);
-    const behScoreVal = Math.round(assessment.behavioral_score ?? assessment.overall_score ?? 0);
+    const starScoreVal = Math.round(assessment.star_score ?? assessment.overall_score ?? 0);
+    const deliveryScoreVal = Math.round(assessment.delivery_score ?? 80);
 
     const getScoreClass = (v: number) => (v >= 75 ? 'high' : v >= 50 ? 'mid' : 'low');
+
+    const deliverySummary = assessment.delivery_summary || {};
+    const avgWpm = Math.round(deliverySummary.average_wpm || 135);
+    const totalFillers = deliverySummary.total_filler_words || 0;
+    const longestPause = deliverySummary.longest_pause_seconds || 0;
+    const avgOwnership = deliverySummary.average_i_vs_we_ratio || 0.7;
 
     return (
       <div className="mock-interview-wrapper">
@@ -1826,7 +1972,7 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
           <div className="disclaimer-banner">
             <ShieldCheck size={16} />
             <span>
-              AI-generated practice assessment. Evaluated using local AI against the configured interview rubric. This does not predict real-world hiring decisions.
+              AI-generated practice assessment. Evaluated using local AI against the behavioral interview rubric. This does not predict real-world hiring decisions.
             </span>
           </div>
 
@@ -1838,7 +1984,7 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
                 {tr.assessment.title}
               </h2>
               <p className="mock-subtitle">
-                Generated via {assessment.ai_model_used || 'Local AI'} • Evaluated across technical & behavioral criteria
+                Generated via {assessment.ai_model_used || 'Local AI'} • Evaluated across behavioral STAR criteria &amp; delivery fluency
               </p>
             </div>
 
@@ -1872,9 +2018,8 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
             </div>
           </div>
 
-          {/* 3-Pillar Score Cards: Overall, Technical, Behavioral */}
+          {/* 4 Pillars: Overall, STAR Structure, Delivery Fluency, Answered Count */}
           <div className="assessment-pillars-grid">
-            {/* Overall Score */}
             <div className="pillar-score-card overall">
               <div className="pillar-header">
                 <Award size={18} color="#60a5fa" />
@@ -1886,28 +2031,37 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
               <span className="pillar-subtext">Calibrated combined score</span>
             </div>
 
-            {/* Technical Score */}
             <div className="pillar-score-card">
               <div className="pillar-header">
-                <Cpu size={18} color="#34d399" />
-                <span>Technical Knowledge</span>
+                <Sparkles size={18} color="#c084fc" />
+                <span>STAR Framework Score</span>
               </div>
-              <div className={`score-number ${getScoreClass(techScoreVal)}`}>
-                {techScoreVal}%
+              <div className={`score-number ${getScoreClass(starScoreVal)}`}>
+                {starScoreVal}%
               </div>
-              <span className="pillar-subtext">Concepts, depth & accuracy</span>
+              <span className="pillar-subtext">Structure, actions &amp; measurable results</span>
             </div>
 
-            {/* Behavioral Score */}
             <div className="pillar-score-card">
               <div className="pillar-header">
-                <MessageSquare size={18} color="#c084fc" />
-                <span>Behavioral & Communication</span>
+                <Volume2 size={18} color="#34d399" />
+                <span>Delivery &amp; Fluency</span>
               </div>
-              <div className={`score-number ${getScoreClass(behScoreVal)}`}>
-                {behScoreVal}%
+              <div className={`score-number ${getScoreClass(deliveryScoreVal)}`}>
+                {deliveryScoreVal}%
               </div>
-              <span className="pillar-subtext">STAR structure & clarity</span>
+              <span className="pillar-subtext">Pacing, pauses &amp; filler control</span>
+            </div>
+
+            <div className="pillar-score-card">
+              <div className="pillar-header">
+                <CheckCircle2 size={18} color="#38bdf8" />
+                <span>Interview Completion</span>
+              </div>
+              <div className="score-number high">
+                {assessment.questions_answered ?? assessment.answer_details.filter(a => !!a.transcript).length} / {assessment.questions_asked ?? assessment.answer_details.length}
+              </div>
+              <span className="pillar-subtext">Questions answered</span>
             </div>
           </div>
 
@@ -1917,14 +2071,6 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
               <h4 style={{ margin: 0, fontSize: '0.95rem', color: '#ffffff' }}>
                 {tr.assessment.summaryTitle}
               </h4>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <span className="soft-guidance-pill" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                  Questions Asked: {assessment.questions_asked ?? assessment.answer_details.length}
-                </span>
-                <span className="soft-guidance-pill" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                  Questions Answered: {assessment.questions_answered ?? assessment.answer_details.filter(a => !!a.transcript).length}
-                </span>
-              </div>
             </div>
             <p style={{ margin: 0, fontSize: '0.88rem', color: '#cbd5e1', lineHeight: 1.55 }}>
               {assessment.summary_text}
@@ -1933,7 +2079,6 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
 
           {/* Strengths & Weak Areas Grid */}
           <div className="strengths-weakness-grid">
-            {/* Strengths */}
             <div className="strengths-box">
               <h3 style={{ fontSize: '1.02rem', color: '#34d399', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <CheckCircle2 size={18} />
@@ -1954,7 +2099,6 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
               )}
             </div>
 
-            {/* Weak Areas */}
             <div className="weak-areas-box">
               <h3 style={{ fontSize: '1.02rem', color: '#f87171', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <AlertCircle size={18} />
@@ -1970,112 +2114,163 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
                 </div>
               ) : (
                 <p style={{ fontSize: '0.82rem', color: '#94a3b8', margin: 0 }}>
-                  No significant gaps detected for the configured difficulty level.
+                  No critical structural gaps detected in your answers.
                 </p>
               )}
             </div>
           </div>
 
-          {/* Unassessed Topics in this Session (Section 7 & 22) */}
-          {assessment.unassessed_domains && assessment.unassessed_domains.length > 0 && (
-            <div className="unassessed-topics-box">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Shield size={16} color="#94a3b8" />
-                <h4 style={{ margin: 0, fontSize: '0.96rem', color: '#cbd5e1' }}>
-                  Topics Not Assessed in this Session
-                </h4>
+          {/* Delivery Snapshot: WPM, Fillers, Longest Pause, I vs We */}
+          <div>
+            <h3 style={{ fontSize: '1.05rem', color: '#ffffff', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Sliders size={18} color="#60a5fa" />
+              <span>Delivery &amp; Vocal Snapshot</span>
+            </h3>
+            <div className="delivery-snapshot-grid">
+              <div className="delivery-metric-card">
+                <div className="delivery-metric-num">{avgWpm}</div>
+                <div className="delivery-metric-lbl">Words Per Minute</div>
+                <div className="delivery-metric-hint">Target: 120–160 WPM (Calm conversational pace)</div>
               </div>
-              <p style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8', lineHeight: 1.45 }}>
-                {assessment.unassessed_disclaimer ||
-                  'These topics were not assessed during this interview, so no conclusion about proficiency can be drawn from this session.'}
-              </p>
-              <div className="pill-options-group" style={{ marginTop: '4px' }}>
-                {assessment.unassessed_domains.map((dom) => (
-                  <span key={dom} className="rating-badge not-assessed" style={{ fontSize: '0.8rem', padding: '5px 11px' }}>
-                    ○ {dom}
-                  </span>
-                ))}
+
+              <div className="delivery-metric-card">
+                <div className="delivery-metric-num">{totalFillers}</div>
+                <div className="delivery-metric-lbl">Filler Words Detected</div>
+                <div className="delivery-metric-hint">Language-aware (um, uh, like, you know...)</div>
+              </div>
+
+              <div className="delivery-metric-card">
+                <div className="delivery-metric-num">{longestPause.toFixed(1)}s</div>
+                <div className="delivery-metric-lbl">Longest Pause</div>
+                <div className="delivery-metric-hint">Pauses &gt; 5s may signal hesitation</div>
+              </div>
+
+              <div className="delivery-metric-card">
+                <div className="delivery-metric-num">{Math.round(avgOwnership * 100)}%</div>
+                <div className="delivery-metric-lbl">"I" vs "We" Ownership</div>
+                <div className="delivery-metric-hint">Healthy balance: highlights personal contribution</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Minute-by-Minute Interview Timeline Chart */}
+          {assessment.timeline_data && assessment.timeline_data.length > 0 && (
+            <InterviewTimelineChart
+              timelineData={assessment.timeline_data}
+              totalDurationMinutes={durationMinutes}
+              selectedTurnId={selectedTimelineTurnId}
+              onSelectTurn={(turnId) => {
+                setSelectedTimelineTurnId(turnId);
+                setExpandedTurnId(turnId);
+              }}
+            />
+          )}
+
+          {/* Assessed Competencies Progress View */}
+          {assessment.competency_scores && Object.keys(assessment.competency_scores).length > 0 && (
+            <div>
+              <h3 style={{ fontSize: '1.05rem', color: '#ffffff', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Award size={18} color="#c084fc" />
+                <span>Assessed Behavioral Competencies</span>
+              </h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
+                {Object.entries(assessment.competency_scores).map(([comp, score]) => {
+                  const scorePct = Math.round(Number(score) * 100);
+                  const isHigh = scorePct >= 75;
+                  const isMid = scorePct >= 50;
+                  return (
+                    <div
+                      key={comp}
+                      style={{
+                        padding: '12px 16px',
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        borderRadius: '10px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '6px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f1f5f9' }}>{comp}</span>
+                        <span style={{ fontSize: '0.82rem', fontWeight: 700, color: isHigh ? '#34d399' : isMid ? '#fbbf24' : '#f87171' }}>
+                          {scorePct}%
+                        </span>
+                      </div>
+                      <div className="star-bar-track">
+                        <div
+                          className="star-bar-fill"
+                          style={{
+                            width: `${scorePct}%`,
+                            background: isHigh ? '#10b981' : isMid ? '#f59e0b' : '#ef4444',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
 
-          {/* Skill Matrix Table */}
-          <div>
-            <h3 style={{ fontSize: '1.05rem', color: '#ffffff', marginBottom: '8px' }}>
-              {tr.assessment.skillMatrixTitle}
-            </h3>
-            <table className="skill-matrix-table">
-              <thead>
-                <tr>
-                  <th>Topic / Subdomain</th>
-                  <th>Rating</th>
-                  <th>Score</th>
-                  <th>Basis</th>
-                </tr>
-              </thead>
-              <tbody>
-                {assessment.skill_matrix.map((row) => {
-                  const ratingLower = (row.rating || '').toLowerCase().replace(/\s+/g, '-');
-                  return (
-                    <tr key={row.category_name}>
-                      <td style={{ fontWeight: 600, color: '#f1f5f9' }}>{row.category_name}</td>
-                      <td>
-                        <span className={`rating-badge ${ratingLower}`}>
-                          {row.rating}
-                        </span>
-                      </td>
-                      <td style={{ fontVariantNumeric: 'tabular-nums' }}>
-                        {row.score !== null && row.score !== undefined ? `${Math.round(row.score * 100)}%` : '—'}
-                      </td>
-                      <td style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{row.basis}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Targeted Study Recommendations */}
-          {assessment.recommendations && assessment.recommendations.length > 0 && (
+          {/* Action Plan with Direct Links to Behavioral HR Prep Content */}
+          {assessment.action_plan && assessment.action_plan.length > 0 && (
             <div>
-              <h3 style={{ fontSize: '1.05rem', color: '#ffffff', marginBottom: '12px' }}>
-                {tr.assessment.recommendationsTitle}
+              <h3 style={{ fontSize: '1.05rem', color: '#ffffff', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <BookOpen size={18} color="#60a5fa" />
+                <span>Targeted Behavioral Action Plan</span>
               </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
-                {assessment.recommendations.map((rec, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.03)',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
-                      borderRadius: '10px',
-                      padding: '14px',
-                    }}
-                  >
-                    <div style={{ fontSize: '0.74rem', textTransform: 'uppercase', color: '#60a5fa', fontWeight: 700, marginBottom: '4px' }}>
-                      {rec.priority} Priority • {rec.area}
+              <div className="action-plan-grid">
+                {assessment.action_plan.map((item, idx) => (
+                  <div key={idx} className="action-plan-card">
+                    <div className="action-plan-header">
+                      <span className="action-plan-competency">{item.competency}</span>
+                      <span className={`action-plan-priority ${item.priority.toLowerCase()}`}>
+                        {item.priority} Priority
+                      </span>
                     </div>
-                    <div style={{ fontSize: '0.85rem', color: '#e2e8f0', lineHeight: 1.45 }}>
-                      {rec.action}
-                    </div>
+                    <p className="action-plan-desc">{item.action}</p>
+                    {onNavigateToPrepSection && (
+                      <button
+                        type="button"
+                        className="action-plan-link"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                        onClick={() => onNavigateToPrepSection(item.prep_link || 'behavioral')}
+                      >
+                        <span>Study in Behavioral Prep</span>
+                        <ExternalLink size={12} />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Question-by-Question Review with Behavioral STAR Breakdown */}
+          {/* Question-by-Question Review with Grounded STAR Evidence & Stronger Version */}
           <div>
-            <h3 style={{ fontSize: '1.05rem', color: '#ffffff', marginBottom: '12px' }}>
-              {tr.assessment.questionReviewTitle}
+            <h3 style={{ fontSize: '1.05rem', color: '#ffffff', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <MessageSquare size={18} color="#60a5fa" />
+              <span>{tr.assessment.questionReviewTitle}</span>
             </h3>
             <div className="review-questions-list">
               {assessment.answer_details.map((q) => {
                 const isExpanded = expandedTurnId === q.turn_id;
-                const isBehavioral = q.question_type === 'behavioral' || q.question_type === 'introductory';
+                const starBreakdown = q.star_breakdown || { situation: 0, task: 0, action: 0, result: 0 };
+                const starEvidence = q.star_evidence || {};
+
+                const getVerdictBadge = (val: number) => {
+                  if (val >= 0.8) return <span className="star-verdict-badge present">Present</span>;
+                  if (val >= 0.4) return <span className="star-verdict-badge partial">Partial</span>;
+                  return <span className="star-verdict-badge missing">Missing</span>;
+                };
 
                 return (
-                  <div key={q.turn_id} className="review-question-card">
+                  <div
+                    key={q.turn_id}
+                    id={`turn-review-${q.turn_id}`}
+                    className={`review-question-card ${selectedTimelineTurnId === q.turn_id ? 'selected-card' : ''}`}
+                  >
                     <div
                       style={{
                         display: 'flex',
@@ -2083,11 +2278,14 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
                         alignItems: 'center',
                         cursor: 'pointer',
                       }}
-                      onClick={() => setExpandedTurnId(isExpanded ? null : q.turn_id)}
+                      onClick={() => {
+                        setExpandedTurnId(isExpanded ? null : q.turn_id);
+                        setSelectedTimelineTurnId(q.turn_id);
+                      }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                        <span className={`question-type-badge ${isBehavioral ? 'behavioral' : 'technical'}`}>
-                          {isBehavioral ? 'Behavioral & STAR' : 'Technical'}
+                        <span className="question-type-badge behavioral">
+                          STAR Review
                         </span>
                         <span className="question-category-tag">{q.category}</span>
                         {q.is_follow_up && <span className="followup-indicator-tag">Follow-up</span>}
@@ -2097,7 +2295,7 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         {q.correctness !== null && q.correctness !== undefined && (
-                          <span style={{ fontWeight: 700, color: q.correctness >= 0.7 ? '#34d399' : '#fbbf24', fontSize: '0.85rem' }}>
+                          <span style={{ fontWeight: 700, color: q.correctness >= 0.75 ? '#34d399' : q.correctness >= 0.5 ? '#fbbf24' : '#f87171', fontSize: '0.85rem' }}>
                             {Math.round(q.correctness * 100)}%
                           </span>
                         )}
@@ -2106,86 +2304,105 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
                     </div>
 
                     {isExpanded && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', paddingTop: '10px', borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
-                        {/* Scores row */}
-                        <div className="review-dimensions-grid">
-                          <div className="dimension-mini-box">
-                            <span className="dim-name">{tr.assessment.correctness}</span>
-                            <span className="dim-val">{q.correctness !== null ? `${Math.round((q.correctness || 0) * 100)}%` : 'N/A'}</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingTop: '14px', borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                        {/* STAR Breakdown Chips with Quoted Evidence */}
+                        <div>
+                          <div className="setup-field-label" style={{ marginBottom: '8px' }}>
+                            <Sparkles size={14} color="#c084fc" />
+                            <span>STAR Framework Grounded Evidence</span>
                           </div>
-                          <div className="dimension-mini-box">
-                            <span className="dim-name">{tr.assessment.completeness}</span>
-                            <span className="dim-val">{q.completeness !== null ? `${Math.round((q.completeness || 0) * 100)}%` : 'N/A'}</span>
-                          </div>
-                          <div className="dimension-mini-box">
-                            <span className="dim-name">{tr.assessment.technicalDepth}</span>
-                            <span className="dim-val">{q.technical_depth !== null && q.technical_depth !== undefined ? `${Math.round(q.technical_depth * 100)}%` : 'N/A'}</span>
-                          </div>
-                          <div className="dimension-mini-box">
-                            <span className="dim-name">{tr.assessment.clarity}</span>
-                            <span className="dim-val">{q.clarity !== null ? `${Math.round((q.clarity || 0) * 100)}%` : 'N/A'}</span>
+                          <div className="star-evidence-grid">
+                            {/* Situation */}
+                            <div className="star-evidence-card">
+                              <div className="star-chip-header">
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <span className="star-chip-letter s">S</span>
+                                  <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#f1f5f9' }}>Situation</span>
+                                </div>
+                                {getVerdictBadge(starBreakdown.situation)}
+                              </div>
+                              <p className="star-evidence-quote">
+                                {starEvidence.situation
+                                  ? `"${starEvidence.situation}"`
+                                  : 'No clear situation context stated in answer.'}
+                              </p>
+                            </div>
+
+                            {/* Task */}
+                            <div className="star-evidence-card">
+                              <div className="star-chip-header">
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <span className="star-chip-letter t">T</span>
+                                  <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#f1f5f9' }}>Task</span>
+                                </div>
+                                {getVerdictBadge(starBreakdown.task)}
+                              </div>
+                              <p className="star-evidence-quote">
+                                {starEvidence.task
+                                  ? `"${starEvidence.task}"`
+                                  : 'Personal ownership or objective not clearly identified.'}
+                              </p>
+                            </div>
+
+                            {/* Action */}
+                            <div className="star-evidence-card">
+                              <div className="star-chip-header">
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <span className="star-chip-letter a">A</span>
+                                  <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#f1f5f9' }}>Action</span>
+                                </div>
+                                {getVerdictBadge(starBreakdown.action)}
+                              </div>
+                              <p className="star-evidence-quote">
+                                {starEvidence.action
+                                  ? `"${starEvidence.action}"`
+                                  : 'Concrete actions taken were vague or missing.'}
+                              </p>
+                            </div>
+
+                            {/* Result */}
+                            <div className="star-evidence-card">
+                              <div className="star-chip-header">
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <span className="star-chip-letter r">R</span>
+                                  <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#f1f5f9' }}>Result</span>
+                                </div>
+                                {getVerdictBadge(starBreakdown.result)}
+                              </div>
+                              <p className="star-evidence-quote">
+                                {starEvidence.result
+                                  ? `"${starEvidence.result}"`
+                                  : 'No quantifiable outcome or retrospective learning provided.'}
+                              </p>
+                            </div>
                           </div>
                         </div>
-
-                        {/* STAR Framework Coverage Bars for Behavioral Questions */}
-                        {isBehavioral && q.star_breakdown && (
-                          <div className="star-breakdown-card">
-                            <div className="star-breakdown-title">
-                              <Sparkles size={14} color="#c084fc" />
-                              <span>STAR Framework Coverage Analysis</span>
-                            </div>
-                            <div className="star-bars-grid">
-                              <div className="star-bar-item">
-                                <span className="star-part-label">Situation</span>
-                                <div className="star-bar-track">
-                                  <div className="star-bar-fill situation" style={{ width: `${Math.round((q.star_breakdown.situation || 0) * 100)}%` }} />
-                                </div>
-                                <span className="star-part-pct">{Math.round((q.star_breakdown.situation || 0) * 100)}%</span>
-                              </div>
-                              <div className="star-bar-item">
-                                <span className="star-part-label">Task</span>
-                                <div className="star-bar-track">
-                                  <div className="star-bar-fill task" style={{ width: `${Math.round((q.star_breakdown.task || 0) * 100)}%` }} />
-                                </div>
-                                <span className="star-part-pct">{Math.round((q.star_breakdown.task || 0) * 100)}%</span>
-                              </div>
-                              <div className="star-bar-item">
-                                <span className="star-part-label">Action</span>
-                                <div className="star-bar-track">
-                                  <div className="star-bar-fill action" style={{ width: `${Math.round((q.star_breakdown.action || 0) * 100)}%` }} />
-                                </div>
-                                <span className="star-part-pct">{Math.round((q.star_breakdown.action || 0) * 100)}%</span>
-                              </div>
-                              <div className="star-bar-item">
-                                <span className="star-part-label">Result</span>
-                                <div className="star-bar-track">
-                                  <div className="star-bar-fill result" style={{ width: `${Math.round((q.star_breakdown.result || 0) * 100)}%` }} />
-                                </div>
-                                <span className="star-part-pct">{Math.round((q.star_breakdown.result || 0) * 100)}%</span>
-                              </div>
-                            </div>
-                          </div>
-                        )}
 
                         {/* Candidate Answer Transcript */}
                         <div>
-                          <div className="setup-field-label" style={{ marginBottom: '4px' }}>{tr.assessment.yourAnswer}:</div>
-                          <div style={{ padding: '10px 14px', borderRadius: '8px', background: 'rgba(0, 0, 0, 0.25)', fontSize: '0.85rem', color: '#e2e8f0', fontStyle: (q.canonical_transcript || q.transcript) ? 'normal' : 'italic' }}>
+                          <div className="setup-field-label" style={{ marginBottom: '4px' }}>
+                            {tr.assessment.yourAnswer}:
+                          </div>
+                          <div
+                            style={{
+                              padding: '12px 16px',
+                              borderRadius: '8px',
+                              background: 'rgba(0, 0, 0, 0.25)',
+                              fontSize: '0.86rem',
+                              color: '#e2e8f0',
+                              fontStyle: (q.canonical_transcript || q.transcript) ? 'normal' : 'italic',
+                              lineHeight: 1.5,
+                            }}
+                          >
                             {q.canonical_transcript || q.transcript || 'No answer provided (question skipped).'}
                           </div>
-                          {q.canonical_transcript && q.raw_transcript && q.canonical_transcript !== q.raw_transcript && (
-                            <div style={{ marginTop: '6px', fontSize: '0.75rem', color: '#94a3b8' }}>
-                              <span style={{ color: '#818cf8', fontWeight: 600 }}>Acoustic Normalization: </span>
-                              Evaluated contextually for speech recognition clarity (original ASR: <em>"{q.raw_transcript}"</em>)
-                            </div>
-                          )}
                         </div>
 
-                        {/* Positive points */}
+                        {/* Demonstrated Strengths */}
                         {q.positive_points && q.positive_points.length > 0 && (
                           <div>
                             <div className="setup-field-label" style={{ color: '#34d399', marginBottom: '4px' }}>
-                              ✓ {isBehavioral ? 'Demonstrated Strengths' : tr.assessment.positivePoints}
+                              ✓ Demonstrated Strengths
                             </div>
                             <ul className="points-list">
                               {q.positive_points.map((pt, i) => (
@@ -2195,11 +2412,11 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
                           </div>
                         )}
 
-                        {/* Missing Concepts or Structural Gaps */}
+                        {/* Observable Gaps */}
                         {q.missing_concepts && q.missing_concepts.length > 0 && (
                           <div>
-                            <div className="setup-field-label" style={{ color: '#f59e0b', marginBottom: '4px' }}>
-                              ! {isBehavioral ? 'Observable Gaps (e.g. Missing Result Metrics or Personal Ownership)' : tr.assessment.missingConcepts}
+                            <div className="setup-field-label" style={{ color: '#fbbf24', marginBottom: '4px' }}>
+                              ! Observable Gaps &amp; Opportunities
                             </div>
                             <ul className="points-list">
                               {q.missing_concepts.map((pt, i) => (
@@ -2209,25 +2426,14 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
                           </div>
                         )}
 
-                        {/* Incorrect claims */}
-                        {q.incorrect_claims && q.incorrect_claims.length > 0 && (
-                          <div>
-                            <div className="setup-field-label" style={{ color: '#f87171', marginBottom: '4px' }}>
-                              ✗ {tr.assessment.incorrectClaims}
+                        {/* Stronger Version with Grounded Facts and Placeholders */}
+                        {q.stronger_version && (
+                          <div className="stronger-version-box">
+                            <div className="stronger-version-title">
+                              <Sparkles size={14} color="#60a5fa" />
+                              <span>Stronger Version (Grounded in Your Experience)</span>
                             </div>
-                            <ul className="points-list">
-                              {q.incorrect_claims.map((pt, i) => (
-                                <li key={i} style={{ color: '#fca5a5' }}>{pt}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-
-                        {/* Better Answer Guidance */}
-                        {q.better_answer_notes && (
-                          <div className="better-answer-box">
-                            <strong>{isBehavioral ? 'Stronger STAR Framing Guidance' : tr.assessment.betterAnswer}: </strong>
-                            {q.better_answer_notes}
+                            {renderStrongerVersion(q.stronger_version)}
                           </div>
                         )}
                       </div>
@@ -2243,7 +2449,7 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
   }
 
   // ==========================================================================
-  // RENDER: HISTORY SCREEN
+  // RENDER: HISTORY SCREEN (WITH DELETION SUPPORT)
   // ==========================================================================
   return (
     <div className="mock-interview-wrapper">
@@ -2254,6 +2460,9 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
               <History size={22} color="#60a5fa" />
               {tr.history.title}
             </h2>
+            <p className="mock-subtitle">
+              Review your past behavioral interview sessions, examine your delivery progress, or delete old sessions.
+            </p>
           </div>
           <button
             type="button"
@@ -2286,7 +2495,7 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
             <thead>
               <tr>
                 <th>{tr.history.date}</th>
-                <th>Track</th>
+                <th>Target Role / Focus</th>
                 <th>{tr.history.duration}</th>
                 <th>{tr.history.questions}</th>
                 <th>{tr.history.score}</th>
@@ -2297,7 +2506,9 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
               {historySessions.map((s) => (
                 <tr key={s.session_id}>
                   <td>{new Date(s.created_at).toLocaleDateString()}</td>
-                  <td style={{ fontWeight: 600, color: '#ffffff' }}>{s.domain_title}</td>
+                  <td style={{ fontWeight: 600, color: '#ffffff' }}>
+                    {s.domain_title || 'Behavioral HR Interview'}
+                  </td>
                   <td>{s.duration_minutes} min</td>
                   <td>{s.questions_asked}</td>
                   <td>
@@ -2310,14 +2521,30 @@ export const MockInterviewView: React.FC<MockInterviewViewProps> = ({
                     )}
                   </td>
                   <td>
-                    <button
-                      type="button"
-                      className="mock-btn-secondary"
-                      style={{ padding: '4px 10px', fontSize: '0.78rem' }}
-                      onClick={() => handleViewHistoricalAssessment(s.session_id)}
-                    >
-                      {tr.history.viewAssessment}
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <button
+                        type="button"
+                        className="mock-btn-secondary"
+                        style={{ padding: '4px 10px', fontSize: '0.78rem' }}
+                        onClick={() => handleViewHistoricalAssessment(s.session_id)}
+                      >
+                        {tr.history.viewAssessment}
+                      </button>
+                      <button
+                        type="button"
+                        className="mock-btn-secondary"
+                        style={{ padding: '4px 8px', color: '#f87171', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                        onClick={() => handleDeleteSession(s.session_id)}
+                        disabled={deletingSessionId === s.session_id}
+                        title="Delete session"
+                      >
+                        {deletingSessionId === s.session_id ? (
+                          <Loader2 size={13} className="spin-icon" />
+                        ) : (
+                          <Trash2 size={13} />
+                        )}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

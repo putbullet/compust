@@ -15,11 +15,15 @@ from datetime import datetime
 # ---------------------------------------------------------------------------
 
 class MockInterviewSetupRequest(BaseModel):
-    domain_id: str = Field(..., description="e.g. 'data_engineering'")
-    role: Optional[str] = Field(None, description="Optional role filter, e.g. 'Data Engineer'")
+    domain_id: Optional[str] = Field("behavioral", description="e.g. 'behavioral' or legacy technical domain")
+    role: Optional[str] = Field(None, description="Optional target role, e.g. 'Senior Frontend Engineer'")
     target_role: Optional[str] = Field(None, description="Alias for role")
-    difficulty: str = Field("Mixed", description="'Fundamental'|'Intermediate'|'Advanced'|'Mixed'")
-    duration_minutes: int = Field(20, ge=5, le=60, description="Interview duration 5–60 min")
+    difficulty: str = Field("Standard", description="'Standard'|'Fundamental'|'Intermediate'|'Advanced'")
+    duration_minutes: int = Field(15, ge=5, le=60, description="Interview duration 5–60 min")
+    language: str = Field("en", description="'en'|'fr'|'nl'")
+    personalize_resume: bool = Field(True, description="Whether to personalize questions with resume context")
+    voice_id: Optional[str] = Field(None, description="Interviewer voice ID")
+    avatar_mode: str = Field("voice_avatar", description="'voice_avatar'|'voice_only'")
     job_id: Optional[int] = Field(None, description="Optional saved-job ID for job-specific biasing")
     resume_id: Optional[int] = Field(None, description="Optional resume ID for context")
 
@@ -46,6 +50,9 @@ class MockInterviewSetupResponse(BaseModel):
     domain_title: str
     difficulty: str
     duration_minutes: int
+    language: str = "en"
+    avatar_mode: str = "voice_avatar"
+    voice_id: Optional[str] = None
     planned_question_count: int     # estimated (not guaranteed — adaptive)
     category_distribution: dict     # {category_name: count}
     privacy_notice: str             # what is/isn't stored — shown on permission screen
@@ -94,21 +101,25 @@ class TurnSubmitRequest(BaseModel):
     stt_engine: str = Field("faster-whisper", description="STT engine used")
     stt_confidence: Optional[float] = None
     answer_duration_seconds: Optional[float] = None
+    longest_pause_seconds: Optional[float] = None
+    time_to_first_word_seconds: Optional[float] = None
 
 
 class NextQuestionItem(BaseModel):
     question_id: str
     question_title: str
-    domain_id: str
-    category: str
-    topic: str
-    difficulty: str
-    is_follow_up: bool
+    domain_id: str = "behavioral"
+    category: str = "Behavioral"
+    topic: str = "Behavioral"
+    difficulty: str = "Standard"
+    competency: Optional[str] = None
+    competency_label: Optional[str] = None
+    is_follow_up: bool = False
     follow_up_focus: Optional[str] = None
-    question_type: str = "technical"   # "introductory" | "technical" | "behavioral" | "scenario"
+    question_type: str = "behavioral"
     expected_duration_seconds: int = 90
     tts_text: str       # text to synthesize as interviewer speech
-    interviewer_name: Optional[str] = "Alex"
+    interviewer_name: Optional[str] = "Alex Mercer"
     interviewer_video_url: Optional[str] = None
     interviewer_audio_url: Optional[str] = None
 
@@ -132,10 +143,13 @@ class TurnSubmitResponse(BaseModel):
 class SessionStateResponse(BaseModel):
     session_id: int
     status: str
-    domain_id: str
-    domain_title: str
-    difficulty: str
-    duration_minutes: int
+    domain_id: str = "behavioral"
+    domain_title: str = "Behavioral & HR Interview"
+    difficulty: str = "Standard"
+    duration_minutes: int = 15
+    language: str = "en"
+    avatar_mode: str = "voice_avatar"
+    voice_id: Optional[str] = None
     elapsed_seconds: float
     remaining_seconds: float
     questions_asked: int
@@ -161,6 +175,12 @@ class EndSessionResponse(BaseModel):
     message: str
 
 
+class DeleteSessionResponse(BaseModel):
+    session_id: int
+    success: bool = True
+    message: str = "Session and associated interview data deleted successfully."
+
+
 # ---------------------------------------------------------------------------
 # Assessment
 # ---------------------------------------------------------------------------
@@ -173,9 +193,11 @@ class AnswerEvaluationDetail(BaseModel):
     category: str
     topic: str
     difficulty: str
+    competency: Optional[str] = None
+    competency_label: Optional[str] = None
     is_follow_up: bool
     parent_question_id: Optional[str] = None
-    question_type: str = "technical"   # "introductory" | "technical" | "behavioral" | "scenario"
+    question_type: str = "behavioral"
     transcript: Optional[str] = None
     raw_transcript: Optional[str] = None
     canonical_transcript: Optional[str] = None
@@ -184,8 +206,21 @@ class AnswerEvaluationDetail(BaseModel):
     relevance: Optional[float] = None
     technical_depth: Optional[float] = None
     clarity: Optional[float] = None
-    demonstrated_status: Optional[str] = None  # "demonstrated" | "partially_demonstrated" | "not_demonstrated" | "unclear_due_to_transcription" | "not_assessed"
+    demonstrated_status: Optional[str] = None
     star_breakdown: Optional[Dict[str, Any]] = None
+    star_situation: Optional[str] = None
+    star_task: Optional[str] = None
+    star_action: Optional[str] = None
+    star_result: Optional[str] = None
+    star_evidence: Optional[Dict[str, Any]] = None
+    stronger_version: Optional[str] = None
+    specificity_score: Optional[float] = None
+    ownership_score: Optional[float] = None
+    measurable_outcome_score: Optional[float] = None
+    wpm: Optional[float] = None
+    filler_word_count: Optional[int] = None
+    longest_pause_seconds: Optional[float] = None
+    i_vs_we_ratio: Optional[float] = None
     missing_concepts: List[str] = Field(default_factory=list)
     incorrect_claims: List[str] = Field(default_factory=list)
     positive_points: List[str] = Field(default_factory=list)
@@ -202,7 +237,7 @@ class SkillMatrixEntry(BaseModel):
     score: Optional[float] = None    # 0.0–1.0 (None for not_assessed)
     question_count: int
     basis: str      # e.g. "Rated 2 questions; avg score 0.45"
-    status: str = "demonstrated"  # "demonstrated" | "partially_demonstrated" | "not_demonstrated" | "not_assessed" | "unclear_due_to_transcription"
+    status: str = "demonstrated"
 
 
 class AssessmentRecommendation(BaseModel):
@@ -216,7 +251,7 @@ class AssessmentRecommendation(BaseModel):
 
 class AssessmentEvidenceItem(BaseModel):
     topic: str
-    status: str  # "partially_demonstrated" | "not_demonstrated" | "demonstrated" | "unclear_due_to_transcription"
+    status: str
     source_question_id: Optional[str] = None
     source_turn_index: Optional[int] = None
     evidence: str
@@ -231,6 +266,12 @@ class MockInterviewAssessmentResponse(BaseModel):
     behavioral_score: Optional[float] = None    # 0–100
     evaluation_status: str
     summary_text: Optional[str] = None
+    headline_strengths: List[str] = Field(default_factory=list)
+    headline_improvements: List[str] = Field(default_factory=list)
+    delivery_snapshot: Optional[Dict[str, Any]] = None
+    timeline_data: List[Dict[str, Any]] = Field(default_factory=list)
+    competency_scores: Optional[Dict[str, Any]] = None
+    action_plan: List[Dict[str, Any]] = Field(default_factory=list)
     questions_asked: int = 0
     questions_answered: int = 0
     assessed_domains: List[str] = Field(default_factory=list)
@@ -297,3 +338,9 @@ class RepracticeResponse(BaseModel):
     duration_minutes: int
     weak_areas_targeted: List[str]
     message: str
+
+
+class DeleteSessionResponse(BaseModel):
+    session_id: int
+    deleted: bool = True
+    message: str = "Session deleted successfully."

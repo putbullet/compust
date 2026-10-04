@@ -114,7 +114,30 @@ Completed phases:
           - 103/103 pytest tests passing with zero errors and zero regressions.
           - `npm run build` succeeds in 774ms with zero TypeScript or bundling errors.
           - Browser subagent verified end-to-end user workflows, 3D card tilt, modal recreate resume, and supervision views.
-In-progress work: Complete Master Build Prompt and Major Engineering Extension fully implemented and verified.
+  - Phase 14: AI Behavioral & HR Mock Interview Rebuild:
+      * Complete teardown of old technical-track mock interview engine, models, and allocator. Replaced with dedicated behavioral/HR interview system.
+      * Behavioral Question Bank: 62+ curated questions per language (EN, FR, NL) across 16 core competencies (introduction, motivation, teamwork, conflict resolution, leadership, failure/mistakes, pressure/time management, adaptability, problem solving, communication, receiving feedback, ethics/integrity, career goals, hire justification, questions for interviewer).
+      * Deterministic Engine & Delivery Metrics (`src/app/services/interview_metrics.py` & `mock_interview_engine.py`):
+          - Computes words-per-minute (WPM), language-specific filler words count/rate, pause durations, longest pause, time-to-first-word, and I vs We ratio in Python code (zero LLM reliance for timing/metrics).
+      * Voice & Speech Infrastructure:
+          - Local neural STT with `faster-whisper` (int8 CPU execution, immediate audio disposal after transcription).
+          - Natural neural TTS integration (Edge-TTS / Piper) with multi-speaker voice profiles (Alex Mercer, Elena Vance, Marcus Stone, Sarah Chen, David Sterling, Victoria Croft).
+          - Amplitude-driven animated SVG/HTML avatar with speaking, listening, and idle states.
+      * Grounded STAR Evaluation & Post-Interview Analysis (`src/app/services/mock_interview_ai.py`):
+          - Grounded STAR detection (Situation, Task, Action, Result) anchored strictly to quoted transcript spans.
+          - Generation of stronger answer versions using ONLY candidate's stated facts and clear bracketed `[placeholders]` for omitted metrics/outcomes (zero hallucination).
+          - Fallback to heuristic rubric evaluation when Ollama is offline or uninstalled.
+      * Comprehensive Interactive Frontend (`MockInterviewView.tsx` & `InterviewTimelineChart.tsx`):
+          - Minute-by-minute horizontal timeline chart showing elapsed interview time, quality bands (strong, moderate, needs work), pause markers, overlong answer flags, and click-to-jump navigation.
+          - Multi-lingual setup with optional free-text target role, resume personalization toggle, duration selector (5/10/15/20 min), voice selector, avatar mode toggle, and honest privacy policy card.
+          - Live interview controls: pause/resume, repeat question, auto-record on AI speech completion, silence auto-stop (~1.8–2.8s AnalyserNode), and manual completion.
+          - Post-interview assessment: overall score, STAR chips with quoted evidence, competency radar/bars, delivery snapshot, action plan linking to Behavioral HR prep, and session history with deletion support.
+      * Verification:
+          - 41/41 unit & integration pytest tests passing in 4.06s.
+          - `npm run build` succeeds cleanly in 2.60s with 0 errors.
+          - Live verification script `verify_live_behavioral_interview.py` verified end-to-end against live backend: session creation, multi-turn STAR dialogue, Ollama post-interview evaluation, timeline chart data generation, and session deletion.
+In-progress work: None. AI Behavioral & HR Mock Interview Rebuild complete and verified.
 Known broken/incomplete pieces: None.
-Last verified against real DB/code: 2026-09-11 (Verified against local MySQL 'compust' database with migrations 001-010 applied, live FastAPI server on port 8000, live Vite dev server on port 5173, 103 passing pytest tests, and clean Vite production build).
-Next recommended step: Production containerization / deployment, continuous scheduled scraping, and automated employer ingestion.
+Last verified against real DB/code: 2026-10-04 (Verified against local database with migration 017 applied, live FastAPI server on port 8000, live Vite dev server on port 5173, 41 passing pytest tests, clean Vite production build, and live verification script).
+Next recommended step: User feedback gathering on local voice naturalness and targeted competency practice sessions.
+

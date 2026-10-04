@@ -1,102 +1,198 @@
 """
-Deterministic Interview Engine for AI Mock Interview & Skills Assessment.
+Deterministic Behavioral Interview Engine for Compust.
 
-DESIGN PRINCIPLE: This module contains ZERO LLM calls, ZERO STT/TTS, ZERO I/O.
-All scheduling, timing, and state management is pure deterministic Python.
-The AI layer (follow-up classification, post-interview evaluation) lives in
-mock_interview_ai.py and is called by the API layer — not here.
-
-This separation means:
-  - Unit tests require no mocks of Ollama, faster-whisper, or DB
-  - The transport layer (turn-based voice, future Pipecat) can be swapped freely
-  - The engine's behavior is fully reproducible and testable from test inputs alone
+DESIGN PRINCIPLES:
+1. Zero LLM calls in this module. All scheduling, timing, competency coverage,
+   and conversational transitions are pure deterministic Python.
+2. Behavioral & HR focus: introduction, motivation, strengths/weaknesses, teamwork,
+   conflict, leadership, failure/mistakes, pressure/time management, adaptability,
+   problem solving, communication, feedback, ethics, and questions for interviewer.
+3. Multilingual: native EN, FR, and NL support loaded from static JSON question banks.
+4. Deterministic state machine: bounds follow-up probes (max 1 per question, max 2 per session),
+   guarantees duration fit, and prevents repeat questions.
 """
 
 from __future__ import annotations
 
+import json
 import logging
-import math
 import random
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 logger = logging.getLogger("compust.mock_interview.engine")
 
+QUESTION_BANK_DIR = Path(__file__).resolve().parent.parent / "content" / "behavioral_questions"
 
-# ---------------------------------------------------------------------------
-# Time budget constants (seconds per difficulty)
-# Derived from question bank's content length heuristic (Phase 0 confirmed:
-# no explicit question-type field, so we use difficulty as proxy).
-# ---------------------------------------------------------------------------
-
-DIFFICULTY_TIME_BUDGET: Dict[str, int] = {
-    "Fundamental": 90,
-    "Intermediate": 120,
-    "Advanced": 180,
-    "Mixed": 120,   # fallback average
-}
-
-# Buffer added per question for transition, clarification, etc.
+# Buffer added per question for speech transitions, acknowledgments, etc.
 PER_QUESTION_OVERHEAD_SECONDS = 15
 
-# Maximum follow-ups: 1 per question, 3 per session total
+# Strict limits on follow-ups
 MAX_FOLLOW_UPS_PER_QUESTION = 1
-MAX_FOLLOW_UPS_PER_SESSION = 3
+MAX_FOLLOW_UPS_PER_SESSION = 2
 
-# Difficulty levels (for filter and mixed-mode selection)
-DIFFICULTY_LEVELS = ["Fundamental", "Intermediate", "Advanced"]
+# Target question counts based on interview duration
+DURATION_QUESTION_TARGETS: Dict[int, int] = {
+    5: 3,    # Intro + 1 STAR core + Wrap-up / Questions for Us
+    10: 5,   # Intro + 3 diverse STAR + Wrap-up
+    15: 7,   # Intro + 5 diverse STAR + Wrap-up
+    20: 9,   # Intro + 7 diverse STAR + Wrap-up
+}
+
+# Conversational acknowledgments varied between turns (not repetitive/scripted)
+TRANSITIONS_BY_LANG: Dict[str, List[str]] = {
+    "en": [
+        "Thank you for sharing that context.",
+        "Thanks, that gives me a clear picture of how you approach things.",
+        "Understood, that's very helpful context.",
+        "Thank you for walking me through that example.",
+        "Great, let's explore another aspect of your experience.",
+        "Appreciate that breakdown.",
+    ],
+    "fr": [
+        "Merci d'avoir partagé ce contexte.",
+        "Merci, cela me donne une image claire de votre approche.",
+        "C'est très clair et instructif, merci.",
+        "Merci de m'avoir détaillé cet exemple.",
+        "Très bien, explorons maintenant un autre aspect de votre parcours.",
+        "Parfait, passons au point suivant.",
+    ],
+    "nl": [
+        "Dank u voor het delen van die context.",
+        "Dank u, dat geeft een helder beeld van uw aanpak.",
+        "Begrepen, dat is zeer waardevolle toelichting.",
+        "Bedankt voor het toelichten van dit voorbeeld.",
+        "Mooi, laten we naar een ander aspect van uw ervaring kijken.",
+        "Prima, laten we doorgaan naar de volgende vraag.",
+    ],
+}
+
+# Warm greetings prefixed to the self-introduction opening turn
+GREETINGS_BY_LANG: Dict[str, str] = {
+    "en": "Hello and welcome! Thank you for taking the time to speak with me today. To get started, ",
+    "fr": "Bonjour et bienvenue ! Merci d'avoir pris le temps d'échanger avec moi aujourd'hui. Pour commencer, ",
+    "nl": "Hallo en welkom! Bedankt dat u vandaag de tijd neemt voor dit gesprek. Laten we beginnen: ",
+}
+
+# Wrap-up text for closing
+WRAPUP_BY_LANG: Dict[str, str] = {
+    "en": "Thank you so much for your time and for sharing your experiences today. That concludes our interview session, and your detailed assessment report is now being prepared.",
+    "fr": "Merci beaucoup pour votre temps et pour le partage de vos expériences. Notre entretien est maintenant terminé, et votre rapport d'évaluation détaillé est en cours de préparation.",
+    "nl": "Hartelijk dank voor uw tijd en voor het delen van uw ervaringen vandaag. Hiermee is ons interviewgesprek afgerond, en uw evaluatierapport wordt nu voorbereid.",
+}
+
+# Role keyword mappings to prioritize relevant competencies
+ROLE_KEYWORD_COMPETENCIES: Dict[str, List[str]] = {
+    "lead": ["leadership", "conflict", "decision_making", "feedback", "teamwork"],
+    "manager": ["leadership", "conflict", "decision_making", "feedback", "pressure"],
+    "director": ["leadership", "decision_making", "planning", "ethics", "communication"],
+    "engineer": ["problem_solving", "teamwork", "adaptability", "failure", "growth_mindset"],
+    "developer": ["problem_solving", "teamwork", "adaptability", "failure", "growth_mindset"],
+    "data": ["problem_solving", "decision_making", "communication", "adaptability"],
+    "product": ["planning", "communication", "decision_making", "teamwork", "creativity"],
+    "scrum": ["teamwork", "conflict", "communication", "adaptability"],
+    "sales": ["customer_focus", "communication", "resilience", "pressure"],
+    "customer": ["customer_focus", "communication", "resilience", "conflict"],
+    "support": ["customer_focus", "communication", "problem_solving", "pressure"],
+}
 
 
-# ---------------------------------------------------------------------------
-# Data structures
-# ---------------------------------------------------------------------------
+# In-memory question bank cache: lang -> List[Dict]
+_QUESTION_BANK_CACHE: Dict[str, List[Dict[str, Any]]] = {}
+
+
+def load_behavioral_questions(language: str = "en") -> List[Dict[str, Any]]:
+    """
+    Load the behavioral question bank for the specified language.
+    Falls back to English if language file does not exist.
+    """
+    lang_code = language.lower() if language else "en"
+    if lang_code not in ("en", "fr", "nl"):
+        lang_code = "en"
+
+    if lang_code in _QUESTION_BANK_CACHE:
+        return _QUESTION_BANK_CACHE[lang_code]
+
+    file_path = QUESTION_BANK_DIR / f"{lang_code}.json"
+    if not file_path.exists():
+        file_path = QUESTION_BANK_DIR / "en.json"
+
+    try:
+        data = json.loads(file_path.read_text(encoding="utf-8-sig"))
+        _QUESTION_BANK_CACHE[lang_code] = data
+        return data
+    except Exception as exc:
+        logger.error(f"Failed to load behavioral question bank for {lang_code}: {exc}")
+        if lang_code != "en":
+            return load_behavioral_questions("en")
+        return []
+
 
 @dataclass
 class QuestionSlot:
-    """A single scheduled question slot in the interview plan."""
+    """A single scheduled question slot in the behavioral interview plan."""
     question_id: str
-    domain_id: str
-    category_id: str
-    category_name: str
-    topic: str
+    competency: str
+    competency_label: str
     title: str
-    difficulty: str
-    estimated_seconds: int
+    signals: List[str] = field(default_factory=list)
+    follow_up_probes: List[str] = field(default_factory=list)
+    expected_duration_seconds: int = 90
+    star_applicable: bool = True
     is_follow_up: bool = False
     follow_up_focus: Optional[str] = None
-    question_type: str = "technical"   # "introductory" | "technical" | "behavioral" | "scenario"
-    tts_text: Optional[str] = None
     parent_question_id: Optional[str] = None
+    tts_text: Optional[str] = None
+
+    # Compatibility attributes for existing views & API
+    domain_id: str = "behavioral"
+    category_id: str = ""
+    category_name: str = ""
+    topic: str = "Behavioral"
+    difficulty: str = "Standard"
+    question_type: str = "behavioral"
+    estimated_seconds: int = 90
+
+    def __post_init__(self):
+        if not self.category_id:
+            self.category_id = self.competency
+        if not self.category_name:
+            self.category_name = self.competency_label
+        if not self.estimated_seconds:
+            self.estimated_seconds = self.expected_duration_seconds
 
 
 @dataclass
 class InterviewState:
-    """
-    Single source of truth for a live interview session.
-    Stored serialized in MockInterviewSession.interview_plan (JSON).
-    """
+    """Single source of truth for a live behavioral interview session."""
     session_id: int
-    domain_id: str
-    difficulty: str
     duration_minutes: int
     total_budget_seconds: int
+    language: str = "en"
+    target_role: Optional[str] = None
+    role: Optional[str] = None
 
-    # Planned queue — slots not yet asked
+    # Planned question queue
     question_queue: List[QuestionSlot] = field(default_factory=list)
 
-    # Completed turns
+    # Completed progress
     asked_question_ids: List[str] = field(default_factory=list)
-    covered_category_ids: Set[str] = field(default_factory=set)
+    covered_competencies: Set[str] = field(default_factory=set)
 
     # Timing
     started_at: Optional[datetime] = None
     elapsed_seconds: float = 0.0
 
-    # Adaptive counters
+    # Follow-up tracking
     follow_up_count_this_question: int = 0
     follow_up_count_total: int = 0
     current_question_slot: Optional[QuestionSlot] = None
+
+    # Compatibility attributes
+    domain_id: str = "behavioral"
+    difficulty: str = "Standard"
 
     @property
     def remaining_seconds(self) -> float:
@@ -104,418 +200,302 @@ class InterviewState:
 
     @property
     def is_time_expired(self) -> bool:
-        return self.remaining_seconds <= 0
+        return self.remaining_seconds <= 0.0
 
     @property
     def questions_asked(self) -> int:
         return len(self.asked_question_ids)
 
     def to_dict(self) -> Dict[str, Any]:
-        """Serialize to JSON-safe dict for DB storage."""
+        """Serialize state for JSON storage in DB."""
         return {
             "session_id": self.session_id,
-            "domain_id": self.domain_id,
-            "difficulty": self.difficulty,
             "duration_minutes": self.duration_minutes,
             "total_budget_seconds": self.total_budget_seconds,
-            "question_queue": [_slot_to_dict(s) for s in self.question_queue],
-            "asked_question_ids": self.asked_question_ids,
-            "covered_category_ids": list(self.covered_category_ids),
-            "started_at": self.started_at.isoformat() if self.started_at else None,
+            "language": self.language,
+            "target_role": self.target_role or self.role,
+            "role": self.role or self.target_role,
+            "domain_id": self.domain_id,
+            "difficulty": self.difficulty,
             "elapsed_seconds": self.elapsed_seconds,
-            "follow_up_count_this_question": self.follow_up_count_this_question,
+            "asked_question_ids": self.asked_question_ids,
+            "covered_competencies": list(self.covered_competencies),
             "follow_up_count_total": self.follow_up_count_total,
-            "current_question_slot": _slot_to_dict(self.current_question_slot) if self.current_question_slot else None,
+            "follow_up_count_this_question": self.follow_up_count_this_question,
+            "current_question_slot": self._slot_to_dict(self.current_question_slot) if self.current_question_slot else None,
+            "question_queue": [self._slot_to_dict(s) for s in self.question_queue],
         }
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "InterviewState":
-        """Deserialize from DB JSON storage."""
+    def from_dict(cls, data: Dict[str, Any]) -> "InterviewState":
+        """Deserialize from stored JSON."""
         state = cls(
-            session_id=d["session_id"],
-            domain_id=d["domain_id"],
-            difficulty=d["difficulty"],
-            duration_minutes=d["duration_minutes"],
-            total_budget_seconds=d["total_budget_seconds"],
+            session_id=data.get("session_id", 0),
+            duration_minutes=data.get("duration_minutes", 15),
+            total_budget_seconds=data.get("total_budget_seconds", 900),
+            language=data.get("language", "en"),
+            target_role=data.get("target_role") or data.get("role"),
+            role=data.get("role") or data.get("target_role"),
         )
-        state.question_queue = [_dict_to_slot(s) for s in d.get("question_queue", [])]
-        state.asked_question_ids = d.get("asked_question_ids", [])
-        state.covered_category_ids = set(d.get("covered_category_ids", []))
-        raw_started = d.get("started_at")
-        state.started_at = datetime.fromisoformat(raw_started) if raw_started else None
-        state.elapsed_seconds = d.get("elapsed_seconds", 0.0)
-        state.follow_up_count_this_question = d.get("follow_up_count_this_question", 0)
-        state.follow_up_count_total = d.get("follow_up_count_total", 0)
-        raw_current = d.get("current_question_slot")
-        state.current_question_slot = _dict_to_slot(raw_current) if raw_current else None
+        state.elapsed_seconds = data.get("elapsed_seconds", 0.0)
+        state.asked_question_ids = data.get("asked_question_ids", [])
+        state.covered_competencies = set(data.get("covered_competencies", []))
+        state.follow_up_count_total = data.get("follow_up_count_total", 0)
+        state.follow_up_count_this_question = data.get("follow_up_count_this_question", 0)
+
+        cur_data = data.get("current_question_slot")
+        if cur_data:
+            state.current_question_slot = cls._dict_to_slot(cur_data)
+
+        q_list = data.get("question_queue", [])
+        state.question_queue = [cls._dict_to_slot(q) for q in q_list]
         return state
 
+    @staticmethod
+    def _slot_to_dict(slot: QuestionSlot) -> Dict[str, Any]:
+        return {
+            "question_id": slot.question_id,
+            "competency": slot.competency,
+            "competency_label": slot.competency_label,
+            "title": slot.title,
+            "signals": slot.signals,
+            "follow_up_probes": slot.follow_up_probes,
+            "expected_duration_seconds": slot.expected_duration_seconds,
+            "estimated_seconds": slot.estimated_seconds,
+            "star_applicable": slot.star_applicable,
+            "is_follow_up": slot.is_follow_up,
+            "follow_up_focus": slot.follow_up_focus,
+            "parent_question_id": slot.parent_question_id,
+            "tts_text": slot.tts_text,
+            "domain_id": slot.domain_id,
+            "category_id": slot.category_id,
+            "category_name": slot.category_name,
+            "topic": slot.topic,
+            "difficulty": slot.difficulty,
+            "question_type": slot.question_type,
+        }
 
-def _slot_to_dict(slot: QuestionSlot) -> Dict[str, Any]:
-    return {
-        "question_id": slot.question_id,
-        "domain_id": slot.domain_id,
-        "category_id": slot.category_id,
-        "category_name": slot.category_name,
-        "topic": slot.topic,
-        "title": slot.title,
-        "difficulty": slot.difficulty,
-        "estimated_seconds": slot.estimated_seconds,
-        "is_follow_up": slot.is_follow_up,
-        "follow_up_focus": slot.follow_up_focus,
-        "question_type": getattr(slot, "question_type", "technical"),
-        "tts_text": getattr(slot, "tts_text", None),
-        "parent_question_id": getattr(slot, "parent_question_id", None),
-    }
-
-
-def _dict_to_slot(d: Dict[str, Any]) -> QuestionSlot:
-    return QuestionSlot(
-        question_id=d["question_id"],
-        domain_id=d["domain_id"],
-        category_id=d["category_id"],
-        category_name=d["category_name"],
-        topic=d["topic"],
-        title=d["title"],
-        difficulty=d["difficulty"],
-        estimated_seconds=d["estimated_seconds"],
-        is_follow_up=d.get("is_follow_up", False),
-        follow_up_focus=d.get("follow_up_focus"),
-        question_type=d.get("question_type", "technical"),
-        tts_text=d.get("tts_text"),
-        parent_question_id=d.get("parent_question_id"),
-    )
-
-
-# ---------------------------------------------------------------------------
-# Default curated behavioral questions pool
-# ---------------------------------------------------------------------------
-
-DEFAULT_BEHAVIORAL_QUESTIONS: List[Dict[str, Any]] = [
-    {
-        "id": "beh_conflict_1",
-        "category_id": "behavioral_teamwork",
-        "category_name": "Teamwork & Conflict Resolution",
-        "topic": "Technical Disagreements",
-        "title": "Tell me about a time you had a technical disagreement with a teammate or engineering manager. How did you resolve it?",
-        "estimated_seconds": 120,
-    },
-    {
-        "id": "beh_failure_1",
-        "category_id": "behavioral_failure",
-        "category_name": "Failure & Blameless Learning",
-        "topic": "Production Incidents",
-        "title": "Describe a time when you caused or had to resolve a severe production outage or unexpected bug. What did you learn and what safeguards did you put in place?",
-        "estimated_seconds": 120,
-    },
-    {
-        "id": "beh_initiative_1",
-        "category_id": "behavioral_initiative",
-        "category_name": "Leadership & Initiative",
-        "topic": "Technical Debt",
-        "title": "Tell me about a time you proactively took the initiative to eliminate technical debt or improve system reliability without being asked.",
-        "estimated_seconds": 120,
-    },
-    {
-        "id": "beh_problem_solving_1",
-        "category_id": "behavioral_problem_solving",
-        "category_name": "Problem Solving & Architecture",
-        "topic": "Complex Engineering",
-        "title": "Walk me through a technically difficult engineering problem you encountered recently. What was your role and what architectural alternatives did you consider?",
-        "estimated_seconds": 120,
-    },
-    {
-        "id": "beh_adaptability_1",
-        "category_id": "behavioral_adaptability",
-        "category_name": "Adaptability & Fast Ramp-up",
-        "topic": "Rapid Learning",
-        "title": "Tell me about a time you had to learn a completely new framework, language, or system architecture under tight deadlines. How did you approach the learning curve?",
-        "estimated_seconds": 120,
-    },
-    {
-        "id": "beh_communication_1",
-        "category_id": "behavioral_communication",
-        "category_name": "Technical Communication",
-        "topic": "Stakeholder Explanations",
-        "title": "Can you describe a situation where you had to explain a complex technical architectural decision or trade-off to non-technical stakeholders or executives?",
-        "estimated_seconds": 120,
-    },
-    {
-        "id": "beh_project_1",
-        "category_id": "behavioral_execution",
-        "category_name": "Project Execution & Ownership",
-        "topic": "End-to-End Ownership",
-        "title": "Walk me through a complex engineering project you led or contributed significantly to. What was your personal responsibility, what trade-offs did you make, and what was the outcome?",
-        "estimated_seconds": 120,
-    },
-    {
-        "id": "beh_sec_incident_1",
-        "category_id": "behavioral_security",
-        "category_name": "Security Ownership & Incident Awareness",
-        "topic": "Vulnerability Discovery",
-        "title": "Tell me about a time when you identified a security issue or potential vulnerability. What did you do?",
-        "estimated_seconds": 120,
-    },
-    {
-        "id": "beh_intro_1",
-        "category_id": "introduction",
-        "category_name": "Introduction & Background",
-        "topic": "Career Introduction",
-        "title": "Could you tell me a little about yourself, your background, and what brings you to this interview?",
-        "estimated_seconds": 75,
-    },
-]
+    @staticmethod
+    def _dict_to_slot(d: Dict[str, Any]) -> QuestionSlot:
+        return QuestionSlot(
+            question_id=d.get("question_id", ""),
+            competency=d.get("competency", "behavioral"),
+            competency_label=d.get("competency_label", "Behavioral"),
+            title=d.get("title", ""),
+            signals=d.get("signals", []),
+            follow_up_probes=d.get("follow_up_probes", []),
+            expected_duration_seconds=d.get("expected_duration_seconds", 90),
+            estimated_seconds=d.get("estimated_seconds", 90),
+            star_applicable=d.get("star_applicable", True),
+            is_follow_up=d.get("is_follow_up", False),
+            follow_up_focus=d.get("follow_up_focus"),
+            parent_question_id=d.get("parent_question_id"),
+            tts_text=d.get("tts_text"),
+            domain_id=d.get("domain_id", "behavioral"),
+            category_id=d.get("category_id", d.get("competency", "behavioral")),
+            category_name=d.get("category_name", d.get("competency_label", "Behavioral")),
+            topic=d.get("topic", "Behavioral"),
+            difficulty=d.get("difficulty", "Standard"),
+            question_type=d.get("question_type", "behavioral"),
+        )
 
 
-def build_introductory_tts(
-    domain_title: str,
-    domain_id: str,
-    role: Optional[str] = None,
-    difficulty: str = "Intermediate",
-) -> str:
-    """Generate a realistic, professional interviewer introduction with natural variation."""
-    clean_role = role.strip() if (role and isinstance(role, str) and role.strip()) else None
-    role_str = f" for the {clean_role} position" if clean_role else ""
-    domain_desc = {
-        "data_engineering": "data engineering, including SQL, distributed systems, pipeline design, and data modeling",
-        "security_engineering": "security engineering, including threat modeling, networking, application security, and incident response",
-        "ai_tech_interview": "AI engineering, including machine learning foundations, RAG architectures, model evaluation, and LLM system design",
-    }.get(domain_id, f"{domain_title} concepts and practical engineering scenarios")
-
-    templates = [
-        (
-            f"Hello, welcome! It's good to have you here today. "
-            f"We'll be doing a technical interview focused on {domain_title}{role_str}. "
-            f"We'll cover {domain_desc}, along with practical engineering scenarios and behavioral experiences. "
-            f"Some questions may include follow-ups depending on your answers. "
-            f"There isn't anything you need to click while we're talking. "
-            f"When I finish a question, the microphone will automatically listen for your response. "
-            f"Let's get started. Could you begin by telling me a little about yourself and your background?"
-        ),
-        (
-            f"Hi there, and welcome. Thank you for taking the time to speak with me today. "
-            f"Our interview session will focus on {domain_title}{role_str} at the {difficulty} level. "
-            f"We'll explore core technical concepts in {domain_desc}, as well as real-world engineering problem solving. "
-            f"The microphone will activate automatically whenever I complete a question, so you can answer naturally at your own pace. "
-            f"Let's begin: could you walk me through your background and what led you toward this path?"
-        ),
-        (
-            f"Welcome! It's great to connect with you today. "
-            f"Today's interview is centered on {domain_title}{role_str}. "
-            f"We'll balance technical architecture, practical trade-offs, and behavioral engineering questions. "
-            f"Whenever I finish speaking, the system will automatically start listening for your thoughts. "
-            f"Let's get started: could you briefly introduce yourself and share the highlights of your technical journey?"
-        ),
-    ]
-
-    return random.choice(templates)
+def _determine_target_question_count(duration_minutes: int) -> int:
+    """Return target question count based on duration."""
+    for threshold in sorted(DURATION_QUESTION_TARGETS.keys(), reverse=True):
+        if duration_minutes >= threshold:
+            return DURATION_QUESTION_TARGETS[threshold]
+    return 3
 
 
-def build_conversational_tts(
-    title: str,
-    question_type: str = "technical",
-    is_follow_up: bool = False,
-    focus: Optional[str] = None,
-    turn_index: int = 1,
-) -> str:
-    """Build natural, conversational spoken text for the AI interviewer."""
-    if is_follow_up and focus:
-        return f"Thanks for explaining that. Let me probe a bit further on {focus}. How would you address that?"
+def _score_question_for_role(q: Dict[str, Any], role_clean: Optional[str]) -> float:
+    """Score question relevance based on target role keywords."""
+    if not role_clean:
+        return 1.0
 
-    import re
-    clean_title = re.sub(r"[*`#_]", "", title).strip()
+    score = 1.0
+    role_words = role_clean.lower().split()
+    comp = q.get("competency", "")
 
-    if question_type == "introductory":
-        return clean_title
+    for kw, preferred_comps in ROLE_KEYWORD_COMPETENCIES.items():
+        if any(kw in rw for rw in role_words):
+            if comp in preferred_comps:
+                score += 2.0
 
-    if question_type == "behavioral":
-        lead_ins = [
-            "Let's shift gears to how you collaborate and solve problems in engineering teams. ",
-            "I'd like to explore your practical engineering experiences. ",
-            "Let's talk about real-world scenarios you've navigated in your career. ",
-        ]
-        lead_in = lead_ins[turn_index % len(lead_ins)]
-        return f"{lead_in}{clean_title}"
+    tags = [t.lower() for t in q.get("role_relevance_tags", [])]
+    for rw in role_words:
+        if rw in tags:
+            score += 1.5
 
-    # Technical question lead-in
-    lead_ins = [
-        "Let's move on to the next topic. ",
-        "Turning to another key area. ",
-        "Let's discuss this technical scenario. ",
-        "Here is our next technical question. ",
-    ]
-    lead_in = lead_ins[turn_index % len(lead_ins)] if turn_index > 1 else ""
-    return f"{lead_in}{clean_title}"
+    return score
 
-
-# ---------------------------------------------------------------------------
-# Core engine functions (pure logic — no I/O, no AI, no DB)
-# ---------------------------------------------------------------------------
 
 def build_interview_plan(
-    domain_questions: List[Dict[str, Any]],
-    domain_id: str,
-    difficulty: str,
     duration_minutes: int,
-    previously_asked_ids: Optional[Set[str]] = None,
-    job_skill_tags: Optional[Set[str]] = None,
-    weak_category_ids: Optional[Set[str]] = None,
     session_id: int = 0,
+    language: str = "en",
     role: Optional[str] = None,
-    domain_title: Optional[str] = None,
-    behavioral_questions: Optional[List[Dict[str, Any]]] = None,
-    include_intro: bool = True,
-    include_behavioral: bool = True,
+    domain_name: Optional[str] = None,
+    job_skill_tags: Optional[Set[str]] = None,
+    previously_asked_ids: Optional[Set[str]] = None,
+    **kwargs: Any,  # Absorbs legacy parameters
 ) -> InterviewState:
     """
-    Build a fully-scheduled interview plan with balanced technical & behavioral coverage.
-
-    Algorithm:
-    1. Filter questions by difficulty (or keep all for "Mixed")
-    2. Compute per-category weights proportional to actual question count
-    3. Allocate slots using proportional coverage with floor=1
-    4. Select fresh questions avoiding previously_asked_ids
-    5. Integrate natural introductory turn (Slot 0)
-    6. Integrate behavioral question (Slot N-1)
-    7. Assemble conversational TTS speech for each turn
-    8. Trim queue to budget while preserving opening turn
+    Build a deterministic behavioral interview question plan.
+    Selection is duration-aware, random without repeats, biased away from
+    recently answered questions, and weighted by target role when provided.
     """
-    previously_asked = previously_asked_ids or set()
-    job_tags = {t.lower() for t in (job_skill_tags or set())}
-    weak_cats = weak_category_ids or set()
+    safe_duration = max(5, min(duration_minutes, 60))
+    total_budget = safe_duration * 60
+    target_count = _determine_target_question_count(safe_duration)
+    lang = language.lower() if language in ("en", "fr", "nl") else "en"
+    clean_role = role.strip() if role and isinstance(role, str) and role.strip() else None
+    seen_ids = set(previously_asked_ids or [])
 
-    total_budget = duration_minutes * 60
-
-    # Step 1: Filter questions by difficulty
-    filtered = _filter_by_difficulty(domain_questions, difficulty)
-    if not filtered:
-        # Graceful degradation: if no questions match, use all
-        filtered = domain_questions
-        logger.warning(
-            f"No questions matched difficulty '{difficulty}' in domain '{domain_id}'. "
-            f"Using full bank ({len(domain_questions)} questions)."
-        )
-
-    # Step 2: Group by category and compute base weights
-    category_groups: Dict[str, List[Dict[str, Any]]] = {}
-    for q in filtered:
-        cat_id = q.get("category_id") or q.get("category", "general")
-        if cat_id not in category_groups:
-            category_groups[cat_id] = []
-        category_groups[cat_id].append(q)
-
-    if not category_groups:
-        return _empty_state(session_id, domain_id, difficulty, duration_minutes, total_budget)
-
-    # Step 3: Calculate dedicated technical budget taking reserved intro and behavioral slots into account
-    intro_budget = (75 + PER_QUESTION_OVERHEAD_SECONDS) if include_intro else 0
-    beh_budget = (120 + PER_QUESTION_OVERHEAD_SECONDS) if (include_behavioral and duration_minutes >= 10) else 0
-    tech_budget = max(60, total_budget - intro_budget - beh_budget)
-
-    # Weighted allocation using dedicated tech_budget
-    slots = _allocate_slots(
-        category_groups,
-        tech_budget,
-        difficulty,
-        job_tags,
-        weak_cats,
-    )
-
-    # Step 4: Build technical question queue
-    queue: List[QuestionSlot] = []
-    for cat_id, num_slots in slots.items():
-        pool = category_groups[cat_id]
-        selected = _select_questions(pool, num_slots, previously_asked)
-        for q in selected:
-            est_seconds = _estimate_question_seconds(q)
-            queue.append(QuestionSlot(
-                question_id=q["id"],
-                domain_id=domain_id,
-                category_id=cat_id,
-                category_name=q.get("category_name") or q.get("category", cat_id),
-                topic=q.get("topic", "Core Concepts"),
-                title=q["title"],
-                difficulty=q.get("difficulty", difficulty),
-                estimated_seconds=est_seconds,
-                question_type="technical",
-            ))
-
-    # Shuffle so consecutive technical categories vary
-    random.shuffle(queue)
-
-    # Step 5: Integrate behavioral component
-    if include_behavioral and duration_minutes >= 10:
-        beh_pool = behavioral_questions or DEFAULT_BEHAVIORAL_QUESTIONS
-        fresh_beh = [b for b in beh_pool if b["id"] not in previously_asked]
-        selected_beh = random.choice(fresh_beh if fresh_beh else beh_pool)
-        beh_slot = QuestionSlot(
-            question_id=selected_beh["id"],
-            domain_id=domain_id,
-            category_id=selected_beh.get("category_id", "behavioral_experience"),
-            category_name=selected_beh.get("category_name", "Behavioral & Communication"),
-            topic=selected_beh.get("topic", "Engineering Experience"),
-            title=selected_beh["title"],
-            difficulty=difficulty,
-            estimated_seconds=selected_beh.get("estimated_seconds", 120),
-            question_type="behavioral",
-            tts_text=build_conversational_tts(selected_beh["title"], question_type="behavioral", turn_index=len(queue)),
-        )
-        if len(queue) > 1:
-            queue.insert(len(queue) - 1, beh_slot)
-        else:
-            queue.append(beh_slot)
-
-    # Step 6: Integrate natural introductory turn at Slot 0
-    if include_intro:
-        intro_tts = build_introductory_tts(
-            domain_title=domain_title or domain_id.replace("_", " ").title(),
-            domain_id=domain_id,
-            role=role,
-            difficulty=difficulty,
-        )
-        intro_slot = QuestionSlot(
-            question_id=f"intro_{domain_id}",
-            domain_id=domain_id,
-            category_id="introduction",
-            category_name="Introduction & Background",
-            topic="Career & Background",
-            title="Could you start by telling me a little about yourself, your background, and what brings you to this interview?",
-            difficulty=difficulty,
-            estimated_seconds=75,
-            question_type="introductory",
-            tts_text=intro_tts,
-        )
-        queue.insert(0, intro_slot)
-
-    # Step 7: Populate conversational TTS for any remaining slots
-    for idx, slot in enumerate(queue):
-        if not slot.tts_text:
-            slot.tts_text = build_conversational_tts(
-                slot.title,
-                question_type=slot.question_type,
-                turn_index=idx + 1,
-            )
-
-    # Step 8: Trim to time budget while preserving intro
-    queue = _trim_to_budget(queue, total_budget)
+    questions = load_behavioral_questions(lang)
+    if not questions:
+        raise ValueError(f"No behavioral questions available for language {lang}")
 
     state = InterviewState(
         session_id=session_id,
-        domain_id=domain_id,
-        difficulty=difficulty,
-        duration_minutes=duration_minutes,
+        duration_minutes=safe_duration,
         total_budget_seconds=total_budget,
+        language=lang,
+        target_role=clean_role,
+        role=clean_role,
     )
-    state.question_queue = queue
-    return state
 
+    # Segregate question pools
+    intro_pool = [q for q in questions if q.get("competency") == "introduction"]
+    wrapup_pool = [q for q in questions if q.get("competency") == "questions_for_interviewer"]
+    behavioral_pool = [q for q in questions if q.get("competency") not in ("introduction", "questions_for_interviewer")]
+
+    # 1. Select opening question (Introduction)
+    intro_candidates = [q for q in intro_pool if q["id"] not in seen_ids] or intro_pool
+    chosen_intro = random.choice(intro_candidates) if intro_candidates else intro_pool[0]
+
+    # Format role/domain for human greeting if available
+    display_role = None
+    if clean_role and domain_name and domain_name.lower() not in clean_role.lower():
+        display_role = f"{clean_role} ({domain_name})"
+    elif clean_role:
+        display_role = clean_role
+    elif domain_name and domain_name.lower() != "behavioral":
+        display_role = domain_name
+
+    if display_role:
+        if lang == "fr":
+            greeting_prefix = f"Bonjour et bienvenue ! Merci d'avoir pris le temps d'échanger avec moi aujourd'hui pour le poste de {display_role}. Pour commencer, "
+        elif lang == "nl":
+            greeting_prefix = f"Hallo en welkom! Bedankt dat u vandaag de tijd neemt voor dit gesprek voor de functie van {display_role}. Laten we beginnen: "
+        else:
+            greeting_prefix = f"Hello and welcome! Thank you for taking the time to speak with me today for the {display_role} role. To get started, "
+    else:
+        greeting_prefix = GREETINGS_BY_LANG.get(lang, GREETINGS_BY_LANG["en"])
+
+    intro_tts = f"{greeting_prefix}{chosen_intro['question']}"
+
+    intro_slot = QuestionSlot(
+        question_id=chosen_intro["id"],
+        competency=chosen_intro["competency"],
+        competency_label=chosen_intro["competency_label"],
+        title=chosen_intro["question"],
+        signals=chosen_intro.get("signals", []),
+        follow_up_probes=chosen_intro.get("follow_up_probes", []),
+        expected_duration_seconds=chosen_intro.get("expected_duration_seconds", 90),
+        star_applicable=False,
+        tts_text=intro_tts,
+        question_type="introductory",
+    )
+
+    # 2. Select closing question (Questions for Interviewer)
+    wrapup_candidates = [q for q in wrapup_pool if q["id"] not in seen_ids] or wrapup_pool
+    chosen_wrapup = random.choice(wrapup_candidates) if wrapup_candidates else wrapup_pool[0]
+
+    closing_slot = QuestionSlot(
+        question_id=chosen_wrapup["id"],
+        competency=chosen_wrapup["competency"],
+        competency_label=chosen_wrapup["competency_label"],
+        title=chosen_wrapup["question"],
+        signals=chosen_wrapup.get("signals", []),
+        follow_up_probes=[],
+        expected_duration_seconds=chosen_wrapup.get("expected_duration_seconds", 90),
+        star_applicable=False,
+        tts_text=chosen_wrapup["question"],
+        question_type="wrap_up",
+    )
+
+    # 3. Select middle competency questions
+    # We need (target_count - 2) middle questions
+    needed_middle = max(1, target_count - 2)
+
+    # Group pool by competency
+    comp_groups: Dict[str, List[Dict[str, Any]]] = {}
+    for q in behavioral_pool:
+        comp = q.get("competency", "general")
+        comp_groups.setdefault(comp, []).append(q)
+
+    # Score competencies
+    competency_scores: List[Tuple[str, float]] = []
+    for comp, q_list in comp_groups.items():
+        base_score = 1.0
+        # Check role relevance
+        if clean_role:
+            sample_q = q_list[0]
+            base_score = _score_question_for_role(sample_q, clean_role)
+
+        # Freshness bonus: favor competencies where candidate hasn't answered recent questions
+        fresh_count = sum(1 for q in q_list if q["id"] not in seen_ids)
+        if fresh_count > 0:
+            base_score += 0.5
+
+        # Add slight jitter for natural variety
+        jitter = random.uniform(0.0, 0.4)
+        competency_scores.append((comp, base_score + jitter))
+
+    # Sort competencies by score descending
+    competency_scores.sort(key=lambda x: x[1], reverse=True)
+
+    selected_middle_slots: List[QuestionSlot] = []
+    transitions = TRANSITIONS_BY_LANG.get(lang, TRANSITIONS_BY_LANG["en"])
+
+    for comp, _score in competency_scores:
+        if len(selected_middle_slots) >= needed_middle:
+            break
+
+        q_list = comp_groups[comp]
+        # Choose fresh questions first
+        fresh_qs = [q for q in q_list if q["id"] not in seen_ids]
+        candidate_q = random.choice(fresh_qs) if fresh_qs else random.choice(q_list)
+
+        # Transition acknowledgment phrase
+        trans_phrase = transitions[len(selected_middle_slots) % len(transitions)]
+        tts_text = f"{trans_phrase} {candidate_q['question']}"
+
+        slot = QuestionSlot(
+            question_id=candidate_q["id"],
+            competency=candidate_q["competency"],
+            competency_label=candidate_q["competency_label"],
+            title=candidate_q["question"],
+            signals=candidate_q.get("signals", []),
+            follow_up_probes=candidate_q.get("follow_up_probes", []),
+            expected_duration_seconds=candidate_q.get("expected_duration_seconds", 120),
+            star_applicable=candidate_q.get("star_applicable", True),
+            tts_text=tts_text,
+            question_type="behavioral",
+        )
+        selected_middle_slots.append(slot)
+
+    # Assemble full queue
+    full_queue: List[QuestionSlot] = [intro_slot] + selected_middle_slots + [closing_slot]
+    state.question_queue = full_queue
+
+    return state
 
 
 def pop_next_question(state: InterviewState) -> Optional[QuestionSlot]:
     """
-    Advance the interview: pop the next question from the queue,
-    accounting for real elapsed time vs. budget.
-
+    Advance the interview: pop the next question from the queue.
     Returns None if the interview is complete (time expired or queue empty).
     """
     if state.is_time_expired:
@@ -523,22 +503,12 @@ def pop_next_question(state: InterviewState) -> Optional[QuestionSlot]:
     if not state.question_queue:
         return None
 
-    # Adaptive: if we're running behind, drop lowest-priority (last) category slot
-    next_slot = state.question_queue[0]
-
-    # Check if there's enough time for this question
-    if next_slot.estimated_seconds > state.remaining_seconds:
-        # Only skip if we're really tight — allow going slightly over for last question
-        if state.questions_asked > 0 and next_slot.estimated_seconds > state.remaining_seconds * 1.5:
-            # Drop remaining queue items until we find one that fits, or give up
-            state.question_queue.pop(0)
-            return pop_next_question(state)
-
-    state.question_queue.pop(0)
+    next_slot = state.question_queue.pop(0)
     state.current_question_slot = next_slot
     state.follow_up_count_this_question = 0
     state.asked_question_ids.append(next_slot.question_id)
-    state.covered_category_ids.add(next_slot.category_id)
+    state.covered_competencies.add(next_slot.competency)
+
     return next_slot
 
 
@@ -549,9 +519,9 @@ def record_answer(
 ) -> None:
     """
     Update elapsed time after an answer is received.
-    Dynamically recomputes remaining budget.
+    Dynamically tracks remaining budget.
     """
-    actual = answer_duration_seconds + PER_QUESTION_OVERHEAD_SECONDS
+    actual = max(1.0, float(answer_duration_seconds or 0.0)) + PER_QUESTION_OVERHEAD_SECONDS
     state.elapsed_seconds += actual
 
     if is_follow_up:
@@ -561,210 +531,81 @@ def record_answer(
 
 def can_add_follow_up(state: InterviewState) -> bool:
     """
-    Deterministic check: can a follow-up be asked for the current question?
-    Caps: 1 follow-up per question, 3 per session total.
+    Deterministic check: can a follow-up probe be triggered?
+    Enforces strict bounds:
+    - At most 1 follow-up per question
+    - At most 2 follow-ups per session total
+    - Current question must have configured follow-up probes
+    - Remaining budget must have at least 90s left
     """
     if state.follow_up_count_this_question >= MAX_FOLLOW_UPS_PER_QUESTION:
         return False
     if state.follow_up_count_total >= MAX_FOLLOW_UPS_PER_SESSION:
         return False
-    # Also need enough time for a follow-up
-    follow_up_budget = DIFFICULTY_TIME_BUDGET.get(
-        state.current_question_slot.difficulty if state.current_question_slot else "Intermediate",
-        120
-    ) * 0.6   # follow-ups are typically shorter
-    return state.remaining_seconds >= follow_up_budget
+    if not state.current_question_slot or not state.current_question_slot.follow_up_probes:
+        return False
+    # Check remaining time
+    return state.remaining_seconds >= 90.0
 
 
 def build_follow_up_slot(
     state: InterviewState,
-    follow_up_focus: str,
+    follow_up_focus: Optional[str] = None,
 ) -> QuestionSlot:
-    """Build a synthetic follow-up slot from the current question context."""
-    if not state.current_question_slot:
-        raise ValueError("No current question to build follow-up from")
+    """
+    Build a follow-up slot using the parent question's configured probes.
+    """
     parent = state.current_question_slot
+    if not parent:
+        raise ValueError("No current question to build follow-up from")
+
+    lang = state.language or "en"
+    probe_text = follow_up_focus
+    if not probe_text and parent.follow_up_probes:
+        probe_text = parent.follow_up_probes[0]
+    if not probe_text:
+        probe_text = "Could you walk me through the specific outcome or result of that situation?"
+
+    # Natural prefix
+    if lang == "fr":
+        tts_text = f"Merci. Pourriez-vous préciser un peu plus : {probe_text}"
+    elif lang == "nl":
+        tts_text = f"Dank u. Kunt u daar iets specifieker op ingaan: {probe_text}"
+    else:
+        tts_text = f"Thanks for sharing that. Could you tell me a bit more specifically: {probe_text}"
+
     return QuestionSlot(
-        question_id=parent.question_id,   # same question, different angle
-        domain_id=parent.domain_id,
-        category_id=parent.category_id,
-        category_name=parent.category_name,
-        topic=parent.topic,
-        title=f"Follow-up: {follow_up_focus[:80]}",
-        difficulty=parent.difficulty,
-        estimated_seconds=int(DIFFICULTY_TIME_BUDGET.get(parent.difficulty, 120) * 0.6),
+        question_id=f"{parent.question_id}_followup",
+        competency=parent.competency,
+        competency_label=parent.competency_label,
+        title=probe_text,
+        signals=parent.signals,
+        follow_up_probes=[],
+        expected_duration_seconds=75,
+        star_applicable=parent.star_applicable,
         is_follow_up=True,
-        follow_up_focus=follow_up_focus,
-        question_type=parent.question_type,
-        tts_text=f"Thanks for explaining that. Let me probe a bit further on {follow_up_focus}: how would you approach that?",
+        follow_up_focus=probe_text,
         parent_question_id=parent.question_id,
+        tts_text=tts_text,
+        question_type="follow_up",
     )
-
-
-def compute_category_distribution(state: InterviewState) -> Dict[str, int]:
-    """Return planned question count per category (for setup preview)."""
-    dist: Dict[str, int] = {}
-    for slot in state.question_queue:
-        cat = slot.category_name
-        dist[cat] = dist.get(cat, 0) + 1
-    return dist
 
 
 def plan_summary(state: InterviewState) -> Dict[str, Any]:
     """Human-readable summary of the interview plan."""
+    cat_dist: Dict[str, int] = {}
+    for slot in state.question_queue:
+        cat = slot.competency_label
+        cat_dist[cat] = cat_dist.get(cat, 0) + 1
+
     return {
         "planned_question_count": len(state.question_queue),
         "estimated_duration_minutes": round(
-            sum(s.estimated_seconds + PER_QUESTION_OVERHEAD_SECONDS for s in state.question_queue) / 60, 1
+            sum(s.expected_duration_seconds + PER_QUESTION_OVERHEAD_SECONDS for s in state.question_queue) / 60, 1
         ),
-        "category_distribution": compute_category_distribution(state),
+        "category_distribution": cat_dist,
         "difficulty": state.difficulty,
         "domain_id": state.domain_id,
+        "language": state.language,
+        "target_role": state.target_role or state.role,
     }
-
-
-# ---------------------------------------------------------------------------
-# Private helpers
-# ---------------------------------------------------------------------------
-
-def _filter_by_difficulty(
-    questions: List[Dict[str, Any]],
-    difficulty: str,
-) -> List[Dict[str, Any]]:
-    if difficulty == "Mixed":
-        return questions
-    return [q for q in questions if q.get("difficulty", "Intermediate") == difficulty]
-
-
-def _allocate_slots(
-    category_groups: Dict[str, List[Dict[str, Any]]],
-    total_budget: int,
-    difficulty: str,
-    job_tags: Set[str],
-    weak_cats: Set[str],
-) -> Dict[str, int]:
-    """
-    Duration-aware proportional slot allocation.
-
-    If total_budget allows fewer questions than there are categories (e.g. 10-minute interview),
-    selects a balanced subset of categories based on weights (weak areas, job tags, variety)
-    without forcing all categories into a short interview.
-
-    If total_budget allows >= len(categories) questions, ensures every category gets at least 1 (floor=1),
-    and distributes remainder proportionally.
-    """
-    avg_q_time = DIFFICULTY_TIME_BUDGET.get(difficulty, 120) + PER_QUESTION_OVERHEAD_SECONDS
-    max_questions = max(1, int(total_budget / avg_q_time))
-
-    # Calculate weights
-    weights: Dict[str, float] = {}
-    for cat_id, questions in category_groups.items():
-        base = math.sqrt(len(questions))
-        if job_tags:
-            cat_tags = set()
-            for q in questions[:20]:
-                cat_tags.update(t.lower() for t in q.get("tags", []))
-            if cat_tags & job_tags:
-                base *= 1.5
-        if cat_id in weak_cats:
-            base *= 2.0
-        weights[cat_id] = base
-
-    categories = list(category_groups.keys())
-    # Sort categories deterministically: highest weight first, then category name
-    categories.sort(key=lambda c: (weights.get(c, 0.0), c), reverse=True)
-
-    slots: Dict[str, int] = {c: 0 for c in categories}
-
-    if max_questions < len(categories):
-        # Subset allocation: select the top max_questions categories with highest weight
-        for cat_id in categories[:max_questions]:
-            slots[cat_id] = 1
-        return {k: v for k, v in slots.items() if v > 0}
-
-    # Every category gets at least 1
-    for cat_id in categories:
-        slots[cat_id] = 1
-
-    remaining = max_questions - len(categories)
-    if remaining > 0:
-        total_weight = sum(weights.values()) or 1.0
-        for cat_id in categories:
-            add_count = math.floor((weights[cat_id] / total_weight) * remaining)
-            slots[cat_id] += add_count
-
-        diff = max_questions - sum(slots.values())
-        idx = 0
-        while diff > 0 and idx < len(categories):
-            slots[categories[idx % len(categories)]] += 1
-            diff -= 1
-            idx += 1
-
-    return {k: v for k, v in slots.items() if v > 0}
-
-
-def _select_questions(
-    pool: List[Dict[str, Any]],
-    count: int,
-    previously_asked: Set[str],
-) -> List[Dict[str, Any]]:
-    """
-    Select `count` questions from pool.
-    Prefers questions NOT in previously_asked (spaced-repetition variety).
-    Falls back to previously-asked questions if pool is small.
-    """
-    fresh = [q for q in pool if q["id"] not in previously_asked]
-    seen = [q for q in pool if q["id"] in previously_asked]
-
-    random.shuffle(fresh)
-    random.shuffle(seen)
-
-    combined = fresh + seen
-    return combined[:count]
-
-
-def _estimate_question_seconds(q: Dict[str, Any]) -> int:
-    """
-    Estimate expected answer time for a question.
-    Uses difficulty tag as primary signal (confirmed in Phase 0: no explicit type tag).
-    Secondary signal: content length as a complexity proxy.
-    """
-    difficulty = q.get("difficulty", "Intermediate")
-    base = DIFFICULTY_TIME_BUDGET.get(difficulty, 120)
-
-    # Secondary signal: long content suggests complex answer
-    content = q.get("content") or q.get("markdown_content") or ""
-    word_count = len(content.split())
-    if word_count > 300:
-        base = min(base + 30, 240)
-    elif word_count < 80:
-        base = max(base - 20, 60)
-
-    return base
-
-
-def _trim_to_budget(
-    queue: List[QuestionSlot],
-    total_budget: int,
-) -> List[QuestionSlot]:
-    """Trim queue to fit the time budget, preserving the opening turn."""
-    result = []
-    accumulated = 0
-    for idx, slot in enumerate(queue):
-        cost = slot.estimated_seconds + PER_QUESTION_OVERHEAD_SECONDS
-        if accumulated + cost <= total_budget or idx == 0:
-            result.append(slot)
-            accumulated += cost
-        else:
-            break
-    return result
-
-
-def _empty_state(session_id, domain_id, difficulty, duration_minutes, total_budget):
-    return InterviewState(
-        session_id=session_id,
-        domain_id=domain_id,
-        difficulty=difficulty,
-        duration_minutes=duration_minutes,
-        total_budget_seconds=total_budget,
-    )

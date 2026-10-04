@@ -264,6 +264,7 @@ from .schemas_interview_prep import (
 from .services.interview_prep import interview_prep_service
 from .services.interview_prep_importer import InterviewPrepImporter
 from .schemas_mock_interview import (
+    DeleteSessionResponse,
     EndSessionRequest,
     EndSessionResponse,
     MockInterviewAssessmentResponse,
@@ -2861,10 +2862,14 @@ def create_mock_interview_session(
         return mock_interview_service.create_session(
             db=db,
             user_id=effective_user_id,
-            domain_id=payload.domain_id,
+            domain_id=payload.domain_id or "behavioral",
             difficulty=payload.difficulty,
             duration_minutes=payload.duration_minutes,
             role=payload.role,
+            language=payload.language,
+            personalize_resume=payload.personalize_resume,
+            voice_id=payload.voice_id,
+            avatar_mode=payload.avatar_mode,
             job_id=payload.job_id,
             resume_id=payload.resume_id,
         )
@@ -2923,6 +2928,8 @@ def submit_mock_interview_turn(
             stt_engine=payload.stt_engine,
             stt_confidence=payload.stt_confidence,
             answer_duration_seconds=payload.answer_duration_seconds,
+            longest_pause_seconds=payload.longest_pause_seconds,
+            time_to_first_word_seconds=payload.time_to_first_word_seconds,
         )
         if result.interview_complete:
             background_tasks.add_task(_run_mock_interview_evaluation_bg, session_id)
@@ -3020,6 +3027,28 @@ def list_mock_interview_sessions(
     """List historical mock interview sessions for current user."""
     effective_user_id = _resolve_mock_interview_user_id(user, db)
     return mock_interview_service.get_session_history(db=db, user_id=effective_user_id, limit=limit, offset=offset)
+
+
+@app.delete(
+    "/api/v1/mock-interview/sessions/{session_id}",
+    response_model=DeleteSessionResponse,
+    tags=["mock-interview"],
+)
+def delete_mock_interview_session(
+    session_id: int = Path(..., gt=0),
+    user: User | None = Depends(get_optional_current_user),
+    db: Session = Depends(get_db),
+) -> DeleteSessionResponse:
+    """Delete a mock interview session and its associated data."""
+    effective_user_id = _resolve_mock_interview_user_id(user, db)
+    try:
+        mock_interview_service.delete_session(db=db, session_id=session_id, user_id=effective_user_id)
+        return DeleteSessionResponse(session_id=session_id, deleted=True)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        get_logger().error(f"Error deleting mock interview session {session_id}: {exc}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to delete interview session.")
 
 
 @app.post(

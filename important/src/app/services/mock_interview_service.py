@@ -32,6 +32,7 @@ from ..models_mock_interview import (
 from ..models import Resume, Job
 from ..repositories.resume import get_active_resume, list_user_resumes
 from ..schemas_mock_interview import (
+    DeleteSessionResponse,
     EndSessionResponse,
     MockInterviewAssessmentResponse,
     MockInterviewSetupResponse,
@@ -44,22 +45,30 @@ from ..schemas_mock_interview import (
     TurnSubmitResponse,
 )
 from .interview_prep import interview_prep_service, DOMAIN_DEFINITIONS
+from .interview_metrics import (
+    compute_turn_metrics,
+    aggregate_session_delivery,
+)
 from .mock_interview_engine import (
     InterviewState,
     QuestionSlot,
     build_interview_plan,
     build_follow_up_slot,
     can_add_follow_up,
+    load_behavioral_questions,
     plan_summary,
     pop_next_question,
     record_answer,
+    WRAPUP_BY_LANG,
 )
 from .mock_interview_ai import (
+    build_session_timeline_data,
     classify_follow_up,
     compute_skill_matrix as ai_compute_skill_matrix,
     detect_domain_from_resume,
     evaluate_answer,
     extract_key_concepts_heuristic,
+    generate_behavioral_action_plan,
     generate_recommendations,
 )
 from .transcript_normalizer import transcript_normalizer
@@ -94,75 +103,56 @@ class MockInterviewService:
         self,
         db: Session,
         user_id: int,
-        domain_id: str,
-        difficulty: str,
-        duration_minutes: int,
+        domain_id: Optional[str] = "behavioral",
+        difficulty: str = "Standard",
+        duration_minutes: int = 15,
         role: Optional[str] = None,
+        language: str = "en",
+        personalize_resume: bool = True,
+        voice_id: Optional[str] = None,
+        avatar_mode: str = "voice_avatar",
         job_id: Optional[int] = None,
         resume_id: Optional[int] = None,
     ) -> MockInterviewSetupResponse:
         """
-        Create a new interview session with a planned question queue.
-        Returns setup info including the planned distribution (not a fixed promise).
+        Create a new behavioral interview session with deterministic question planning.
+        Supports EN/FR/NL, role-weighting, and resume personalization.
         """
-        # Validate domain
-        domain_def = next((d for d in DOMAIN_DEFINITIONS if d["id"] == domain_id), None)
-        if not domain_def:
-            raise ValueError(f"Unknown domain '{domain_id}'")
+        effective_domain_id = domain_id or "behavioral"
+        known_domains = {"behavioral", *(d["id"] for d in DOMAIN_DEFINITIONS)}
+        if effective_domain_id not in known_domains:
+            raise ValueError(f"Unknown domain '{effective_domain_id}'")
+        lang = language.lower() if language in ("en", "fr", "nl") else "en"
+        clean_role = role.strip() if (role and isinstance(role, str) and role.strip()) else None
 
-        # Load question bank
-        questions = interview_prep_service._load_domain_questions(domain_id)
-        if not questions:
-            raise ValueError(f"No questions found for domain '{domain_id}'")
-
-        # Get previously asked question IDs for this user (spaced-repetition)
-        prev_asked = self._get_user_previous_question_ids(db, user_id, domain_id)
+        # Previous questions asked for this user (for variety without repeats)
+        prev_asked = self._get_user_previous_question_ids(db, user_id, effective_domain_id)
 
         # Job-specific skill tags for biasing
         job_skill_tags: Set[str] = set()
         if job_id:
-            job_tags = self._get_job_skill_tags(db, job_id)
-            job_skill_tags = job_tags
+            job_skill_tags = self._get_job_skill_tags(db, job_id)
 
-        # Weak area category IDs (from most recent session with poor performance)
-        weak_cat_ids: Set[str] = set()
+        # If personalize_resume is enabled and resume_id not explicitly given, try to find active resume
+        if personalize_resume and not resume_id:
+            active_res = get_active_resume(db, user_id)
+            if active_res:
+                resume_id = active_res.id
 
-        # Load behavioral questions from interview_prep_service if available
-        beh_questions = []
-        try:
-            beh_prep = interview_prep_service.get_behavioral_prep("en")
-            if beh_prep and getattr(beh_prep, "questions", None):
-                for bq in beh_prep.questions:
-                    beh_questions.append({
-                        "id": getattr(bq, "id", f"beh_{len(beh_questions)}"),
-                        "category_id": "behavioral_" + getattr(bq, "category", "general"),
-                        "category_name": "Behavioral (" + getattr(bq, "category", "general").replace("_", " ").title() + ")",
-                        "topic": getattr(bq, "category", "Behavioral").replace("_", " ").title(),
-                        "title": getattr(bq, "question", ""),
-                        "difficulty": difficulty,
-                        "estimated_seconds": 120,
-                    })
-        except Exception as e:
-            logger.warning(f"Could not load behavioral questions: {e}")
+        domain_name = None
+        if effective_domain_id != "behavioral":
+            d_def = next((d for d in DOMAIN_DEFINITIONS if d["id"] == effective_domain_id), None)
+            domain_name = d_def["title"] if d_def else effective_domain_id.replace("_", " ").title()
 
-        # Normalize and sanitize optional role (handles "", "   ", None)
-        clean_role = role.strip() if (role and isinstance(role, str) and role.strip()) else None
-
-        # Build plan with natural introduction and behavioral integration
+        # Build deterministic behavioral plan
         state = build_interview_plan(
-            domain_questions=questions,
-            domain_id=domain_id,
-            difficulty=difficulty,
             duration_minutes=duration_minutes,
-            previously_asked_ids=prev_asked,
-            job_skill_tags=job_skill_tags,
-            weak_category_ids=weak_cat_ids,
-            session_id=0,  # will be updated after DB insert
+            session_id=0,
+            language=lang,
             role=clean_role,
-            domain_title=domain_def["title"],
-            behavioral_questions=beh_questions,
-            include_intro=True,
-            include_behavioral=True,
+            domain_name=domain_name,
+            job_skill_tags=job_skill_tags,
+            previously_asked_ids=prev_asked,
         )
 
         summary = plan_summary(state)
@@ -170,10 +160,15 @@ class MockInterviewService:
         # Persist session
         session = MockInterviewSession(
             user_id=user_id,
-            domain_id=domain_id,
+            domain_id=effective_domain_id,
             role=clean_role,
-            difficulty=difficulty,
+            difficulty=difficulty or "Standard",
             duration_minutes=duration_minutes,
+            language=lang,
+            interview_type="behavioral",
+            personalize_resume=personalize_resume,
+            voice_id=voice_id,
+            avatar_mode=avatar_mode or "voice_avatar",
             job_id=job_id,
             resume_id=resume_id,
             status="setup",
@@ -188,12 +183,23 @@ class MockInterviewService:
         db.commit()
         db.refresh(session)
 
+        # Localized domain title
+        if lang == "fr":
+            domain_title = "Entretien Comportemental & RH"
+        elif lang == "nl":
+            domain_title = "Gedrags- & HR-Interview"
+        else:
+            domain_title = "Behavioral & HR Mock Interview"
+
         return MockInterviewSetupResponse(
             session_id=session.id,
-            domain_id=domain_id,
-            domain_title=domain_def["title"],
-            difficulty=difficulty,
+            domain_id=effective_domain_id,
+            domain_title=domain_title,
+            difficulty=difficulty or "Standard",
             duration_minutes=duration_minutes,
+            language=lang,
+            avatar_mode=session.avatar_mode,
+            voice_id=session.voice_id,
             planned_question_count=summary["planned_question_count"],
             category_distribution=summary["category_distribution"],
             privacy_notice=PRIVACY_NOTICE,
@@ -260,11 +266,13 @@ class MockInterviewService:
         stt_engine: str,
         stt_confidence: Optional[float],
         answer_duration_seconds: Optional[float],
+        longest_pause_seconds: Optional[float] = None,
+        time_to_first_word_seconds: Optional[float] = None,
     ) -> TurnSubmitResponse:
         """
         Process a submitted answer and determine the next action:
-        1. Record the answer on the current turn
-        2. Run realtime follow-up classification (small LLM call)
+        1. Record the answer on the current turn with deterministic delivery metrics
+        2. Run realtime follow-up classification (small LLM call or rubric check)
         3. If follow-up warranted and bounded: insert follow-up slot
         4. Pop next question from queue or end interview
         """
@@ -284,7 +292,7 @@ class MockInterviewService:
         answer_dur = answer_duration_seconds or 60.0
         current_turn.transcript_text = transcript
 
-        # Context-aware acoustic normalization (ASR error correction without over-correction)
+        # Context-aware acoustic normalization
         canonical, applied_corrections = transcript_normalizer.normalize(
             raw_text=transcript,
             domain_id=current_turn.question_domain_id,
@@ -298,14 +306,29 @@ class MockInterviewService:
         current_turn.answered_at = now
         current_turn.answer_duration_seconds = answer_dur
 
+        # Compute deterministic delivery metrics in code (not LLM)
+        turn_metrics = compute_turn_metrics(
+            text=canonical or transcript or "",
+            duration_seconds=answer_dur,
+            language=session.language or "en",
+            longest_pause_seconds=longest_pause_seconds,
+            time_to_first_word_seconds=time_to_first_word_seconds,
+        )
+        current_turn.wpm = turn_metrics.get("wpm")
+        current_turn.filler_word_count = turn_metrics.get("filler_word_count")
+        current_turn.longest_pause_seconds = turn_metrics.get("longest_pause_seconds")
+        current_turn.time_to_first_word_seconds = turn_metrics.get("time_to_first_word_seconds")
+        current_turn.i_vs_we_ratio = turn_metrics.get("i_vs_we_ratio")
+        current_turn.delivery_metrics = turn_metrics
+
         record_answer(state, answer_dur, is_follow_up=current_turn.is_follow_up)
 
         # Realtime follow-up classification
         follow_up_triggered = False
         follow_up_verdict = {"strength": "adequate", "follow_up_suggested": False, "follow_up_focus": ""}
 
-        if not current_turn.is_follow_up:  # Don't do follow-up of follow-up
-            rubric = self._get_or_create_rubric(db, current_turn.question_id, current_turn.question_domain_id)
+        if not current_turn.is_follow_up:  # At most 1 follow-up probe per question
+            rubric = self._get_or_create_rubric(db, current_turn.question_id, current_turn.question_domain_id, session.language or "en")
             key_concepts = rubric.key_concepts or []
 
             if can_add_follow_up(state) and (canonical or transcript).strip():
@@ -327,9 +350,11 @@ class MockInterviewService:
 
         db.flush()
 
-        # Check time budget
+        wrap_msg = WRAPUP_BY_LANG.get(session.language or "en", WRAPUP_BY_LANG["en"])
+
+        # Check time budget or empty queue
         if state.is_time_expired or not state.question_queue:
-            self._end_session_flow(db, session, state, "time_expired")
+            self._end_session_flow(db, session, state, "time_expired" if state.is_time_expired else "no_more_questions")
             return TurnSubmitResponse(
                 turn_id=0,
                 session_id=session.id,
@@ -339,11 +364,7 @@ class MockInterviewService:
                 interview_complete=True,
                 next_question=None,
                 follow_up_triggered=False,
-                message=(
-                    "That brings us to the end of our interview today. "
-                    "Thank you for your time and thoughtful responses. "
-                    "I will now compile your practice assessment report."
-                ),
+                message=wrap_msg,
             )
 
         # Pop next question
@@ -359,11 +380,7 @@ class MockInterviewService:
                 interview_complete=True,
                 next_question=None,
                 follow_up_triggered=False,
-                message=(
-                    "That brings us to the end of our interview today. "
-                    "Thank you for your time and thoughtful responses. "
-                    "I will now compile your practice assessment report."
-                ),
+                message=wrap_msg,
             )
 
         next_turn = self._create_turn(db, session, state, next_slot)
@@ -378,7 +395,7 @@ class MockInterviewService:
             remaining_seconds=state.remaining_seconds,
             questions_asked=state.questions_asked,
             interview_complete=False,
-            next_question=self._slot_to_next_question(next_slot),
+            next_question=self._slot_to_next_question(next_slot, session.voice_id),
             follow_up_triggered=follow_up_triggered,
         )
 
@@ -480,36 +497,25 @@ class MockInterviewService:
                 db.commit()
                 return
 
-            domain_meta = self._load_domain_metadata(session.domain_id)
-            categories = domain_meta.get("categories", [])
-            cat_name_to_id = {c["name"].lower(): c["id"] for c in categories}
-            cat_id_to_name = {c["id"]: c["name"] for c in categories}
-
             evaluation_records: List[Dict[str, Any]] = []
+            turn_metrics_list: List[Dict[str, Any]] = []
 
-            # Evaluate each turn
+            # Personalization context from resume if enabled
+            resume_text = None
+            if getattr(session, "personalize_resume", True) and session.resume_id:
+                res_obj = db.query(Resume).filter(Resume.id == session.resume_id).first()
+                if res_obj:
+                    resume_text = res_obj.raw_text
+
             for turn in turns:
-                is_intro = turn.question_id.startswith("intro_") or turn.question_category.lower() == "introduction & background"
-                is_beh = "behavioral" in turn.question_category.lower() or "behavioral" in turn.question_id.lower() or is_intro
-                q_type = "introductory" if is_intro else ("behavioral" if is_beh else "technical")
-
-                if is_intro:
-                    true_cat_id = "introduction"
-                    true_cat_name = "Introduction & Background"
-                elif is_beh:
-                    true_cat_id = "behavioral"
-                    true_cat_name = "Behavioral & Communication"
-                else:
-                    true_cat_id = cat_name_to_id.get(turn.question_category.lower())
-                    if not true_cat_id and turn.question_category in cat_id_to_name:
-                        true_cat_id = turn.question_category
-                    if not true_cat_id:
-                        true_cat_id = turn.question_domain_id
-                    true_cat_name = cat_id_to_name.get(true_cat_id, turn.question_category)
+                is_intro = turn.question_id.startswith("intro_") or "introduction" in (turn.question_category or "").lower()
+                is_wrapup = "wrapup" in turn.question_id.lower() or "questions_for_interviewer" in (turn.question_category or "").lower()
+                q_type = "introductory" if is_intro else ("wrap_up" if is_wrapup else "behavioral")
+                true_cat_id = (turn.question_category or "general").lower().replace(" ", "_")
+                true_cat_name = turn.question_category or "Behavioral"
 
                 canonical_text = turn.canonical_transcript or turn.transcript_text
                 if not turn.transcript_text and not canonical_text:
-                    # Turn was explicitly reached and skipped
                     eval_record = MockAnswerEvaluation(
                         turn_id=turn.id,
                         evaluation_error="No answer provided — turn was skipped",
@@ -517,7 +523,6 @@ class MockInterviewService:
                     db.add(eval_record)
                     evaluation_records.append({
                         "question_id": turn.question_id,
-                        "parent_question_id": getattr(turn, "parent_question_id", None),
                         "category_id": true_cat_id,
                         "category_name": true_cat_name,
                         "topic": turn.question_topic,
@@ -527,14 +532,13 @@ class MockInterviewService:
                         "correctness": 0.0,
                         "completeness": 0.0,
                         "relevance": 0.0,
-                        "technical_depth": 0.0,
                         "clarity": 0.0,
                         "demonstrated_status": "not_demonstrated",
                         "evaluation_error": "No answer provided — turn was skipped",
                     })
                     continue
 
-                rubric = self._get_or_create_rubric(db, turn.question_id, turn.question_domain_id)
+                rubric = self._get_or_create_rubric(db, turn.question_id, turn.question_domain_id, session.language or "en")
                 key_concepts = rubric.key_concepts or []
 
                 result = evaluate_answer(
@@ -547,12 +551,22 @@ class MockInterviewService:
                     topic=turn.question_topic,
                     raw_transcript=turn.transcript_text,
                     canonical_transcript=canonical_text,
+                    signals=key_concepts,
+                    resume_text=resume_text,
                 )
 
-                star_notes = ""
-                if result.get("star_breakdown"):
-                    sb = result["star_breakdown"]
-                    star_notes = f" [STAR Coverage - S: {int((sb.get('situation') or 0)*100)}%, T: {int((sb.get('task') or 0)*100)}%, A: {int((sb.get('action') or 0)*100)}%, R: {int((sb.get('result') or 0)*100)}%]"
+                # Ensure delivery metrics are collected
+                if getattr(turn, "delivery_metrics", None):
+                    turn_metrics_list.append(turn.delivery_metrics)
+                else:
+                    tm = compute_turn_metrics(
+                        canonical_text or "",
+                        turn.answer_duration_seconds or 60.0,
+                        session.language or "en",
+                        turn.longest_pause_seconds,
+                        turn.time_to_first_word_seconds,
+                    )
+                    turn_metrics_list.append(tm)
 
                 eval_obj = MockAnswerEvaluation(
                     turn_id=turn.id,
@@ -562,11 +576,20 @@ class MockInterviewService:
                     technical_depth=result.get("technical_depth"),
                     clarity=result.get("clarity"),
                     star_breakdown=result.get("star_breakdown"),
+                    star_situation=result.get("star_situation") or (result.get("star_breakdown") or {}).get("situation"),
+                    star_task=result.get("star_task") or (result.get("star_breakdown") or {}).get("task"),
+                    star_action=result.get("star_action") or (result.get("star_breakdown") or {}).get("action"),
+                    star_result=result.get("star_result") or (result.get("star_breakdown") or {}).get("result"),
+                    star_evidence=result.get("star_evidence"),
+                    stronger_version=result.get("stronger_version") or result.get("better_answer_notes"),
+                    specificity_score=result.get("specificity_score"),
+                    ownership_score=result.get("ownership_score"),
+                    measurable_outcome_score=result.get("measurable_outcome_score"),
                     missing_concepts=result.get("missing_concepts", []),
                     incorrect_claims=result.get("incorrect_claims", []),
                     positive_points=result.get("positive_points", []),
                     improvement_points=result.get("improvement_points", []),
-                    better_answer_notes=(result.get("better_answer_notes", "") or "") + star_notes,
+                    better_answer_notes=result.get("better_answer_notes"),
                     ai_model_used=result.get("ai_model_used"),
                     evaluation_error=result.get("evaluation_error"),
                 )
@@ -587,10 +610,11 @@ class MockInterviewService:
 
             db.flush()
 
-            # Compute skill matrix & scores (deterministic aggregation — no LLM)
+            # Aggregate scores deterministically
+            categories_map = {rec["category_id"]: rec["category_name"] for rec in evaluation_records}
             sm_result = ai_compute_skill_matrix(
                 evaluation_records,
-                {cat["id"]: cat["name"] for cat in categories},
+                categories_map,
             )
             (
                 skill_matrix,
@@ -601,47 +625,84 @@ class MockInterviewService:
                 beh_score,
             ) = sm_result
 
+            # Delivery snapshot across all answers
+            delivery_snapshot = aggregate_session_delivery(turn_metrics_list)
+
+            # Timeline data
+            timeline_turns = []
+            for turn in turns:
+                t_eval = turn.evaluation
+                timeline_turns.append({
+                    "turn_index": turn.turn_index,
+                    "question_id": turn.question_id,
+                    "question_title": turn.question_title,
+                    "competency": turn.question_category or "Behavioral",
+                    "transcript": turn.canonical_transcript or turn.transcript_text or "",
+                    "answer_duration_seconds": turn.answer_duration_seconds or 60.0,
+                    "wpm": getattr(turn, "wpm", None),
+                    "filler_word_count": getattr(turn, "filler_word_count", 0) or 0,
+                    "longest_pause_seconds": getattr(turn, "longest_pause_seconds", 0.0) or 0.0,
+                    "score": t_eval.correctness if t_eval and t_eval.correctness is not None else 0.5,
+                    "star_verdict": getattr(t_eval, "star_verdict", None) if t_eval else None,
+                    "positive_points": t_eval.positive_points if t_eval else [],
+                    "improvement_points": t_eval.improvement_points if t_eval else [],
+                })
+            timeline = build_session_timeline_data(timeline_turns, total_duration_minutes=session.duration_minutes)
+
+            # Action plan linking to HR prep
+            action_plan = generate_behavioral_action_plan(weak_areas, language=session.language or "en")
+
+            # Recommendations
             recommendations = generate_recommendations(
                 weak_areas,
                 session.domain_id,
-                domain_meta,
+                {"categories": [{"id": k, "name": v} for k, v in categories_map.items()]},
                 weak_area_details=sm_result.weak_area_details,
             )
 
-            # Persist assessment with separate technical & behavioral breakdown
+            # Headline strengths and improvements
+            headline_strengths = strengths[:3]
+            headline_improvements = weak_areas[:3]
+            competency_scores = {
+                (entry.get("category_id") or entry.get("category_name")): entry.get("score")
+                for entry in skill_matrix
+                if isinstance(entry, dict)
+            }
+
             assessment = MockInterviewAssessment(
                 session_id=session_id,
                 overall_score=overall_score,
                 skill_matrix={
                     "entries": skill_matrix,
-                    "technical_score": tech_score,
-                    "behavioral_score": beh_score,
+                    "behavioral_score": overall_score,
                     "strengths": strengths,
-                    "assessed_domains": sm_result.assessed_domains,
-                    "unassessed_domains": sm_result.unassessed_domains,
+                    "weak_areas": weak_areas,
                     "weak_area_details": sm_result.weak_area_details,
                     "strength_details": sm_result.strength_details,
                     "questions_asked": sm_result.questions_asked,
                     "questions_answered": sm_result.questions_answered,
-                    "unassessed_disclaimer": sm_result.unassessed_disclaimer,
                 },
                 weak_areas=weak_areas,
                 recommendations=recommendations,
+                delivery_summary=delivery_snapshot,
+                competency_scores=competency_scores,
+                timeline_data=timeline,
+                action_plan=action_plan,
                 summary_text=self._build_summary_text(
                     overall_score=overall_score,
                     weak_areas=weak_areas,
                     question_count=sm_result.questions_answered,
-                    technical_score=tech_score,
-                    behavioral_score=beh_score,
-                    unassessed_domains=sm_result.unassessed_domains,
+                    technical_score=None,
+                    behavioral_score=overall_score,
+                    unassessed_domains=None,
                 ),
-                ai_model_used=evaluation_records[0].get("ai_model_used") if evaluation_records else None,
+                ai_model_used=evaluation_records[0].get("ai_model_used") if evaluation_records else "deterministic",
             )
             db.add(assessment)
 
             session.evaluation_status = "completed"
             db.commit()
-            logger.info(f"Post-interview evaluation complete for session {session_id}: overall={overall_score}, tech={tech_score}, beh={beh_score}")
+            logger.info(f"Post-interview behavioral evaluation complete for session {session_id}: overall={overall_score}")
 
         except Exception as e:
             logger.error(f"Post-interview evaluation failed for session {session_id}: {e}", exc_info=True)
@@ -692,9 +753,9 @@ class MockInterviewService:
         answer_details = []
         for turn in turns:
             ev = turn.evaluation
-            is_intro = turn.question_id.startswith("intro_") or turn.question_category.lower() == "introduction & background"
-            is_beh = "behavioral" in turn.question_category.lower() or "behavioral" in turn.question_id.lower() or is_intro
-            q_type = "introductory" if is_intro else ("behavioral" if is_beh else "technical")
+            is_intro = turn.question_id.startswith("intro_") or "introduction" in (turn.question_category or "").lower()
+            is_wrapup = "wrapup" in turn.question_id.lower() or "questions_for_interviewer" in (turn.question_category or "").lower()
+            q_type = "introductory" if is_intro else ("wrap_up" if is_wrapup else "behavioral")
 
             ans_score = None
             if ev:
@@ -724,9 +785,9 @@ class MockInterviewService:
                 question_id=turn.question_id,
                 parent_question_id=getattr(turn, "parent_question_id", None),
                 question_title=turn.question_title,
-                category=turn.question_category,
-                topic=turn.question_topic,
-                difficulty=turn.question_difficulty,
+                category=turn.question_category or "Behavioral",
+                topic=turn.question_topic or "Behavioral",
+                difficulty=turn.question_difficulty or "Standard",
                 is_follow_up=turn.is_follow_up,
                 question_type=q_type,
                 transcript=raw_t,
@@ -739,11 +800,17 @@ class MockInterviewService:
                 technical_depth=ev.technical_depth if ev else None,
                 clarity=ev.clarity if ev else None,
                 star_breakdown=getattr(ev, "star_breakdown", None) if ev else None,
+                star_evidence=getattr(ev, "star_evidence", None) if ev else None,
+                star_verdict=getattr(ev, "star_verdict", None) if ev else None,
+                wpm=getattr(turn, "wpm", None),
+                filler_word_count=getattr(turn, "filler_word_count", None),
+                longest_pause_seconds=getattr(turn, "longest_pause_seconds", None),
+                i_vs_we_ratio=getattr(turn, "i_vs_we_ratio", None),
                 missing_concepts=ev.missing_concepts or [] if ev else [],
                 incorrect_claims=ev.incorrect_claims or [] if ev else [],
                 positive_points=ev.positive_points or [] if ev else [],
                 improvement_points=ev.improvement_points or [] if ev else [],
-                better_answer_notes=ev.better_answer_notes if ev else None,
+                better_answer_notes=getattr(ev, "stronger_version", None) or (ev.better_answer_notes if ev else None),
                 evaluation_error=ev.evaluation_error if ev else None,
             ))
 
@@ -807,10 +874,15 @@ class MockInterviewService:
         return MockInterviewAssessmentResponse(
             session_id=session_id,
             overall_score=assessment.overall_score or 0.0,
-            technical_score=tech_score if tech_score is not None else (assessment.overall_score or 0.0),
+            technical_score=tech_score,
             behavioral_score=beh_score if beh_score is not None else (assessment.overall_score or 0.0),
             evaluation_status=session.evaluation_status,
             summary_text=assessment.summary_text,
+            headline_strengths=getattr(assessment, "headline_strengths", None) or strengths[:3],
+            headline_improvements=getattr(assessment, "headline_improvements", None) or (assessment.weak_areas or [])[:3],
+            delivery_snapshot=getattr(assessment, "delivery_snapshot", None),
+            timeline_data=getattr(assessment, "timeline_data", None) or [],
+            action_plan=getattr(assessment, "action_plan", None) or [],
             questions_asked=questions_asked,
             questions_answered=questions_answered,
             assessed_domains=assessed_domains,
@@ -844,48 +916,38 @@ class MockInterviewService:
         current_turn = self._get_current_unanswered_turn(session)
         current_question = None
         if current_turn and session.status == "in_progress":
-            is_intro = current_turn.question_id.startswith("intro_") or current_turn.question_category.lower() == "introduction & background"
-            is_beh = "behavioral" in current_turn.question_category.lower() or "behavioral" in current_turn.question_id.lower() or is_intro
-            q_type = "introductory" if is_intro else ("behavioral" if is_beh else "technical")
+            is_intro = current_turn.question_id.startswith("intro_") or "introduction" in (current_turn.question_category or "").lower()
+            is_wrapup = "wrapup" in current_turn.question_id.lower() or "questions_for_interviewer" in (current_turn.question_category or "").lower()
+            q_type = "introductory" if is_intro else ("wrap_up" if is_wrapup else "behavioral")
             tts = self._build_tts_text(current_turn.question_title, current_turn.is_follow_up, current_turn.follow_up_focus)
-            video_info = None
-            try:
-                from .alex_video_service import alex_video_service
-                video_info = alex_video_service.get_video_for_question(
-                    question_id=current_turn.question_id,
-                    question_text=tts or current_turn.question_title,
-                    domain_id=current_turn.question_domain_id,
-                )
-            except Exception as e:
-                logger.warning(f"Error querying Alex video service for recovery turn '{current_turn.question_id}': {e}")
-
-            video_url = video_info.get("video_path") if video_info else None
-            audio_url = video_info.get("audio_path") if video_info else None
 
             current_question = NextQuestionItem(
                 question_id=current_turn.question_id,
                 question_title=current_turn.question_title,
                 domain_id=current_turn.question_domain_id,
-                category=current_turn.question_category,
-                topic=current_turn.question_topic,
-                difficulty=current_turn.question_difficulty,
+                category=current_turn.question_category or "Behavioral",
+                topic=current_turn.question_topic or "Behavioral",
+                difficulty=current_turn.question_difficulty or "Standard",
                 is_follow_up=current_turn.is_follow_up,
                 follow_up_focus=current_turn.follow_up_focus,
                 question_type=q_type,
-                expected_duration_seconds=60 if is_intro else (100 if is_beh else 90),
+                expected_duration_seconds=getattr(current_turn, "expected_duration_seconds", 90) or 90,
                 tts_text=tts,
-                interviewer_name="Alex",
-                interviewer_video_url=video_url,
-                interviewer_audio_url=audio_url,
+                interviewer_name="Alex Mercer",
             )
+
+        title = "Behavioral & HR Interview" if session.domain_id == "behavioral" else domain_def.get("title", session.domain_id)
 
         return SessionStateResponse(
             session_id=session_id,
             status=session.status,
             domain_id=session.domain_id,
-            domain_title=domain_def.get("title", session.domain_id),
+            domain_title=title,
             difficulty=session.difficulty,
             duration_minutes=session.duration_minutes,
+            language=session.language or "en",
+            avatar_mode=session.avatar_mode or "voice_avatar",
+            voice_id=session.voice_id,
             elapsed_seconds=state.elapsed_seconds,
             remaining_seconds=state.remaining_seconds,
             questions_asked=len([t for t in session.turns if t.answered_at]),
@@ -894,6 +956,28 @@ class MockInterviewService:
             started_at=session.started_at,
             ended_at=session.ended_at,
         )
+
+    # ------------------------------------------------------------------
+    # Delete Session
+    # ------------------------------------------------------------------
+
+    def delete_session(
+        self,
+        db: Session,
+        session_id: int,
+        user_id: int,
+    ) -> bool:
+        """Permanently delete an interview session and all associated turns/evaluations."""
+        session = self._get_session_for_user(db, session_id, user_id)
+        for turn in list(session.turns):
+            if turn.evaluation:
+                db.delete(turn.evaluation)
+            db.delete(turn)
+        if session.assessment:
+            db.delete(session.assessment)
+        db.delete(session)
+        db.commit()
+        return True
 
     # ------------------------------------------------------------------
     # Session History
@@ -1092,45 +1176,30 @@ class MockInterviewService:
         db.flush()
         return turn
 
-    def _slot_to_next_question(self, slot: QuestionSlot) -> NextQuestionItem:
+    def _slot_to_next_question(self, slot: QuestionSlot, voice_id: Optional[str] = None) -> NextQuestionItem:
         tts = slot.tts_text or self._build_tts_text(slot.title, slot.is_follow_up, slot.follow_up_focus)
-
-        # Check Alex video registry for pre-generated video
-        video_info = None
-        try:
-            from .alex_video_service import alex_video_service
-            video_info = alex_video_service.get_video_for_question(
-                question_id=slot.question_id,
-                question_text=slot.tts_text or slot.title,
-                domain_id=slot.domain_id,
-            )
-        except Exception as e:
-            logger.warning(f"Error querying Alex video service for '{slot.question_id}': {e}")
-
-        video_url = video_info.get("video_path") if video_info else None
-        audio_url = video_info.get("audio_path") if video_info else None
 
         return NextQuestionItem(
             question_id=slot.question_id,
             question_title=slot.title,
-            domain_id=slot.domain_id,
-            category=slot.category_name,
-            topic=slot.topic,
-            difficulty=slot.difficulty,
+            domain_id=getattr(slot, "domain_id", "behavioral"),
+            category=getattr(slot, "category_name", getattr(slot, "competency_label", "Behavioral")),
+            topic=getattr(slot, "topic", getattr(slot, "competency_label", "Behavioral")),
+            difficulty=getattr(slot, "difficulty", "Standard"),
+            competency=getattr(slot, "competency", None),
+            competency_label=getattr(slot, "competency_label", None),
             is_follow_up=slot.is_follow_up,
             follow_up_focus=slot.follow_up_focus,
-            question_type=getattr(slot, "question_type", "technical"),
-            expected_duration_seconds=getattr(slot, "estimated_seconds", 90),
+            question_type=getattr(slot, "question_type", "behavioral"),
+            expected_duration_seconds=getattr(slot, "expected_duration_seconds", getattr(slot, "estimated_seconds", 90)),
             tts_text=tts,
-            interviewer_name="Alex",
-            interviewer_video_url=video_url,
-            interviewer_audio_url=audio_url,
+            interviewer_name="Alex Mercer",
         )
 
     def _build_tts_text(self, title: str, is_follow_up: bool, focus: Optional[str]) -> str:
         """Build natural-sounding text for TTS playback."""
         if is_follow_up and focus:
-            return f"Good. Let me follow up on that. Can you elaborate on {focus}?"
+            return f"Thank you. Let me follow up on that. Could you share more about {focus}?"
         # Clean markdown from title for TTS
         clean = title.replace("**", "").replace("*", "").replace("`", "").replace("#", "")
         return clean
@@ -1140,8 +1209,9 @@ class MockInterviewService:
         db: Session,
         question_id: str,
         domain_id: str,
+        language: str = "en",
     ) -> MockQuestionRubric:
-        """Get cached rubric or create it from question content (heuristic extraction)."""
+        """Get cached rubric or create it from question content (signals / heuristic extraction)."""
         existing = db.query(MockQuestionRubric).filter(
             MockQuestionRubric.question_id == question_id,
             MockQuestionRubric.domain_id == domain_id,
@@ -1149,27 +1219,41 @@ class MockInterviewService:
         if existing:
             return existing
 
-        # Extract key concepts from question bank content
-        questions = interview_prep_service._load_domain_questions(domain_id)
-        q_data = next((q for q in questions if q.get("id") == question_id), None)
-
         key_concepts = []
-        if q_data:
-            content = q_data.get("content") or q_data.get("markdown_content") or ""
-            key_concepts = extract_key_concepts_heuristic(q_data.get("title", ""), content)
+        extraction_method = "signals"
+
+        # Check behavioral question bank first
+        try:
+            beh_questions = load_behavioral_questions(language)
+            b_match = next((q for q in beh_questions if q.get("id") == question_id), None)
+            if b_match and b_match.get("signals"):
+                key_concepts = b_match.get("signals", [])
+        except Exception as e:
+            logger.warning(f"Could not load behavioral rubric from question bank: {e}")
+
+        if not key_concepts:
+            # Fallback to domain questions if applicable
+            try:
+                questions = interview_prep_service._load_domain_questions(domain_id)
+                q_data = next((q for q in questions if q.get("id") == question_id), None)
+                if q_data:
+                    content = q_data.get("content") or q_data.get("markdown_content") or ""
+                    key_concepts = extract_key_concepts_heuristic(q_data.get("title", ""), content)
+                    extraction_method = "heuristic"
+            except Exception:
+                pass
 
         rubric = MockQuestionRubric(
             question_id=question_id,
             domain_id=domain_id,
             key_concepts=key_concepts,
-            extraction_method="heuristic",
+            extraction_method=extraction_method,
         )
         db.add(rubric)
         try:
             db.flush()
         except Exception:
             db.rollback()
-            # Race condition: another request created it — fetch it
             existing = db.query(MockQuestionRubric).filter(
                 MockQuestionRubric.question_id == question_id,
                 MockQuestionRubric.domain_id == domain_id,

@@ -1263,6 +1263,7 @@ export const InterviewPrepView: React.FC<InterviewPrepViewProps> = ({ onNavigate
         <MockInterviewView
           initialDomainId={selectedDomainId}
           onNavigateBack={() => setActiveTab('technical')}
+          onNavigateToPrepSection={(_section) => setActiveTab('behavioral')}
         />
       )}
     </div>

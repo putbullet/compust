@@ -92,37 +92,43 @@ Before implementing user accounts and private profile operations, the following 
 
 ---
 
-## AI Mock Technical Interview & Skills Assessment
+## AI Behavioral & HR Mock Interview & STAR Assessment
 
-The AI Mock Interview module enables realistic, spoken, turn-based technical interviews grounded in Compust's existing question bank, paired with post-interview evaluation and targeted study plans.
+The AI Behavioral & HR Mock Interview module enables realistic, spoken, turn-based behavioral interviews grounded in a comprehensive 60+ question bank (EN/FR/NL), paired with deterministic delivery metrics, grounded STAR qualitative assessment, an interactive minute-by-minute timeline chart, and targeted action plans.
 
 ### 1. Hard Architectural Separation: Deterministic Logic vs. LLM Reasoning
 - **Deterministic Engine (`src/app/services/mock_interview_engine.py`)**:
-  - Zero LLM calls, zero I/O, zero database queries.
-  - Computes time budget in seconds (`duration_minutes * 60`).
-  - Proportional subdomain allocation with floor=1 guarantee (small categories are not starved; large categories receive proportional representation).
-  - Shuffles questions without replacement; respects spaced-repetition history.
-  - Dynamically trims question queue based on actual elapsed time.
-  - Enforces strict follow-up bounds: max 1 follow-up per primary question, max 3 follow-ups per session total, no follow-ups if time remaining is below budget threshold.
+  - Zero LLM calls for question planning, pacing, or metrics.
+  - Duration budget: 5, 10, 15, or 20 minutes (`duration_minutes * 60`).
+  - Deterministic competency selection across 16 core behavioral competencies (Introduction, Motivation, Teamwork, Conflict Handling, Leadership, Failure/Mistakes, Pressure/Time Management, Adaptability, Problem Solving, Communication, Feedback, Ethics, Career Goals, Why Hire You, Questions for Interviewer).
+  - Target role is optional free text (blank role is a first-class path for general interviews; if provided, weights relevant competencies deterministically).
+  - Respects spaced repetition history without repeats in a single session.
+  - Natural human greeting and varied question acknowledgments.
+  - Enforces strict follow-up bounds: max 1 follow-up probe per question, bounded state machine.
+- **Deterministic Delivery Metrics (`src/app/services/interview_metrics.py`)**:
+  - Computed purely in code from transcript and timestamps (never hallucinated by LLM):
+    - Words Per Minute (WPM)
+    - Multilingual filler word detection (EN/FR/NL)
+    - Longest silence / pause detection
+    - Time-to-first-word
+    - "I" vs "We" ownership ratio
 - **AI Reasoning Layer (`src/app/services/mock_interview_ai.py`)**:
-  - **In-Interview Path**: Exactly one lightweight, low-token Ollama classification per primary answer (`classify_follow_up`) to determine if a follow-up is warranted. Never blocks conversation; fallback to standard question on timeout/failure. Usable on modest local hardware (~0.8B models).
-  - **Post-Interview Path**: Background batch evaluation (`evaluate_answer`) across 5 dimensions (correctness, completeness, relevance, technical depth, clarity), identifying missing concepts and strengths. Evaluates semantic correctness against rubrics, never penalizing different phrasing or syntactic variance.
-  - **Skill Matrix & Recommendations**: Deterministic rollup of scores by category (no hallucinated overall ratings).
+  - **In-Interview Path**: Evaluates answer completeness to bound follow-up decisions. Never speaks evaluation feedback during live conversation.
+  - **Post-Interview Grounded STAR Evaluation**: Structured Ollama calls evaluate Situation, Task, Action, and Result (Present / Partial / Missing), each backed by a verbatim quoted transcript span as evidence.
+  - **Stronger Version Generator**: Constructs a stronger framing strictly from candidate-stated facts, using `[placeholders]` for missing details (never fabricating experience).
+  - **Fallback Safety**: Fallback heuristic assessment when Ollama is unavailable, ensuring the user always receives a complete report.
 
 ### 2. Turn-Based Voice Transport & Local Processing
-- **STT (Speech-to-Text)**: Local `faster-whisper` (`tiny` INT8 model by default on CPU). Audio recorded via browser `MediaRecorder` API and transmitted as a single chunk per turn.
-- **Privacy Posture**: Raw audio is written to a temporary memory file, transcribed, and deleted immediately. No raw audio is ever persisted in database or files. Disclosed transparently to the user on the pre-interview permission screen.
-- **TTS (Text-to-Speech)**: Client-side browser-native `SpeechSynthesis` API. Zero server overhead, zero privacy exposure, instant playback.
-- **Swappability**: STT (`mock_interview_stt.py`), TTS, and the transport layer are decoupled behind standard interfaces. Upgrading to streaming audio (e.g. Pipecat) or local Piper TTS requires modifying only the transport adapter without changing the interview engine or assessment logic.
+- **STT (Speech-to-Text)**: Local `faster-whisper` (`tiny` or `base` INT8 model on CPU) via `mock_interview_stt.py`.
+- **Privacy Posture**: Microphone audio is processed in memory/temp buffer, transcribed, and discarded immediately. Zero audio files are retained on disk. Transcripts and reports are persisted only in the local database.
+- **TTS (Text-to-Speech)**: Local Piper neural TTS on CPU (`mock_interview_tts.py`) and Edge-TTS with natural conversational voices, plus browser-native `SpeechSynthesis` fallback.
+- **Visual Presentation**: Lightweight local 2D animated avatar with amplitude-driven mouth movement, natural blinking, and distinct speaking/listening/processing states, alongside a voice-only minimal orb mode.
 
-### 3. Persistence & Relational Schema (`src/app/models_mock_interview.py`)
-- `MockInterviewSession`: Tracks state machine, duration, configuration, and JSON serialized `interview_plan`.
-- `MockInterviewTurn`: Records turn index, question reference (points to existing static JSON question bank by string ID — no duplicated content), transcript text, STT confidence, and follow-up flags.
-- `MockAnswerEvaluation`: Detailed 5-dimension rubric scores, missing concepts, incorrect claims, and better answer guidance.
-- `MockInterviewAssessment`: Aggregated score, category skill matrix, weak areas, and targeted recommendations.
-- `MockQuestionRubric`: Caches extracted key concepts and evaluation criteria per question to avoid regeneration.
+### 3. Reporting & Timeline Visualization
+- **Interactive Minute-by-Minute Timeline Chart**: Displays each interview question plotted across the elapsed interview minutes, height- and color-coded by quality band, with visual markers for long silences (>5s) and extended answers (>2.5m). Clicking any segment auto-scrolls to that question's STAR evidence card.
+- **Behavioral Action Plan**: Suggests concrete next steps directly linked to matching sections of the Behavioral HR Prep Center.
 
 ### 4. Practice Disclaimer
-All assessment screens and scoring outputs display a mandatory notice: *"This is an AI-generated practice assessment only. It does not predict real interview outcomes or hiring decisions."*
+All assessment screens and reports display a mandatory notice: *"AI-generated practice assessment. Evaluated using local AI against the behavioral interview rubric. This does not predict real-world hiring decisions."*
 
 

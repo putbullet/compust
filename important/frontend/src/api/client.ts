@@ -1636,6 +1636,11 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
+  deleteMockInterviewSession: (sessionId: number) =>
+    request<{ success: boolean; session_id: number; message: string }>(`/mock-interview/sessions/${sessionId}`, {
+      method: 'DELETE',
+    }),
+
   getMockInterviewInterviewerStatus: () =>
     request<any>('/mock-interview/interviewer-status'),
 };
@@ -2361,12 +2366,17 @@ export interface QuestionAIExplainResponse {
 // ---------------------------------------------------------------------------
 
 export interface MockInterviewSetupRequest {
-  domain_id: string;
+  domain_id?: string;
   role?: string | null;
   target_role?: string | null;
-  difficulty: 'Fundamental' | 'Intermediate' | 'Advanced' | 'Mixed' | string;
+  difficulty?: 'Fundamental' | 'Intermediate' | 'Advanced' | 'Mixed' | string;
   duration_minutes: number;
+  language?: 'en' | 'fr' | 'nl' | string;
+  personalize_resume?: boolean;
+  voice_id?: string | null;
+  avatar_mode?: 'voice_avatar' | 'voice_only' | string;
   job_id?: number | null;
+  saved_job_id?: number | null;
   resume_id?: number | null;
 }
 
@@ -2376,6 +2386,9 @@ export interface MockInterviewSetupResponse {
   domain_title: string;
   difficulty: string;
   duration_minutes: number;
+  language?: string;
+  avatar_mode?: string;
+  voice_id?: string | null;
   planned_question_count: number;
   category_distribution: Record<string, number>;
   privacy_notice: string;
@@ -2428,6 +2441,8 @@ export interface TurnSubmitRequest {
   stt_engine?: string;
   stt_confidence?: number | null;
   answer_duration_seconds?: number | null;
+  longest_pause_seconds?: number | null;
+  time_to_first_word_seconds?: number | null;
 }
 
 export interface TurnSubmitResponse {
@@ -2490,12 +2505,21 @@ export interface AnswerEvaluationDetail {
   relevance?: number | null;
   technical_depth?: number | null;
   clarity?: number | null;
-  star_breakdown?: {
-    situation?: number;
-    task?: number;
-    action?: number;
-    result?: number;
-  } | null;
+  star_breakdown?: any | null;
+  star_situation?: string | null;
+  star_task?: string | null;
+  star_action?: string | null;
+  star_result?: string | null;
+  star_evidence?: Record<string, string> | null;
+  stronger_version?: string | null;
+  specificity_score?: number | null;
+  ownership_score?: number | null;
+  measurable_outcome_score?: number | null;
+  wpm?: number | null;
+  filler_word_count?: number | null;
+  longest_pause_seconds?: number | null;
+  time_to_first_word_seconds?: number | null;
+  i_vs_we_ratio?: number | null;
   missing_concepts: string[];
   incorrect_claims: string[];
   positive_points: string[];
@@ -2538,6 +2562,8 @@ export interface MockInterviewAssessmentResponse {
   overall_score: number;
   technical_score?: number | null;
   behavioral_score?: number | null;
+  star_score?: number | null;
+  delivery_score?: number | null;
   evaluation_status: 'pending' | 'processing' | 'completed' | 'failed' | string;
   summary_text?: string | null;
   questions_asked?: number;
@@ -2550,6 +2576,12 @@ export interface MockInterviewAssessmentResponse {
   weak_area_details?: AssessmentEvidenceItem[];
   strengths?: string[];
   strength_details?: AssessmentEvidenceItem[];
+  headline_strengths?: string[];
+  headline_improvements?: string[];
+  timeline_data?: any[];
+  competency_scores?: Record<string, number>;
+  delivery_summary?: any;
+  action_plan?: any[];
   answer_details: AnswerEvaluationDetail[];
   recommendations: AssessmentRecommendation[];
   ai_model_used?: string | null;

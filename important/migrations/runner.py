@@ -116,7 +116,18 @@ def apply_migrations() -> list[str]:
                                         existing_cols = {c[1].lower() for c in col_info}
                                         if col_name.lower() in existing_cols:
                                             continue
-                            connection.execute(text(stmt))
+                            try:
+                                connection.execute(text(stmt))
+                            except Exception as exc:
+                                exc_str = str(exc).lower()
+                                if (
+                                    "duplicate column" in exc_str
+                                    or "duplicate key" in exc_str
+                                    or "already exists" in exc_str
+                                ):
+                                    pass
+                                else:
+                                    raise
 
                 now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
                 connection.execute(

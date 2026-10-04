@@ -204,12 +204,69 @@ class User(Base):
         secondary=user_country_preferences,
         lazy="selectin",
     )
+    contacts: Mapped[list["Contact"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
     resumes: Mapped[list["Resume"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
         lazy="selectin",
         order_by="desc(Resume.created_at)",
     )
+
+
+class Contact(Base):
+    __tablename__ = "contacts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    first_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    last_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    name: Mapped[str] = mapped_column(String(255))
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    phone: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    company: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    role: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    linkedin_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    location: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    tags: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime)
+    updated_at: Mapped[datetime] = mapped_column(DateTime)
+
+    user: Mapped["User"] = relationship(back_populates="contacts")
+    applications: Mapped[list["UserApplication"]] = relationship(
+        back_populates="contact",
+        lazy="selectin",
+    )
+    interactions: Mapped[list["ContactInteraction"]] = relationship(
+        back_populates="contact",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="ContactInteraction.interaction_date.desc()",
+    )
+
+
+class ContactInteraction(Base):
+    __tablename__ = "contact_interactions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    contact_id: Mapped[int] = mapped_column(ForeignKey("contacts.id", ondelete="CASCADE"), index=True)
+    application_id: Mapped[int | None] = mapped_column(
+        ForeignKey("user_applications.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    type: Mapped[str] = mapped_column(String(50))  # email_sent, email_received, linkedin_message, phone_call, meeting, interview, follow_up, note, other
+    interaction_date: Mapped[datetime] = mapped_column(DateTime)
+    summary: Mapped[str] = mapped_column(String(255))
+    details: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime)
+
+    contact: Mapped["Contact"] = relationship(back_populates="interactions")
+    application: Mapped["UserApplication | None"] = relationship(lazy="selectin")
+    user: Mapped["User"] = relationship()
 
 
 class UserPreference(Base):
@@ -293,6 +350,7 @@ class UserApplication(Base):
     source: Mapped[str] = mapped_column(String(100), default="Compust")
     salary: Mapped[str | None] = mapped_column(String(100), nullable=True)
     employment_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    contact_id: Mapped[int | None] = mapped_column(ForeignKey("contacts.id", ondelete="SET NULL"), nullable=True)
     contact_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     contact_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     contact_phone: Mapped[str | None] = mapped_column(String(100), nullable=True)
@@ -308,12 +366,29 @@ class UserApplication(Base):
 
     user: Mapped[User] = relationship(back_populates="applications")
     job: Mapped["Job | None"] = relationship(lazy="selectin")
+    contact: Mapped["Contact | None"] = relationship(back_populates="applications", lazy="selectin")
     history: Mapped[list["UserApplicationHistory"]] = relationship(
         back_populates="application",
         cascade="all, delete-orphan",
         lazy="selectin",
         order_by="UserApplicationHistory.changed_at.asc()",
     )
+
+    @property
+    def effective_title(self) -> str:
+        if self.custom_job_title:
+            return self.custom_job_title
+        if self.job and self.job.title:
+            return self.job.title
+        return f"Application #{self.id}"
+
+    @property
+    def effective_company(self) -> str:
+        if self.custom_company_name:
+            return self.custom_company_name
+        if self.job and self.job.company and self.job.company.name:
+            return self.job.company.name
+        return "Company"
 
 
 class UserApplicationHistory(Base):
@@ -325,6 +400,8 @@ class UserApplicationHistory(Base):
     to_status: Mapped[str] = mapped_column(String(50))
     changed_at: Mapped[datetime] = mapped_column(DateTime)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    event_type: Mapped[str] = mapped_column(String(50), default="status_change", server_default="status_change")
+    event_title: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     application: Mapped[UserApplication] = relationship(back_populates="history")
 

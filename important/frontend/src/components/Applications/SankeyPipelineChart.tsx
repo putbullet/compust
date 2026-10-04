@@ -2,10 +2,13 @@ import React, { useState, useMemo, useRef } from 'react';
 import styled from 'styled-components';
 import { Download, Sun, Moon, Sparkles, Info } from 'lucide-react';
 import type { SankeyData, SankeyNode, SankeyLink } from '../../api/client';
+import { useTranslation } from '../../i18n';
 
 interface SankeyPipelineChartProps {
   data: SankeyData | null;
   loading?: boolean;
+  selectedStage?: string | null;
+  onSelectStage?: (stageId: string, stageLabel: string) => void;
 }
 
 interface ComputedNode {
@@ -32,7 +35,44 @@ interface ComputedRibbon {
 export const SankeyPipelineChart: React.FC<SankeyPipelineChartProps> = ({
   data,
   loading,
+  selectedStage,
+  onSelectStage,
 }) => {
+  const { t } = useTranslation();
+  const tApp = t.applications;
+
+  const getNodeLabel = (id: string, defaultLabel: string): string => {
+    switch (id) {
+      case 'stage_applications':
+        return tApp.funnelApplications;
+      case 'stage_1st_interview':
+        return tApp.stage1stInterview;
+      case 'stage_2nd_interview':
+        return tApp.stage2ndInterview;
+      case 'stage_3rd_interview':
+        return tApp.stage3rdInterview;
+      case 'stage_4th_interview':
+      case 'stage_final_interview':
+        return tApp.stageFinalInterview;
+      case 'stage_offers':
+        return tApp.funnelOffers;
+      case 'stage_accepted':
+        return tApp.funnelAccepted;
+      case 'stage_rejected_init':
+      case 'stage_rejected_1st':
+      case 'stage_rejected_2nd':
+      case 'stage_rejected_3rd':
+      case 'stage_rejected_final':
+        return tApp.stageRejected;
+      case 'stage_no_answer':
+        return tApp.stageNoAnswer;
+      case 'stage_withdrawn_init':
+        return tApp.stageWithdrawn;
+      default:
+        return defaultLabel;
+    }
+  };
+
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [hoveredRibbon, setHoveredRibbon] = useState<SankeyLink | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
@@ -156,7 +196,7 @@ export const SankeyPipelineChart: React.FC<SankeyPipelineChartProps> = ({
       const x = startX + targetNode.stage_index * colStep;
       computedNodes[targetId] = {
         id: targetId,
-        label: targetNode.label,
+        label: getNodeLabel(targetId, targetNode.label),
         stage_index: targetNode.stage_index,
         count: link.value,
         color: NODE_COLORS[targetId] || targetNode.color || '#64748b',
@@ -179,7 +219,7 @@ export const SankeyPipelineChart: React.FC<SankeyPipelineChartProps> = ({
 
     computedNodes['stage_applications'] = {
       id: 'stage_applications',
-      label: rootNode.label || 'Applications',
+      label: getNodeLabel('stage_applications', rootNode.label || 'Applications'),
       stage_index: 0,
       count: totalVal,
       color: NODE_COLORS['stage_applications'] || '#f97316',
@@ -206,7 +246,7 @@ export const SankeyPipelineChart: React.FC<SankeyPipelineChartProps> = ({
       const nodeH = Math.max(nodeObj.count * scale, minNodeHeight);
       const x = startX + nodeObj.stage_index * colStep;
       computedNodes[id] = {
-        id, label: nodeObj.label, stage_index: nodeObj.stage_index, count: nodeObj.count,
+        id, label: getNodeLabel(id, nodeObj.label), stage_index: nodeObj.stage_index, count: nodeObj.count,
         color: NODE_COLORS[id] || nodeObj.color, x, y: baseY, width: nodeWidth, height: nodeH,
         alignLeftLabel: false,
       };
@@ -227,7 +267,7 @@ export const SankeyPipelineChart: React.FC<SankeyPipelineChartProps> = ({
       const x = startX + offersNode.stage_index * colStep;
       const y = Math.max(prevY - 40, 10);
       computedNodes['stage_offers'] = {
-        id: 'stage_offers', label: offersNode.label, stage_index: offersNode.stage_index,
+        id: 'stage_offers', label: getNodeLabel('stage_offers', offersNode.label), stage_index: offersNode.stage_index,
         count: offersNode.count, color: NODE_COLORS['stage_offers'] || '#facc15',
         x, y, width: nodeWidth, height: Math.max(offersNode.count * scale, minNodeHeight),
         alignLeftLabel: false,
@@ -238,7 +278,7 @@ export const SankeyPipelineChart: React.FC<SankeyPipelineChartProps> = ({
       const x = startX + finalRejNode.stage_index * colStep;
       const y = prevY + prevNodeH + 70;
       computedNodes['stage_rejected_final'] = {
-        id: 'stage_rejected_final', label: finalRejNode.label, stage_index: finalRejNode.stage_index,
+        id: 'stage_rejected_final', label: getNodeLabel('stage_rejected_final', finalRejNode.label), stage_index: finalRejNode.stage_index,
         count: finalRejNode.count, color: NODE_COLORS['stage_rejected_final'] || '#2dd4bf',
         x, y, width: nodeWidth, height: Math.max(finalRejNode.count * scale, minNodeHeight),
         alignLeftLabel: false,
@@ -250,7 +290,7 @@ export const SankeyPipelineChart: React.FC<SankeyPipelineChartProps> = ({
       const x = startX + acceptedNode.stage_index * colStep;
       const y = offersComputed ? offersComputed.y : TOP_MARGIN;
       computedNodes['stage_accepted'] = {
-        id: 'stage_accepted', label: acceptedNode.label, stage_index: acceptedNode.stage_index,
+        id: 'stage_accepted', label: getNodeLabel('stage_accepted', acceptedNode.label), stage_index: acceptedNode.stage_index,
         count: acceptedNode.count, color: NODE_COLORS['stage_accepted'] || '#38bdf8',
         x, y, width: nodeWidth, height: Math.max(acceptedNode.count * scale, minNodeHeight),
         alignLeftLabel: false,
@@ -265,7 +305,7 @@ export const SankeyPipelineChart: React.FC<SankeyPipelineChartProps> = ({
         const x = startX + n.stage_index * colStep;
         const y = srcPos ? srcPos.y + srcPos.height + 60 : 200;
         computedNodes[n.id] = {
-          id: n.id, label: n.label, stage_index: n.stage_index, count: n.count,
+          id: n.id, label: getNodeLabel(n.id, n.label), stage_index: n.stage_index, count: n.count,
           color: NODE_COLORS[n.id] || n.color, x, y, width: nodeWidth,
           height: Math.max(n.count * scale, minNodeHeight), alignLeftLabel: false,
         };
@@ -373,11 +413,11 @@ export const SankeyPipelineChart: React.FC<SankeyPipelineChartProps> = ({
       <CardHeader themeMode={theme}>
         <div className="header-left">
           <div className="title-row">
-            <h4>Application Conversion Pipeline</h4>
-            <span className="source-pill">SankeyMATIC Funnel</span>
+            <h4>{tApp.funnelTitle}</h4>
+            <span className="source-pill">{tApp.viewFunnel}</span>
           </div>
           <p className="subtitle">
-            Visual recruitment progression showing stage transitions, screening drop-offs, and offer conversions.
+            {tApp.funnelSubtitle}
           </p>
         </div>
 
@@ -389,7 +429,7 @@ export const SankeyPipelineChart: React.FC<SankeyPipelineChartProps> = ({
             title={`Switch to ${theme === 'light' ? 'Compust Dark' : 'SankeyMATIC Light'} mode`}
           >
             {theme === 'light' ? <Moon size={15} /> : <Sun size={15} />}
-            <span>{theme === 'light' ? 'Dark Mode' : 'Light Mode'}</span>
+            <span>{theme === 'light' ? 'Dark' : 'Light'}</span>
           </button>
 
           <button
@@ -399,7 +439,7 @@ export const SankeyPipelineChart: React.FC<SankeyPipelineChartProps> = ({
             title="Download vector graphic of this Sankey diagram"
           >
             <Download size={15} />
-            <span>Download SVG</span>
+            <span>SVG</span>
           </button>
         </div>
       </CardHeader>
@@ -453,14 +493,18 @@ export const SankeyPipelineChart: React.FC<SankeyPipelineChartProps> = ({
           <g className="nodes-layer">
             {layout.nodes.map((node) => {
               const isHovered = hoveredNodeId === node.id;
+              const isSelected = selectedStage === node.id;
 
               return (
                 <g
                   key={node.id}
-                  className="sankey-node"
+                  className={`sankey-node ${isSelected ? 'selected' : ''}`}
                   onMouseEnter={() => setHoveredNodeId(node.id)}
                   onMouseLeave={() => setHoveredNodeId(null)}
+                  onClick={() => onSelectStage && onSelectStage(node.id, node.label)}
+                  style={{ cursor: onSelectStage ? 'pointer' : 'default' }}
                 >
+                  <title>{`Stage: ${node.label} (${node.count} applications) - Click to filter`}</title>
                   {/* Vertical Node Bar */}
                   <rect
                     x={node.x}
@@ -470,8 +514,16 @@ export const SankeyPipelineChart: React.FC<SankeyPipelineChartProps> = ({
                     fill={node.color}
                     rx={1}
                     ry={1}
-                    stroke={isHovered ? (theme === 'light' ? '#000000' : '#ffffff') : 'none'}
-                    strokeWidth={isHovered ? 1.5 : 0}
+                    stroke={
+                      isSelected
+                        ? '#38bdf8'
+                        : isHovered
+                        ? theme === 'light'
+                          ? '#000000'
+                          : '#ffffff'
+                        : 'none'
+                    }
+                    strokeWidth={isSelected ? 3 : isHovered ? 1.5 : 0}
                   />
 
                   {/* Two-line Text Label (Number on top, Label on bottom) */}
@@ -532,7 +584,7 @@ export const SankeyPipelineChart: React.FC<SankeyPipelineChartProps> = ({
         ) : (
           <div className="hint-content">
             <Info size={14} />
-            <span>Hover over ribbons or stage bars to inspect exact candidate counts and progression rates</span>
+            <span>{tApp.funnelInteractiveHint}</span>
           </div>
         )}
       </TooltipFooter>

@@ -1,8 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { X, Plus, DollarSign, User, Mail, Phone, ExternalLink, Briefcase, Building2, MapPin, Flag } from 'lucide-react';
+import {
+  X,
+  Plus,
+  DollarSign,
+  User,
+  Mail,
+  Phone,
+  ExternalLink,
+  Briefcase,
+  Building2,
+  MapPin,
+  Flag,
+  CheckCircle2,
+} from 'lucide-react';
 import { api } from '../../api/client';
-import type { ApplicationItem, ApplicationStatus, ManualApplicationPayload } from '../../api/client';
+import type { ApplicationItem, ApplicationStatus, ManualApplicationPayload, ContactItem } from '../../api/client';
 
 interface AddApplicationModalProps {
   isOpen: boolean;
@@ -67,10 +80,47 @@ export const AddApplicationModal: React.FC<AddApplicationModalProps> = ({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Existing contacts for smart linking
+  const [contactsList, setContactsList] = useState<ContactItem[]>([]);
+  const [matchingContact, setMatchingContact] = useState<ContactItem | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      api.getContacts().then(setContactsList).catch(() => {});
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!formData.contact_email?.trim()) {
+      setMatchingContact(null);
+      return;
+    }
+    const found = contactsList.find(
+      (c) => c.email && c.email.toLowerCase() === formData.contact_email!.toLowerCase()
+    );
+    setMatchingContact(found || null);
+  }, [formData.contact_email, contactsList]);
+
   if (!isOpen) return null;
 
   const handleChange = (field: keyof ManualApplicationPayload, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSelectExistingContact = (c: ContactItem) => {
+    setFormData((prev) => ({
+      ...prev,
+      contact_name: `${c.first_name} ${c.last_name || ''}`.trim(),
+      contact_email: c.email || '',
+      contact_phone: c.phone || '',
+      recruiter: c.role || prev.recruiter,
+    }));
+  };
+
+  const handleSetFollowUpDays = (days: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    setFormData((prev) => ({ ...prev, next_follow_up: d.toISOString().slice(0, 10) }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -282,6 +332,40 @@ export const AddApplicationModal: React.FC<AddApplicationModalProps> = ({
 
             {/* Contacts & Dates */}
             <SectionTitle>Contacts & Follow-Up</SectionTitle>
+
+            {/* Smart Contact Recognition Banner */}
+            {matchingContact && (
+              <ContactBanner>
+                <CheckCircle2 size={15} className="text-emerald" />
+                <span>
+                  Existing contact found: <strong>{matchingContact.first_name} {matchingContact.last_name || ''}</strong> ({matchingContact.email}). Application will link automatically.
+                </span>
+              </ContactBanner>
+            )}
+
+            {/* Suggested contacts for this company */}
+            {formData.company_name && contactsList.filter(c => c.company && c.company.toLowerCase().includes(formData.company_name.toLowerCase())).length > 0 && (
+              <SuggestedContactsRow>
+                <span className="hint-label">Suggested from {formData.company_name}:</span>
+                <div className="contact-pills">
+                  {contactsList
+                    .filter(c => c.company && c.company.toLowerCase().includes(formData.company_name.toLowerCase()))
+                    .slice(0, 3)
+                    .map(c => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        className="contact-pill-btn"
+                        onClick={() => handleSelectExistingContact(c)}
+                      >
+                        <User size={12} />
+                        <span>{c.first_name} {c.last_name || ''}</span>
+                      </button>
+                    ))}
+                </div>
+              </SuggestedContactsRow>
+            )}
+
             <FormRow>
               <FormGroup>
                 <label>Contact / Recruiter Name</label>
@@ -325,7 +409,15 @@ export const AddApplicationModal: React.FC<AddApplicationModalProps> = ({
 
             <FormRow>
               <FormGroup>
-                <label>Next Follow-up Date</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label>Next Follow-up Date</label>
+                  <div className="quick-presets">
+                    <button type="button" onClick={() => handleSetFollowUpDays(3)}>+3d</button>
+                    <button type="button" onClick={() => handleSetFollowUpDays(5)}>+5d</button>
+                    <button type="button" onClick={() => handleSetFollowUpDays(7)}>+7d</button>
+                    <button type="button" onClick={() => handleSetFollowUpDays(14)}>+14d</button>
+                  </div>
+                </div>
                 <input
                   type="date"
                   value={formData.next_follow_up || ''}
@@ -566,6 +658,29 @@ const FormGroup = styled.div<{ className?: string }>`
     }
   }
 
+  .quick-presets {
+    display: flex;
+    gap: 4px;
+
+    button {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #94a3b8;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+
+      &:hover {
+        background: rgba(59, 130, 246, 0.2);
+        color: #60a5fa;
+        border-color: rgba(59, 130, 246, 0.4);
+      }
+    }
+  }
+
   textarea {
     resize: vertical;
     min-height: 70px;
@@ -616,6 +731,61 @@ const ModalFooter = styled.div`
       &:disabled {
         opacity: 0.5;
         cursor: not-allowed;
+      }
+    }
+  }
+`;
+
+const ContactBanner = styled.div`
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  color: #34d399;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+
+  strong {
+    color: #f1f5f9;
+  }
+`;
+
+const SuggestedContactsRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+
+  .hint-label {
+    font-size: 11px;
+    color: #94a3b8;
+  }
+
+  .contact-pills {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+
+    .contact-pill-btn {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(59, 130, 246, 0.12);
+      border: 1px solid rgba(59, 130, 246, 0.25);
+      color: #93c5fd;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.15s;
+
+      &:hover {
+        background: rgba(59, 130, 246, 0.22);
+        color: #fff;
       }
     }
   }

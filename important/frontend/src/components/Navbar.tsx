@@ -255,13 +255,13 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Unified 3-way Language Switcher */}
           <div className="global-lang-switcher" role="group" aria-label="Select Language">
-            {(['en', 'fr', 'nl'] as const).map((langCode) => (
+            {(['en', 'fr', 'de'] as const).map((langCode) => (
               <button
                 key={langCode}
                 type="button"
                 className={`lang-option-btn ${language === langCode ? 'active' : ''}`}
                 onClick={() => setLanguage(langCode)}
-                title={langCode === 'en' ? 'English' : langCode === 'fr' ? 'Français' : 'Nederlands'}
+                title={langCode === 'en' ? 'English' : langCode === 'fr' ? 'Français' : 'Deutsch'}
                 aria-pressed={language === langCode}
               >
                 {langCode.toUpperCase()}

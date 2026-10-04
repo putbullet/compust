@@ -10,14 +10,17 @@ import {
   History,
   X,
   Sparkles,
+  Eye,
 } from 'lucide-react';
 import type { ApplicationItem, ApplicationStatus, Job } from '../../api/client';
+import { useTranslation, getStatusLabel } from '../../i18n';
 
 interface ApplicationSpreadsheetProps {
   applications: ApplicationItem[];
   onUpdateApplication: (appId: number, data: any) => Promise<void>;
   onDeleteApplication: (appId: number) => Promise<void>;
   onSelectJob?: (job: Job) => void;
+  onOpenDetail?: (applicationId: number) => void;
   loading?: boolean;
 }
 
@@ -82,7 +85,11 @@ export const ApplicationSpreadsheet: React.FC<ApplicationSpreadsheetProps> = ({
   onUpdateApplication,
   onDeleteApplication,
   onSelectJob,
+  onOpenDetail,
 }) => {
+  const { t, language } = useTranslation();
+  const tApp = t.applications;
+
   const [sortField, setSortField] = useState<SortField>('updated_at');
   const [sortAsc, setSortAsc] = useState<boolean>(false);
 
@@ -181,8 +188,8 @@ export const ApplicationSpreadsheet: React.FC<ApplicationSpreadsheetProps> = ({
     return (
       <EmptyState>
         <Briefcase size={36} />
-        <h4>No applications found</h4>
-        <p>Start tracking your job search by adding manual entries or saving postings from Opportunities.</p>
+        <h4>{tApp.noAppsFoundTitle}</h4>
+        <p>{tApp.noAppsFoundSubtitle}</p>
       </EmptyState>
     );
   }
@@ -195,64 +202,64 @@ export const ApplicationSpreadsheet: React.FC<ApplicationSpreadsheetProps> = ({
             <tr>
               <th className="col-title" onClick={() => handleSort('title')}>
                 <div className="th-content">
-                  <span>Job Title</span>
+                  <span>{tApp.colJobTitle}</span>
                   {renderSortIcon('title')}
                 </div>
               </th>
               <th className="col-company" onClick={() => handleSort('company')}>
                 <div className="th-content">
-                  <span>Company</span>
+                  <span>{tApp.colCompany}</span>
                   {renderSortIcon('company')}
                 </div>
               </th>
               <th className="col-source" onClick={() => handleSort('source')}>
                 <div className="th-content">
-                  <span>Source</span>
+                  <span>{tApp.colSource}</span>
                   {renderSortIcon('source')}
                 </div>
               </th>
               <th className="col-status" onClick={() => handleSort('status')}>
                 <div className="th-content">
-                  <span>Status / Stage</span>
+                  <span>{tApp.colStatus}</span>
                   {renderSortIcon('status')}
                 </div>
               </th>
               <th className="col-date" onClick={() => handleSort('applied_at')}>
                 <div className="th-content">
-                  <span>Applied</span>
+                  <span>{tApp.colAppliedDate}</span>
                   {renderSortIcon('applied_at')}
                 </div>
               </th>
               <th className="col-priority" onClick={() => handleSort('priority')}>
                 <div className="th-content">
-                  <span>Priority</span>
+                  <span>{tApp.colPriority}</span>
                   {renderSortIcon('priority')}
                 </div>
               </th>
               <th className="col-salary">
                 <div className="th-content">
-                  <span>Salary / Pay</span>
+                  <span>{tApp.colSalary}</span>
                 </div>
               </th>
               <th className="col-recruiter">
                 <div className="th-content">
-                  <span>Contact / Recruiter</span>
+                  <span>{tApp.colRecruiter}</span>
                 </div>
               </th>
               <th className="col-followup" onClick={() => handleSort('next_follow_up')}>
                 <div className="th-content">
-                  <span>Follow-Up</span>
+                  <span>{tApp.colFollowUp}</span>
                   {renderSortIcon('next_follow_up')}
                 </div>
               </th>
               <th className="col-notes">
                 <div className="th-content">
-                  <span>Notes</span>
+                  <span>{tApp.colNotes}</span>
                 </div>
               </th>
               <th className="col-actions">
                 <div className="th-content">
-                  <span>Actions</span>
+                  <span>{tApp.colActions}</span>
                 </div>
               </th>
             </tr>
@@ -261,7 +268,7 @@ export const ApplicationSpreadsheet: React.FC<ApplicationSpreadsheetProps> = ({
             {sortedApplications.map((app) => {
               const statusCfg = STATUS_CONFIG[app.status] || STATUS_CONFIG.saved;
               const appliedDisplay = app.applied_at
-                ? new Date(app.applied_at).toLocaleDateString('en-US', {
+                ? new Date(app.applied_at).toLocaleDateString(language === 'de' ? 'de-DE' : (language === 'fr' ? 'fr-FR' : 'en-US'), {
                     month: 'short',
                     day: 'numeric',
                   })
@@ -275,13 +282,20 @@ export const ApplicationSpreadsheet: React.FC<ApplicationSpreadsheetProps> = ({
                       {app.job ? (
                         <span
                           className="title-link compust-job"
-                          onClick={() => onSelectJob && onSelectJob(app.job!)}
-                          title="View Compust job details"
+                          onClick={() => (onOpenDetail ? onOpenDetail(app.id) : onSelectJob && onSelectJob(app.job!))}
+                          title={tApp.colActions}
                         >
                           {app.effective_title}
                         </span>
                       ) : (
-                        <span className="title-text">{app.effective_title}</span>
+                        <span
+                          className={`title-text ${onOpenDetail ? 'clickable' : ''}`}
+                          onClick={() => onOpenDetail && onOpenDetail(app.id)}
+                          title={onOpenDetail ? tApp.colActions : undefined}
+                          style={{ cursor: onOpenDetail ? 'pointer' : 'default' }}
+                        >
+                          {app.effective_title}
+                        </span>
                       )}
                       {app.effective_job_url && (
                         <a
@@ -349,7 +363,7 @@ export const ApplicationSpreadsheet: React.FC<ApplicationSpreadsheetProps> = ({
                     >
                       {ALL_STATUSES.map((st) => (
                         <option key={st} value={st}>
-                          {STATUS_CONFIG[st]?.label || st}
+                          {getStatusLabel(st, language)}
                         </option>
                       ))}
                     </StatusSelect>
@@ -367,9 +381,9 @@ export const ApplicationSpreadsheet: React.FC<ApplicationSpreadsheetProps> = ({
                       onChange={(e) => handlePriorityChange(app.id, e.target.value)}
                       className={app.priority || 'medium'}
                     >
-                      <option value="high">High</option>
-                      <option value="medium">Medium</option>
-                      <option value="low">Low</option>
+                      <option value="high">{tApp.priorityHigh}</option>
+                      <option value="medium">{tApp.priorityMedium}</option>
+                      <option value="low">{tApp.priorityLow}</option>
                     </PrioritySelect>
                   </td>
 
@@ -395,7 +409,7 @@ export const ApplicationSpreadsheet: React.FC<ApplicationSpreadsheetProps> = ({
                       />
                     ) : (
                       <span className={app.salary ? 'cell-val' : 'cell-placeholder'}>
-                        {app.salary || '+ Add salary'}
+                        {app.salary || `+ ${tApp.colSalary}`}
                       </span>
                     )}
                   </td>
@@ -423,7 +437,7 @@ export const ApplicationSpreadsheet: React.FC<ApplicationSpreadsheetProps> = ({
                     ) : (
                       <div className="contact-summary">
                         <span className={app.contact_name || app.recruiter ? 'cell-val' : 'cell-placeholder'}>
-                          {app.contact_name || app.recruiter || '+ Add contact'}
+                          {app.contact_name || app.recruiter || `+ ${tApp.colRecruiter}`}
                         </span>
                         {app.contact_email && <span className="contact-sub">{app.contact_email}</span>}
                       </div>
@@ -463,7 +477,7 @@ export const ApplicationSpreadsheet: React.FC<ApplicationSpreadsheetProps> = ({
                     ) : (
                       <div className="notes-preview" title={app.notes || 'Click to edit notes'}>
                         <span className={app.notes ? 'has-notes' : 'no-notes'}>
-                          {app.notes || '+ Add notes...'}
+                          {app.notes || `+ ${tApp.colNotes}...`}
                         </span>
                       </div>
                     )}
@@ -472,6 +486,16 @@ export const ApplicationSpreadsheet: React.FC<ApplicationSpreadsheetProps> = ({
                   {/* Actions (History, Delete) */}
                   <td className="cell-actions">
                     <div className="action-buttons">
+                      {onOpenDetail && (
+                        <button
+                          type="button"
+                          className="action-btn detail-btn"
+                          onClick={() => onOpenDetail(app.id)}
+                          title="Open application workspace, timeline, and intelligence"
+                        >
+                          <Eye size={14} />
+                        </button>
+                      )}
                       <button
                         type="button"
                         className="action-btn history-btn"
@@ -855,6 +879,14 @@ const StyledTable = styled.table`
         align-items: center;
         justify-content: center;
         transition: all 0.15s ease;
+
+        &.detail-btn {
+          color: #94a3b8;
+          &:hover {
+            background: rgba(56, 189, 248, 0.15);
+            color: #38bdf8;
+          }
+        }
 
         &.history-btn {
           color: #94a3b8;

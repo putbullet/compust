@@ -1,0 +1,281 @@
+/* AlexVideoInterviewer.css - Ultra-modern video presentation */
+
+.alex-video-interviewer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 580px;
+  margin: 0 auto 1.5rem auto;
+  position: relative;
+  user-select: none;
+}
+
+.alex-video-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  max-height: 380px;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #090d16;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.7),
+              0 0 0 1px rgba(255, 255, 255, 0.05);
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.alex-video-interviewer.speaking .alex-video-frame {
+  border-color: rgba(56, 189, 248, 0.4);
+  box-shadow: 0 20px 50px -10px rgba(14, 165, 233, 0.25),
+              0 0 25px rgba(56, 189, 248, 0.15);
+}
+
+.alex-video-interviewer.listening .alex-video-frame,
+.alex-video-interviewer.user-speaking .alex-video-frame {
+  border-color: rgba(52, 211, 153, 0.4);
+  box-shadow: 0 20px 50px -10px rgba(16, 185, 129, 0.2),
+              0 0 25px rgba(52, 211, 153, 0.15);
+}
+
+.alex-native-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  display: block;
+  transition: opacity 0.3s ease;
+}
+
+.alex-ambient-glow {
+  position: absolute;
+  inset: -2px;
+  border-radius: 19px;
+  pointer-events: none;
+  transition: opacity 0.3s ease, border-color 0.3s ease;
+  z-index: 2;
+}
+
+.alex-ambient-glow.interviewer-active {
+  border: 2px solid rgba(56, 189, 248, 0.6);
+  box-shadow: inset 0 0 30px rgba(56, 189, 248, 0.25);
+}
+
+.alex-ambient-glow.candidate-active {
+  border: 2px solid rgba(52, 211, 153, 0.7);
+  box-shadow: inset 0 0 35px rgba(52, 211, 153, 0.3);
+}
+
+/* Header Overlay */
+.alex-video-overlay-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 1rem 1.25rem;
+  background: linear-gradient(180deg, rgba(7, 10, 19, 0.85) 0%, rgba(7, 10, 19, 0) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 10;
+  pointer-events: auto;
+}
+
+.alex-persona-info {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.alex-live-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.25rem 0.55rem;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  border-radius: 6px;
+  color: #38bdf8;
+  backdrop-filter: blur(8px);
+}
+
+.live-dot {
+  width: 7px;
+  height: 7px;
+  background-color: #38bdf8;
+  border-radius: 50%;
+  animation: pulse-dot 1.8s infinite;
+}
+
+@keyframes pulse-dot {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  50% { transform: scale(1.3); opacity: 1; box-shadow: 0 0 8px #38bdf8; }
+  100% { transform: scale(0.9); opacity: 0.8; }
+}
+
+.alex-persona-names {
+  display: flex;
+  flex-direction: column;
+}
+
+.alex-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #f1f5f9;
+  letter-spacing: -0.01em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.alex-title {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.alex-header-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.alex-skip-speech-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #ffffff;
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
+}
+
+.alex-skip-speech-btn:hover {
+  background: rgba(56, 189, 248, 0.25);
+  border-color: rgba(56, 189, 248, 0.5);
+  color: #e0f2fe;
+  transform: translateY(-1px);
+}
+
+.alex-muted-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.5rem;
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 6px;
+  color: #fca5a5;
+}
+
+/* Footer Overlay */
+.alex-video-overlay-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 1.25rem 1.25rem 1rem 1.25rem;
+  background: linear-gradient(0deg, rgba(7, 10, 19, 0.9) 0%, rgba(7, 10, 19, 0) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  z-index: 10;
+}
+
+.alex-turn-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.4rem 0.8rem;
+  border-radius: 30px;
+  backdrop-filter: blur(10px);
+  transition: all 0.25s ease;
+}
+
+.alex-turn-badge.speaking {
+  background: rgba(14, 165, 233, 0.2);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: #38bdf8;
+}
+
+.alex-turn-badge.listening {
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(52, 211, 153, 0.35);
+  color: #34d399;
+}
+
+.alex-turn-badge.user-speaking {
+  background: rgba(16, 185, 129, 0.3);
+  border: 1px solid rgba(52, 211, 153, 0.6);
+  color: #6ee7b7;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);
+}
+
+.alex-turn-badge.silence {
+  background: rgba(245, 158, 11, 0.25);
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  color: #fbbf24;
+}
+
+.alex-turn-badge.processing {
+  background: rgba(99, 102, 241, 0.25);
+  border: 1px solid rgba(129, 140, 248, 0.35);
+  color: #a5b4fc;
+}
+
+.alex-turn-badge.idle {
+  background: rgba(51, 65, 85, 0.5);
+  border: 1px solid rgba(100, 116, 139, 0.3);
+  color: #cbd5e1;
+}
+
+/* Acoustic meter */
+.alex-candidate-meter {
+  flex: 0 0 90px;
+  height: 6px;
+  background: rgba(15, 23, 42, 0.6);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.meter-bar-track {
+  width: 100%;
+  height: 100%;
+}
+
+.meter-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
+  border-radius: 4px;
+  transition: width 0.1s linear;
+}
+
+.pulse-icon {
+  animation: pulse-scale 1.5s infinite;
+}
+
+@keyframes pulse-scale {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+
+.spin-icon {
+  animation: spin 1.2s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

@@ -96,6 +96,46 @@ class Settings(BaseSettings):
         default=True,
         validation_alias="COMPUST_SCRAPER_BROWSER_HEADLESS",
     )
+    stt_provider: str = Field(
+        default="local",
+        validation_alias="COMPUST_STT_PROVIDER",
+    )
+    stt_engine: str = Field(
+        default="faster-whisper",
+        validation_alias="COMPUST_STT_ENGINE",
+    )
+    stt_model: str = Field(
+        default="tiny",
+        validation_alias="COMPUST_STT_MODEL",
+    )
+    stt_device: str = Field(
+        default="cpu",
+        validation_alias="COMPUST_STT_DEVICE",
+    )
+    stt_compute_type: str = Field(
+        default="int8",
+        validation_alias="COMPUST_STT_COMPUTE_TYPE",
+    )
+    stt_cache_dir: str | None = Field(
+        default=None,
+        validation_alias="COMPUST_STT_CACHE_DIR",
+    )
+    tts_engine: str = Field(
+        default="edge-tts",
+        validation_alias="COMPUST_TTS_ENGINE",
+    )
+    tts_voice: str = Field(
+        default="en-US-AndrewMultilingualNeural",
+        validation_alias="COMPUST_TTS_VOICE",
+    )
+    tts_rate: str = Field(
+        default="-3%",
+        validation_alias="COMPUST_TTS_RATE",
+    )
+    tts_pitch: str = Field(
+        default="+0Hz",
+        validation_alias="COMPUST_TTS_PITCH",
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env",

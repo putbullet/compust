@@ -346,6 +346,186 @@ export interface ApplicationHistoryItem {
   to_status: string;
   changed_at: string;
   notes: string | null;
+  event_type?: string;
+  event_title?: string | null;
+}
+
+export interface ContactInteractionItem {
+  id: number;
+  contact_id: number;
+  application_id?: number | null;
+  user_id: number;
+  type: string;
+  summary: string;
+  details?: string | null;
+  interaction_date: string;
+  created_at: string;
+}
+
+export interface RelatedApplicationSummary {
+  id: number;
+  job_title: string;
+  company_name: string;
+  status: string;
+  applied_at?: string | null;
+  source: string;
+}
+
+export interface ContactItem {
+  id: number;
+  user_id: number;
+  first_name?: string | null;
+  last_name?: string | null;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  company?: string | null;
+  role?: string | null;
+  linkedin_url?: string | null;
+  location?: string | null;
+  notes?: string | null;
+  tags?: string | null;
+  created_at: string;
+  updated_at: string;
+  applications_count: number;
+  responses_count: number;
+  interviews_count: number;
+  last_interaction_date?: string | null;
+  last_contacted_at?: string | null;
+  last_response_at?: string | null;
+  has_responded: boolean;
+  next_action?: string | null;
+  communication_status?: 'not_contacted' | 'contacted_no_response' | 'responded' | string;
+  preferred_contact_method?: string | null;
+  email_used?: string | null;
+  interactions: ContactInteractionItem[];
+  related_applications: RelatedApplicationSummary[];
+}
+
+export interface ContactCreatePayload {
+  first_name?: string;
+  last_name?: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  company?: string;
+  role?: string;
+  linkedin_url?: string;
+  location?: string;
+  notes?: string;
+  tags?: string;
+  application_id?: number;
+  // Communication & Interaction
+  contacted?: boolean;
+  contact_method?: 'email' | 'linkedin' | 'phone' | 'other' | string;
+  contact_date?: string;
+  email_used?: string;
+  response_received?: boolean;
+  response_date?: string;
+  response_notes?: string;
+}
+
+export interface ContactUpdatePayload {
+  first_name?: string;
+  last_name?: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  company?: string;
+  role?: string;
+  linkedin_url?: string;
+  location?: string;
+  notes?: string;
+  tags?: string;
+  // Communication & Interaction
+  contacted?: boolean;
+  contact_method?: 'email' | 'linkedin' | 'phone' | 'other' | string;
+  contact_date?: string;
+  email_used?: string;
+  response_received?: boolean;
+  response_date?: string;
+  response_notes?: string;
+}
+
+export interface ContactInteractionPayload {
+  type: string;
+  summary: string;
+  details?: string;
+  interaction_date?: string;
+  application_id?: number;
+}
+
+export interface ContactImportPreviewRow {
+  first_name?: string | null;
+  last_name?: string | null;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  company?: string | null;
+  role?: string | null;
+  linkedin_url?: string | null;
+  location?: string | null;
+  notes?: string | null;
+  tags?: string | null;
+  status: 'new' | 'existing' | 'duplicate';
+  match_id?: number | null;
+  match_name?: string | null;
+}
+
+export interface ContactImportPreviewResult {
+  total_detected: number;
+  new_count: number;
+  existing_count: number;
+  duplicate_count: number;
+  column_mapping: Record<string, string>;
+  preview_rows: ContactImportPreviewRow[];
+}
+
+export interface ContactImportConfirmPayload {
+  mode: 'skip_duplicates' | 'update_existing' | 'import_all';
+  rows: ContactImportPreviewRow[];
+}
+
+export interface SourceAnalyticsItem {
+  source: string;
+  applications: number;
+  responses: number;
+  interviews: number;
+  offers: number;
+  response_rate_percent: number;
+  interview_rate_percent: number;
+}
+
+export interface ActivityTimePoint {
+  date: string;
+  applications: number;
+  responses: number;
+  interviews: number;
+  offers: number;
+}
+
+export interface SearchOverview {
+  total_applications: number;
+  applications_this_week: number;
+  total_responses: number;
+  total_interviews: number;
+  total_offers: number;
+  avg_response_time_days: number | null;
+  upcoming_interviews: number;
+  upcoming_follow_ups: number;
+  overdue_follow_ups: number;
+}
+
+export interface JobIntelligence {
+  match_score: number;
+  verdict: string;
+  strong_matches: string[];
+  potential_gaps: string[];
+  job_title: string;
+  company: string;
+  has_resume: boolean;
+  resume_suggestions?: any;
+  explanation: string;
 }
 
 export interface ApplicationItem {
@@ -365,6 +545,7 @@ export interface ApplicationItem {
   custom_job_url?: string | null;
   salary?: string | null;
   employment_type?: string | null;
+  contact_id?: number | null;
   contact_name?: string | null;
   contact_email?: string | null;
   contact_phone?: string | null;
@@ -379,6 +560,7 @@ export interface ApplicationItem {
   effective_country?: string | null;
   effective_job_url?: string | null;
   job?: Job | null;
+  contact?: ContactItem | null;
   history?: ApplicationHistoryItem[];
   resume_suggestions?: ResumeEditSuggestionItem[] | { suggestions: ResumeEditSuggestionItem[] } | any;
 }
@@ -394,6 +576,7 @@ export interface ManualApplicationPayload {
   applied_at?: string;
   salary?: string;
   employment_type?: string;
+  contact_id?: number;
   contact_name?: string;
   contact_email?: string;
   contact_phone?: string;
@@ -417,6 +600,7 @@ export interface ApplicationUpdatePayload {
   source?: string;
   salary?: string;
   employment_type?: string;
+  contact_id?: number;
   contact_name?: string;
   contact_email?: string;
   contact_phone?: string;
@@ -439,6 +623,9 @@ export interface ApplicationStats {
   rejection_rate_percent: number;
   avg_days_to_interview: number | null;
   avg_days_to_offer: number | null;
+  source_analytics?: SourceAnalyticsItem[];
+  activity_timeline?: Record<string, ActivityTimePoint[]>;
+  overview?: SearchOverview | null;
 }
 
 export interface SankeyNode {
@@ -789,6 +976,133 @@ export const api = {
     a.remove();
     window.URL.revokeObjectURL(url);
   },
+
+  addApplicationEvent: (
+    applicationId: number,
+    data: { event_type?: string; event_title: string; notes?: string; event_date?: string }
+  ) =>
+    request<ApplicationHistoryItem>(`/applications/${applicationId}/events`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  executeFollowUpAction: (
+    applicationId: number,
+    data: { action: 'complete' | 'snooze' | 'reschedule' | 'cancel'; days?: number; new_date?: string; notes?: string }
+  ) =>
+    request<ApplicationItem>(`/applications/${applicationId}/follow-up`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  getApplicationIntelligence: (applicationId: number) =>
+    request<JobIntelligence>(`/applications/${applicationId}/intelligence`),
+
+  // Contacts Management API
+  getContacts: (params?: { search?: string; company?: string; tag?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.search) q.append('search', params.search);
+    if (params?.company) q.append('company', params.company);
+    if (params?.tag) q.append('tag', params.tag);
+    const qs = q.toString();
+    return request<ContactItem[]>(qs ? `/contacts?${qs}` : '/contacts');
+  },
+
+  createContact: (data: ContactCreatePayload) =>
+    request<ContactItem>('/contacts', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  getContact: (contactId: number) =>
+    request<ContactItem>(`/contacts/${contactId}`),
+
+  updateContact: (contactId: number, data: ContactUpdatePayload) =>
+    request<ContactItem>(`/contacts/${contactId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+
+  deleteContact: (contactId: number) =>
+    request<{ status: string }>(`/contacts/${contactId}`, {
+      method: 'DELETE',
+    }),
+
+  logContactInteraction: (contactId: number, data: ContactInteractionPayload) =>
+    request<ContactInteractionItem>(`/contacts/${contactId}/interactions`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  deleteContactInteraction: (interactionId: number) =>
+    request<{ status: string }>(`/contacts/interactions/${interactionId}`, {
+      method: 'DELETE',
+    }),
+
+  checkContactDuplicates: (params: { email?: string; name?: string; company?: string; linkedin_url?: string }) => {
+    const q = new URLSearchParams();
+    if (params.email) q.append('email', params.email);
+    if (params.name) q.append('name', params.name);
+    if (params.company) q.append('company', params.company);
+    if (params.linkedin_url) q.append('linkedin_url', params.linkedin_url);
+    return request<Array<{ contact: ContactItem; match_reason: string; confidence: string }>>(
+      `/contacts/check-duplicates?${q.toString()}`
+    );
+  },
+
+  exportContactsXlsx: async () => {
+    const token = getStoredToken();
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    const res = await fetch(`${API_BASE_URL}/contacts/export/xlsx`, {
+      method: 'GET',
+      headers,
+    });
+    if (!res.ok) {
+      throw new Error(`Export failed with status ${res.status}`);
+    }
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `compust_contacts_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  },
+
+  previewContactsImport: async (file: File) => {
+    const token = getStoredToken();
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const res = await fetch(`${API_BASE_URL}/contacts/preview-import`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to preview spreadsheet');
+    }
+    return (await res.json()) as ContactImportPreviewResult;
+  },
+
+  confirmContactsImport: (payload: ContactImportConfirmPayload) =>
+    request<{ status: string; created_count: number; updated_count: number; skipped_count: number; total_processed: number }>(
+      '/contacts/confirm-import',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }
+    ),
 
   // Scraper Telemetry & Metrics
   getScraperMetrics: () => request<ScraperTelemetry>('/admin/metrics'),
@@ -1243,6 +1557,87 @@ export const api = {
         body: JSON.stringify(payload),
       }
     ),
+
+  // Mock Interview & Skills Assessment
+  createMockInterviewSession: (payload: MockInterviewSetupRequest) =>
+    request<MockInterviewSetupResponse>('/mock-interview/sessions', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  startMockInterviewSession: (sessionId: number) =>
+    request<TurnSubmitResponse>(`/mock-interview/sessions/${sessionId}/start`, {
+      method: 'POST',
+    }),
+
+  submitMockInterviewTurn: (sessionId: number, payload: TurnSubmitRequest) =>
+    request<TurnSubmitResponse>(`/mock-interview/sessions/${sessionId}/turns`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  endMockInterviewSession: (sessionId: number, payload: EndSessionRequest) =>
+    request<EndSessionResponse>(`/mock-interview/sessions/${sessionId}/end`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  getMockInterviewSessionState: (sessionId: number) =>
+    request<SessionStateResponse>(`/mock-interview/sessions/${sessionId}/state`),
+
+  getMockInterviewAssessment: (sessionId: number) =>
+    request<MockInterviewAssessmentResponse>(`/mock-interview/sessions/${sessionId}/assessment`),
+
+  listMockInterviewSessions: (limit: number = 20, offset: number = 0) =>
+    request<SessionHistoryResponse>(`/mock-interview/sessions?limit=${limit}&offset=${offset}`),
+
+  detectMockInterviewDomain: (payload?: ResumeDomainDetectRequest) =>
+    request<ResumeDomainDetectResponse>('/mock-interview/resume-detect', {
+      method: 'POST',
+      body: JSON.stringify(payload || {}),
+    }),
+
+  uploadMockInterviewAudio: async (audioBlob: Blob, language: string = 'en'): Promise<STTTranscriptResponse> => {
+    const formData = new FormData();
+    formData.append('file', audioBlob, 'turn_recording.webm');
+    const token = getStoredToken();
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    const response = await fetch(`${API_BASE_URL}/mock-interview/stt?language=${encodeURIComponent(language)}`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ detail: 'STT transcription failed' }));
+      throw new Error(err.detail || 'Audio transcription failed');
+    }
+    return response.json();
+  },
+
+  getMockInterviewSTTStatus: () =>
+    request<STTStatusResponse>('/mock-interview/stt-status'),
+
+  getMockInterviewTTSStatus: () =>
+    request<TTSStatusResponse>('/mock-interview/tts-status'),
+
+  getMockInterviewTTSUrl: (text: string, voice?: string, rate?: string): string => {
+    const params = new URLSearchParams({ text });
+    if (voice) params.set('voice', voice);
+    if (rate) params.set('rate', rate);
+    return `${API_BASE_URL}/mock-interview/tts?${params.toString()}`;
+  },
+
+  createMockInterviewRepractice: (sessionId: number, payload: RepracticeRequest) =>
+    request<RepracticeResponse>(`/mock-interview/sessions/${sessionId}/repractice`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  getMockInterviewInterviewerStatus: () =>
+    request<any>('/mock-interview/interviewer-status'),
 };
 
 
@@ -1960,6 +2355,270 @@ export interface QuestionAIExplainResponse {
   is_ai_generated: boolean;
   disclaimer: string;
 }
+
+// ---------------------------------------------------------------------------
+// Mock Interview & Skills Assessment Interfaces
+// ---------------------------------------------------------------------------
+
+export interface MockInterviewSetupRequest {
+  domain_id: string;
+  role?: string | null;
+  target_role?: string | null;
+  difficulty: 'Fundamental' | 'Intermediate' | 'Advanced' | 'Mixed' | string;
+  duration_minutes: number;
+  job_id?: number | null;
+  resume_id?: number | null;
+}
+
+export interface MockInterviewSetupResponse {
+  session_id: number;
+  domain_id: string;
+  domain_title: string;
+  difficulty: string;
+  duration_minutes: number;
+  planned_question_count: number;
+  category_distribution: Record<string, number>;
+  privacy_notice: string;
+  requires_microphone: boolean;
+  local_processing_note: string;
+}
+
+export interface ResumeDomainDetectRequest {
+  resume_id?: number | null;
+}
+
+export interface ResumeDomainDetectResponse {
+  suggested_domain_id: string;
+  suggested_domain_title: string;
+  confidence: 'high' | 'medium' | 'low' | string;
+  reasoning: string;
+  suggested_difficulty: string;
+  is_ai_suggested: boolean;
+  disclaimer: string;
+}
+
+export interface STTTranscriptResponse {
+  transcript: string;
+  confidence?: number | null;
+  engine: string;
+  duration_seconds?: number | null;
+  error?: string | null;
+}
+
+export interface NextQuestionItem {
+  question_id: string;
+  question_title: string;
+  domain_id: string;
+  category: string;
+  topic: string;
+  difficulty: string;
+  is_follow_up: boolean;
+  follow_up_focus?: string | null;
+  question_type?: 'introductory' | 'technical' | 'behavioral' | 'scenario' | string;
+  expected_duration_seconds?: number;
+  tts_text: string;
+  interviewer_name?: string;
+  interviewer_video_url?: string | null;
+  interviewer_audio_url?: string | null;
+}
+
+export interface TurnSubmitRequest {
+  session_id: number;
+  transcript: string;
+  stt_engine?: string;
+  stt_confidence?: number | null;
+  answer_duration_seconds?: number | null;
+}
+
+export interface TurnSubmitResponse {
+  turn_id: number;
+  session_id: number;
+  elapsed_seconds: number;
+  remaining_seconds: number;
+  questions_asked: number;
+  interview_complete: boolean;
+  next_question?: NextQuestionItem | null;
+  follow_up_triggered: boolean;
+  message?: string | null;
+}
+
+export interface SessionStateResponse {
+  session_id: number;
+  status: string;
+  domain_id: string;
+  domain_title: string;
+  difficulty: string;
+  duration_minutes: number;
+  elapsed_seconds: number;
+  remaining_seconds: number;
+  questions_asked: number;
+  current_question?: NextQuestionItem | null;
+  evaluation_status: string;
+  started_at?: string | null;
+  ended_at?: string | null;
+}
+
+export interface EndSessionRequest {
+  session_id: number;
+  reason?: string;
+}
+
+export interface EndSessionResponse {
+  session_id: number;
+  status: string;
+  evaluation_status: string;
+  message: string;
+}
+
+export interface AnswerEvaluationDetail {
+  turn_id: number;
+  turn_index: number;
+  question_id: string;
+  parent_question_id?: string | null;
+  question_title: string;
+  category: string;
+  topic: string;
+  difficulty: string;
+  is_follow_up: boolean;
+  question_type?: 'introductory' | 'technical' | 'behavioral' | string;
+  transcript?: string | null;
+  raw_transcript?: string | null;
+  canonical_transcript?: string | null;
+  demonstrated_status?: string;
+  correctness?: number | null;
+  completeness?: number | null;
+  relevance?: number | null;
+  technical_depth?: number | null;
+  clarity?: number | null;
+  star_breakdown?: {
+    situation?: number;
+    task?: number;
+    action?: number;
+    result?: number;
+  } | null;
+  missing_concepts: string[];
+  incorrect_claims: string[];
+  positive_points: string[];
+  improvement_points: string[];
+  better_answer_notes?: string | null;
+  evaluation_error?: string | null;
+}
+
+export interface SkillMatrixEntry {
+  category_name: string;
+  category_id: string;
+  rating: 'Strong' | 'Moderate' | 'Weak' | 'Not Assessed' | 'Unclear' | string;
+  score?: number | null;
+  question_count: number;
+  basis: string;
+  status?: string;
+}
+
+export interface AssessmentRecommendation {
+  area: string;
+  action: string;
+  domain_id: string;
+  category_id?: string | null;
+  priority: 'high' | 'medium' | 'low' | string;
+  source_question_id?: string | null;
+}
+
+export interface AssessmentEvidenceItem {
+  topic: string;
+  status: string;
+  source_question_id?: string | null;
+  source_turn_index?: number | null;
+  evidence: string;
+  recommendation?: string | null;
+  correction?: string | null;
+}
+
+export interface MockInterviewAssessmentResponse {
+  session_id: number;
+  overall_score: number;
+  technical_score?: number | null;
+  behavioral_score?: number | null;
+  evaluation_status: 'pending' | 'processing' | 'completed' | 'failed' | string;
+  summary_text?: string | null;
+  questions_asked?: number;
+  questions_answered?: number;
+  assessed_domains?: string[];
+  unassessed_domains?: string[];
+  unassessed_disclaimer?: string;
+  skill_matrix: SkillMatrixEntry[];
+  weak_areas: string[];
+  weak_area_details?: AssessmentEvidenceItem[];
+  strengths?: string[];
+  strength_details?: AssessmentEvidenceItem[];
+  answer_details: AnswerEvaluationDetail[];
+  recommendations: AssessmentRecommendation[];
+  ai_model_used?: string | null;
+  generated_at?: string | null;
+  disclaimer: string;
+}
+
+export interface SessionHistorySummary {
+  session_id: number;
+  domain_id: string;
+  domain_title: string;
+  difficulty: string;
+  duration_minutes: number;
+  status: string;
+  evaluation_status: string;
+  overall_score?: number | null;
+  weak_areas: string[];
+  questions_asked: number;
+  started_at?: string | null;
+  ended_at?: string | null;
+  created_at: string;
+}
+
+export interface SessionHistoryResponse {
+  sessions: SessionHistorySummary[];
+  total: number;
+}
+
+export interface RepracticeRequest {
+  source_session_id: number;
+  duration_minutes: number;
+}
+
+export interface RepracticeResponse {
+  new_session_id: number;
+  domain_id: string;
+  difficulty: string;
+  duration_minutes: number;
+  weak_areas_targeted: string[];
+  message: string;
+}
+
+export interface STTStatusResponse {
+  available: boolean;
+  engine: string;
+  model_size: string;
+  local_processing: boolean;
+  audio_retained: boolean;
+  fallback_available: boolean;
+  fallback_engine: string;
+}
+
+export interface TTSVoiceItem {
+  id: string;
+  name: string;
+  gender: string;
+  locale: string;
+  is_default: boolean;
+}
+
+export interface TTSStatusResponse {
+  available: boolean;
+  engine: string;
+  default_voice: string;
+  voices: TTSVoiceItem[];
+  fallback_available: boolean;
+  fallback_engine: string;
+}
+
 
 
 

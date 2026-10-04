@@ -40,6 +40,7 @@ class ManualApplicationCreate(BaseModel):
     applied_at: datetime | None = None
     salary: str | None = None
     employment_type: str | None = None
+    contact_id: int | None = None
     contact_name: str | None = None
     contact_email: str | None = None
     contact_phone: str | None = None
@@ -65,6 +66,7 @@ class ApplicationUpdate(BaseModel):
     source: str | None = None
     salary: str | None = None
     employment_type: str | None = None
+    contact_id: int | None = None
     contact_name: str | None = None
     contact_email: str | None = None
     contact_phone: str | None = None
@@ -76,6 +78,22 @@ class ApplicationUpdate(BaseModel):
     resume_suggestions: Any | None = None
 
 
+class ApplicationEventCreate(BaseModel):
+    """Payload for logging a meaningful event or note on an application's timeline."""
+    event_type: str = "note"
+    event_title: str = Field(..., min_length=1)
+    notes: str | None = None
+    event_date: datetime | None = None
+
+
+class FollowUpActionPayload(BaseModel):
+    """Quick action payload for follow-ups (complete, snooze, reschedule, cancel)."""
+    action: Literal["complete", "snooze", "reschedule", "cancel"]
+    days: int | None = None  # e.g., 2, 7 for snooze
+    new_date: date | None = None  # for reschedule
+    notes: str | None = None
+
+
 class ApplicationHistoryRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -85,6 +103,165 @@ class ApplicationHistoryRead(BaseModel):
     to_status: str
     changed_at: datetime
     notes: str | None = None
+    event_type: str = "status_change"
+    event_title: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# Contact & Interaction schemas
+# ---------------------------------------------------------------------------
+
+class ContactInteractionCreate(BaseModel):
+    type: str = "email_sent"  # email_sent, email_received, linkedin_message, phone_call, meeting, interview, follow_up, note, other
+    summary: str = Field(..., min_length=1)
+    details: str | None = None
+    interaction_date: datetime | None = None
+    application_id: int | None = None
+
+
+class ContactInteractionRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    contact_id: int
+    application_id: int | None = None
+    user_id: int
+    type: str
+    summary: str
+    details: str | None = None
+    interaction_date: datetime
+    created_at: datetime
+
+
+class RelatedApplicationSummary(BaseModel):
+    id: int
+    job_title: str
+    company_name: str
+    status: str
+    applied_at: datetime | None = None
+    source: str = "Compust"
+
+
+class ContactCreate(BaseModel):
+    first_name: str | None = None
+    last_name: str | None = None
+    name: str = Field(..., min_length=1)
+    email: str | None = None
+    phone: str | None = None
+    company: str | None = None
+    role: str | None = None
+    linkedin_url: str | None = None
+    location: str | None = None
+    notes: str | None = None
+    tags: str | None = None
+    application_id: int | None = None  # Optional application to immediately link to
+
+    # Communication & Interaction fields (Distinguish identity from interaction)
+    contacted: bool | None = None
+    contact_method: str | None = None  # email, linkedin, phone, other
+    contact_date: datetime | None = None
+    email_used: str | None = None
+    response_received: bool | None = None
+    response_date: datetime | None = None
+    response_notes: str | None = None
+
+
+class ContactUpdate(BaseModel):
+    first_name: str | None = None
+    last_name: str | None = None
+    name: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    company: str | None = None
+    role: str | None = None
+    linkedin_url: str | None = None
+    location: str | None = None
+    notes: str | None = None
+    tags: str | None = None
+
+    # Communication & Interaction update fields
+    contacted: bool | None = None
+    contact_method: str | None = None
+    contact_date: datetime | None = None
+    email_used: str | None = None
+    response_received: bool | None = None
+    response_date: datetime | None = None
+    response_notes: str | None = None
+
+
+class ContactRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    user_id: int
+    first_name: str | None = None
+    last_name: str | None = None
+    name: str
+    email: str | None = None
+    phone: str | None = None
+    company: str | None = None
+    role: str | None = None
+    linkedin_url: str | None = None
+    location: str | None = None
+    notes: str | None = None
+    tags: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+    # Factual insights derived from actual applications data
+    applications_count: int = 0
+    responses_count: int = 0
+    interviews_count: int = 0
+    last_interaction_date: datetime | None = None
+    last_contacted_at: datetime | None = None
+    last_response_at: datetime | None = None
+    has_responded: bool = False
+    next_action: str | None = None
+
+    # Distinct communication state: 'not_contacted' | 'contacted_no_response' | 'responded'
+    communication_status: str = "not_contacted"
+    preferred_contact_method: str | None = None
+    email_used: str | None = None
+
+    interactions: list[ContactInteractionRead] = []
+    related_applications: list[RelatedApplicationSummary] = []
+
+
+class ContactDuplicateMatch(BaseModel):
+    contact: ContactRead
+    match_reason: str
+    confidence: Literal["exact", "high", "medium"]
+
+
+class ContactImportPreviewRow(BaseModel):
+    first_name: str | None = None
+    last_name: str | None = None
+    name: str
+    email: str | None = None
+    phone: str | None = None
+    company: str | None = None
+    role: str | None = None
+    linkedin_url: str | None = None
+    location: str | None = None
+    notes: str | None = None
+    tags: str | None = None
+    status: Literal["new", "existing", "duplicate"] = "new"
+    match_id: int | None = None
+    match_name: str | None = None
+
+
+class ContactImportPreviewResult(BaseModel):
+    total_detected: int
+    new_count: int
+    existing_count: int
+    duplicate_count: int
+    column_mapping: dict[str, str]
+    preview_rows: list[ContactImportPreviewRow]
+
+
+class ContactImportConfirmPayload(BaseModel):
+    mode: Literal["skip_duplicates", "update_existing", "import_all"] = "skip_duplicates"
+    rows: list[ContactImportPreviewRow]
 
 
 class ApplicationRead(BaseModel):
@@ -106,6 +283,7 @@ class ApplicationRead(BaseModel):
     custom_job_url: str | None = None
     salary: str | None = None
     employment_type: str | None = None
+    contact_id: int | None = None
     contact_name: str | None = None
     contact_email: str | None = None
     contact_phone: str | None = None
@@ -119,6 +297,7 @@ class ApplicationRead(BaseModel):
     updated_at: datetime
     resume_suggestions: Any | None = None
     job: JobRead | None = None
+    contact: ContactRead | None = None
     history: list[ApplicationHistoryRead] = []
 
     @computed_field
@@ -167,6 +346,36 @@ class ApplicationRead(BaseModel):
         return None
 
 
+class SourceAnalyticsItem(BaseModel):
+    source: str
+    applications: int
+    responses: int
+    interviews: int
+    offers: int
+    response_rate_percent: float
+    interview_rate_percent: float
+
+
+class ActivityTimePoint(BaseModel):
+    date: str
+    applications: int
+    responses: int
+    interviews: int
+    offers: int
+
+
+class SearchOverview(BaseModel):
+    total_applications: int
+    applications_this_week: int
+    total_responses: int
+    total_interviews: int
+    total_offers: int
+    avg_response_time_days: float | None = None
+    upcoming_interviews: int = 0
+    upcoming_follow_ups: int = 0
+    overdue_follow_ups: int = 0
+
+
 class ApplicationStatsRead(BaseModel):
     total_applications: int
     active_applications: int
@@ -179,6 +388,11 @@ class ApplicationStatsRead(BaseModel):
     rejection_rate_percent: float
     avg_days_to_interview: float | None = None
     avg_days_to_offer: float | None = None
+
+    # Advanced Upgrade analytics (derived directly from real user data)
+    source_analytics: list[SourceAnalyticsItem] = Field(default_factory=list)
+    activity_timeline: dict[str, list[ActivityTimePoint]] = Field(default_factory=dict)
+    overview: SearchOverview | None = None
 
 
 class SankeyNode(BaseModel):

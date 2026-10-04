@@ -15,5 +15,43 @@
   "source_license": "Public Open Source (Outcome School / Amit Shekhar)",
   "source_url": "https://github.com/amitshekhariitbhu/ai-engineering-interview-questions",
   "total_categories": 6,
-  "total_questions": 20
+  "total_questions": 20,
+  "categories": [
+    {
+      "id": "llm-fundamentals",
+      "name": "LLM Fundamentals & Transformer Mechanics",
+      "description": "Transformer self-attention, tokenization algorithms (BPE), sparse architectures (MoE), and KV-caching inference optimization.",
+      "topics": ["Inference Optimization", "Sparse Architectures", "Tokenization Algorithms", "Transformer Foundations"]
+    },
+    {
+      "id": "prompt-engineering",
+      "name": "Prompt Engineering, In-Context Learning & Guardrails",
+      "description": "In-context learning paradigms (few-shot, CoT, ReAct), structured output generation, and LLM security guardrails.",
+      "topics": ["Prompting Techniques", "Security & Guardrails", "Structured Generation"]
+    },
+    {
+      "id": "rag-architectures",
+      "name": "Retrieval-Augmented Generation (RAG) & Vector Systems",
+      "description": "Vector embeddings, hybrid retrieval (dense + sparse), chunking strategies, reranking models, and contextual RAG pipelines.",
+      "topics": ["Advanced Retrieval Paradigms", "Document Ingestion & Chunking", "RAG Architectures", "Vector Search & Indexing"]
+    },
+    {
+      "id": "ai-agents-mcp",
+      "name": "AI Agents, Tool Calling & Model Context Protocol (MCP)",
+      "description": "Autonomous agent loops, tool calling interfaces, episodic memory architectures, and Model Context Protocol (MCP) standards.",
+      "topics": ["Agent Memory Architectures", "Agentic Frameworks", "Protocol Standards (MCP)"]
+    },
+    {
+      "id": "fine-tuning-adaptation",
+      "name": "Fine-Tuning, Quantization & Model Alignment (RLHF / DPO)",
+      "description": "Parameter-efficient fine-tuning (LoRA, QLoRA), post-training quantization (AWQ, GGUF), and preference alignment (DPO, RLHF).",
+      "topics": ["Model Alignment & Preference Tuning", "Model Quantization", "Parameter-Efficient Fine-Tuning (PEFT)"]
+    },
+    {
+      "id": "system-design-llmops",
+      "name": "AI System Design, Production Serving & LLMOps",
+      "description": "Production LLM serving architectures, vLLM continuous batching, semantic caching, automated evaluation, and hallucination monitoring.",
+      "topics": ["Caching Architectures", "Evaluation & Quality Assurance", "Production Latency Optimization", "Serving Engines & Runtime"]
+    }
+  ]
 }

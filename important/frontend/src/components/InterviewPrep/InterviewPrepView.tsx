@@ -24,6 +24,7 @@ import {
   X,
   Briefcase,
   GraduationCap,
+  Mic,
 } from 'lucide-react';
 import { api } from '../../api/client';
 import type {
@@ -41,6 +42,7 @@ import {
   STAREvaluatorWidget,
 } from './STARVisuals';
 import { VisualAIExplanation } from './VisualAIExplanation';
+import { MockInterviewView } from './MockInterviewView';
 import { useTranslation } from '../../i18n';
 import './InterviewPrepView.css';
 
@@ -55,7 +57,7 @@ interface InterviewPrepViewProps {
   onNavigateToProfile?: () => void;
 }
 
-type PrepTab = 'behavioral' | 'technical';
+type PrepTab = 'behavioral' | 'technical' | 'mock_interview';
 type SupportedPrepLang = 'en' | 'fr' | 'de';
 
 export const InterviewPrepView: React.FC<InterviewPrepViewProps> = ({ onNavigateToProfile }) => {
@@ -495,6 +497,16 @@ export const InterviewPrepView: React.FC<InterviewPrepViewProps> = ({ onNavigate
           <Terminal size={17} />
           <span>Technical Tracks</span>
           <span className="mode-badge count">3 Domains</span>
+        </button>
+
+        <button
+          type="button"
+          className={`mode-nav-btn ${activeTab === 'mock_interview' ? 'active' : ''}`}
+          onClick={() => setActiveTab('mock_interview')}
+        >
+          <Mic size={17} />
+          <span>AI Mock Interview</span>
+          <span className="mode-badge live">Voice Live</span>
         </button>
 
         {/* Instant Search Bar */}
@@ -1245,6 +1257,13 @@ export const InterviewPrepView: React.FC<InterviewPrepViewProps> = ({ onNavigate
             </article>
           </div>
         </main>
+      )}
+
+      {activeTab === 'mock_interview' && (
+        <MockInterviewView
+          initialDomainId={selectedDomainId}
+          onNavigateBack={() => setActiveTab('technical')}
+        />
       )}
     </div>
   );

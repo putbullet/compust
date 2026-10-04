@@ -1,5 +1,5 @@
 import io
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 import openpyxl
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
@@ -7,16 +7,22 @@ from openpyxl.utils import get_column_letter
 from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import Session
 
-from ..models import Company, Country, Job, User, UserApplication, UserApplicationHistory
+from ..models import Company, Contact, Country, Job, User, UserApplication, UserApplicationHistory
 from ..schemas_applications import (
+    ActivityTimePoint,
     ApplicationCreate,
+    ApplicationEventCreate,
     ApplicationStatsRead,
     ApplicationUpdate,
+    FollowUpActionPayload,
     ManualApplicationCreate,
     SankeyDataRead,
     SankeyLink,
     SankeyNode,
+    SearchOverview,
+    SourceAnalyticsItem,
 )
+from .contacts import build_contact_read
 
 
 def log_application_history(
@@ -25,14 +31,28 @@ def log_application_history(
     from_status: str | None,
     to_status: str,
     notes: str | None = None,
+    event_type: str = "status_change",
+    event_title: str | None = None,
+    changed_at: datetime | None = None,
 ) -> UserApplicationHistory:
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = changed_at or datetime.now(timezone.utc).replace(tzinfo=None)
+    if not event_title:
+        if event_type == "status_change":
+            stage_name = to_status.replace("_", " ").title()
+            event_title = f"Stage changed to {stage_name}"
+        elif event_type == "created":
+            event_title = "Application created"
+        else:
+            event_title = event_type.replace("_", " ").title()
+
     history = UserApplicationHistory(
         application_id=application_id,
         from_status=from_status,
         to_status=to_status,
         changed_at=now,
         notes=notes,
+        event_type=event_type,
+        event_title=event_title,
     )
     db.add(history)
     return history
@@ -70,6 +90,8 @@ def save_or_update_application(
                 from_status=old_status,
                 to_status=data.status,
                 notes="Status updated via Opportunities",
+                event_type="status_change",
+                event_title=f"Stage changed to {data.status.replace('_', ' ').title()}",
             )
 
         db.commit()
@@ -103,6 +125,8 @@ def save_or_update_application(
         from_status=None,
         to_status=data.status,
         notes="Added via Opportunities",
+        event_type="created",
+        event_title="Application added via Opportunities",
     )
 
     db.commit()
@@ -118,6 +142,37 @@ def create_manual_application(
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     applied_at = data.applied_at or (now if data.status == "applied" else None)
 
+    # Smart contact linking
+    linked_contact_id = data.contact_id
+    c_email = data.contact_email.strip().lower() if data.contact_email else None
+    c_name = data.contact_name.strip() if data.contact_name else (data.recruiter.strip() if data.recruiter else None)
+
+    if not linked_contact_id and c_email:
+        existing_contact = db.scalar(
+            select(Contact).where(
+                Contact.user_id == user.id,
+                func.lower(Contact.email) == c_email,
+            )
+        )
+        if existing_contact:
+            linked_contact_id = existing_contact.id
+
+    if not linked_contact_id and (c_name or c_email):
+        # Auto-create contact record for candidate convenience
+        new_contact = Contact(
+            user_id=user.id,
+            name=c_name or c_email or "Contact",
+            email=c_email,
+            phone=data.contact_phone.strip() if data.contact_phone else None,
+            company=data.company_name.strip(),
+            role="Recruiter" if data.recruiter else "Hiring Contact",
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(new_contact)
+        db.flush()
+        linked_contact_id = new_contact.id
+
     app = UserApplication(
         user_id=user.id,
         job_id=None,
@@ -130,8 +185,9 @@ def create_manual_application(
         custom_job_url=data.job_url.strip() if data.job_url else None,
         salary=data.salary.strip() if data.salary else None,
         employment_type=data.employment_type.strip() if data.employment_type else None,
-        contact_name=data.contact_name.strip() if data.contact_name else None,
-        contact_email=data.contact_email.strip() if data.contact_email else None,
+        contact_id=linked_contact_id,
+        contact_name=c_name,
+        contact_email=c_email,
         contact_phone=data.contact_phone.strip() if data.contact_phone else None,
         recruiter=data.recruiter.strip() if data.recruiter else None,
         referral=data.referral.strip() if data.referral else None,
@@ -152,7 +208,31 @@ def create_manual_application(
         from_status=None,
         to_status=app.status,
         notes="Manual application created",
+        event_type="created",
+        event_title="Application created",
     )
+
+    if data.next_follow_up:
+        log_application_history(
+            db,
+            application_id=app.id,
+            from_status=app.status,
+            to_status=app.status,
+            notes=f"Follow-up scheduled for {data.next_follow_up}",
+            event_type="follow_up_scheduled",
+            event_title=f"Follow-up scheduled for {data.next_follow_up}",
+        )
+
+    if data.interview_date:
+        log_application_history(
+            db,
+            application_id=app.id,
+            from_status=app.status,
+            to_status=app.status,
+            notes=f"Interview scheduled for {data.interview_date}",
+            event_type="interview_scheduled",
+            event_title=f"Interview scheduled for {data.interview_date.strftime('%b %d, %Y')}",
+        )
 
     db.commit()
     db.refresh(app)
@@ -253,6 +333,8 @@ def update_application(
             from_status=old_status,
             to_status=data.status,
             notes=data.notes,
+            event_type="status_change",
+            event_title=f"Stage changed to {data.status.replace('_', ' ').title()}",
         )
 
     if data.notes is not None:
@@ -275,10 +357,40 @@ def update_application(
         app.salary = data.salary
     if data.employment_type is not None:
         app.employment_type = data.employment_type
-    if data.contact_name is not None:
-        app.contact_name = data.contact_name
-    if data.contact_email is not None:
-        app.contact_email = data.contact_email
+
+    # Contact linking
+    if data.contact_id is not None:
+        app.contact_id = data.contact_id
+        contact = db.scalar(select(Contact).where(Contact.id == data.contact_id, Contact.user_id == user.id))
+        if contact:
+            app.contact_name = contact.name
+            if contact.email:
+                app.contact_email = contact.email
+            log_application_history(
+                db,
+                application_id=app.id,
+                from_status=app.status,
+                to_status=app.status,
+                notes=f"Linked to contact: {contact.name}",
+                event_type="contact_linked",
+                event_title=f"Associated with {contact.name}",
+            )
+    else:
+        if data.contact_name is not None:
+            app.contact_name = data.contact_name
+        if data.contact_email is not None:
+            app.contact_email = data.contact_email
+            # Auto-link if exact email matches existing contact
+            if not app.contact_id and data.contact_email.strip():
+                existing = db.scalar(
+                    select(Contact).where(
+                        Contact.user_id == user.id,
+                        func.lower(Contact.email) == data.contact_email.strip().lower(),
+                    )
+                )
+                if existing:
+                    app.contact_id = existing.id
+
     if data.contact_phone is not None:
         app.contact_phone = data.contact_phone
     if data.recruiter is not None:
@@ -287,15 +399,143 @@ def update_application(
         app.referral = data.referral
     if data.priority is not None:
         app.priority = data.priority
-    if data.next_follow_up is not None:
+
+    # Follow-up changes
+    if data.next_follow_up is not None and data.next_follow_up != app.next_follow_up:
         app.next_follow_up = data.next_follow_up
-    if data.interview_date is not None:
+        log_application_history(
+            db,
+            application_id=app.id,
+            from_status=app.status,
+            to_status=app.status,
+            notes=f"Scheduled for {data.next_follow_up}",
+            event_type="follow_up_scheduled",
+            event_title=f"Follow-up set to {data.next_follow_up}",
+        )
+    elif data.next_follow_up is None and "next_follow_up" in data.model_fields_set:
+        app.next_follow_up = None
+
+    # Interview date changes
+    if data.interview_date is not None and data.interview_date != app.interview_date:
         app.interview_date = data.interview_date
+        log_application_history(
+            db,
+            application_id=app.id,
+            from_status=app.status,
+            to_status=app.status,
+            notes=f"Scheduled for {data.interview_date}",
+            event_type="interview_scheduled",
+            event_title=f"Interview scheduled for {data.interview_date.strftime('%b %d, %Y')}",
+        )
 
     app.updated_at = now
     db.commit()
     db.refresh(app)
     return app
+
+
+def execute_follow_up_action(
+    db: Session,
+    user: User,
+    application_id: int,
+    payload: FollowUpActionPayload,
+) -> UserApplication | None:
+    app = get_application(db, user.id, application_id)
+    if not app:
+        return None
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    action = payload.action
+
+    if action == "complete":
+        old_fu = app.next_follow_up
+        app.next_follow_up = None
+        app.updated_at = now
+        log_application_history(
+            db,
+            application_id=app.id,
+            from_status=app.status,
+            to_status=app.status,
+            notes=payload.notes or f"Follow-up completed (was scheduled for {old_fu})",
+            event_type="follow_up_completed",
+            event_title="Follow-up completed",
+        )
+    elif action == "snooze":
+        days = payload.days or 2
+        today = now.date()
+        base_date = app.next_follow_up or today
+        if base_date < today:
+            base_date = today
+        new_date = base_date + timedelta(days=days)
+        app.next_follow_up = new_date
+        app.updated_at = now
+        log_application_history(
+            db,
+            application_id=app.id,
+            from_status=app.status,
+            to_status=app.status,
+            notes=payload.notes or f"Snoozed by {days} days to {new_date}",
+            event_type="follow_up_snoozed",
+            event_title=f"Follow-up snoozed to {new_date}",
+        )
+    elif action == "reschedule":
+        new_date = payload.new_date or (now.date() + timedelta(days=7))
+        app.next_follow_up = new_date
+        app.updated_at = now
+        log_application_history(
+            db,
+            application_id=app.id,
+            from_status=app.status,
+            to_status=app.status,
+            notes=payload.notes or f"Rescheduled to {new_date}",
+            event_type="follow_up_rescheduled",
+            event_title=f"Follow-up rescheduled to {new_date}",
+        )
+    elif action == "cancel":
+        app.next_follow_up = None
+        app.updated_at = now
+        log_application_history(
+            db,
+            application_id=app.id,
+            from_status=app.status,
+            to_status=app.status,
+            notes=payload.notes or "Follow-up cancelled",
+            event_type="follow_up_cancelled",
+            event_title="Follow-up cancelled",
+        )
+
+    db.commit()
+    db.refresh(app)
+    return app
+
+
+def add_application_timeline_event(
+    db: Session,
+    user: User,
+    application_id: int,
+    data: ApplicationEventCreate,
+) -> UserApplicationHistory | None:
+    app = get_application(db, user.id, application_id)
+    if not app:
+        return None
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    event_date = data.event_date or now
+
+    history = log_application_history(
+        db,
+        application_id=app.id,
+        from_status=app.status,
+        to_status=app.status,
+        notes=data.notes,
+        event_type=data.event_type or "note",
+        event_title=data.event_title,
+        changed_at=event_date,
+    )
+    app.updated_at = now
+    db.commit()
+    db.refresh(history)
+    return history
 
 
 def delete_application(db: Session, user: User, application_id: int) -> bool:
@@ -368,6 +608,16 @@ def get_application_statistics(
     interview_days: list[float] = []
     offer_days: list[float] = []
 
+    # Source-level tracking for Source Analytics
+    source_stats: dict[str, dict] = {}
+
+    today = datetime.now(timezone.utc).date()
+    one_week_ago = today - timedelta(days=7)
+    upcoming_interviews = 0
+    upcoming_follow_ups = 0
+    overdue_follow_ups = 0
+    apps_this_week = 0
+
     for app in apps:
         status = app.status or "saved"
         status_breakdown[status] = status_breakdown.get(status, 0) + 1
@@ -375,21 +625,31 @@ def get_application_statistics(
         source = app.source or "Compust"
         source_breakdown[source] = source_breakdown.get(source, 0) + 1
 
+        if source not in source_stats:
+            source_stats[source] = {"applications": 0, "responses": 0, "interviews": 0, "offers": 0}
+        source_stats[source]["applications"] += 1
+
         if status in active_statuses:
             active_count += 1
 
-        # Check if ever reached interview / offer / response either via current status or history
         histories = app.history or []
         statuses_seen = {status} | {h.to_status for h in histories}
 
-        if any(s in interview_statuses for s in statuses_seen):
+        is_interview = any(s in interview_statuses for s in statuses_seen)
+        is_response = any(s in response_statuses for s in statuses_seen) and status != "no_answer"
+        is_offer = "offer" in statuses_seen or "accepted" in statuses_seen
+
+        if is_interview:
             interview_count += 1
+            source_stats[source]["interviews"] += 1
 
-        if any(s in response_statuses for s in statuses_seen) and status != "no_answer":
+        if is_response:
             response_count += 1
+            source_stats[source]["responses"] += 1
 
-        if "offer" in statuses_seen or "accepted" in statuses_seen:
+        if is_offer:
             offer_count += 1
+            source_stats[source]["offers"] += 1
 
         if "accepted" in statuses_seen:
             accepted_count += 1
@@ -397,10 +657,13 @@ def get_application_statistics(
         if status == "rejected":
             rejected_count += 1
 
-        # Calculate time metrics if applied_at exists
+        # Application date & this week counter
         app_date = app.applied_at or app.created_at
         if app_date:
-            # Find earliest interview transition or interview_date
+            if app_date.date() >= one_week_ago:
+                apps_this_week += 1
+
+            # Time to interview
             first_int_time = app.interview_date
             for h in histories:
                 if h.to_status in interview_statuses:
@@ -410,7 +673,7 @@ def get_application_statistics(
                 diff = (first_int_time - app_date).total_seconds() / 86400.0
                 interview_days.append(diff)
 
-            # Find offer transition
+            # Time to offer
             offer_time = None
             for h in histories:
                 if h.to_status in {"offer", "accepted"}:
@@ -420,8 +683,99 @@ def get_application_statistics(
                 diff = (offer_time - app_date).total_seconds() / 86400.0
                 offer_days.append(diff)
 
+        # Follow-up and Interview overview metrics
+        if app.next_follow_up:
+            if app.next_follow_up < today:
+                overdue_follow_ups += 1
+            elif app.next_follow_up <= today + timedelta(days=7):
+                upcoming_follow_ups += 1
+
+        if app.interview_date and app.interview_date.date() >= today:
+            upcoming_interviews += 1
+
     applied_base = sum(1 for a in apps if a.status != "saved") or total
     denominator = max(applied_base, 1)
+
+    # 1. Source Analytics list
+    source_analytics: list[SourceAnalyticsItem] = [
+        SourceAnalyticsItem(
+            source=s_name,
+            applications=s_data["applications"],
+            responses=s_data["responses"],
+            interviews=s_data["interviews"],
+            offers=s_data["offers"],
+            response_rate_percent=round((s_data["responses"] / max(s_data["applications"], 1)) * 100, 1),
+            interview_rate_percent=round((s_data["interviews"] / max(s_data["applications"], 1)) * 100, 1),
+        )
+        for s_name, s_data in sorted(source_stats.items(), key=lambda x: x[1]["applications"], reverse=True)
+    ]
+
+    # 2. Activity Timeline Generator (7d, 30d, 90d, 1y, all)
+    def generate_timeline(days: int | None) -> list[ActivityTimePoint]:
+        if days:
+            start_d = today - timedelta(days=days)
+            date_list = [start_d + timedelta(days=i) for i in range(days + 1)]
+        else:
+            # All time
+            earliest = today
+            for a in apps:
+                ad = (a.applied_at or a.created_at).date()
+                if ad < earliest:
+                    earliest = ad
+            span = max((today - earliest).days, 7)
+            date_list = [earliest + timedelta(days=i) for i in range(span + 1)]
+
+        date_map = {
+            d.strftime("%Y-%m-%d"): {"applications": 0, "responses": 0, "interviews": 0, "offers": 0}
+            for d in date_list
+        }
+
+        for a in apps:
+            ad_str = (a.applied_at or a.created_at).strftime("%Y-%m-%d")
+            if ad_str in date_map:
+                date_map[ad_str]["applications"] += 1
+
+            for h in a.history or []:
+                hd_str = h.changed_at.strftime("%Y-%m-%d")
+                if hd_str in date_map:
+                    if h.to_status in interview_statuses:
+                        date_map[hd_str]["interviews"] += 1
+                    elif h.to_status in response_statuses and h.to_status != "no_answer":
+                        date_map[hd_str]["responses"] += 1
+                    if h.to_status in {"offer", "accepted"}:
+                        date_map[hd_str]["offers"] += 1
+
+        return [
+            ActivityTimePoint(
+                date=d_str,
+                applications=counts["applications"],
+                responses=counts["responses"],
+                interviews=counts["interviews"],
+                offers=counts["offers"],
+            )
+            for d_str, counts in sorted(date_map.items())
+        ]
+
+    activity_timeline = {
+        "7d": generate_timeline(7),
+        "30d": generate_timeline(30),
+        "90d": generate_timeline(90),
+        "1y": generate_timeline(365),
+        "all": generate_timeline(None),
+    }
+
+    # 3. Overview summary
+    overview = SearchOverview(
+        total_applications=total,
+        applications_this_week=apps_this_week,
+        total_responses=response_count,
+        total_interviews=interview_count,
+        total_offers=offer_count,
+        avg_response_time_days=round(sum(interview_days) / len(interview_days), 1) if interview_days else None,
+        upcoming_interviews=upcoming_interviews,
+        upcoming_follow_ups=upcoming_follow_ups,
+        overdue_follow_ups=overdue_follow_ups,
+    )
 
     return ApplicationStatsRead(
         total_applications=total,
@@ -439,6 +793,9 @@ def get_application_statistics(
         if interview_days
         else None,
         avg_days_to_offer=round(sum(offer_days) / len(offer_days), 1) if offer_days else None,
+        source_analytics=source_analytics,
+        activity_timeline=activity_timeline,
+        overview=overview,
     )
 
 

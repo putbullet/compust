@@ -81,6 +81,13 @@ def init_database_schema():
     try:
         from sqlalchemy import text
         from .models import Base
+        from .models_mock_interview import (
+            MockInterviewSession,
+            MockInterviewTurn,
+            MockAnswerEvaluation,
+            MockInterviewAssessment,
+            MockQuestionRubric,
+        )
         Base.metadata.create_all(bind=engine)
 
         with engine.begin() as conn:
@@ -96,6 +103,16 @@ def init_database_schema():
                 conn.execute(text("ALTER TABLE resumes ADD COLUMN is_original_upload BOOLEAN DEFAULT 0"))
             except Exception:
                 pass
+            try:
+                conn.execute(text("ALTER TABLE mock_answer_evaluations ADD COLUMN star_breakdown JSON NULL"))
+            except Exception:
+                pass
+
+        try:
+            from migrations.runner import apply_migrations
+            apply_migrations()
+        except Exception as mig_err:
+            logger.warning(f"Automatic migration check encountered non-fatal note: {mig_err}")
 
         logger.info("Database schema verified and initialized.")
     except Exception as exc:

@@ -2300,5 +2300,65 @@
       "Red Teamer",
       "Threat Intelligence Analyst"
     ]
+  },
+  {
+    "id": "sec_auth_vs_authz",
+    "slug": "sec-what-is-the-difference-between-authentication-and-authorization",
+    "title": "What is the difference between authentication and authorization?",
+    "domain_id": "security_engineering",
+    "category_id": "cryptography-iam",
+    "category_name": "Cryptography, PKI, IAM & Key Lifecycle",
+    "topic": "Authentication & IAM",
+    "difficulty": "Fundamental",
+    "experience_level": "Entry-Level / Intern",
+    "target_roles": [
+      "Security Engineer",
+      "IAM Engineer",
+      "Security Analyst"
+    ],
+    "content": "### Authentication vs Authorization\n\n- **Authentication (AuthN)**: Verifying the identity of a subject (user, service, device). Common methods include passwords, multi-factor authentication (MFA), public key cryptography, and biometric verification.\n- **Authorization (AuthZ)**: Determining the permissions and access rights granted to an authenticated identity. Common authorization models include Role-Based Access Control (RBAC), Attribute-Based Access Control (ABAC), and Policy-as-Code (e.g. OPA/Rego).",
+    "markdown_content": "### Authentication vs Authorization\n\n- **Authentication (AuthN)**: Verifying the identity of a subject (user, service, device). Common methods include passwords, multi-factor authentication (MFA), public key cryptography, and biometric verification.\n- **Authorization (AuthZ)**: Determining the permissions and access rights granted to an authenticated identity. Common authorization models include Role-Based Access Control (RBAC), Attribute-Based Access Control (ABAC), and Policy-as-Code (e.g. OPA/Rego).",
+    "educational_diagram": null,
+    "educational_diagram_alt": null,
+    "estimated_read_time_min": 2,
+    "has_code": false,
+    "has_diagram": false,
+    "tags": [
+      "Security Engineering",
+      "cryptography-iam",
+      "IAM",
+      "Authentication",
+      "Authorization"
+    ]
+  },
+  {
+    "id": "sec_ir_scenario",
+    "slug": "sec-incident-response-ransomware-triage-scenario",
+    "title": "Walk me through an incident response scenario where an endpoint alerts on suspected ransomware activity. How do you triage, contain, and remediate the incident?",
+    "domain_id": "security_engineering",
+    "category_id": "soc-incident-response",
+    "category_name": "Incident Response, SOC Operations, SIEM & Threat Hunting",
+    "topic": "Security Operations & Triage",
+    "difficulty": "Intermediate",
+    "experience_level": "Mid-Level",
+    "target_roles": [
+      "SOC Analyst",
+      "Incident Responder",
+      "Security Engineer"
+    ],
+    "content": "### Incident Response Lifecycle (NIST SP 800-61 / SANS)\n\n1. **Preparation**: Maintaining incident runbooks, EDR agents, isolated communication channels, and offline immutable backups.\n2. **Identification & Triage**: Validating EDR alert fidelity (e.g., volume shadow copy deletion via `vssadmin`, rapid file renaming, high CPU file encryption), confirming scope, and assigning severity.\n3. **Containment**: Immediate network isolation of affected host via EDR/VLAN quarantine, revoking active session tokens and compromised user credentials.\n4. **Eradication**: Identifying weaponization vector (phishing payload, exposed RDP, stolen VPN token), terminating malicious parent processes, removing persistence (scheduled tasks, run keys, webshells).\n5. **Recovery**: Restoring clean endpoints/VMs from validated immutable backups, gradual reconnection under enhanced telemetry monitoring.\n6. **Lessons Learned**: Conducting blameless post-mortem, updating detection rules (YARA/Sigma), and hardening root cause vectors.",
+    "markdown_content": "### Incident Response Lifecycle (NIST SP 800-61 / SANS)\n\n1. **Preparation**: Maintaining incident runbooks, EDR agents, isolated communication channels, and offline immutable backups.\n2. **Identification & Triage**: Validating EDR alert fidelity (e.g., volume shadow copy deletion via `vssadmin`, rapid file renaming, high CPU file encryption), confirming scope, and assigning severity.\n3. **Containment**: Immediate network isolation of affected host via EDR/VLAN quarantine, revoking active session tokens and compromised user credentials.\n4. **Eradication**: Identifying weaponization vector (phishing payload, exposed RDP, stolen VPN token), terminating malicious parent processes, removing persistence (scheduled tasks, run keys, webshells).\n5. **Recovery**: Restoring clean endpoints/VMs from validated immutable backups, gradual reconnection under enhanced telemetry monitoring.\n6. **Lessons Learned**: Conducting blameless post-mortem, updating detection rules (YARA/Sigma), and hardening root cause vectors.",
+    "educational_diagram": null,
+    "educational_diagram_alt": null,
+    "estimated_read_time_min": 3,
+    "has_code": false,
+    "has_diagram": false,
+    "tags": [
+      "Security Engineering",
+      "soc-incident-response",
+      "Incident Response",
+      "Ransomware",
+      "Triage"
+    ]
   }
 ]

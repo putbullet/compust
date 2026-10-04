@@ -23,6 +23,11 @@ import {
   Percent,
   CheckCircle2,
   Sparkles,
+  Users,
+  BarChart2,
+  Briefcase,
+  Eye,
+  Layers,
 } from 'lucide-react';
 import { api } from '../api/client';
 import type {
@@ -35,6 +40,15 @@ import type {
 import { AddApplicationModal } from './Applications/AddApplicationModal';
 import { ApplicationSpreadsheet } from './Applications/ApplicationSpreadsheet';
 import { SankeyPipelineChart } from './Applications/SankeyPipelineChart';
+import { ActionNeededCard } from './Applications/ActionNeededCard';
+import { ApplicationDetailDrawer } from './Applications/ApplicationDetailDrawer';
+import { SourceAnalyticsCard } from './Applications/SourceAnalyticsCard';
+import { StageDistributionCard } from './Applications/StageDistributionCard';
+import { PipelineRadarCard } from './Applications/PipelineRadarCard';
+import { ActivityHeatmapCard } from './Applications/ActivityHeatmapCard';
+import { QuickPageNav } from './Applications/QuickPageNav';
+import { ContactsView } from './Applications/ContactsView';
+import { useTranslation } from '../i18n';
 
 interface ApplicationsViewProps {
   onSelectJob: (job: Job) => void;
@@ -42,15 +56,18 @@ interface ApplicationsViewProps {
 
 type ViewMode = 'spreadsheet' | 'kanban' | 'pipeline';
 
-const KANBAN_STAGES: Array<{ id: ApplicationStatus; label: string; icon: any; color: string }> = [
-  { id: 'saved', label: 'Saved / Bookmarked', icon: Bookmark, color: '#3b82f6' },
-  { id: 'applied', label: 'Applied', icon: Send, color: '#f59e0b' },
-  { id: 'interviewing', label: 'Interviewing', icon: Calendar, color: '#a855f7' },
-  { id: 'offer', label: 'Offers', icon: Award, color: '#10b981' },
-  { id: 'rejected', label: 'Archived / Rejected', icon: XCircle, color: '#64748b' },
-];
-
 export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ onSelectJob }) => {
+  const { t } = useTranslation();
+  const tApp = t.applications;
+
+  const kanbanStages = useMemo(() => [
+    { id: 'saved', label: tApp.kanbanColSaved, icon: Bookmark, color: '#94a3b8' },
+    { id: 'applied', label: tApp.kanbanColApplied, icon: Send, color: '#38bdf8' },
+    { id: 'interviewing', label: tApp.kanbanColInterviewing, icon: Calendar, color: '#a855f7' },
+    { id: 'offer', label: tApp.kanbanColOffers, icon: Award, color: '#10b981' },
+    { id: 'rejected', label: tApp.kanbanColArchived, icon: XCircle, color: '#f43f5e' },
+  ], [tApp]);
+
   const [viewMode, setViewMode] = useState<ViewMode>('spreadsheet');
   const [applications, setApplications] = useState<ApplicationItem[]>([]);
   const [stats, setStats] = useState<ApplicationStats | null>(null);
@@ -59,6 +76,16 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ onSelectJob 
   const [loading, setLoading] = useState(true);
   const [pipelineLoading, setPipelineLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+
+  // Top Tabs: Applications workspace vs Contacts management
+  const [activeTab, setActiveTab] = useState<'applications' | 'contacts'>('applications');
+
+  // Application detail drawer
+  const [selectedAppForDetail, setSelectedAppForDetail] = useState<number | null>(null);
+
+  // Funnel interactive filter
+  const [funnelFilterStage, setFunnelFilterStage] = useState<string | null>(null);
+  const [funnelFilterLabel, setFunnelFilterLabel] = useState<string | null>(null);
 
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState('');
@@ -170,6 +197,16 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ onSelectJob 
     return Array.from(s).sort();
   }, [applications]);
 
+  const handleFunnelStageSelect = (stageId: string, stageLabel: string) => {
+    if (funnelFilterStage === stageId) {
+      setFunnelFilterStage(null);
+      setFunnelFilterLabel(null);
+    } else {
+      setFunnelFilterStage(stageId);
+      setFunnelFilterLabel(stageLabel);
+    }
+  };
+
   // Filtered applications
   const filteredApplications = useMemo(() => {
     return applications.filter((app) => {
@@ -178,6 +215,28 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ onSelectJob 
       }
       if (selectedStatus !== 'all' && app.status !== selectedStatus) {
         return false;
+      }
+      // Interactive funnel filter
+      if (funnelFilterStage && funnelFilterStage !== 'stage_applications') {
+        if (funnelFilterStage.includes('1st_interview')) {
+          if (app.status !== '1st_interview' && app.status !== 'interviewing') return false;
+        } else if (funnelFilterStage.includes('2nd_interview')) {
+          if (app.status !== '2nd_interview') return false;
+        } else if (funnelFilterStage.includes('3rd_interview')) {
+          if (app.status !== '3rd_interview') return false;
+        } else if (funnelFilterStage.includes('4th_interview')) {
+          if (app.status !== 'final_interview') return false;
+        } else if (funnelFilterStage === 'stage_offers') {
+          if (app.status !== 'offer' && app.status !== 'accepted') return false;
+        } else if (funnelFilterStage === 'stage_accepted') {
+          if (app.status !== 'accepted') return false;
+        } else if (funnelFilterStage.includes('rejected')) {
+          if (app.status !== 'rejected') return false;
+        } else if (funnelFilterStage === 'stage_no_answer') {
+          if (app.status !== 'no_answer') return false;
+        } else if (funnelFilterStage.includes('withdrawn')) {
+          if (app.status !== 'withdrawn') return false;
+        }
       }
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -200,112 +259,173 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ onSelectJob 
       }
       return true;
     });
-  }, [applications, selectedSource, selectedStatus, searchQuery]);
+  }, [applications, selectedSource, selectedStatus, searchQuery, funnelFilterStage]);
 
   if (loading) {
     return (
       <StyledContainer>
         <div className="loading-state glass-panel">
           <Clock className="spin" size={32} />
-          <p>Loading your career applications pipeline...</p>
+          <p>{tApp.loadingApplications}</p>
         </div>
       </StyledContainer>
     );
   }
 
   return (
-    <StyledContainer>
-      {/* Top Header Card */}
-      <HeaderCard className="glass-panel">
-        <div className="header-left">
-          <h2>Application Tracker & Management</h2>
-          <p className="subtitle">
-            Comprehensive spreadsheet grid, recruitment funnel Sankey, and candidate pipeline tracking.
-          </p>
-        </div>
+    <StyledContainer id="applications-top">
+      {/* Top Navigation Sub-Tabs */}
+      <SubNavTabs>
+        <button
+          type="button"
+          className={`tab-btn ${activeTab === 'applications' ? 'active' : ''}`}
+          onClick={() => setActiveTab('applications')}
+        >
+          <Briefcase size={16} />
+          <span>{tApp.tabApplications}</span>
+          <span className="count-pill">{applications.length}</span>
+        </button>
 
-        <div className="header-actions">
+        <button
+          type="button"
+          className={`tab-btn ${activeTab === 'contacts' ? 'active' : ''}`}
+          onClick={() => setActiveTab('contacts')}
+        >
+          <Users size={16} />
+          <span>{tApp.tabContacts}</span>
+        </button>
+      </SubNavTabs>
+
+      {activeTab === 'contacts' ? (
+        <ContactsView
+          onOpenApplication={(appId) => {
+            setActiveTab('applications');
+            setSelectedAppForDetail(appId);
+          }}
+        />
+      ) : (
+        <>
+          {/* Top Header Card */}
+          <HeaderCard className="glass-panel">
+            <div className="header-left">
+              <h2>{tApp.pageTitle}</h2>
+              <p className="subtitle">{tApp.pageSubtitle}</p>
+            </div>
+
+            <div className="header-actions">
+              <button
+                type="button"
+                className="action-btn export-btn"
+                onClick={handleExportXlsx}
+                disabled={exporting}
+                title={tApp.btnExportXlsx}
+              >
+                <Download size={15} />
+                <span>{exporting ? tApp.exporting : `${tApp.btnExportXlsx} (.xlsx)`}</span>
+              </button>
+
+              <button
+                type="button"
+                className="action-btn add-btn"
+                onClick={() => setIsAddModalOpen(true)}
+              >
+                <Plus size={16} />
+                <span>{tApp.btnAddApplication}</span>
+              </button>
+
+              <button
+                type="button"
+                className="refresh-btn"
+                onClick={loadAllData}
+                title={tApp.btnRefresh}
+              >
+                <RefreshCw size={15} />
+              </button>
+            </div>
+          </HeaderCard>
+
+          {/* Top KPI Metrics Summary Row */}
+          {stats && (
+            <MetricsRow>
+              <MetricCard>
+                <div className="metric-header">
+                  <span className="metric-label">{tApp.statTotalApplications}</span>
+                  <Bookmark size={15} className="metric-icon blue" />
+                </div>
+                <div className="metric-val">{stats.total_applications}</div>
+                <div className="metric-sub">{stats.active_applications} {tApp.statActivePipeline}</div>
+              </MetricCard>
+
+              <MetricCard>
+                <div className="metric-header">
+                  <span className="metric-label">{tApp.statInterviewRate}</span>
+                  <TrendingUp size={15} className="metric-icon purple" />
+                </div>
+                <div className="metric-val">{stats.interview_rate_percent}%</div>
+                <div className="metric-sub">
+                  {stats.avg_days_to_interview ? `Avg ${stats.avg_days_to_interview}${tApp.daysUnit} to 1st interview` : tApp.statInterviewsScheduled}
+                </div>
+              </MetricCard>
+
+              <MetricCard>
+                <div className="metric-header">
+                  <span className="metric-label">{tApp.statResponseRate}</span>
+                  <Percent size={15} className="metric-icon amber" />
+                </div>
+                <div className="metric-val">{stats.response_rate_percent}%</div>
+                <div className="metric-sub">{tApp.funnelInterviews} & screening</div>
+              </MetricCard>
+
+              <MetricCard>
+                <div className="metric-header">
+                  <span className="metric-label">{tApp.statOffers}</span>
+                  <Award size={15} className="metric-icon emerald" />
+                </div>
+                <div className="metric-val">{stats.status_breakdown?.offer || 0}</div>
+                <div className="metric-sub">{stats.offer_rate_percent}% conversion</div>
+              </MetricCard>
+
+              <MetricCard>
+                <div className="metric-header">
+                  <span className="metric-label">{tApp.statAcceptedOffers}</span>
+                  <CheckCircle2 size={15} className="metric-icon green" />
+                </div>
+                <div className="metric-val">{stats.status_breakdown?.accepted || 0}</div>
+                <div className="metric-sub">{stats.acceptance_rate_percent}% conversion</div>
+              </MetricCard>
+            </MetricsRow>
+          )}
+
+          {/* Action Needed Triage Area */}
+          <ActionNeededCard
+            applications={applications}
+            onSelectApplication={(app: ApplicationItem) => setSelectedAppForDetail(app.id)}
+            onFollowUpAction={async (appId: number, action: 'complete' | 'snooze', days?: number) => {
+              await api.executeFollowUpAction(appId, { action, days });
+              loadAllData();
+            }}
+          />
+
+      {/* Active Funnel Filter Banner */}
+      {funnelFilterStage && (
+        <FunnelActiveFilterBanner>
+          <div className="filter-info">
+            <Layers size={14} />
+            <span>
+              {tApp.filterStageActive}: <strong>{funnelFilterLabel || funnelFilterStage}</strong> ({filteredApplications.length} {tApp.statTotalApplications.toLowerCase()})
+            </span>
+          </div>
           <button
             type="button"
-            className="action-btn export-btn"
-            onClick={handleExportXlsx}
-            disabled={exporting}
-            title="Download full applications database as styled Excel workbook"
+            className="clear-funnel-filter-btn"
+            onClick={() => {
+              setFunnelFilterStage(null);
+              setFunnelFilterLabel(null);
+            }}
           >
-            <Download size={15} />
-            <span>{exporting ? 'Exporting...' : 'Export Excel (.xlsx)'}</span>
+            {tApp.btnClearFilter} ✕
           </button>
-
-          <button
-            type="button"
-            className="action-btn add-btn"
-            onClick={() => setIsAddModalOpen(true)}
-          >
-            <Plus size={16} />
-            <span>Add Application</span>
-          </button>
-
-          <button
-            type="button"
-            className="refresh-btn"
-            onClick={loadAllData}
-            title="Refresh data"
-          >
-            <RefreshCw size={15} />
-          </button>
-        </div>
-      </HeaderCard>
-
-      {/* KPI Metrics Summary Row */}
-      {stats && (
-        <MetricsRow>
-          <MetricCard>
-            <div className="metric-header">
-              <span className="metric-label">Total Applications</span>
-              <Bookmark size={15} className="metric-icon blue" />
-            </div>
-            <div className="metric-val">{stats.total_applications}</div>
-            <div className="metric-sub">{stats.active_applications} active in pipeline</div>
-          </MetricCard>
-
-          <MetricCard>
-            <div className="metric-header">
-              <span className="metric-label">Interview Rate</span>
-              <TrendingUp size={15} className="metric-icon purple" />
-            </div>
-            <div className="metric-val">{stats.interview_rate_percent}%</div>
-            <div className="metric-sub">
-              {stats.avg_days_to_interview ? `Avg ${stats.avg_days_to_interview}d to 1st interview` : 'First round rate'}
-            </div>
-          </MetricCard>
-
-          <MetricCard>
-            <div className="metric-header">
-              <span className="metric-label">Response Rate</span>
-              <Percent size={15} className="metric-icon amber" />
-            </div>
-            <div className="metric-val">{stats.response_rate_percent}%</div>
-            <div className="metric-sub">Replies & screening reached</div>
-          </MetricCard>
-
-          <MetricCard>
-            <div className="metric-header">
-              <span className="metric-label">Offers Received</span>
-              <Award size={15} className="metric-icon emerald" />
-            </div>
-            <div className="metric-val">{stats.status_breakdown?.offer || 0}</div>
-            <div className="metric-sub">{stats.offer_rate_percent}% conversion from applied</div>
-          </MetricCard>
-
-          <MetricCard>
-            <div className="metric-header">
-              <span className="metric-label">Offer Accepted</span>
-              <CheckCircle2 size={15} className="metric-icon green" />
-            </div>
-            <div className="metric-val">{stats.status_breakdown?.accepted || 0}</div>
-            <div className="metric-sub">{stats.acceptance_rate_percent}% offer closure rate</div>
-          </MetricCard>
-        </MetricsRow>
+        </FunnelActiveFilterBanner>
       )}
 
       {/* Control Bar: Search, Filters, View Modes */}
@@ -314,7 +434,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ onSelectJob 
           <Search size={16} className="search-icon" />
           <input
             type="text"
-            placeholder="Search by title, company, notes, contact..."
+            placeholder={tApp.searchPlaceholder}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -326,7 +446,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ onSelectJob 
             onChange={(e) => setSelectedSource(e.target.value)}
             className="filter-select"
           >
-            <option value="all">All Sources</option>
+            <option value="all">{tApp.filterAllSources}</option>
             {distinctSources.map((s) => (
               <option key={s} value={s}>
                 {s}
@@ -339,18 +459,18 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ onSelectJob 
             onChange={(e) => setSelectedStatus(e.target.value)}
             className="filter-select"
           >
-            <option value="all">All Stages</option>
-            <option value="applied">Applied</option>
-            <option value="saved">Saved</option>
-            <option value="interviewing">Interviewing</option>
-            <option value="1st_interview">1st Interview</option>
-            <option value="2nd_interview">2nd Interview</option>
-            <option value="final_interview">Final Interview</option>
-            <option value="offer">Offer Received</option>
-            <option value="accepted">Accepted</option>
-            <option value="rejected">Rejected</option>
-            <option value="no_answer">No Answer / Ghosted</option>
-            <option value="withdrawn">Withdrawn</option>
+            <option value="all">{tApp.filterAllStatuses}</option>
+            <option value="applied">{tApp.stageApplied}</option>
+            <option value="saved">{tApp.stageSaved}</option>
+            <option value="interviewing">{tApp.stageInterviewing}</option>
+            <option value="1st_interview">{tApp.stage1stInterview}</option>
+            <option value="2nd_interview">{tApp.stage2ndInterview}</option>
+            <option value="final_interview">{tApp.stageFinalInterview}</option>
+            <option value="offer">{tApp.stageOffer}</option>
+            <option value="accepted">{tApp.stageAccepted}</option>
+            <option value="rejected">{tApp.stageRejected}</option>
+            <option value="no_answer">{tApp.stageNoAnswer}</option>
+            <option value="withdrawn">{tApp.stageWithdrawn}</option>
           </select>
         </div>
 
@@ -359,30 +479,30 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ onSelectJob 
             type="button"
             className={`view-btn ${viewMode === 'spreadsheet' ? 'active' : ''}`}
             onClick={() => setViewMode('spreadsheet')}
-            title="Excel Spreadsheet Table"
+            title={tApp.viewSpreadsheet}
           >
             <TableIcon size={15} />
-            <span>Table</span>
+            <span>{tApp.viewSpreadsheet}</span>
           </button>
 
           <button
             type="button"
             className={`view-btn ${viewMode === 'kanban' ? 'active' : ''}`}
             onClick={() => setViewMode('kanban')}
-            title="Kanban Pipeline Board"
+            title={tApp.viewKanban}
           >
             <KanbanIcon size={15} />
-            <span>Board</span>
+            <span>{tApp.viewKanban}</span>
           </button>
 
           <button
             type="button"
             className={`view-btn ${viewMode === 'pipeline' ? 'active' : ''}`}
             onClick={() => setViewMode('pipeline')}
-            title="Sankey Recruitment Funnel"
+            title={tApp.viewFunnel}
           >
             <GitFork size={15} />
-            <span>Funnel</span>
+            <span>{tApp.viewFunnel}</span>
           </button>
         </div>
       </ControlBar>
@@ -394,6 +514,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ onSelectJob 
           onUpdateApplication={handleUpdateApplication}
           onDeleteApplication={handleDelete}
           onSelectJob={onSelectJob}
+          onOpenDetail={(appId) => setSelectedAppForDetail(appId)}
           loading={loading}
         />
       )}
@@ -402,12 +523,14 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ onSelectJob 
         <SankeyPipelineChart
           data={pipelineData}
           loading={pipelineLoading}
+          selectedStage={funnelFilterStage}
+          onSelectStage={handleFunnelStageSelect}
         />
       )}
 
       {viewMode === 'kanban' && (
         <KanbanBoard>
-          {KANBAN_STAGES.map((stage) => {
+          {kanbanStages.map((stage) => {
             const stageApps = filteredApplications.filter((a) => {
               if (stage.id === 'interviewing') {
                 return (
@@ -440,26 +563,36 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ onSelectJob 
 
                 <div className="cards-wrapper">
                   {stageApps.length === 0 ? (
-                    <div className="empty-col">No {stage.label.toLowerCase()} jobs</div>
+                    <div className="empty-col">{tApp.kanbanEmptyCol}</div>
                   ) : (
                     stageApps.map((app) => (
                       <div key={app.id} className="app-card">
                         <div className="card-top">
                           <h4
-                            onClick={() => app.job && onSelectJob(app.job)}
+                            onClick={() => setSelectedAppForDetail(app.id)}
                             className="job-title"
-                            title="View vacancy details"
+                            title={tApp.colActions}
                           >
                             {app.effective_title}
                           </h4>
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(app.id)}
-                            className="action-icon-btn delete"
-                            title="Remove application"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          <div className="card-top-btns">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedAppForDetail(app.id)}
+                              className="action-icon-btn view"
+                              title={tApp.colActions}
+                            >
+                              <Eye size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(app.id)}
+                              className="action-icon-btn delete"
+                              title={tApp.btnCancel}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
                         </div>
 
                         <div className="card-meta">
@@ -498,7 +631,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ onSelectJob 
                                 type="text"
                                 value={tempNotes}
                                 onChange={(e) => setTempNotes(e.target.value)}
-                                placeholder="Add follow-up notes..."
+                                placeholder={tApp.editNotesPlaceholder}
                                 className="notes-input"
                                 autoFocus
                               />
@@ -519,7 +652,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ onSelectJob 
                               }}
                             >
                               <span className={app.notes ? 'has-notes' : 'no-notes'}>
-                                {app.notes || '+ Add notes...'}
+                                {app.notes || `+ ${tApp.colNotes}...`}
                               </span>
                               <Edit2 size={11} className="edit-icon" />
                             </div>
@@ -537,9 +670,9 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ onSelectJob 
                             }
                             className="stage-select"
                           >
-                            {KANBAN_STAGES.map((s) => (
+                            {kanbanStages.map((s) => (
                               <option key={s.id} value={s.id}>
-                                Move to {s.label}
+                                {s.label}
                               </option>
                             ))}
                           </select>
@@ -566,11 +699,87 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ onSelectJob 
         </KanbanBoard>
       )}
 
+      {/* Dedicated Job Search Analytics Section at the bottom */}
+      <JobSearchAnalyticsSection id="job-search-analytics">
+        <AnalyticsSectionHeader>
+          <div className="section-title-row">
+            <BarChart2 size={18} className="section-icon" />
+            <h3>{tApp.analyticsSectionTitle}</h3>
+          </div>
+          <p className="section-subtitle">
+            {tApp.analyticsSectionSubtitle}
+          </p>
+        </AnalyticsSectionHeader>
+
+        {/* Row 1: Source Distribution & Pipeline Stage Distribution */}
+        <AnalyticsGridRow>
+          <SourceAnalyticsCard
+            sources={stats?.source_analytics}
+            selectedSource={selectedSource}
+            onSelectSource={(src) => setSelectedSource(src)}
+            loading={loading}
+          />
+          <StageDistributionCard
+            statusBreakdown={stats?.status_breakdown}
+            totalApplications={applications.length}
+            selectedStatus={selectedStatus}
+            onSelectStatus={(st) => setSelectedStatus(st)}
+            loading={loading}
+          />
+        </AnalyticsGridRow>
+
+        {/* Row 2: Multidimensional Pipeline Radar & Activity Heatmap */}
+        <AnalyticsGridRow>
+          <PipelineRadarCard
+            stats={stats}
+            applications={applications}
+            loading={loading}
+          />
+          <ActivityHeatmapCard
+            applications={applications}
+            loading={loading}
+          />
+        </AnalyticsGridRow>
+      </JobSearchAnalyticsSection>
+        </>
+      )}
+
+      {/* Application Detail Slide-Over Workspace */}
+      <ApplicationDetailDrawer
+        applicationId={selectedAppForDetail}
+        isOpen={Boolean(selectedAppForDetail)}
+        onClose={() => setSelectedAppForDetail(null)}
+        onApplicationUpdated={(updated) => {
+          setApplications((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
+          loadStats();
+          loadPipeline();
+        }}
+        onApplicationDeleted={(appId) => {
+          setApplications((prev) => prev.filter((a) => a.id !== appId));
+          setSelectedAppForDetail(null);
+          loadStats();
+          loadPipeline();
+        }}
+        onOpenContact={() => {
+          setSelectedAppForDetail(null);
+          setActiveTab('contacts');
+        }}
+        onSelectJob={onSelectJob}
+      />
+
       {/* Add Manual Application Modal */}
       <AddApplicationModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onApplicationCreated={handleApplicationCreated}
+      />
+
+      {/* Floating Quick Page Navigation (Applications: Top <-> Analytics; Contacts: Top <-> Bottom) */}
+      <QuickPageNav
+        mode={activeTab === 'applications' ? 'analytics' : 'page'}
+        analyticsElementId={activeTab === 'applications' ? 'job-search-analytics' : undefined}
+        topElementId={activeTab === 'applications' ? 'applications-top' : 'contacts-top'}
+        bottomElementId={activeTab === 'applications' ? undefined : 'contacts-bottom'}
       />
     </StyledContainer>
   );
@@ -1090,6 +1299,152 @@ const KanbanBoard = styled.div`
         background: rgba(255, 255, 255, 0.12);
         color: #f8fafc;
       }
+    }
+  }
+
+  .card-top-btns {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+
+    .action-icon-btn.view {
+      color: #94a3b8;
+      &:hover {
+        color: #38bdf8;
+      }
+    }
+  }
+`;
+
+const SubNavTabs = styled.div`
+  display: flex;
+  gap: 10px;
+  margin-bottom: 2px;
+
+  .tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #94a3b8;
+    transition: all 0.2s ease;
+
+    .count-pill {
+      font-size: 11px;
+      font-weight: 700;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 1px 7px;
+      border-radius: 10px;
+      color: #cbd5e1;
+    }
+
+    &.active {
+      background: #3b82f6;
+      border-color: #3b82f6;
+      color: #ffffff;
+      box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
+
+      .count-pill {
+        background: rgba(255, 255, 255, 0.25);
+        color: #ffffff;
+      }
+    }
+
+    &:hover:not(.active) {
+      background: rgba(255, 255, 255, 0.06);
+      color: #f1f5f9;
+    }
+  }
+`;
+
+const JobSearchAnalyticsSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 10px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+`;
+
+const AnalyticsSectionHeader = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  .section-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .section-icon {
+      color: #38bdf8;
+    }
+
+    h3 {
+      margin: 0;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #f8fafc;
+      letter-spacing: -0.01em;
+    }
+  }
+
+  .section-subtitle {
+    margin: 0;
+    font-size: 0.8rem;
+    color: #94a3b8;
+  }
+`;
+
+const AnalyticsGridRow = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const FunnelActiveFilterBanner = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #38bdf8;
+
+  .filter-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    strong {
+      color: #f1f5f9;
+    }
+  }
+
+  .clear-funnel-filter-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #cbd5e1;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
     }
   }
 `;

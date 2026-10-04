@@ -3,9 +3,9 @@ from datetime import datetime, timezone
 import hashlib
 import pathlib
 import time
-from typing import Any
+from typing import Any, Optional
 from pydantic import BaseModel, Field
-from fastapi import Body, Depends, FastAPI, File, HTTPException, Path, Query, Response, UploadFile, status
+from fastapi import BackgroundTasks, Body, Depends, FastAPI, File, HTTPException, Path, Query, Response, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
@@ -18,9 +18,11 @@ from .matching.semantic_adapter import semantic_service
 from .models import Company, Country, Job, ScrapeTarget, ScrapingRun, User, Resume, CustomizedResume
 from .services.translation import JobTranslationService
 from .repositories.applications import (
+    add_application_timeline_event,
     create_manual_application,
     delete_application,
     delete_application_by_job_id,
+    execute_follow_up_action,
     export_applications_xlsx,
     get_application,
     get_application_statistics,
@@ -28,6 +30,19 @@ from .repositories.applications import (
     get_user_applications,
     save_or_update_application,
     update_application,
+)
+from .repositories.contacts import (
+    create_contact,
+    delete_contact,
+    delete_contact_interaction,
+    export_contacts_xlsx,
+    find_matching_contacts,
+    get_contact_by_id,
+    get_user_contacts,
+    import_contacts_from_preview,
+    log_contact_interaction,
+    preview_contacts_xlsx,
+    update_contact,
 )
 from .repositories.auth import (
     authenticate_user,
@@ -125,9 +140,19 @@ from .schemas_ai_resume import (
 )
 from .schemas_applications import (
     ApplicationCreate,
+    ApplicationEventCreate,
+    ApplicationHistoryRead,
     ApplicationRead,
     ApplicationStatsRead,
     ApplicationUpdate,
+    ContactCreate,
+    ContactImportConfirmPayload,
+    ContactImportPreviewResult,
+    ContactInteractionCreate,
+    ContactInteractionRead,
+    ContactRead,
+    ContactUpdate,
+    FollowUpActionPayload,
     ManualApplicationCreate,
     SankeyDataRead,
 )
@@ -238,6 +263,25 @@ from .schemas_interview_prep import (
 )
 from .services.interview_prep import interview_prep_service
 from .services.interview_prep_importer import InterviewPrepImporter
+from .schemas_mock_interview import (
+    EndSessionRequest,
+    EndSessionResponse,
+    MockInterviewAssessmentResponse,
+    MockInterviewSetupRequest,
+    MockInterviewSetupResponse,
+    RepracticeRequest,
+    RepracticeResponse,
+    ResumeDomainDetectRequest,
+    ResumeDomainDetectResponse,
+    SessionHistoryResponse,
+    SessionStateResponse,
+    STTTranscriptResponse,
+    TurnSubmitRequest,
+    TurnSubmitResponse,
+)
+from .services.mock_interview_service import mock_interview_service
+from .services.mock_interview_stt import transcribe_audio, get_stt_status
+from .services.mock_interview_tts import synthesize_speech, get_tts_status
 
 settings = get_settings()
 app = FastAPI(title=settings.app_name, debug=settings.debug)
@@ -1467,6 +1511,244 @@ def remove_application_by_job(
     return {"status": "deleted"}
 
 
+@app.post("/api/v1/applications/{application_id}/events", response_model=ApplicationHistoryRead, status_code=status.HTTP_201_CREATED, tags=["applications"])
+def add_application_event(
+    application_id: int,
+    data: ApplicationEventCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ApplicationHistoryRead:
+    history = add_application_timeline_event(db, user, application_id, data)
+    if not history:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+    return ApplicationHistoryRead.model_validate(history)
+
+
+@app.post("/api/v1/applications/{application_id}/follow-up", response_model=ApplicationRead, tags=["applications"])
+def perform_follow_up_action(
+    application_id: int,
+    data: FollowUpActionPayload,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ApplicationRead:
+    updated = execute_follow_up_action(db, user, application_id, data)
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+    return ApplicationRead.model_validate(updated)
+
+
+@app.get("/api/v1/applications/{application_id}/intelligence", tags=["applications"])
+def get_application_job_intelligence(
+    application_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    app_record = get_application(db, user.id, application_id)
+    if not app_record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+
+    job = app_record.job
+    candidate_skills = {s.skill.lower() for s in (user.skills or [])}
+    resume = user.resumes[0] if user.resumes else None
+    if resume and resume.structured_data:
+        for s in resume.structured_data.get("skills", []):
+            if isinstance(s, dict) and s.get("name"):
+                candidate_skills.add(s["name"].lower())
+            elif isinstance(s, str):
+                candidate_skills.add(s.lower())
+
+    job_skills_list = []
+    job_desc = ""
+    if job:
+        job_desc = job.description or ""
+        job_skills_list = [js.skill for js in (job.skills or [])]
+
+    if not job_skills_list:
+        common_tech = ["python", "javascript", "typescript", "react", "node.js", "sql", "linux", "aws", "docker", "kubernetes", "git", "ci/cd", "rest api", "security", "cloud", "html", "css", "c++", "java", "c#", "go", "networking"]
+        text_to_scan = f"{app_record.effective_title} {job_desc} {app_record.notes or ''}".lower()
+        job_skills_list = [k.capitalize() for k in common_tech if k in text_to_scan]
+
+    strong_matches = []
+    potential_gaps = []
+    for js in job_skills_list:
+        if js.lower() in candidate_skills:
+            strong_matches.append(js)
+        else:
+            potential_gaps.append(js)
+
+    total_skills = len(job_skills_list)
+    if total_skills > 0:
+        match_score = min(int((len(strong_matches) / total_skills) * 100), 98)
+        if match_score == 0 and candidate_skills:
+            match_score = 45
+    else:
+        match_score = 80 if candidate_skills else 65
+
+    verdict = "Strong Match" if match_score >= 80 else ("Competitive" if match_score >= 60 else "Optimization Advised")
+
+    return {
+        "match_score": match_score,
+        "verdict": verdict,
+        "strong_matches": strong_matches[:10],
+        "potential_gaps": potential_gaps[:10],
+        "job_title": app_record.effective_title,
+        "company": app_record.effective_company,
+        "has_resume": bool(resume),
+        "resume_suggestions": app_record.resume_suggestions or (job.resume_suggestions if job else None),
+        "explanation": f"Profile aligns with {len(strong_matches)} of {total_skills or (len(strong_matches) + len(potential_gaps))} key criteria for {app_record.effective_title}.",
+    }
+
+
+# ---------------------------------------------------------------------------
+# Contacts API Endpoints
+# ---------------------------------------------------------------------------
+
+@app.get("/api/v1/contacts", response_model=list[ContactRead], tags=["contacts"])
+def list_my_contacts(
+    search: str | None = Query(None, description="Search contacts by name, email, company, role, or notes"),
+    company: str | None = Query(None, description="Filter contacts by company"),
+    tag: str | None = Query(None, description="Filter contacts by tag"),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[ContactRead]:
+    return get_user_contacts(db, user.id, search=search, company=company, tag=tag)
+
+
+@app.post("/api/v1/contacts", response_model=ContactRead, status_code=status.HTTP_201_CREATED, tags=["contacts"])
+def create_new_contact(
+    data: ContactCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ContactRead:
+    contact = create_contact(db, user, data)
+    contacts = get_user_contacts(db, user.id)
+    for c in contacts:
+        if c.id == contact.id:
+            return c
+    return get_user_contacts(db, user.id)[0]
+
+
+@app.get("/api/v1/contacts/check-duplicates", tags=["contacts"])
+def check_contact_duplicates(
+    email: str | None = Query(None),
+    name: str | None = Query(None),
+    company: str | None = Query(None),
+    linkedin_url: str | None = Query(None),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return find_matching_contacts(
+        db,
+        user.id,
+        email=email,
+        name=name,
+        company=company,
+        linkedin_url=linkedin_url,
+    )
+
+
+@app.get("/api/v1/contacts/export/xlsx", tags=["contacts"])
+def export_my_contacts_to_excel(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    xlsx_bytes = export_contacts_xlsx(db, user.id)
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M")
+    filename = f"compust_contacts_{timestamp}.xlsx"
+    return Response(
+        content=xlsx_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@app.post("/api/v1/contacts/preview-import", response_model=ContactImportPreviewResult, tags=["contacts"])
+async def preview_contacts_excel_import(
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ContactImportPreviewResult:
+    content = await file.read()
+    return preview_contacts_xlsx(db, user.id, content)
+
+
+@app.post("/api/v1/contacts/confirm-import", tags=["contacts"])
+def confirm_contacts_excel_import(
+    payload: ContactImportConfirmPayload,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    return import_contacts_from_preview(db, user, payload)
+
+
+@app.get("/api/v1/contacts/{contact_id}", response_model=ContactRead, tags=["contacts"])
+def get_contact_detail(
+    contact_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ContactRead:
+    contact = get_contact_by_id(db, user.id, contact_id)
+    if not contact:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found")
+    contacts = get_user_contacts(db, user.id)
+    for c in contacts:
+        if c.id == contact_id:
+            return c
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found")
+
+
+@app.patch("/api/v1/contacts/{contact_id}", response_model=ContactRead, tags=["contacts"])
+def modify_contact(
+    contact_id: int,
+    data: ContactUpdate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ContactRead:
+    updated = update_contact(db, user, contact_id, data)
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found")
+    contacts = get_user_contacts(db, user.id)
+    for c in contacts:
+        if c.id == contact_id:
+            return c
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found")
+
+
+@app.delete("/api/v1/contacts/{contact_id}", tags=["contacts"])
+def remove_contact(
+    contact_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict[str, str]:
+    if not delete_contact(db, user, contact_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found")
+    return {"status": "deleted"}
+
+
+@app.post("/api/v1/contacts/{contact_id}/interactions", response_model=ContactInteractionRead, status_code=status.HTTP_201_CREATED, tags=["contacts"])
+def log_new_interaction(
+    contact_id: int,
+    data: ContactInteractionCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ContactInteractionRead:
+    inter = log_contact_interaction(db, user, contact_id, data)
+    if not inter:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found")
+    return ContactInteractionRead.model_validate(inter)
+
+
+@app.delete("/api/v1/contacts/interactions/{interaction_id}", tags=["contacts"])
+def remove_interaction(
+    interaction_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict[str, str]:
+    if not delete_contact_interaction(db, user, interaction_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interaction not found")
+    return {"status": "deleted"}
+
+
 @app.post(
     "/api/v1/admin/onboard",
     response_model=CompanyOnboardResponse,
@@ -2537,6 +2819,367 @@ def get_interview_prep_asset(
         media_type = "image/webp"
 
     return FileResponse(path=str(file_path), media_type=media_type)
+
+
+# ==============================================================================
+# AI MOCK INTERVIEW & SKILLS ASSESSMENT API
+# ==============================================================================
+
+def _run_mock_interview_evaluation_bg(session_id: int):
+    """Background task to run post-interview evaluation without blocking turn response."""
+    from .database import SessionLocal
+    db = SessionLocal()
+    try:
+        mock_interview_service.run_post_interview_evaluation(db, session_id)
+    except Exception as exc:
+        get_logger().error(f"Background evaluation failed for session {session_id}: {exc}", exc_info=True)
+    finally:
+        db.close()
+
+
+def _resolve_mock_interview_user_id(user: User | None, db: Session) -> int:
+    """Return authenticated user ID, or fallback to first active user for guest sessions."""
+    if user:
+        return user.id
+    first_user = db.query(User).filter(User.is_active == True).first()
+    return first_user.id if first_user else 1
+
+
+@app.post(
+    "/api/v1/mock-interview/sessions",
+    response_model=MockInterviewSetupResponse,
+    tags=["mock-interview"],
+)
+def create_mock_interview_session(
+    payload: MockInterviewSetupRequest = Body(...),
+    user: User | None = Depends(get_optional_current_user),
+    db: Session = Depends(get_db),
+) -> MockInterviewSetupResponse:
+    """Create a new mock interview session with deterministic question planning."""
+    effective_user_id = _resolve_mock_interview_user_id(user, db)
+    try:
+        return mock_interview_service.create_session(
+            db=db,
+            user_id=effective_user_id,
+            domain_id=payload.domain_id,
+            difficulty=payload.difficulty,
+            duration_minutes=payload.duration_minutes,
+            role=payload.role,
+            job_id=payload.job_id,
+            resume_id=payload.resume_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        get_logger().error(f"Error creating mock interview session: {exc}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to create mock interview session: {exc}")
+
+
+@app.post(
+    "/api/v1/mock-interview/sessions/{session_id}/start",
+    response_model=TurnSubmitResponse,
+    tags=["mock-interview"],
+)
+def start_mock_interview_session(
+    session_id: int = Path(..., gt=0),
+    user: User | None = Depends(get_optional_current_user),
+    db: Session = Depends(get_db),
+) -> TurnSubmitResponse:
+    """Start an interview session and retrieve the first question."""
+    effective_user_id = _resolve_mock_interview_user_id(user, db)
+    try:
+        return mock_interview_service.start_session(db=db, session_id=session_id, user_id=effective_user_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        get_logger().error(f"Error starting mock interview session {session_id}: {exc}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to start mock interview session: {exc}")
+
+
+@app.post(
+    "/api/v1/mock-interview/sessions/{session_id}/turns",
+    response_model=TurnSubmitResponse,
+    tags=["mock-interview"],
+)
+def submit_mock_interview_turn(
+    session_id: int = Path(..., gt=0),
+    payload: TurnSubmitRequest = Body(...),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
+    user: User | None = Depends(get_optional_current_user),
+    db: Session = Depends(get_db),
+) -> TurnSubmitResponse:
+    """
+    Submit an answer for the current turn, trigger realtime follow-up check,
+    and return the next question or completion signal.
+    If interview completes, schedules post-interview evaluation in background.
+    """
+    effective_user_id = _resolve_mock_interview_user_id(user, db)
+    try:
+        result = mock_interview_service.submit_turn(
+            db=db,
+            session_id=session_id,
+            user_id=effective_user_id,
+            transcript=payload.transcript,
+            stt_engine=payload.stt_engine,
+            stt_confidence=payload.stt_confidence,
+            answer_duration_seconds=payload.answer_duration_seconds,
+        )
+        if result.interview_complete:
+            background_tasks.add_task(_run_mock_interview_evaluation_bg, session_id)
+        return result
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        get_logger().error(f"Error submitting mock interview turn for session {session_id}: {exc}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to process interview turn.")
+
+
+@app.post(
+    "/api/v1/mock-interview/sessions/{session_id}/end",
+    response_model=EndSessionResponse,
+    tags=["mock-interview"],
+)
+def end_mock_interview_session(
+    session_id: int = Path(..., gt=0),
+    payload: EndSessionRequest = Body(...),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
+    user: User | None = Depends(get_optional_current_user),
+    db: Session = Depends(get_db),
+) -> EndSessionResponse:
+    """Manually or naturally conclude a mock interview session and trigger evaluation."""
+    effective_user_id = _resolve_mock_interview_user_id(user, db)
+    try:
+        result = mock_interview_service.end_session(
+            db=db,
+            session_id=session_id,
+            user_id=effective_user_id,
+            reason=payload.reason,
+        )
+        background_tasks.add_task(_run_mock_interview_evaluation_bg, session_id)
+        return result
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        get_logger().error(f"Error ending mock interview session {session_id}: {exc}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to end interview session.")
+
+
+@app.get(
+    "/api/v1/mock-interview/sessions/{session_id}/state",
+    response_model=SessionStateResponse,
+    tags=["mock-interview"],
+)
+def get_mock_interview_session_state(
+    session_id: int = Path(..., gt=0),
+    user: User | None = Depends(get_optional_current_user),
+    db: Session = Depends(get_db),
+) -> SessionStateResponse:
+    """Retrieve full session state for reconnect/browser refresh recovery."""
+    effective_user_id = _resolve_mock_interview_user_id(user, db)
+    try:
+        return mock_interview_service.get_session_state(db=db, session_id=session_id, user_id=effective_user_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        get_logger().error(f"Error getting session state {session_id}: {exc}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve session state.")
+
+
+@app.get(
+    "/api/v1/mock-interview/sessions/{session_id}/assessment",
+    response_model=MockInterviewAssessmentResponse,
+    tags=["mock-interview"],
+)
+def get_mock_interview_assessment(
+    session_id: int = Path(..., gt=0),
+    user: User | None = Depends(get_optional_current_user),
+    db: Session = Depends(get_db),
+) -> MockInterviewAssessmentResponse:
+    """Fetch completed or in-progress assessment for an interview session."""
+    effective_user_id = _resolve_mock_interview_user_id(user, db)
+    try:
+        return mock_interview_service.get_assessment(db=db, session_id=session_id, user_id=effective_user_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        get_logger().error(f"Error getting assessment for session {session_id}: {exc}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve interview assessment.")
+
+
+@app.get(
+    "/api/v1/mock-interview/sessions",
+    response_model=SessionHistoryResponse,
+    tags=["mock-interview"],
+)
+def list_mock_interview_sessions(
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    user: User | None = Depends(get_optional_current_user),
+    db: Session = Depends(get_db),
+) -> SessionHistoryResponse:
+    """List historical mock interview sessions for current user."""
+    effective_user_id = _resolve_mock_interview_user_id(user, db)
+    return mock_interview_service.get_session_history(db=db, user_id=effective_user_id, limit=limit, offset=offset)
+
+
+@app.post(
+    "/api/v1/mock-interview/resume-detect",
+    response_model=ResumeDomainDetectResponse,
+    tags=["mock-interview"],
+)
+def detect_mock_interview_domain(
+    payload: ResumeDomainDetectRequest = Body(default_factory=ResumeDomainDetectRequest),
+    user: User | None = Depends(get_optional_current_user),
+    db: Session = Depends(get_db),
+) -> ResumeDomainDetectResponse:
+    """Analyze user's active resume to suggest interview domain (always overrideable)."""
+    effective_user_id = _resolve_mock_interview_user_id(user, db)
+    return mock_interview_service.detect_domain_from_user_resume(
+        db=db,
+        user_id=effective_user_id,
+        resume_id=payload.resume_id,
+    )
+
+
+@app.post(
+    "/api/v1/mock-interview/stt",
+    response_model=STTTranscriptResponse,
+    tags=["mock-interview"],
+)
+async def mock_interview_stt_transcribe(
+    file: UploadFile = File(...),
+    language: str = Query(default="en"),
+    user: User | None = Depends(get_optional_current_user),
+) -> STTTranscriptResponse:
+    """
+    Transcribe audio clip via local faster-whisper.
+    Audio bytes are discarded immediately after transcription; raw audio is never persisted.
+    """
+    try:
+        audio_bytes = await file.read()
+        res = transcribe_audio(
+            audio_bytes=audio_bytes,
+            mime_type=file.content_type or "audio/webm",
+            language=language,
+        )
+        return STTTranscriptResponse(
+            transcript=res.get("transcript", ""),
+            confidence=res.get("confidence"),
+            engine=res.get("engine", "faster-whisper"),
+            duration_seconds=res.get("duration_seconds"),
+            error=res.get("error"),
+        )
+    except Exception as exc:
+        get_logger().error(f"STT endpoint error: {exc}", exc_info=True)
+        return STTTranscriptResponse(
+            transcript="",
+            confidence=None,
+            engine="faster-whisper",
+            error=f"Audio transcription failed: {str(exc)[:150]}",
+        )
+
+
+@app.get(
+    "/api/v1/mock-interview/stt-status",
+    tags=["mock-interview"],
+)
+def mock_interview_stt_status() -> dict:
+    """Get STT engine availability and local privacy configuration."""
+    return get_stt_status()
+
+
+@app.get(
+    "/api/v1/mock-interview/tts",
+    tags=["mock-interview"],
+)
+async def mock_interview_tts(
+    text: str = Query(..., description="Text to synthesize"),
+    voice: Optional[str] = Query(default=None, description="Neural voice ID"),
+    rate: Optional[str] = Query(default=None, description="Speech rate adjustment"),
+):
+    """
+    Synthesize natural conversational speech for the AI interviewer using edge-tts.
+    Returns audio/mpeg stream directly for HTML5 Audio playback.
+    """
+    try:
+        audio_bytes = await synthesize_speech(text=text, voice=voice, rate=rate)
+        if not audio_bytes:
+            raise HTTPException(status_code=400, detail="Empty text or synthesis failed")
+        return Response(content=audio_bytes, media_type="audio/mpeg")
+    except Exception as exc:
+        get_logger().warning(f"TTS endpoint error: {exc}")
+        raise HTTPException(status_code=503, detail=f"TTS synthesis unavailable: {str(exc)[:100]}")
+
+
+@app.get(
+    "/api/v1/mock-interview/tts-status",
+    tags=["mock-interview"],
+)
+def mock_interview_tts_status() -> dict:
+    """Get TTS engine availability and preset neural voices."""
+    return get_tts_status()
+
+
+@app.get(
+    "/api/v1/mock-interview/interviewer-status",
+    tags=["mock-interview"],
+)
+def mock_interview_interviewer_status() -> dict:
+    """Get Alex video registry status, asset counts, and missing video reports."""
+    from .services.alex_video_service import alex_video_service
+    return alex_video_service.get_status()
+
+
+@app.get(
+    "/interviewer/{file_path:path}",
+    tags=["mock-interview"],
+)
+def serve_interviewer_media(file_path: str):
+    """Serve pre-generated video and image assets for the AI interviewer."""
+    from fastapi.responses import FileResponse
+    from pathlib import Path
+
+    clean = file_path.lstrip("/\\")
+    base_dir = Path(__file__).resolve().parent
+
+    # Priority 1: frontend/public/interviewer/
+    fe_target = base_dir.parent.parent / "frontend" / "public" / "interviewer" / clean
+    if fe_target.is_file():
+        return FileResponse(str(fe_target))
+
+    # Priority 2: src/app/static/interviewer/
+    be_target = base_dir / "static" / "interviewer" / clean
+    if be_target.is_file():
+        return FileResponse(str(be_target))
+
+    raise HTTPException(status_code=404, detail=f"Interviewer asset '{file_path}' not found")
+
+
+@app.post(
+    "/api/v1/mock-interview/sessions/{session_id}/repractice",
+    response_model=RepracticeResponse,
+    tags=["mock-interview"],
+)
+def create_mock_interview_repractice(
+    session_id: int = Path(..., gt=0),
+    payload: RepracticeRequest = Body(...),
+    user: User | None = Depends(get_optional_current_user),
+    db: Session = Depends(get_db),
+) -> RepracticeResponse:
+    """Create a new mock interview session biased toward detected weak areas."""
+    effective_user_id = _resolve_mock_interview_user_id(user, db)
+    try:
+        return mock_interview_service.create_repractice_session(
+            db=db,
+            user_id=effective_user_id,
+            source_session_id=session_id,
+            duration_minutes=payload.duration_minutes,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        get_logger().error(f"Error creating repractice session from {session_id}: {exc}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to create re-practice session.")
 
 
 @app.get("/api/v1/extension/download/{target_browser}", tags=["extension"])

@@ -14,3 +14,6 @@ python-multipart>=0.0.9,<1
 openpyxl>=3.1,<4
 psutil>=6.0.0
 rendercv[full]>=2.8
+faster-whisper>=1.1,<2
+piper-tts>=1.8.0
+edge-tts>=7.0.0

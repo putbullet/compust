@@ -14,5 +14,43 @@
   "source_license": "Public Open Source (GitHub Terms of Service)",
   "source_url": "https://github.com/abhinavkakku/Cyber_Security_Interview_Questions",
   "total_categories": 6,
-  "total_questions": 65
+  "total_questions": 65,
+  "categories": [
+    {
+      "id": "cybersecurity-fundamentals",
+      "name": "Cybersecurity Fundamentals & Threat Taxonomy",
+      "description": "Core cybersecurity roles, common attack vectors, authentication attacks, and threat classifications.",
+      "topics": ["Authentication Attacks", "Career Roles & Core Functions", "Core Attack Vectors", "Data Protection & DLP", "Defense-in-Depth & Principles", "Endpoint & Malware", "Phishing & Social Engineering", "Risk & Vulnerability", "Security Domains & Elements"]
+    },
+    {
+      "id": "network-security",
+      "name": "Network Security, Protocols & Perimeter Defenses",
+      "description": "TCP/IP handshakes, ARP spoofing, firewalls, IDS/IPS, DNS security, and volumetric DDoS defense.",
+      "topics": ["Advanced Attack Techniques", "Availability & DDoS", "Core Network Protocols", "Email Protocols & Security", "Network Address Translation (NAT)", "Perimeter Defense Controls", "Port Scanning & Probing", "Threat Vectors & Exploitation"]
+    },
+    {
+      "id": "cryptography-iam",
+      "name": "Cryptography, PKI, IAM & Key Lifecycle",
+      "description": "Symmetric and asymmetric encryption, key lifecycle management (NIST SP 800-57), PKI certificates, and IAM access controls.",
+      "topics": ["Asymmetric Cryptography", "Authentication & IAM", "Cryptographic Foundations", "Cryptographic Operations", "Digital Signatures & Non-Repudiation", "Key Management & Lifecycle", "Public Key Infrastructure (PKI)", "Symmetric Cryptography"]
+    },
+    {
+      "id": "application-security",
+      "name": "Application Security, Injection Attacks & Web Exploits",
+      "description": "OWASP Top 10 vulnerabilities, SQL injection, XSS, CSRF, browser security headers, and secure coding practices.",
+      "topics": ["Browser Security Controls", "Offensive Security & Pentesting", "Reconnaissance Methodology", "Threat Modeling & Secure SDLC", "Web Application Attacks"]
+    },
+    {
+      "id": "cloud-architecture-devsecops",
+      "name": "Enterprise Architecture, System Hardening & Advanced Threats",
+      "description": "Zero Trust network architecture, MITRE ATT&CK kill chains, Linux/Windows endpoint hardening, and container security.",
+      "topics": ["Adversary Lifecycle (Cyber Kill Chain)", "Endpoint & OS Hardening", "Enterprise Architecture", "Security Frameworks & Threat Intel", "Wireless & Mobile Security", "Zero Trust Architecture"]
+    },
+    {
+      "id": "soc-incident-response",
+      "name": "Incident Response, SOC Operations, SIEM & Threat Hunting",
+      "description": "SOC alert triage, SIEM correlation rules, incident response containment protocols, and memory/disk forensics.",
+      "topics": ["Intrusion Detection Architecture", "Security Operations & Triage"]
+    }
+  ]
 }

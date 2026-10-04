@@ -171,7 +171,7 @@ export const AddApplicationModal: React.FC<AddApplicationModalProps> = ({
           </button>
         </ModalHeader>
 
-        <form onSubmit={handleSubmit}>
+        <ModalForm onSubmit={handleSubmit}>
           <ModalBody>
             {error && <div className="error-alert">{error}</div>}
 
@@ -464,7 +464,7 @@ export const AddApplicationModal: React.FC<AddApplicationModalProps> = ({
               {saving ? 'Adding...' : 'Add Application'}
             </button>
           </ModalFooter>
-        </form>
+        </ModalForm>
       </ModalContainer>
     </ModalBackdrop>
   );
@@ -473,7 +473,7 @@ export const AddApplicationModal: React.FC<AddApplicationModalProps> = ({
 const ModalBackdrop = styled.div`
   position: fixed;
   inset: 0;
-  background: rgba(10, 15, 29, 0.75);
+  background: rgba(10, 15, 29, 0.78);
   backdrop-filter: blur(8px);
   z-index: 1000;
   display: flex;
@@ -481,6 +481,14 @@ const ModalBackdrop = styled.div`
   justify-content: center;
   padding: 1.5rem;
   overflow-y: auto;
+
+  @media (max-height: 760px) {
+    padding: 0.75rem;
+  }
+
+  @media (max-width: 640px) {
+    padding: 0.5rem;
+  }
 `;
 
 const ModalContainer = styled.div`
@@ -492,9 +500,19 @@ const ModalContainer = styled.div`
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
   display: flex;
   flex-direction: column;
-  max-height: 90vh;
+  max-height: min(92vh, 880px);
   overflow: hidden;
   animation: modalFadeIn 0.2s ease-out;
+
+  @media (max-height: 760px) {
+    max-height: calc(100vh - 1.5rem);
+    border-radius: 12px;
+  }
+
+  @media (max-width: 640px) {
+    max-height: calc(100vh - 1rem);
+    border-radius: 12px;
+  }
 
   @keyframes modalFadeIn {
     from {
@@ -512,9 +530,15 @@ const ModalHeader = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1.25rem 1.5rem;
+  padding: 1.15rem 1.5rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(15, 23, 42, 0.8);
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(10px);
+  flex-shrink: 0;
+
+  @media (max-width: 640px) {
+    padding: 1rem 1.25rem;
+  }
 
   .header-title {
     display: flex;
@@ -531,6 +555,7 @@ const ModalHeader = styled.div`
       justify-content: center;
       color: white;
       box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+      flex-shrink: 0;
     }
 
     h3 {
@@ -566,12 +591,42 @@ const ModalHeader = styled.div`
   }
 `;
 
+const ModalForm = styled.form`
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+`;
+
 const ModalBody = styled.div`
-  padding: 1.5rem;
+  padding: 1.25rem 1.5rem;
   overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 1.15rem;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.16);
+    border-radius: 3px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.28);
+  }
+
+  @media (max-width: 640px) {
+    padding: 1rem;
+    gap: 1rem;
+  }
 
   .error-alert {
     padding: 0.75rem 1rem;
@@ -599,20 +654,31 @@ const FormRow = styled.div`
   gap: 1rem;
   flex-wrap: wrap;
 
+  @media (max-width: 768px) {
+    gap: 0.85rem;
+  }
+
   @media (max-width: 640px) {
     flex-direction: column;
+    gap: 0.75rem;
   }
 `;
 
 const FormGroup = styled.div<{ className?: string }>`
-  flex: 1;
+  flex: 1 1 170px;
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  min-width: 140px;
+  min-width: 150px;
 
   &.flex-2 {
-    flex: 2;
+    flex: 2 1 260px;
+    min-width: 220px;
+  }
+
+  @media (max-width: 640px) {
+    min-width: 100%;
+    flex: 1 1 100%;
   }
 
   label {
@@ -624,6 +690,8 @@ const FormGroup = styled.div<{ className?: string }>`
   input,
   select,
   textarea {
+    width: 100%;
+    box-sizing: border-box;
     background: rgba(30, 41, 59, 0.7);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 8px;
@@ -644,6 +712,7 @@ const FormGroup = styled.div<{ className?: string }>`
     position: relative;
     display: flex;
     align-items: center;
+    width: 100%;
 
     svg {
       position: absolute;
@@ -695,7 +764,14 @@ const ModalFooter = styled.div`
   gap: 0.75rem;
   padding: 1rem 1.5rem;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(15, 23, 42, 0.8);
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(10px);
+  flex-shrink: 0;
+  z-index: 2;
+
+  @media (max-width: 640px) {
+    padding: 0.75rem 1rem;
+  }
 
   button {
     padding: 0.65rem 1.25rem;

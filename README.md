@@ -36,15 +36,117 @@
 </p>
 
 <p align="center">
+  <a href="#-download--install-no-technical-skills-needed">Download & Install</a> •
   <a href="#overview">Overview</a> •
   <a href="#key-features">Key Features</a> •
   <a href="#compust-capture-demo">Extension Demo</a> •
   <a href="#system-architecture">Architecture</a> •
-  <a href="#quick-start-guide">Quick Start</a> •
-  <a href="#testing--verification">Testing</a> •
-  <a href="#api-examples">API Examples</a> •
-  <a href="#future-roadmap">Future Roadmap</a>
+  <a href="#-for-developers-source-setup--local-development">For Developers</a> •
+  <a href="#-troubleshooting-faq">FAQ</a>
 </p>
+
+---
+
+## 🚀 Download & Install (No Technical Skills Needed)
+
+Get Compust up and running on Windows in less than two minutes. **No Python, Node.js, XAMPP, MySQL, Git, or command-line experience required.**
+
+### 📥 1. Official Downloads (v1.0.2)
+Download the release assets directly from GitHub Releases:
+- 💿 **[Windows Setup Wizard (Compust-Setup-v1.0.2.exe)](https://github.com/putbullet/compust/releases/latest)** (~222 MB) — Recommended for most users. Includes bundled Python runtime, automatic updates, start menu and desktop shortcuts, and system tray integration.
+- 📦 **[Windows Portable Release (Compust-Windows-Portable-v1.0.2.zip)](https://github.com/putbullet/compust/releases/latest)** (~82 MB) — Zero installation required. Simply extract anywhere and launch `Compust.bat`.
+- Each release provides an official SHA-256 checksum file to independently verify package integrity.
+
+---
+
+### 🪄 2. The 5-Step Setup Walkthrough
+
+1. **Download the Setup File**: Click the link above to download `Compust-Setup-v1.0.2.exe` (or extract `Compust-Windows-Portable-v1.0.2.zip`).
+2. **Start the Installer**: Double-click the downloaded setup file. Choose your preferred language: **English**, **Français**, or **Nederlands**.
+3. **Choose Installation Folder**: The installer defaults to your user profile directory (`%LOCALAPPDATA%\Programs\Compust`), requiring **zero administrator permissions**.
+4. **AI Assistance Setup**:
+   - The installer checks if Ollama is running locally at `http://127.0.0.1:11434`.
+   - If present: detects your existing models and offers to pull the recommended lightweight model (`qwen3.5:0.8b`).
+   - If missing: choose *"Install it for me"* (automatic official download), *"Show me how"* (manual commands), or configure Google Gemini in the platform settings.
+5. **Launch Compust**: Leave *"Launch Compust now"* checked and click **Finish**. Compust starts silently in the background, places an icon in your system tray, and automatically opens your web browser to `http://localhost:8000`.
+
+---
+
+### 🤖 Dual AI Providers: Local Ollama & Google Gemini (Cloud)
+
+Compust features a unified AI Gateway with two user-selectable engines configured in **AI Settings** (gear icon in the top navigation):
+
+1. **Ollama (Default · Local & 100% Offline):**
+   - **Privacy First:** 100% of resume analysis, STAR interview prep, and cold emails are processed locally on your CPU/GPU. Zero data leaves your machine.
+   - **Recommended Model:** `qwen3.5:0.8b` (ultra-compact, runs without GPU on standard laptops).
+   - **Requirements:** Run `ollama serve` and pull your model (`ollama pull qwen3.5:0.8b`). Zero subscriptions or API keys needed.
+
+2. **Google Gemini (Optional · Cloud Intelligence):**
+   - **Advanced Reasoning:** Deeper semantic understanding for complex resume tailoring, behavioral interview prep, and cover letter drafting (`gemini-3.8-flash` default).
+   - **Stepped Setup Wizard:** Guided 4-stage configuration modal with live latency probe and instant global hot-switching without restart.
+   - **DPAPI Key Security:** On Windows, API keys are encrypted at rest using Windows Data Protection API (`CryptProtectData`) and never logged, exposed to frontend, or committed to git.
+   - **Automated Local PII Redaction:** Before any text leaves your device, personal identifiers (name, email address, phone numbers, and URLs) are automatically redacted locally.
+   - **Zero Silent Fallback:** Compust never silently redirects local Ollama requests to Gemini. You can switch back to local Ollama at any time with a single click.
+
+---
+
+### 🛡️ Windows SmartScreen Note ("Windows protected your PC")
+
+Because Compust is a community-driven open-source application and new binary releases build reputational trust over time, Windows Defender SmartScreen may display a blue warning screen:
+
+```
+┌────────────────────────────────────────────────────────┐
+│ Windows protected your PC                              │
+│ Microsoft Defender SmartScreen prevented an            │
+│ unrecognized app from starting.                        │
+│                                                        │
+│ [ More info ]                                          │
+└────────────────────────────────────────────────────────┘
+```
+
+**How to proceed:**
+1. Click **More info**.
+2. Click **Run anyway**.
+
+> [!NOTE]
+> Compust never edits your system `PATH`, never executes unverified remote scripts, ships with a sandboxed private Python runtime, and stores all user data isolated in your user directory. You can independently verify the installer SHA-256 checksum against the release notes before running.
+
+---
+
+### 💻 Minimum Hardware Requirements
+- **Operating System:** Windows 10 or Windows 11 (64-bit architecture)
+- **RAM:** 8 GB recommended (4 GB minimum)
+- **Disk Space:** 2.0 GB free disk space
+- **Graphics Card (GPU):** **Not required**. All AI models run efficiently on modern CPUs via quantized inference.
+- **Internet Connection:** Only needed during initial download and optional AI model pulls; core job matching, resume editing, and application tracking work 100% offline.
+
+---
+
+### 🔧 How to Repair or Check System Health
+Compust features built-in self-healing and integrity checks:
+- **From the Start Menu:** Click **Compust – Check & Repair**.
+- **From the System Tray:** Right-click the Compust icon near your Windows clock and select **Check & Repair**.
+- **From Command Prompt:** Run `Compust.exe --repair`.
+- **Diagnostic Reports:** To export sanitized application logs for troubleshooting, right-click the tray icon and select **Diagnostic Report** (or run `Compust.exe --diagnostic`). A zip archive is created at `%LOCALAPPDATA%\Compust\compust_diagnostic_report.zip` with all personal data excluded.
+
+---
+
+### 📂 Where Your Data and Logs Live
+Your data is strictly isolated from the program installation so that updating, reinstalling, or repairing Compust never destroys your records:
+- **Database (SQLite):** `%LOCALAPPDATA%\Compust\compust.db` (automatic default with zero configuration)
+- **User Uploads & Resumes:** `%LOCALAPPDATA%\Compust\storage\`
+- **Database Backups:** `%LOCALAPPDATA%\Compust\backups\` (automatic timestamped pre-migration backups before every schema upgrade)
+- **Application Logs:** `%LOCALAPPDATA%\Compust\logs\`
+
+---
+
+### 🗑️ How to Uninstall
+1. Open Windows **Settings ➔ Apps ➔ Installed apps** (or Control Panel ➔ Programs and Features).
+2. Locate **Compust** in the list and click **Uninstall**.
+3. The uninstaller will ask whether you want to preserve your user database, resumes, and notes:
+   - Click **Yes** (recommended) to keep your personal data for future reinstalls.
+   - Click **No** to perform a complete wipe.
+*(The uninstaller never modifies or uninstalls external tools like Ollama).*
 
 ---
 
@@ -148,6 +250,16 @@ In addition to job discovery, Compust provides a **Career Intelligence & Resume 
 - **Platform Adapters**: Dedicated parsers for corporate portals (Capgemini, Orange, Inwi, Deloitte, etc.) and generic universal heuristics for new sites.
 - **Rate-Limiting & Cooldown**: Domain-aware back-off logic prevents target server overload.
 - **Playwright Fallback**: Automated headless browser rendering for complex single-page applications (SPAs).
+
+### 12. Local Data Management, Migration & Portable Backups
+- **Guided Source Migration**: Auto-detects legacy MySQL databases (port 3306) and workspace SQLite databases, offering preview counts and conflict-free guided migration into `%LOCALAPPDATA%\Compust\data\compust.db`.
+- **Portable Zip Backups**: One-click export of complete database snapshots, user resumes, and attachments into a compressed `.zip` archive.
+- **100% Data Fidelity Restore**: In-app restoration interface validates table structures and restores all records and physical documents with zero data loss.
+
+### 13. Technical Documentation Hub & Interactive Architecture
+- **Bootstrap Technical Layout**: Clean 3-column documentation center with collapsible sidebar, instant `/` keyboard search, and sticky section navigation.
+- **Dark-Mode Compatible Diagrams**: Integrated Mermaid system architecture, database ER models, and extension capture flows rendered dynamically.
+- **Offline & Local-First**: Complete platform manuals, API reference, and troubleshooting guides accessible completely offline.
 
 ---
 

@@ -17,7 +17,7 @@ from pathlib import Path
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
-VERSION = "1.0.0"
+VERSION = "1.0.2"
 RELEASE_NAME = f"Compust-Windows-Portable-v{VERSION}"
 
 
@@ -112,6 +112,18 @@ def build_release():
         )
         if (important_dir / "alembic.ini").is_file():
             shutil.copy2(important_dir / "alembic.ini", imp_dst / "alembic.ini")
+
+    # Copy migrations runner
+    if (important_dir / "migrations").is_dir():
+        shutil.copytree(
+            important_dir / "migrations",
+            imp_dst / "migrations",
+            ignore=shutil.ignore_patterns("__pycache__"),
+        )
+
+    # Copy requirements.txt
+    if (important_dir / "requirements.txt").is_file():
+        shutil.copy2(important_dir / "requirements.txt", imp_dst / "requirements.txt")
 
     # Create empty data directory for standalone SQLite database
     (imp_dst / "data").mkdir(exist_ok=True)

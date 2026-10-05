@@ -7,6 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     app_name: str = Field(default="Compust API", validation_alias="COMPUST_APP_NAME")
+    app_version: str = Field(default="1.0.2", validation_alias="COMPUST_APP_VERSION")
     debug: bool = Field(default=False, validation_alias="COMPUST_DEBUG")
     database_url: str = Field(
         default="mysql+pymysql://root:@127.0.0.1:3306/compust",
@@ -36,6 +37,24 @@ class Settings(BaseSettings):
         validation_alias="COMPUST_EXTENSION_ORIGINS",
     )
 
+    @field_validator("cors_allowed_origins", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v: Any) -> list[str]:
+        if isinstance(v, str):
+            v = v.strip()
+            if v.startswith("[") and v.endswith("]"):
+                try:
+                    import json
+                    parsed = json.loads(v)
+                    if isinstance(parsed, list):
+                        return [str(origin).strip() for origin in parsed if str(origin).strip()]
+                except Exception:
+                    pass
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        if isinstance(v, (list, set, tuple)):
+            return [str(origin).strip() for origin in v if str(origin).strip()]
+        return []
+
     @field_validator("extension_allowed_origins", mode="before")
     @classmethod
     def parse_extension_origins(cls, v: Any) -> list[str]:
@@ -47,7 +66,12 @@ class Settings(BaseSettings):
 
     @property
     def all_cors_origins(self) -> list[str]:
+        import os
         origins = list(self.cors_allowed_origins)
+        active_port = os.environ.get("COMPUST_ACTIVE_PORT", "8000")
+        for loopback in [f"http://127.0.0.1:{active_port}", f"http://localhost:{active_port}", "http://127.0.0.1:8000", "http://localhost:8000"]:
+            if loopback not in origins:
+                origins.append(loopback)
         for ext in self.extension_allowed_origins:
             if ext not in origins:
                 origins.append(ext)

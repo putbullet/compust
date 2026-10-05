@@ -116,6 +116,18 @@ export interface ActiveResumeInfo {
   is_active: boolean;
 }
 
+export interface CompustInstance {
+  url: string;
+  port: number;
+  app: string;
+  version: string;
+  mode: 'installed' | 'dev' | string;
+  instanceId?: string;
+  pid?: number;
+  dataDir?: string;
+  database?: string;
+}
+
 export type ExtensionMessage =
   | { type: 'CHECK_STATUS' }
   | { type: 'GET_SETTINGS' }
@@ -134,4 +146,5 @@ export type ExtensionMessage =
   | { type: 'TOGGLE_CAPTURE_PANEL' }
   | { type: 'TRACK_APPLICATION'; jobId: number; status: 'applied' | 'saved' }
   | { type: 'ACTIVATE_CAPTURE_ON_TAB'; tabId?: number }
+  | { type: 'DISCOVER_INSTANCES' }
   | { type: 'TEST_CONNECTION'; url?: string };

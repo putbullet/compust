@@ -241,7 +241,9 @@ export const ATSCheckerModal: React.FC<ATSCheckerModalProps> = ({
                       <Cpu size={12} />
                       <span>
                         {result.provider === 'ollama'
-                          ? `Local LLM (${result.model || 'active'})`
+                          ? `Local LLM (Ollama: ${result.model || 'active'})`
+                          : result.provider === 'gemini'
+                          ? `Cloud AI (Google Gemini: ${result.model || 'active'})`
                           : 'Deterministic ATS Engine'}
                       </span>
                     </div>

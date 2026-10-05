@@ -90,7 +90,7 @@ export const GUIDE_SECTIONS: GuideSectionMeta[] = [
   },
   {
     id: 'getting-started',
-    title: 'A-to-Z Setup Workflow',
+    title: 'Getting Started: A-to-Z Workflow',
     description: 'Step-by-step from first-time setup to active job tracking.',
     group: 'getting-started',
     keywords: ['setup', 'profile', 'resume', 'company', 'sync'],

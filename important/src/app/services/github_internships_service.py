@@ -21,8 +21,12 @@ from ..schemas_github_internships import (
 
 logger = get_logger("services.github_internships")
 
-STORAGE_DIR = Path(__file__).resolve().parents[3] / "storage"
-CACHE_FILE = STORAGE_DIR / "github_internships_cache.json"
+from ..paths import get_storage_dir
+
+def get_internships_cache_file() -> Path:
+    return get_storage_dir() / "github_internships_cache.json"
+
+SEED_FILE = Path(__file__).resolve().parent.parent / "content" / "github_internships_seed.json"
 
 REPO_CONFIGS = [
     {
@@ -252,7 +256,7 @@ class GitHubInternshipsService:
     """Service to fetch, parse, cache, and serve opportunities from active GitHub repos."""
 
     def __init__(self) -> None:
-        STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+        get_storage_dir().mkdir(parents=True, exist_ok=True)
 
     def get_curated_internships(
         self,
@@ -262,10 +266,43 @@ class GitHubInternshipsService:
         search: str | None = None,
         open_only: bool = False,
     ) -> GitHubInternshipsResponse:
-        """Return curated internships from cache (or parse/fetch if cache absent)."""
+        """Return curated internships from cache or bundled seed. Never blocks synchronously on external fetch."""
         cached_data = self._load_cache()
         if not cached_data:
-            cached_data = self.sync_all_repos()
+            logger.warning("No internships cache or seed available; returning empty response.")
+            return GitHubInternshipsResponse(
+                items=[],
+                stats=GitHubInternshipStats(
+                    total_listings=0,
+                    active_listings=0,
+                    closed_listings=0,
+                    visa_sponsored_count=0,
+                    no_sponsorship_count=0,
+                    us_citizens_count=0,
+                    canada_authorized_count=0,
+                    not_specified_count=0,
+                    repos_count=len(REPO_CONFIGS),
+                    last_synced_at="",
+                    by_repo={},
+                    by_category={},
+                ),
+                repos=[
+                    GitHubRepoMeta(
+                        id=cfg["id"],
+                        name=cfg["name"],
+                        url=cfg["url"],
+                        region=cfg["region"],
+                        year=cfg["year"],
+                        description=cfg["description"],
+                    )
+                    for cfg in REPO_CONFIGS
+                ],
+                filters_available={
+                    "repos": [cfg["id"] for cfg in REPO_CONFIGS],
+                    "categories": [],
+                    "visa_statuses": [],
+                },
+            )
 
         items = cached_data.items
 
@@ -949,20 +986,39 @@ class GitHubInternshipsService:
         )
 
     def _load_cache(self) -> GitHubInternshipsResponse | None:
-        if not CACHE_FILE.exists():
-            return None
-        try:
-            with open(CACHE_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                return GitHubInternshipsResponse.model_validate(data)
-        except Exception as err:
-            logger.warning("Failed to load internships cache: %s", err)
-            return None
+        cache_path = get_internships_cache_file()
+        if cache_path.exists():
+            try:
+                with open(cache_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    return GitHubInternshipsResponse.model_validate(data)
+            except Exception as err:
+                logger.warning("Failed to load user internships cache (%s): %s", cache_path, err)
+
+        # Fallback to bundled seed if user cache is absent or corrupt
+        if SEED_FILE.exists():
+            try:
+                logger.info("Loading bundled internships seed from %s", SEED_FILE)
+                with open(SEED_FILE, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    resp = GitHubInternshipsResponse.model_validate(data)
+                    # Try copying/saving to user cache for fast subsequent loads
+                    try:
+                        self._save_cache(resp)
+                    except Exception:
+                        pass
+                    return resp
+            except Exception as err:
+                logger.warning("Failed to load bundled internships seed (%s): %s", SEED_FILE, err)
+
+        return None
 
     def _save_cache(self, resp: GitHubInternshipsResponse) -> None:
+        cache_path = get_internships_cache_file()
         try:
-            with open(CACHE_FILE, "w", encoding="utf-8") as f:
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(cache_path, "w", encoding="utf-8") as f:
                 f.write(resp.model_dump_json(indent=2))
-            logger.info("Saved internships cache to %s (%d items)", CACHE_FILE, len(resp.items))
+            logger.info("Saved internships cache to %s (%d items)", cache_path, len(resp.items))
         except Exception as err:
-            logger.error("Failed to save internships cache: %s", err)
+            logger.error("Failed to save internships cache (%s): %s", cache_path, err)

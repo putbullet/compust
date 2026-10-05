@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from ..models import Company, Country, Job, ScrapingRun, UserApplication, ScrapeTarget
 from .ai_service import generate_completion, check_ollama_runtime
+from .ai_gateway import get_active_provider, get_provider, AIProviderType
 
 
 def count_new_jobs_today(db: Session) -> dict[str, Any]:
@@ -283,9 +284,13 @@ def answer_user_query(
     # Phase 1: Deterministic retrieval from database
     tool_data, deterministic_fallback = match_and_execute_tool(query, db, user_id=user_id)
 
-    # Phase 2: Check Ollama availability
-    runtime = check_ollama_runtime()
-    if runtime["status"] != "connected" or not runtime["models"]:
+    # Phase 2: Check provider availability
+    active_prov = get_active_provider()
+    provider_inst = get_provider(active_prov)
+    ai_available = provider_inst.is_available()
+    selected_model = model or provider_inst.get_active_model()
+
+    if not ai_available:
         return {
             "answer": deterministic_fallback,
             "facts": tool_data,
@@ -294,14 +299,14 @@ def answer_user_query(
             "ollama_available": False,
         }
 
-    # Phase 3: Format prompt for local 0.8B model
+    # Phase 3: Format prompt
     prompt = f"User question: {query}\nVerified database facts: {tool_data}\nConcise answer:"
 
     try:
         llm_response = generate_completion(
             prompt=prompt,
             system_prompt=COMPUST_ASSISTANT_SYSTEM_PROMPT,
-            model=model or runtime.get("selected_model"),
+            model=selected_model,
             temperature=0.1,
             timeout_seconds=8.0,
         )
@@ -309,16 +314,16 @@ def answer_user_query(
         return {
             "answer": final_answer,
             "facts": tool_data,
-            "provider": "ollama",
-            "model": model or runtime.get("selected_model"),
-            "ollama_available": True,
+            "provider": active_prov.value,
+            "model": selected_model,
+            "ollama_available": active_prov == AIProviderType.OLLAMA,
         }
     except Exception:
-        # Graceful fallback to deterministic response if Ollama times out or errors
+        # Graceful fallback to deterministic response if LLM times out or errors
         return {
             "answer": deterministic_fallback,
             "facts": tool_data,
             "provider": "deterministic_fallback",
-            "model": model or runtime.get("selected_model"),
-            "ollama_available": True,
+            "model": selected_model,
+            "ollama_available": active_prov == AIProviderType.OLLAMA,
         }

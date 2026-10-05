@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   Search,
   ExternalLink,
@@ -132,6 +132,79 @@ const GUIDE_TITLE_TRANSLATIONS: Record<string, Record<string, string>> = {
   },
 };
 
+const ON_THIS_PAGE_MAP: Record<string, { id: string; label: string }[]> = {
+  welcome: [
+    { id: 'welcome', label: 'Platform Overview' },
+    { id: 'welcome-stats', label: 'Core Metrics' },
+  ],
+  'important-notice': [
+    { id: 'important-notice', label: 'What Compust IS / IS NOT' },
+  ],
+  'demo-video': [
+    { id: 'demo-video', label: 'Interactive Walkthrough' },
+  ],
+  'how-it-works': [
+    { id: 'how-it-works', label: 'Architecture Overview' },
+  ],
+  'getting-started': [
+    { id: 'getting-started', label: 'A-to-Z Workflow Steps' },
+  ],
+  'resume-studio': [
+    { id: 'resume-studio', label: 'Studio Architecture' },
+  ],
+  'deep-analysis': [
+    { id: 'deep-analysis', label: 'Deep Match Analysis' },
+  ],
+  'ats-checker': [
+    { id: 'ats-checker', label: '6-Pillar ATS Audit' },
+  ],
+  'extension-install': [
+    { id: 'extension-install', label: 'Extension Setup' },
+  ],
+  'extension-sites': [
+    { id: 'extension-sites', label: 'Supported Job Boards' },
+  ],
+  'extension-capture-flow': [
+    { id: 'extension-capture-flow', label: 'Decision Logic Flow' },
+  ],
+  opportunities: [
+    { id: 'opportunities', label: 'Catalog Supervision' },
+  ],
+  internships: [
+    { id: 'internships', label: 'Curated Repository' },
+  ],
+  'matching-engine': [
+    { id: 'matching-engine', label: '5-Factor Formula' },
+  ],
+  'profile-management': [
+    { id: 'profile-management', label: 'Candidate Preferences' },
+  ],
+  'applications-tracker': [
+    { id: 'applications-tracker', label: 'Kanban Stages' },
+  ],
+  'pipeline-analytics': [
+    { id: 'pipeline-analytics', label: 'Conversion Funnel' },
+  ],
+  'scraper-architecture': [
+    { id: 'scraper-architecture', label: '7-Layer Pipeline' },
+  ],
+  'testing-career-sites': [
+    { id: 'testing-career-sites', label: 'Diagnostic Testing' },
+  ],
+  'success-vs-failure': [
+    { id: 'success-vs-failure', label: 'Error Classification' },
+  ],
+  'scraper-diagnostics-ai': [
+    { id: 'scraper-diagnostics-ai', label: 'Diagnostic Assistant' },
+  ],
+  'contributor-guide': [
+    { id: 'contributor-guide', label: 'Developer Environment' },
+  ],
+  faq: [
+    { id: 'faq', label: 'Frequently Asked Questions' },
+  ],
+};
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const GuideView: React.FC = () => {
@@ -139,9 +212,24 @@ export const GuideView: React.FC = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSection, setActiveSection] = useState('welcome');
+  const [activeSubsection, setActiveSubsection] = useState<string | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [videoError, setVideoError] = useState(false);
   const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
   const [openFaqIndices, setOpenFaqIndices] = useState<Set<number>>(new Set([0, 1]));
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === '/' && !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName || '')) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const localizedSections = useMemo(
     () => GUIDE_SECTIONS.map((section) => ({
@@ -242,9 +330,28 @@ export const GuideView: React.FC = () => {
     <div className="guide-container">
       {/* Search and Quick Action Header */}
       <header className="guide-header-bar">
+        <div className="guide-header-brand">
+          <button
+            type="button"
+            className="guide-sidebar-toggle-btn"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            title={sidebarCollapsed ? t.guide.expandSidebar : t.guide.collapseSidebar}
+            aria-label={sidebarCollapsed ? t.guide.expandSidebar : t.guide.collapseSidebar}
+          >
+            <Sliders size={16} />
+            <span className="toggle-label">{sidebarCollapsed ? t.guide.expandSidebar : t.guide.collapseSidebar}</span>
+          </button>
+          <div className="guide-docs-title">
+            <BookOpen size={20} className="title-icon" />
+            <span>Documentation</span>
+            <span className="version-pill">v1.0.2</span>
+          </div>
+        </div>
+
         <div className="guide-search-wrapper">
           <Search size={18} className="guide-search-icon" aria-hidden="true" />
           <input
+            ref={searchInputRef}
             type="text"
             className="guide-search-input"
             placeholder={t.guide.searchPlaceholder}
@@ -252,6 +359,11 @@ export const GuideView: React.FC = () => {
             onChange={(e) => setSearchQuery(e.target.value)}
             aria-label={language === 'fr' ? 'Rechercher dans le guide Compust' : language === 'nl' ? 'Compust-gids doorzoeken' : 'Search Compust Guide'}
           />
+          {!searchQuery && (
+            <span className="guide-search-kbd" title="Press / to search">
+              <kbd>/</kbd>
+            </span>
+          )}
           {searchQuery && (
             <button
               className="guide-search-clear"
@@ -295,8 +407,8 @@ export const GuideView: React.FC = () => {
         </div>
       </header>
 
-      {/* Main Layout: Sticky Sidebar TOC + Content */}
-      <div className="guide-layout">
+      {/* Main Layout: Sticky Sidebar TOC + Content + Right 'On this page' TOC */}
+      <div className={`guide-layout ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
         {/* Sticky Sidebar Navigation */}
         <aside className="guide-sidebar">
           <div className="guide-sidebar-title">{t.guide.tableOfContents}</div>
@@ -591,7 +703,7 @@ export const GuideView: React.FC = () => {
             <div className="guide-section-header">
               <h2 className="guide-section-title">
                 <CheckCircle2 size={24} aria-hidden="true" className="icon-cyan" />
-                A-to-Z Setup Workflow
+                Getting Started: A-to-Z Workflow
               </h2>
               <p className="guide-section-subtitle">
                 Follow these practical steps from first-time setup to active application
@@ -1550,6 +1662,36 @@ class MyPlatformAdapter:
             </p>
           </div>
         </main>
+
+        {/* Right 'On this page' TOC */}
+        <aside className="guide-on-this-page">
+          <div className="on-this-page-title">{t.guide.onThisPage}</div>
+          <nav className="on-this-page-nav" aria-label={t.guide.onThisPage}>
+            <ul className="on-this-page-list">
+              {(ON_THIS_PAGE_MAP[activeSection] || [
+                { id: activeSection, label: localizedSections.find((s) => s.id === activeSection)?.title || 'Overview' }
+              ]).map((item) => (
+                <li key={item.id} className="on-this-page-item">
+                  <a
+                    href={`#${item.id}`}
+                    className={`on-this-page-link ${activeSubsection === item.id || (!activeSubsection && item.id === activeSection) ? 'active' : ''}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setActiveSubsection(item.id);
+                      const el = document.getElementById(item.id);
+                      if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        window.history.replaceState(null, '', `#${item.id}`);
+                      }
+                    }}
+                  >
+                    {item.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </aside>
       </div>
     </div>
   );

@@ -9,6 +9,7 @@ from ..models import Country
 from ..repositories.jobs import resolve_or_create_company, persist_candidate
 from ..scraper.orange_parser import JobCandidate
 from .ai_service import generate_completion, check_ollama_runtime, OllamaError, OllamaUnavailableError
+from .ai_gateway import get_active_provider
 
 logger = get_logger("scraper.assistant")
 
@@ -191,7 +192,7 @@ def explain_scraper_run(report_dict: dict[str, Any]) -> dict[str, Any]:
                 "reasons_breakdown": parsed.get("reasons_breakdown") or {},
                 "discrepancy_explanation": parsed.get("discrepancy_explanation"),
                 "recommendations": parsed.get("recommendations") or [],
-                "provider": "ollama",
+                "provider": get_active_provider().value,
             }
         else:
             logger.warning("Ollama output did not contain valid JSON. Falling back to deterministic explanation.")

@@ -28,9 +28,10 @@ import {
   type ScraperExplainResponse,
   type JobSupervisionUpdate,
 } from '../api/client';
+import { DataManagementView } from './DataManagementView';
 
 export const MyDataSupervisionView: React.FC = () => {
-  const [activeSubTab, setActiveSubTab] = useState<'jobs' | 'runs' | 'test'>('jobs');
+  const [activeSubTab, setActiveSubTab] = useState<'jobs' | 'runs' | 'test' | 'import-backup'>('jobs');
 
   // Jobs state
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -298,6 +299,12 @@ export const MyDataSupervisionView: React.FC = () => {
             onClick={() => setActiveSubTab('test')}
           >
             Parser Testing & Diagnostics
+          </button>
+          <button
+            className={`subnav-btn ${activeSubTab === 'import-backup' ? 'active' : ''}`}
+            onClick={() => setActiveSubTab('import-backup')}
+          >
+            Import & Backup
           </button>
         </SubNav>
       </Header>
@@ -709,8 +716,8 @@ export const MyDataSupervisionView: React.FC = () => {
                       <span>Diagnostics Intelligence Explanation</span>
                     </div>
                     {explanation && (
-                      <span className={`provider-tag ${explanation.provider === 'ollama' ? 'provider-ollama' : 'provider-deterministic'}`}>
-                        {explanation.provider === 'ollama' ? 'Ollama Local LLM' : 'Deterministic Grounding'}
+                      <span className={`provider-tag ${explanation.provider === 'ollama' ? 'provider-ollama' : explanation.provider === 'gemini' ? 'provider-gemini' : 'provider-deterministic'}`}>
+                        {explanation.provider === 'ollama' ? 'Ollama Local LLM' : explanation.provider === 'gemini' ? 'Google Gemini (Cloud)' : 'Deterministic Grounding'}
                       </span>
                     )}
                   </div>
@@ -872,6 +879,11 @@ export const MyDataSupervisionView: React.FC = () => {
             )}
           </TestPanel>
         </SectionContent>
+      )}
+
+      {/* Tab 4: Guided Data Import & Backup/Restore */}
+      {activeSubTab === 'import-backup' && (
+        <DataManagementView onImportComplete={() => { fetchJobs(); }} />
       )}
 
       {/* Edit Job Modal */}
@@ -1656,6 +1668,11 @@ const DiagnosticReportCard = styled.div`
         background: rgba(168, 85, 247, 0.2);
         color: #d8b4fe;
         border: 1px solid rgba(168, 85, 247, 0.35);
+      }
+      &.provider-gemini {
+        background: rgba(16, 185, 129, 0.2);
+        color: #6ee7b7;
+        border: 1px solid rgba(16, 185, 129, 0.35);
       }
       &.provider-deterministic {
         background: rgba(59, 130, 246, 0.2);

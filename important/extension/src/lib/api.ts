@@ -1,4 +1,4 @@
-import { JobPayload, QuickAddAndAnalyzeResult, UserProfile, ActiveResumeInfo } from './types';
+import { JobPayload, QuickAddAndAnalyzeResult, UserProfile, ActiveResumeInfo, CompustInstance } from './types';
 
 export class CompustApiError extends Error {
   status?: number;
@@ -12,23 +12,92 @@ export class CompustApiError extends Error {
   }
 }
 
-export async function checkBackendHealth(backendUrl: string): Promise<{ ok: boolean; database?: string; error?: string }> {
+export async function checkBackendHealth(backendUrl: string): Promise<{
+  ok: boolean;
+  database?: string;
+  app?: string;
+  version?: string;
+  mode?: string;
+  instanceId?: string;
+  port?: number;
+  error?: string;
+}> {
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
     const res = await fetch(`${backendUrl}/health`, {
       method: 'GET',
       headers: { 'Accept': 'application/json' },
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
     if (!res.ok) {
       return { ok: false, error: `Backend responded with HTTP ${res.status}` };
     }
     const data = await res.json();
-    return { ok: true, database: data.database };
+    return {
+      ok: true,
+      database: data.database,
+      app: data.app,
+      version: data.version,
+      mode: data.mode,
+      instanceId: data.instance_id,
+      port: data.port,
+    };
   } catch (err: any) {
     return {
       ok: false,
       error: "Compust isn't running — start the app and try again",
     };
   }
+}
+
+export async function discoverCompustInstances(
+  startPort = 8000,
+  endPort = 8010
+): Promise<CompustInstance[]> {
+  const instances: CompustInstance[] = [];
+  const probes = [];
+
+  for (let port = startPort; port <= endPort; port++) {
+    const url = `http://127.0.0.1:${port}`;
+    probes.push(
+      (async () => {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 500);
+          const res = await fetch(`${url}/health`, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' },
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.app === 'compust') {
+              instances.push({
+                url,
+                port,
+                app: data.app,
+                version: data.version || '1.0.1',
+                mode: data.mode || 'installed',
+                instanceId: data.instance_id,
+                pid: data.pid,
+                dataDir: data.data_dir,
+                database: data.database,
+              });
+            }
+          }
+        } catch {
+          // Port closed or not answering
+        }
+      })()
+    );
+  }
+
+  await Promise.all(probes);
+  instances.sort((a, b) => a.port - b.port);
+  return instances;
 }
 
 export async function loginToBackend(

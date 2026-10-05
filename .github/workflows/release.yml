@@ -1,0 +1,130 @@
+name: Release Windows Installer
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build & Package Windows Installer
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: important/requirements.txt
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: |
+            important/frontend/package-lock.json
+            important/extension/package-lock.json
+
+      - name: Install Inno Setup
+        run: |
+          choco install innosetup -y --no-progress
+          echo "C:\Program Files (x86)\Inno Setup 6" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r important/requirements.txt
+          pip install pytest ruff
+
+      - name: Run Backend Tests (SQLite dual-mode & migrations)
+        run: |
+          cd important
+          pytest -v
+
+      - name: Build & Test Browser Extensions
+        run: |
+          cd important/extension
+          npm ci
+          npm test
+          npm run build:all
+
+      - name: Build Production React Frontend
+        run: |
+          cd important/frontend
+          npm ci
+          npm run build
+
+      - name: Extract Tag Version
+        id: get_version
+        shell: bash
+        run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/v}"
+          echo "VERSION=${TAG_NAME}" >> $GITHUB_OUTPUT
+          echo "Building Compust Windows Installer version: ${TAG_NAME}"
+
+      - name: Assemble & Compile Windows Installer with CI Smoke Test
+        run: |
+          python scripts/package_windows_installer.py --version ${{ steps.get_version.outputs.VERSION }} --smoke-test
+
+      - name: Assemble Portable Windows Release Zip
+        run: |
+          python important/scripts/build_windows_release.py
+
+      - name: Generate Checksums and Release Notes
+        id: release_notes
+        shell: pwsh
+        run: |
+          $ver = "${{ steps.get_version.outputs.VERSION }}"
+          $installer = Get-Item "release\Compust-Setup-v$ver.exe"
+          $shaFile = Get-Item "release\Compust-Setup-v$ver.exe.sha256"
+          $sha = (Get-Content $shaFile.FullName).Trim()
+          $sizeMB = [math]::Round($installer.Length / 1MB, 2)
+
+          $notes = @"
+          # Compust v$ver — Official Windows Releases
+
+          Download the standalone one-file installer or portable zip below. Zero command line, Python, Node.js, XAMPP, or administrative rights required.
+
+          ### Downloads
+          - **Setup Installer:** ``$($installer.Name)`` ($sizeMB MB)
+          - **Setup SHA-256:** ``$sha``
+          - **Portable Zip:** ``Compust-Windows-Portable-v$ver.zip``
+
+          ### Quick Start
+          1. Download ``$($installer.Name)`` below.
+          2. Double-click to run the setup wizard (choose English, French, or Dutch).
+          3. Click **Next** through the setup wizard.
+          4. Launch Compust from your Desktop or Start Menu!
+          5. If Windows SmartScreen appears ("Windows protected your PC"): click **More info** ➔ **Run anyway**.
+
+          ### System Requirements
+          - **OS:** Windows 10 or Windows 11 (64-bit)
+          - **RAM:** 8 GB recommended (4 GB minimum)
+          - **Disk Space:** 2 GB free space
+          - **GPU:** Not required (CPU inference fully supported)
+          "@
+
+          Set-Content -Path "release_notes.md" -Value $notes -Encoding utf8
+
+      - name: Create Draft GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Compust v${{ steps.get_version.outputs.VERSION }}"
+          body_path: release_notes.md
+          draft: true
+          prerelease: false
+          files: |
+            release/Compust-Setup-v${{ steps.get_version.outputs.VERSION }}.exe
+            release/Compust-Setup-v${{ steps.get_version.outputs.VERSION }}.exe.sha256
+            release/Compust-Windows-Portable-v${{ steps.get_version.outputs.VERSION }}.zip
+            release/Compust-Windows-Portable-v${{ steps.get_version.outputs.VERSION }}.zip.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

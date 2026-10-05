@@ -48,13 +48,48 @@ def _clean_for_sqlite(sql: str) -> str:
     return cleaned
 
 
-def apply_migrations() -> list[str]:
+def apply_migrations(engine=None) -> list[str]:
     """Run pending SQL migrations in order and track them in schema_migrations."""
     settings = get_settings()
-    engine = create_engine(settings.database_url, pool_pre_ping=True)
+    should_dispose = False
+
+    if engine is None:
+        db_url = settings.database_url
+        if db_url.startswith("sqlite"):
+            engine = create_engine(db_url, connect_args={"check_same_thread": False})
+            should_dispose = True
+        elif db_url.startswith("mysql"):
+            from src.app.database import _is_mysql_reachable
+            if _is_mysql_reachable(db_url):
+                engine = create_engine(db_url, pool_pre_ping=True)
+                should_dispose = True
+            else:
+                from src.app.paths import get_database_path
+                sqlite_path = get_database_path()
+                engine = create_engine(f"sqlite:///{sqlite_path.as_posix()}", connect_args={"check_same_thread": False})
+                should_dispose = True
+        else:
+            engine = create_engine(db_url, pool_pre_ping=True)
+            should_dispose = True
+
     applied: list[str] = []
 
     try:
+        is_sqlite = engine.dialect.name == "sqlite"
+
+        # Automated SQLite backup before migrations on upgrade
+        if is_sqlite:
+            url_str = str(engine.url)
+            if "sqlite:///" in url_str:
+                raw_path = url_str.split("sqlite:///", 1)[1].split("?", 1)[0]
+                db_file = Path(raw_path)
+                if db_file.is_file() and db_file.stat().st_size > 0:
+                    try:
+                        from src.app.paths import backup_sqlite_database
+                        backup_sqlite_database(db_file)
+                    except Exception:
+                        pass
+
         inspector = inspect(engine)
         existing_tables = set(inspector.get_table_names())
 
@@ -140,7 +175,8 @@ def apply_migrations() -> list[str]:
 
         return applied
     finally:
-        engine.dispose()
+        if should_dispose:
+            engine.dispose()
 
 
 def apply_migration() -> bool:

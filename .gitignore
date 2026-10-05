@@ -20,9 +20,11 @@ node_modules/
 **/playwright-report/
 important/extension/dist/
 important/extension/scratch_*
-important/data/raw/
-important/data/processed/
+important/data/*
+!important/data/.gitkeep
 important/scratch/
+important/scratch_*
+scratch/
 important/storage/resumes/*.pdf
 important/storage/resumes/*.docx
 
@@ -35,3 +37,6 @@ logs/
 !docs/media/*.mp4
 *.db
 release/
+.cache/
+important/.cache/
+Compust.exe

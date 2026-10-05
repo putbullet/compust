@@ -10,6 +10,7 @@ import {
 } from '../lib/auth';
 import {
   checkBackendHealth,
+  discoverCompustInstances,
   loginToBackend,
   quickAddAndAnalyzeJob,
   analyzeEphemeralJob,
@@ -54,19 +55,38 @@ async function handleMessage(message: ExtensionMessage): Promise<any> {
     case 'CHECK_STATUS': {
       const token = await getToken();
       const user = await getUser();
-      const health = await checkBackendHealth(settings.backendUrl);
+      let activeUrl = settings.backendUrl;
+      let health = await checkBackendHealth(activeUrl);
+
+      // Auto-discover Compust instance if configured URL is unreachable
+      if (!health.ok) {
+        const instances = await discoverCompustInstances(8000, 8010);
+        if (instances.length > 0) {
+          activeUrl = instances[0].url;
+          health = await checkBackendHealth(activeUrl);
+          if (health.ok) {
+            await saveSettings({ backendUrl: activeUrl });
+          }
+        }
+      }
+
       let activeResume = null;
       if (token && health.ok) {
-        activeResume = await fetchActiveResume(settings.backendUrl, token);
+        activeResume = await fetchActiveResume(activeUrl, token);
       }
       return {
         ok: true,
         isLoggedIn: !!token,
         user,
         backendConnected: health.ok,
-        backendUrl: settings.backendUrl,
+        backendUrl: activeUrl,
         activeResume,
       };
+    }
+
+    case 'DISCOVER_INSTANCES': {
+      const instances = await discoverCompustInstances(8000, 8010);
+      return { ok: true, instances };
     }
 
     case 'GET_SETTINGS': {

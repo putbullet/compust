@@ -225,6 +225,8 @@ class JobTargetAnalysisResult(BaseModel):
     interview_prep: InterviewPrep = Field(default_factory=InterviewPrep)
     ollama_used: bool = False
     ollama_model: str | None = None
+    ai_provider: str = "ollama"
+    ai_model: str | None = None
     partial_failure: bool = False
     partial_failure_detail: str = ""
     data_conflicts: list[str] = Field(default_factory=list)

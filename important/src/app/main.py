@@ -4,9 +4,12 @@ import hashlib
 import pathlib
 import time
 from typing import Any, Optional
+import os
+import uuid
 from pydantic import BaseModel, Field
-from fastapi import BackgroundTasks, Body, Depends, FastAPI, File, HTTPException, Path, Query, Response, UploadFile, status
+from fastapi import BackgroundTasks, Body, Depends, FastAPI, File, HTTPException, Path, Query, Request, Response, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
@@ -125,9 +128,12 @@ from .schemas_ai_resume import (
     AIProviderRead,
     AISettingsUpdate,
     AIStatusResponse,
+    AITestConnectionRequest,
+    AITestConnectionResponse,
     BulkJobDeleteRequest,
     BulkJobDeleteResponse,
     CustomizedResumeRead,
+    GeminiKeyUpdate,
     JobSupervisionUpdate,
     ResumeRead,
     ResumeSuggestionResponse,
@@ -138,6 +144,16 @@ from .schemas_ai_resume import (
     ScraperDecisionRequest,
     ScraperDecisionResponse,
 )
+from .schemas_data import (
+    BackupExportResponse,
+    BackupRestoreResponse,
+    ImportExecuteRequest,
+    ImportExecuteResponse,
+    ImportPreviewRequest,
+    ImportPreviewResponse,
+    ImportSourcesResponse,
+)
+from .services.data_manager import data_manager_service
 from .schemas_applications import (
     ApplicationCreate,
     ApplicationEventCreate,
@@ -201,8 +217,15 @@ from .services.onboarding_service import onboard_company_and_target
 from .scraper.source_service import inspect_url
 from .services.ai_service import (
     check_ollama_runtime,
+    get_ai_status,
     get_providers_list,
     set_selected_model,
+    set_active_provider,
+    set_gemini_api_key,
+    load_ai_config,
+    save_ai_config,
+    GeminiProvider,
+    OllamaProvider,
 )
 from .services.ai_tools import answer_user_query
 from .services.resume_parser import (
@@ -290,6 +313,21 @@ translation_service = JobTranslationService()
 
 class CompustCORSMiddleware(CORSMiddleware):
     def is_allowed_origin(self, origin: str) -> bool:
+        if not origin:
+            return False
+        # Allow loopback (localhost, 127.0.0.1, [::1]) on any port
+        if (
+            origin.startswith("http://localhost:")
+            or origin == "http://localhost"
+            or origin.startswith("http://127.0.0.1:")
+            or origin == "http://127.0.0.1"
+            or origin.startswith("http://[::1]:")
+            or origin == "http://[::1]"
+        ):
+            return True
+        # Allow browser extensions
+        if origin.startswith("chrome-extension://") or origin.startswith("moz-extension://"):
+            return True
         current_settings = get_settings()
         if origin in current_settings.all_cors_origins:
             return True
@@ -349,7 +387,89 @@ def health(db: Session = Depends(get_db)) -> HealthRead:
     except Exception:
         db_status = "error"
     latency_ms = round((time.perf_counter() - start) * 1000, 2)
-    return HealthRead(status="ok" if db_status == "ok" else "degraded", database=db_status, latency_ms=latency_ms)
+
+    from .paths import get_app_mode, get_user_data_dir
+    app_mode = get_app_mode()
+    active_port = int(os.environ.get("COMPUST_ACTIVE_PORT", os.environ.get("PORT", 8000)))
+    instance_id = os.environ.get("COMPUST_INSTANCE_ID", f"compust_{app_mode}_{os.getpid()}")
+
+    return HealthRead(
+        status="ok" if db_status == "ok" else "degraded",
+        database=db_status,
+        latency_ms=latency_ms,
+        app="compust",
+        version="1.0.2",
+        mode=app_mode,
+        instance_id=instance_id,
+        pid=os.getpid(),
+        data_dir=str(get_user_data_dir()),
+        port=active_port,
+    )
+
+
+@app.get("/health/deep", tags=["system"])
+def health_deep(db: Session = Depends(get_db)) -> dict[str, Any]:
+    """
+    Comprehensive system health inspection:
+    - Database connectivity
+    - Schema / migration status
+    - Frontend build availability
+    - Ollama runtime status (informational)
+    """
+    start = time.perf_counter()
+    
+    # 1. DB connectivity
+    try:
+        db.execute(text("SELECT 1"))
+        db_status = "ok"
+    except Exception as e:
+        db_status = f"error: {e}"
+
+    # 2. Schema / migration status
+    migration_status = "ok"
+    try:
+        res = db.execute(text("SELECT version_num FROM alembic_version"))
+        v = res.scalar()
+        migration_status = f"at_head ({v})" if v else "initialized"
+    except Exception:
+        migration_status = "declarative_synced"
+
+    # 3. Frontend static build check
+    dist_index = pathlib.Path(__file__).resolve().parent.parent.parent / "frontend" / "dist" / "index.html"
+    frontend_status = "present" if dist_index.is_file() else "missing"
+
+    # 4. Ollama status (informational, non-blocking)
+    ollama_status = "offline"
+    try:
+        settings = get_settings()
+        import urllib.request
+        with urllib.request.urlopen(f"{settings.ollama_url}/api/tags", timeout=0.8) as r:
+            if r.status == 200:
+                ollama_status = "available"
+    except Exception:
+        pass
+
+    latency_ms = round((time.perf_counter() - start) * 1000, 2)
+    from .paths import get_app_mode, get_user_data_dir
+    app_mode = get_app_mode()
+    active_port = int(os.environ.get("COMPUST_ACTIVE_PORT", os.environ.get("PORT", 8000)))
+    is_healthy = (db_status == "ok") and (frontend_status == "present" or app_mode == "dev")
+
+    return {
+        "status": "ok" if is_healthy else "degraded",
+        "app": "compust",
+        "version": "1.0.2",
+        "mode": app_mode,
+        "instance_id": os.environ.get("COMPUST_INSTANCE_ID", f"compust_{app_mode}_{os.getpid()}"),
+        "pid": os.getpid(),
+        "port": active_port,
+        "data_dir": str(get_user_data_dir()),
+        "database": db_status,
+        "migrations": migration_status,
+        "frontend_build": frontend_status,
+        "ollama": ollama_status,
+        "latency_ms": latency_ms,
+    }
 
 
 
@@ -1780,8 +1900,19 @@ def admin_scraper_metrics(
 
 
 @app.get("/api/v1/ai/status", response_model=AIStatusResponse, tags=["ai"])
-def get_ai_status() -> AIStatusResponse:
-    return AIStatusResponse.model_validate(check_ollama_runtime())
+def api_get_ai_status() -> AIStatusResponse:
+    ollama_info = check_ollama_runtime()
+    status_dict = get_ai_status()
+    status_dict["ollama"] = ollama_info
+    if status_dict.get("active_provider", "ollama") == "ollama":
+        status_dict["status"] = ollama_info.get("status", status_dict["status"])
+        status_dict["models"] = ollama_info.get("models", status_dict["models"])
+        status_dict["error"] = ollama_info.get("error", status_dict.get("error"))
+        if "selected_model" in ollama_info and ollama_info["selected_model"] is not None:
+            status_dict["selected_model"] = ollama_info["selected_model"]
+        if "selected_model_available" in ollama_info:
+            status_dict["selected_model_available"] = ollama_info["selected_model_available"]
+    return AIStatusResponse.model_validate(status_dict)
 
 
 @app.get("/api/v1/ai/providers", response_model=list[AIProviderRead], tags=["ai"])
@@ -1791,8 +1922,41 @@ def list_ai_providers() -> list[AIProviderRead]:
 
 @app.post("/api/v1/ai/settings", response_model=AIStatusResponse, tags=["ai"])
 def update_ai_settings(req: AISettingsUpdate) -> AIStatusResponse:
-    set_selected_model(req.selected_model)
-    return AIStatusResponse.model_validate(check_ollama_runtime())
+    cfg = load_ai_config()
+    if req.active_provider:
+        set_active_provider(req.active_provider)
+    if req.selected_model:
+        set_selected_model(req.selected_model)
+    if req.gemini_model:
+        cfg["gemini_model"] = req.gemini_model
+    if req.gemini_consent_given is not None:
+        cfg["gemini_consent_given"] = req.gemini_consent_given
+    if req.fallback_policy:
+        cfg["fallback_policy"] = req.fallback_policy
+    save_ai_config(cfg)
+    return AIStatusResponse.model_validate(get_ai_status())
+
+
+@app.post("/api/v1/ai/gemini/key", response_model=AIStatusResponse, tags=["ai"])
+def set_gemini_key(req: GeminiKeyUpdate) -> AIStatusResponse:
+    set_gemini_api_key(req.api_key)
+    return AIStatusResponse.model_validate(get_ai_status())
+
+
+@app.delete("/api/v1/ai/gemini/key", response_model=AIStatusResponse, tags=["ai"])
+def clear_gemini_key() -> AIStatusResponse:
+    set_gemini_api_key(None)
+    return AIStatusResponse.model_validate(get_ai_status())
+
+
+@app.post("/api/v1/ai/test-connection", response_model=AITestConnectionResponse, tags=["ai"])
+def test_ai_connection(req: AITestConnectionRequest) -> AITestConnectionResponse:
+    if req.provider == "gemini":
+        res = GeminiProvider.test_connection(api_key=req.api_key, model=req.model)
+        return AITestConnectionResponse(**res)
+    else:
+        res = OllamaProvider.test_connection(model=req.model)
+        return AITestConnectionResponse(**res)
 
 
 @app.post("/api/v1/ai/chat", response_model=AIChatResponse, tags=["ai"])
@@ -1812,6 +1976,82 @@ def ai_chat(
         model=result.get("model"),
         ollama_available=result.get("ollama_available", False),
     )
+
+
+# ---------------------------------------------------------------------------
+# Data Management: Guided Import & Backup / Restore
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/v1/data/import/sources", response_model=ImportSourcesResponse, tags=["data-management"])
+def get_import_sources() -> ImportSourcesResponse:
+    """Discover available candidate data sources (MySQL 3306, dev SQLite files)."""
+    return data_manager_service.discover_sources()
+
+
+@app.post("/api/v1/data/import/preview", response_model=ImportPreviewResponse, tags=["data-management"])
+def preview_data_import(req: ImportPreviewRequest) -> ImportPreviewResponse:
+    """Preview counts and details of data to import from a selected source."""
+    try:
+        return data_manager_service.preview_import(req)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/v1/data/import/execute", response_model=ImportExecuteResponse, tags=["data-management"])
+def execute_data_import(req: ImportExecuteRequest) -> ImportExecuteResponse:
+    """Execute guided import from selected source with pre-import backup and conflict resolution."""
+    try:
+        return data_manager_service.execute_import(req)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Data import failed: {str(e)}")
+
+
+@app.post("/api/v1/data/backup/export", response_model=BackupExportResponse, tags=["data-management"])
+def export_backup_archive() -> BackupExportResponse:
+    """Create a complete backup archive (.zip) containing database, storage files, and manifest."""
+    try:
+        return data_manager_service.export_backup()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Backup export failed: {str(e)}")
+
+
+@app.get("/api/v1/data/backup/download/{filename}", tags=["data-management"])
+def download_backup_file(filename: str):
+    """Download an exported backup archive zip file."""
+    from .paths import get_backups_dir
+    safe_filename = pathlib.Path(filename).name
+    backup_file = get_backups_dir() / safe_filename
+    if not backup_file.is_file():
+        raise HTTPException(status_code=404, detail="Backup file not found.")
+    return FileResponse(
+        path=backup_file,
+        filename=safe_filename,
+        media_type="application/zip",
+    )
+
+
+@app.post("/api/v1/data/backup/restore", response_model=BackupRestoreResponse, tags=["data-management"])
+async def restore_backup_archive(file: UploadFile = File(...)) -> BackupRestoreResponse:
+    """Restore database and storage files from an uploaded backup zip archive."""
+    from .paths import get_backups_dir
+    if not file.filename.endswith(".zip"):
+        raise HTTPException(status_code=400, detail="Uploaded file must be a .zip backup archive.")
+
+    temp_path = get_backups_dir() / f"upload_restore_{uuid.uuid4().hex[:8]}.zip"
+    try:
+        with open(temp_path, "wb") as buffer:
+            content = await file.read()
+            buffer.write(content)
+        return data_manager_service.restore_backup(temp_path)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Restore failed: {str(e)}")
+    finally:
+        if temp_path.exists():
+            try:
+                temp_path.unlink()
+            except Exception:
+                pass
 
 
 # --- Resume Management Endpoints (NO OCR) ---
@@ -3265,29 +3505,110 @@ def download_extension_package(target_browser: str = Path(..., description="Brow
     )
 
 
-# Standalone Frontend Production Mount (for Windows Release without Node.js):
+# Standalone Frontend Production Mount & Global Fallback
 _frontend_dist = pathlib.Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
-if _frontend_dist.is_dir() and (_frontend_dist / "index.html").is_file():
+_assets_dir = _frontend_dist / "assets"
+if _assets_dir.is_dir():
     from fastapi.staticfiles import StaticFiles
+    app.mount("/assets", StaticFiles(directory=str(_assets_dir)), name="assets")
 
-    # Mount assets folder
-    _assets_dir = _frontend_dist / "assets"
-    if _assets_dir.is_dir():
-        app.mount("/assets", StaticFiles(directory=str(_assets_dir)), name="assets")
+_illustrations_dir = pathlib.Path(__file__).resolve().parent.parent.parent / "frontend" / "public" / "illustrations"
+if _illustrations_dir.is_dir():
+    from fastapi.staticfiles import StaticFiles
+    app.mount("/illustrations", StaticFiles(directory=str(_illustrations_dir)), name="illustrations")
 
-    # Mount public illustrations
-    _illustrations_dir = pathlib.Path(__file__).resolve().parent.parent.parent / "frontend" / "public" / "illustrations"
-    if _illustrations_dir.is_dir():
-        app.mount("/illustrations", StaticFiles(directory=str(_illustrations_dir)), name="illustrations")
 
-    @app.get("/{full_path:path}", include_in_schema=False)
-    async def serve_spa_frontend(full_path: str):
-        # Do not intercept API or documentation routes
-        if full_path.startswith("api/") or full_path.startswith("docs") or full_path.startswith("openapi.json") or full_path.startswith("health"):
-            raise HTTPException(status_code=404, detail="API route not found.")
+@app.get("/{full_path:path}", include_in_schema=False)
+async def serve_spa_frontend(request: Request, full_path: str):
+    # Do not intercept API, documentation, or system routes
+    if (
+        full_path.startswith("api/")
+        or full_path.startswith("docs")
+        or full_path.startswith("redoc")
+        or full_path.startswith("openapi.json")
+        or full_path.startswith("health")
+    ):
+        raise HTTPException(status_code=404, detail="API route not found.")
+
+    # 1. Check if direct static file exists in dist
+    if _frontend_dist.is_dir():
         file_candidate = _frontend_dist / full_path
         if file_candidate.is_file():
             return FileResponse(str(file_candidate))
-        return FileResponse(str(_frontend_dist / "index.html"))
+
+        # 2. Check if index.html exists in dist
+        index_candidate = _frontend_dist / "index.html"
+        if index_candidate.is_file():
+            return FileResponse(str(index_candidate))
+
+    # 3. Fallback: missing or stale frontend build -> render friendly diagnostic page
+    from .diagnostics_view import render_missing_frontend_page
+    from .paths import get_app_mode, get_logs_dir
+
+    active_port = int(os.environ.get("COMPUST_ACTIVE_PORT", os.environ.get("PORT", 8000)))
+    app_mode = get_app_mode()
+    logs_file = str(get_logs_dir() / "backend.log")
+
+    html_content = render_missing_frontend_page(
+        port=active_port,
+        mode=app_mode,
+        logs_path=logs_file,
+        db_status="ok",
+        version="1.0.2",
+    )
+    return HTMLResponse(content=html_content, status_code=200)
+
+
+def make_error_response(request: Request, exc: Exception) -> Response:
+    request_id = f"req_{uuid.uuid4().hex[:12]}"
+    logger = get_logger("compust.server")
+    logger.error(
+        f"Unhandled exception [Request ID: {request_id}] on {request.method} {request.url.path}: {exc}",
+        exc_info=True,
+    )
+
+    try:
+        from .paths import get_logs_dir
+        logs_dir_str = str(get_logs_dir())
+        logs_path = str(get_logs_dir() / "backend.log")
+    except Exception:
+        logs_dir_str = "logs"
+        logs_path = "logs/backend.log"
+
+    # Return friendly HTML for direct browser page requests
+    accept_header = request.headers.get("accept", "")
+    if "text/html" in accept_header and not request.url.path.startswith("/api/") and not request.url.path.startswith("/health"):
+        from .diagnostics_view import render_friendly_error_page
+        html_err = render_friendly_error_page(
+            request_id=request_id,
+            path=request.url.path,
+            logs_path=logs_path,
+            error_summary="An unexpected server error occurred while processing your request.",
+        )
+        return HTMLResponse(content=html_err, status_code=500, headers={"X-Request-ID": request_id})
+
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "Internal Server Error",
+            "message": "An unexpected error occurred on the server. Please check the logs or run Check & Repair.",
+            "request_id": request_id,
+            "logs_dir": logs_dir_str,
+        },
+        headers={"X-Request-ID": request_id},
+    )
+
+
+@app.middleware("http")
+async def error_handling_middleware(request: Request, call_next):
+    try:
+        return await call_next(request)
+    except Exception as exc:
+        return make_error_response(request, exc)
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    return make_error_response(request, exc)
 
 

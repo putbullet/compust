@@ -62,10 +62,8 @@ def create_resilient_engine():
             logger.info("MySQL service is not reachable. Activating standalone SQLite database.")
 
     # Standalone fallback: embedded local SQLite database for non-technical Windows release
-    base_dir = Path(__file__).resolve().parent.parent.parent
-    data_dir = base_dir / "data"
-    data_dir.mkdir(parents=True, exist_ok=True)
-    sqlite_path = data_dir / "compust_local.db"
+    from .paths import get_database_path
+    sqlite_path = get_database_path()
     sqlite_url = f"sqlite:///{sqlite_path.as_posix()}"
 
     logger.info(f"Initialized standalone SQLite database at: {sqlite_path}")
@@ -110,7 +108,7 @@ def init_database_schema():
 
         try:
             from migrations.runner import apply_migrations
-            apply_migrations()
+            apply_migrations(engine=engine)
         except Exception as mig_err:
             logger.warning(f"Automatic migration check encountered non-fatal note: {mig_err}")
 

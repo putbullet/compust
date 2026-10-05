@@ -144,6 +144,9 @@ export interface Translations {
     copyCode: string;
     copied: string;
     searchNoResults: string;
+    onThisPage: string;
+    collapseSidebar: string;
+    expandSidebar: string;
   };
   mockInterview: {
     setup: {
@@ -437,6 +440,9 @@ export const translations: Record<Language, Translations> = {
       copyCode: 'Copy',
       copied: 'Copied!',
       searchNoResults: 'No sections match your search.',
+      onThisPage: 'On this page',
+      collapseSidebar: 'Collapse sidebar',
+      expandSidebar: 'Expand sidebar',
     },
     mockInterview: {
       setup: {
@@ -728,6 +734,9 @@ export const translations: Record<Language, Translations> = {
       copyCode: 'Copier',
       copied: 'Copié !',
       searchNoResults: 'Aucune section ne correspond à votre recherche.',
+      onThisPage: 'Sur cette page',
+      collapseSidebar: 'Réduire le menu',
+      expandSidebar: 'Développer le menu',
     },
     mockInterview: {
       setup: {
@@ -1019,6 +1028,9 @@ export const translations: Record<Language, Translations> = {
       copyCode: 'Kopieren',
       copied: 'Kopiert!',
       searchNoResults: 'Keine passenden Abschnitte gefunden.',
+      onThisPage: 'Auf dieser Seite',
+      collapseSidebar: 'Seitenleiste einklappen',
+      expandSidebar: 'Seitenleiste ausklappen',
     },
     mockInterview: {
       setup: {
@@ -1255,6 +1267,9 @@ export const translations: Record<Language, Translations> = {
       copyCode: 'Kopiëren',
       copied: 'Gekopieerd!',
       searchNoResults: 'Geen secties gevonden die overeenkomen met uw zoekopdracht.',
+      onThisPage: 'Op deze pagina',
+      collapseSidebar: 'Zijbalk inklappen',
+      expandSidebar: 'Zijbalk uitklappen',
     },
     mockInterview: {
       setup: {

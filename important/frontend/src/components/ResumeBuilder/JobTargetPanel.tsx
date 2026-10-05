@@ -719,8 +719,10 @@ export const JobTargetPanel: React.FC<JobTargetPanelProps> = ({
             <span className="jtp-status-role">
               <Briefcase size={13} /> {result.target_role}
             </span>
-            {result.ollama_used ? (
-              <span className="jtp-status-ai on"><Sparkles size={12} /> AI Active ({result.ollama_model})</span>
+            {result.ai_provider === 'gemini' ? (
+              <span className="jtp-status-ai on"><Sparkles size={12} /> Google Gemini ({result.ai_model || 'cloud'})</span>
+            ) : result.ollama_used ? (
+              <span className="jtp-status-ai on"><Sparkles size={12} /> Ollama Local ({result.ollama_model || result.ai_model || 'active'})</span>
             ) : (
               <span className="jtp-status-ai off"><AlertCircle size={12} /> AI Offline — deterministic analysis only</span>
             )}

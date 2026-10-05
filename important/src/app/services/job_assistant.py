@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 
 from ..models import User, UserSkill, UserExperience, UserEducation, UserLanguage, Resume
 from ..services.ai_service import generate_completion, check_ollama_runtime, OllamaUnavailableError, OllamaError
+from ..services.ai_gateway import get_active_provider, get_provider, AIProviderType, AIGatewayError, redact_personal_identifiers
 from ..schemas_job_assistant import (
     ApplicationMaterial,
     CandidateContext,
@@ -874,11 +875,17 @@ def regenerate_single_material(
     Extracts candidate context and prompts the local LLM with high efficiency.
     """
     lang = request.language.value
-    runtime = check_ollama_runtime()
-    ollama_available = runtime.get("status") == "connected" and bool(runtime.get("models"))
-    model = runtime.get("selected_model")
+    active_prov = get_active_provider()
+    if active_prov == AIProviderType.OLLAMA:
+        runtime = check_ollama_runtime()
+        ai_available = runtime.get("status") == "connected" and bool(runtime.get("models"))
+        model = runtime.get("selected_model")
+    else:
+        provider_inst = get_provider(active_prov)
+        ai_available = provider_inst.is_available()
+        model = provider_inst.get_active_model()
 
-    if not ollama_available:
+    if not ai_available:
         return ApplicationMaterial(
             material_type=request.material_type,
             language=lang,
@@ -1157,9 +1164,17 @@ def run_job_target_analysis(
     ctx = build_candidate_context(db, user_id, resume)
     det_score = deterministic_score(ctx, job_input)
 
-    runtime = check_ollama_runtime()
-    ollama_available = runtime.get("status") == "connected" and bool(runtime.get("models"))
-    model = runtime.get("selected_model")
+    active_prov = get_active_provider()
+    if active_prov == AIProviderType.OLLAMA:
+        runtime = check_ollama_runtime()
+        ai_available = runtime.get("status") == "connected" and bool(runtime.get("models"))
+        model = runtime.get("selected_model")
+        is_ollama = True
+    else:
+        provider_inst = get_provider(active_prov)
+        ai_available = provider_inst.is_available()
+        model = provider_inst.get_active_model()
+        is_ollama = False
 
     result = JobTargetAnalysisResult(
         resume_id=resume.id,
@@ -1167,31 +1182,34 @@ def run_job_target_analysis(
         language=lang,
         deterministic_score=det_score,
         data_conflicts=ctx.conflicts,
-        ollama_used=ollama_available,
-        ollama_model=model if ollama_available else None,
+        ollama_used=ai_available and is_ollama,
+        ollama_model=model if (ai_available and is_ollama) else None,
+        ai_provider=active_prov.value if ai_available else "deterministic",
+        ai_model=model if ai_available else None,
     )
 
     # Stage 1
     try:
-        if ollama_available:
+        if ai_available:
             requirements = _stage1_extract_requirements(job_input, model=model)
         else:
             requirements = _fallback_extract_requirements(job_input)
         result.job_requirements = requirements
-    except (OllamaError, OllamaUnavailableError, Exception) as exc:
+    except (OllamaError, OllamaUnavailableError, AIGatewayError, Exception) as exc:
         logger.warning(f"Stage 1 failed: {exc}")
         requirements = _fallback_extract_requirements(job_input)
         result.job_requirements = requirements
         result.ollama_used = False
+        result.ai_provider = "deterministic"
 
     # Stage 2
     try:
-        if ollama_available and requirements:
+        if ai_available and requirements:
             match_analysis = _stage2_match_candidate(requirements, ctx, lang, model=model)
         else:
             match_analysis = deterministic_match(ctx, job_input)
         result.match_analysis = match_analysis
-    except (OllamaError, OllamaUnavailableError, Exception) as exc:
+    except (OllamaError, OllamaUnavailableError, AIGatewayError, Exception) as exc:
         logger.warning(f"Stage 2 failed: {exc}")
         result.match_analysis = deterministic_match(ctx, job_input)
 
@@ -1199,19 +1217,19 @@ def run_job_target_analysis(
 
     # Stage 3
     try:
-        if ollama_available:
+        if ai_available:
             recs = _stage3_recommendations(requirements, match_analysis, ctx, job_input, model=model)
         else:
             recs = _fallback_recommendations(match_analysis, ctx, job_input)
         result.resume_recommendations = recs
-    except (OllamaError, OllamaUnavailableError, Exception) as exc:
+    except (OllamaError, OllamaUnavailableError, AIGatewayError, Exception) as exc:
         logger.warning(f"Stage 3 failed: {exc}")
         result.resume_recommendations = _fallback_recommendations(match_analysis, ctx, job_input)
 
     # Stage 4
-    no_ai_msg = "Local AI unavailable. Start Ollama to generate application materials."
+    no_ai_msg = f"AI service unavailable ({active_prov.value}). Configure active AI provider to generate application materials."
     try:
-        if ollama_available:
+        if ai_available:
             email, dm, letter = _stage4_materials(ctx, job_input, model=model)
         else:
             email = ApplicationMaterial(material_type=MaterialType.COLD_EMAIL, language=lang, generated=False, error=no_ai_msg)
@@ -1220,7 +1238,7 @@ def run_job_target_analysis(
         result.cold_email = email
         result.short_message = dm
         result.motivation_letter = letter
-    except (OllamaError, OllamaUnavailableError) as exc:
+    except (OllamaError, OllamaUnavailableError, AIGatewayError) as exc:
         logger.warning(f"Stage 4 failed: {exc}")
         result.partial_failure = True
         result.partial_failure_detail = "Application materials could not be generated (AI unavailable). Resume analysis completed."
@@ -1233,7 +1251,7 @@ def run_job_target_analysis(
 
     # Stage 5 - Interview & STAR Prep
     try:
-        if ollama_available:
+        if ai_available:
             result.interview_prep = _stage5_interview_prep(ctx, job_input, match_analysis, model=model)
         else:
             result.interview_prep = _fallback_interview_prep(ctx, job_input, match_analysis)

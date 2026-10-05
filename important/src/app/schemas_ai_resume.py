@@ -28,10 +28,22 @@ class AIStatusResponse(BaseModel):
     provider: str
     url: str
     status: str
-    models: list[AIModelRead]
+    models: list[AIModelRead] = []
     selected_model: str | None = None
     selected_model_available: bool = False
     error: str | None = None
+    # Enhanced multi-provider fields
+    active_provider: str = "ollama"
+    gemini_configured: bool = False
+    gemini_key_configured: bool = False
+    gemini_key_hint: str | None = None
+    gemini_key_masked: str | None = None
+    gemini_model: str | None = "gemini-3.5-flash-lite"
+    gemini_consent_given: bool = False
+    consent_granted: bool = False
+    fallback_policy: str = "deterministic"
+    ollama: dict[str, Any] | None = None
+    gemini: dict[str, Any] | None = None
 
 
 class AIProviderRead(BaseModel):
@@ -42,10 +54,36 @@ class AIProviderRead(BaseModel):
     is_local: bool
     endpoint: str | None = None
     models_count: int = 0
+    is_active: bool = False
+    description: str | None = None
+    key_hint: str | None = None
+    consent_given: bool = False
 
 
 class AISettingsUpdate(BaseModel):
-    selected_model: str
+    active_provider: str | None = None
+    selected_model: str | None = None
+    gemini_model: str | None = None
+    gemini_consent_given: bool | None = None
+    fallback_policy: str | None = None
+
+
+class GeminiKeyUpdate(BaseModel):
+    api_key: str
+
+
+class AITestConnectionRequest(BaseModel):
+    provider: str = "ollama"
+    api_key: str | None = None
+    model: str | None = None
+
+
+class AITestConnectionResponse(BaseModel):
+    success: bool
+    provider: str
+    model: str | None = None
+    message: str
+    latency_ms: int | None = None
 
 
 class ResumeRead(BaseModel):

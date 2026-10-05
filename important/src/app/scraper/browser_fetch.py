@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 import logging
+import os
 from typing import Any
 
 from ..config import get_settings
@@ -56,10 +57,23 @@ def fetch_rendered_source(
 
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch(
-                headless=is_headless,
-                args=_DEFAULT_CHROMIUM_ARGS,
-            )
+            browser = None
+            channels = ["msedge", "chrome", None] if os.name == "nt" else [None]
+            for ch in channels:
+                try:
+                    kwargs = {"headless": is_headless, "args": _DEFAULT_CHROMIUM_ARGS}
+                    if ch:
+                        kwargs["channel"] = ch
+                    browser = p.chromium.launch(**kwargs)
+                    break
+                except Exception:
+                    continue
+
+            if not browser:
+                browser = p.chromium.launch(
+                    headless=is_headless,
+                    args=_DEFAULT_CHROMIUM_ARGS,
+                )
             try:
                 context = browser.new_context(
                     user_agent=settings.scraper_user_agent or "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36",

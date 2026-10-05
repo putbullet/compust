@@ -1,4 +1,8 @@
-export const API_BASE_URL = 'http://127.0.0.1:8000/api/v1';
+export const getApiBaseUrl = (): string => {
+  return '/api/v1';
+};
+
+export const API_BASE_URL = getApiBaseUrl();
 
 export interface Country {
   id: number;
@@ -717,12 +721,26 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   }
 
   const url = `${API_BASE_URL}${endpoint}`;
-  const response = await fetch(url, { ...options, headers });
+  let response: Response;
+  try {
+    response = await fetch(url, { ...options, headers });
+  } catch (netErr: any) {
+    const isOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
+    if (isOffline) {
+      throw new Error('Your browser appears to be offline. Please verify your network connection.');
+    }
+    throw new Error('Cannot reach the Compust backend service. Verify that the application backend is running.');
+  }
 
   if (!response.ok) {
-    let errorDetail = response.statusText;
+    let errorDetail = response.statusText || `HTTP ${response.status}`;
+    let requestId: string | null = response.headers.get('x-request-id') || null;
+
     try {
       const errorJson = await response.json();
+      if (errorJson.request_id) {
+        requestId = errorJson.request_id;
+      }
       if (errorJson.detail) {
         if (typeof errorJson.detail === 'string') {
           errorDetail = errorJson.detail;
@@ -747,6 +765,18 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     } catch {
       // Keep statusText fallback
     }
+
+    if (response.status === 404) {
+      throw new Error(`Resource not found (404) at ${endpoint}.`);
+    }
+    if (response.status === 502 || response.status === 504) {
+      throw new Error(`The backend could not reach the upstream service (HTTP ${response.status}).`);
+    }
+    if (response.status >= 500) {
+      const reqInfo = requestId ? ` [Request ID: ${requestId}]` : '';
+      throw new Error(`Server error${reqInfo}: ${errorDetail}`);
+    }
+
     throw new Error(errorDetail);
   }
 
@@ -1173,10 +1203,42 @@ export const api = {
 
   getAIProviders: () => request<AIProvider[]>('/ai/providers'),
 
-  setAISettings: (selectedModel: string) =>
-    request<AIStatus>('/ai/settings', {
+  setAISettings: (settings: string | {
+    selected_model?: string;
+    active_provider?: string;
+    consent_granted?: boolean;
+    fallback_policy?: string;
+  }) => {
+    const body = typeof settings === 'string'
+      ? { selected_model: settings }
+      : settings;
+    return request<AIStatus>('/ai/settings', {
       method: 'POST',
-      body: JSON.stringify({ selected_model: selectedModel }),
+      body: JSON.stringify(body),
+    });
+  },
+
+  saveGeminiKey: (apiKey: string) =>
+    request<{ status: string; masked: string }>('/ai/gemini/key', {
+      method: 'POST',
+      body: JSON.stringify({ api_key: apiKey }),
+    }),
+
+  removeGeminiKey: () =>
+    request<{ status: string }>('/ai/gemini/key', {
+      method: 'DELETE',
+    }),
+
+  testAIConnection: (provider?: string, model?: string, apiKey?: string) =>
+    request<{
+      success: boolean;
+      provider: string;
+      model?: string;
+      message: string;
+      latency_ms?: number;
+    }>('/ai/test-connection', {
+      method: 'POST',
+      body: JSON.stringify({ provider, model, api_key: apiKey }),
     }),
 
   sendAIChat: (query: string, model?: string) =>
@@ -1643,6 +1705,47 @@ export const api = {
 
   getMockInterviewInterviewerStatus: () =>
     request<any>('/mock-interview/interviewer-status'),
+
+  // Data Management: Guided Import & Backup / Restore
+  getImportSources: () => request<ImportSourcesResponse>('/data/import/sources'),
+  previewDataImport: (sourceId: string, userId?: number, email?: string) =>
+    request<ImportPreviewResponse>('/data/import/preview', {
+      method: 'POST',
+      body: JSON.stringify({ source_id: sourceId, user_id: userId, email }),
+    }),
+  executeDataImport: (sourceId: string, userId?: number, email?: string, conflictStrategy: string = 'merge') =>
+    request<ImportExecuteResponse>('/data/import/execute', {
+      method: 'POST',
+      body: JSON.stringify({
+        source_id: sourceId,
+        user_id: userId,
+        email,
+        conflict_strategy: conflictStrategy,
+      }),
+    }),
+  exportDataBackup: () =>
+    request<BackupExportResponse>('/data/backup/export', {
+      method: 'POST',
+    }),
+  restoreDataBackup: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const token = getStoredToken();
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    const response = await fetch(`${API_BASE_URL}/data/backup/restore`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ detail: 'Restore failed' }));
+      throw new Error(err.detail || 'Backup restore failed');
+    }
+    return response.json() as Promise<BackupRestoreResponse>;
+  },
 };
 
 
@@ -1692,6 +1795,12 @@ export interface AIStatus {
   selected_model: string | null;
   selected_model_available: boolean;
   error: string | null;
+  active_provider?: string;
+  consent_granted?: boolean;
+  gemini_key_configured?: boolean;
+  gemini_key_masked?: string | null;
+  fallback_policy?: string;
+  available_providers?: AIProvider[];
 }
 
 export interface AIProvider {
@@ -1702,6 +1811,12 @@ export interface AIProvider {
   is_local: boolean;
   endpoint?: string | null;
   models_count: number;
+  is_active?: boolean;
+  requires_consent?: boolean;
+  consent_granted?: boolean;
+  has_api_key?: boolean;
+  api_key_masked?: string | null;
+  description?: string | null;
 }
 
 export interface AIChatResponse {
@@ -2100,6 +2215,8 @@ export interface JobTargetAnalysisResult {
   interview_prep?: InterviewPrep;
   ollama_used: boolean;
   ollama_model: string | null;
+  ai_provider?: string;
+  ai_model?: string | null;
   partial_failure: boolean;
   partial_failure_detail: string;
   data_conflicts: string[];
@@ -2649,6 +2766,78 @@ export interface TTSStatusResponse {
   voices: TTSVoiceItem[];
   fallback_available: boolean;
   fallback_engine: string;
+}
+
+export interface UserDataSummary {
+  id: number;
+  email: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  applications_count: number;
+  contacts_count: number;
+  resumes_count: number;
+}
+
+export interface ImportSourceInfo {
+  id: string;
+  name: string;
+  type: string;
+  location: string;
+  reachable: boolean;
+  status_message: string;
+  total_jobs: number;
+  total_companies: number;
+  users: UserDataSummary[];
+}
+
+export interface ImportSourcesResponse {
+  sources: ImportSourceInfo[];
+  target_database_path: string;
+  target_database_type: string;
+  target_has_data: boolean;
+  target_stats: Record<string, number>;
+}
+
+export interface ImportPreviewResponse {
+  source_id: string;
+  selected_user?: UserDataSummary | null;
+  jobs_count: number;
+  companies_count: number;
+  applications_count: number;
+  contacts_count: number;
+  resumes_count: number;
+  target_existing_jobs: number;
+  target_existing_applications: number;
+  warning?: string | null;
+}
+
+export interface ImportExecuteResponse {
+  success: boolean;
+  message: string;
+  backup_file?: string | null;
+  users_imported: number;
+  companies_imported: number;
+  jobs_imported: number;
+  applications_imported: number;
+  contacts_imported: number;
+  resumes_imported: number;
+  files_copied: number;
+}
+
+export interface BackupExportResponse {
+  success: boolean;
+  filename: string;
+  size_bytes: number;
+  download_url: string;
+  created_at: string;
+  stats: Record<string, number>;
+}
+
+export interface BackupRestoreResponse {
+  success: boolean;
+  message: string;
+  safety_backup?: string | null;
+  restored_stats: Record<string, number>;
 }
 
 

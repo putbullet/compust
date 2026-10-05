@@ -196,6 +196,13 @@ class HealthRead(BaseModel):
     status: str
     database: str
     latency_ms: float | None = None
+    app: str = "compust"
+    version: str = "1.0.2"
+    mode: str = "installed"
+    instance_id: str | None = None
+    pid: int | None = None
+    data_dir: str | None = None
+    port: int | None = None
 
 
 class JobQuickAddRequest(BaseModel):

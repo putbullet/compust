@@ -788,64 +788,54 @@ class InterviewPrepService:
         )
 
         try:
-            import httpx
-            async with httpx.AsyncClient(timeout=35.0) as client:
-                resp = await client.post(
-                    f"{ollama_url}/api/generate",
-                    json={
-                        "model": model,
-                        "prompt": prompt,
-                        "format": "json",
-                        "stream": False,
-                        "options": {"temperature": 0.1, "top_p": 0.85}
-                    }
-                )
-                if resp.status_code == 200:
-                    raw_resp = resp.json().get("response", "").strip()
-                    # Strip any markdown fences
-                    clean_json = raw_resp
-                    if clean_json.startswith("```json"):
-                        clean_json = clean_json[7:]
-                    if clean_json.startswith("```"):
-                        clean_json = clean_json[3:]
-                    if clean_json.endswith("```"):
-                        clean_json = clean_json[:-3]
-                    clean_json = clean_json.strip()
+            from .ai_gateway import generate_completion, get_active_provider
+            raw_resp = generate_completion(
+                prompt=prompt,
+                model=model,
+                response_json=True,
+                temperature=0.1,
+                timeout_seconds=35.0,
+            )
+            if raw_resp:
+                clean_json = raw_resp.strip()
+                if clean_json.startswith("```json"):
+                    clean_json = clean_json[7:]
+                if clean_json.startswith("```"):
+                    clean_json = clean_json[3:]
+                if clean_json.endswith("```"):
+                    clean_json = clean_json[:-3]
+                clean_json = clean_json.strip()
 
-                    try:
-                        parsed_dict = json.loads(clean_json)
-                        structured_payload = StructuredAIExplanationPayload(**parsed_dict)
-                        model_used = model
-                    except Exception as parse_err:
-                        logger.warning(f"Model JSON failed validation: {parse_err}. Attempting repair retry...")
-                        # Single repair retry
-                        repair_prompt = (
-                            f"The previous output had a validation error: {parse_err}.\n"
-                            "Fix the JSON so all steps[].from and steps[].to match a declared actors[].id.\n"
-                            f"Original question: {q.title}\n"
-                            "Return ONLY the fixed raw JSON."
-                        )
-                        repair_resp = await client.post(
-                            f"{ollama_url}/api/generate",
-                            json={
-                                "model": model,
-                                "prompt": repair_prompt,
-                                "format": "json",
-                                "stream": False,
-                                "options": {"temperature": 0.1}
-                            }
-                        )
-                        if repair_resp.status_code == 200:
-                            repair_text = repair_resp.json().get("response", "").strip()
-                            if repair_text.startswith("```json"):
-                                repair_text = repair_text[7:]
-                            if repair_text.endswith("```"):
-                                repair_text = repair_text[:-3]
-                            repair_dict = json.loads(repair_text.strip())
-                            structured_payload = StructuredAIExplanationPayload(**repair_dict)
-                            model_used = model
+                try:
+                    parsed_dict = json.loads(clean_json)
+                    structured_payload = StructuredAIExplanationPayload(**parsed_dict)
+                    model_used = model or get_active_provider().value
+                except Exception as parse_err:
+                    logger.warning(f"Model JSON failed validation: {parse_err}. Attempting repair retry...")
+                    repair_prompt = (
+                        f"The previous output had a validation error: {parse_err}.\n"
+                        "Fix the JSON so all steps[].from and steps[].to match a declared actors[].id.\n"
+                        f"Original question: {q.title}\n"
+                        "Return ONLY the fixed raw JSON."
+                    )
+                    repair_resp = generate_completion(
+                        prompt=repair_prompt,
+                        model=model,
+                        response_json=True,
+                        temperature=0.1,
+                        timeout_seconds=35.0,
+                    )
+                    if repair_resp:
+                        repair_text = repair_resp.strip()
+                        if repair_text.startswith("```json"):
+                            repair_text = repair_text[7:]
+                        if repair_text.endswith("```"):
+                            repair_text = repair_text[:-3]
+                        repair_dict = json.loads(repair_text.strip())
+                        structured_payload = StructuredAIExplanationPayload(**repair_dict)
+                        model_used = model or get_active_provider().value
         except Exception as exc:
-            logger.info(f"Ollama generation unavailable ({exc}). Using deterministic structured fallback.")
+            logger.info(f"AI generation unavailable ({exc}). Using deterministic structured fallback.")
 
         # 3. Deterministic fallback if Ollama was offline or failed schema
         if not structured_payload:

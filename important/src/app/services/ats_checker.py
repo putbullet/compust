@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 
 from ..logging import get_logger
 from .ai_service import generate_completion, OllamaError, get_selected_model
+from .ai_gateway import get_active_provider, AIProviderType, redact_personal_identifiers, AIGatewayError
 
 logger = get_logger(__name__)
 
@@ -647,11 +648,16 @@ def evaluate_resume_ats(
     field_ctx = f"Target Industry/Field: {field}\n" if field else ""
     jd_ctx = f"\n--- Target Job Description ---\n{job_description[:1500]}\n" if job_description else ""
 
+    active_prov = get_active_provider()
+    payload_text = resume_text[:4000]
+    if active_prov == AIProviderType.GEMINI:
+        payload_text = redact_personal_identifiers(payload_text)
+
     user_prompt = f"""Evaluate this candidate resume for ATS compatibility and alignment.
 
 {role_ctx}{field_ctx}{jd_ctx}
 --- Resume Content (Search Layer) ---
-{resume_text[:4000]}
+{payload_text}
 
 Provide the comprehensive JSON ATS audit strictly conforming to the requested schema.
 """
@@ -696,7 +702,7 @@ Provide the comprehensive JSON ATS audit strictly conforming to the requested sc
             keywords_found=parsed_data.get("keywords_found", []),
             keywords_missing=parsed_data.get("keywords_missing", []),
             recommended_action_verbs=parsed_data.get("recommended_action_verbs", []),
-            provider="ollama",
+            provider=active_prov.value,
             model=selected_model,
         )
 

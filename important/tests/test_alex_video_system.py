@@ -112,17 +112,13 @@ def test_slot_to_next_question_includes_interviewer_metadata():
     interview_svc = MockInterviewService()
     slot = QuestionSlot(
         question_id="sec_f_14",
-        domain_id="security_engineering",
-        category_id="cybersecurity-fundamentals",
-        category_name="Cybersecurity Fundamentals",
-        topic="Core Concepts",
+        competency="technical",
+        competency_label="Technical",
         title="What is the CIA Triad?",
-        difficulty="Fundamental",
-        estimated_seconds=90,
-        tts_text="What is the CIA Triad?",
+        expected_duration_seconds=90,
     )
     next_q = interview_svc._slot_to_next_question(slot)
-    assert next_q.interviewer_name == "Alex"
+    assert "Alex" in next_q.interviewer_name
     # Should have interviewer_video_url field present in model schema
     assert hasattr(next_q, "interviewer_video_url")
     assert hasattr(next_q, "interviewer_audio_url")

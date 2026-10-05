@@ -52,6 +52,29 @@ export const AIAssistantWidget: React.FC<{ onOpenSettings?: () => void }> = ({ o
   }, [isOpen]);
 
   useEffect(() => {
+    const handleProviderChange = () => {
+      api.getAIStatus().then(setAiStatus).catch(() => setAiStatus(null));
+    };
+    window.addEventListener('compust-ai-provider-changed', handleProviderChange);
+    return () => window.removeEventListener('compust-ai-provider-changed', handleProviderChange);
+  }, []);
+
+  const handleToggleProvider = async (target: 'ollama' | 'gemini') => {
+    if (aiStatus?.active_provider === target) return;
+    if (target === 'gemini' && (!aiStatus?.consent_granted || !aiStatus?.gemini_key_configured)) {
+      if (onOpenSettings) onOpenSettings();
+      return;
+    }
+    try {
+      const updated = await api.setAISettings({ active_provider: target });
+      setAiStatus(updated);
+      window.dispatchEvent(new CustomEvent('compust-ai-provider-changed'));
+    } catch (err) {
+      console.error('Failed to toggle provider:', err);
+    }
+  };
+
+  useEffect(() => {
     if (isOpen) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
@@ -114,14 +137,42 @@ export const AIAssistantWidget: React.FC<{ onOpenSettings?: () => void }> = ({ o
                     title="Click to view AI Settings"
                   >
                     <span className="dot" />
-                    <span>{isConnected ? 'Ollama' : 'Deterministic'}</span>
+                    <span>
+                      {isConnected
+                        ? aiStatus?.active_provider === 'gemini'
+                          ? 'Gemini Cloud'
+                          : 'Ollama Local'
+                        : 'Deterministic'}
+                    </span>
                   </span>
                 </div>
               </div>
             </div>
-            <button className="minimize-btn" onClick={() => setIsOpen(false)} title="Minimize assistant">
-              <ChevronDown size={18} />
-            </button>
+
+            <div className="header-actions">
+              <div className="provider-pill-toggle">
+                <button
+                  type="button"
+                  className={`pill-btn ${aiStatus?.active_provider === 'ollama' ? 'active' : ''}`}
+                  onClick={() => handleToggleProvider('ollama')}
+                  title="Switch to Local Ollama"
+                >
+                  Local
+                </button>
+                <button
+                  type="button"
+                  className={`pill-btn ${aiStatus?.active_provider === 'gemini' ? 'active' : ''}`}
+                  onClick={() => handleToggleProvider('gemini')}
+                  title="Switch to Google Gemini (Cloud)"
+                >
+                  Gemini
+                </button>
+              </div>
+
+              <button className="minimize-btn" onClick={() => setIsOpen(false)} title="Minimize assistant">
+                <ChevronDown size={18} />
+              </button>
+            </div>
           </div>
 
           {/* Messages Area */}
@@ -135,7 +186,15 @@ export const AIAssistantWidget: React.FC<{ onOpenSettings?: () => void }> = ({ o
                   <p>{msg.text}</p>
                   <div className="msg-footer">
                     <span className="timestamp">{msg.timestamp}</span>
-                    {msg.provider && <span className="provider-tag">({msg.provider})</span>}
+                    {msg.provider && (
+                      <span className="provider-tag">
+                        {msg.provider.toLowerCase().includes('gemini')
+                          ? 'Analyzed with Google Gemini (cloud)'
+                          : msg.provider.toLowerCase().includes('ollama')
+                          ? 'Analyzed with Ollama (local)'
+                          : `Analyzed with ${msg.provider}`}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -324,6 +383,42 @@ const ChatCard = styled.div`
       }
     }
 
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .provider-pill-toggle {
+      display: flex;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 2px;
+      gap: 2px;
+
+      .pill-btn {
+        background: none;
+        border: none;
+        color: #94a3b8;
+        font-size: 0.65rem;
+        font-weight: 600;
+        padding: 2px 7px;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s;
+
+        &:hover {
+          color: #ffffff;
+        }
+
+        &.active {
+          background: #2563eb;
+          color: #ffffff;
+        }
+      }
+    }
+
     .minimize-btn {
       background: none;
       border: none;
@@ -418,10 +513,17 @@ const ChatCard = styled.div`
 
       .msg-footer {
         display: flex;
+        flex-wrap: wrap;
+        align-items: center;
         gap: 6px;
         margin-top: 4px;
         font-size: 0.68rem;
         color: #94a3b8;
+
+        .provider-tag {
+          color: #38bdf8;
+          font-weight: 500;
+        }
       }
     }
 

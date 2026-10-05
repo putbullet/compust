@@ -132,6 +132,16 @@ export const ExtensionInstallView: React.FC = () => {
             </span>
           </StatusBanner>
         )}
+        <StatusBanner className="port-info" style={{ marginTop: '10px' }}>
+          <Zap size={16} />
+          <span>
+            {tTxt(
+              `Active Backend: Port ${typeof window !== 'undefined' && window.location.port ? window.location.port : (typeof window !== 'undefined' && window.location.protocol === 'https:' ? '443' : '80')} (${typeof window !== 'undefined' ? window.location.origin : ''}) — Extension auto-discovers this port.`,
+              `Serveur actif : Port ${typeof window !== 'undefined' && window.location.port ? window.location.port : (typeof window !== 'undefined' && window.location.protocol === 'https:' ? '443' : '80')} (${typeof window !== 'undefined' ? window.location.origin : ''}) — Détection automatique active.`,
+              `Actieve backend: Poort ${typeof window !== 'undefined' && window.location.port ? window.location.port : (typeof window !== 'undefined' && window.location.protocol === 'https:' ? '443' : '80')} (${typeof window !== 'undefined' ? window.location.origin : ''}) — Automatische detectie actief.`
+            )}
+          </span>
+        </StatusBanner>
       </HeaderSection>
 
       {/* Browser Selector Tabs */}
@@ -454,6 +464,12 @@ const StatusBanner = styled.div`
     background: rgba(148, 163, 184, 0.08);
     color: #cbd5e1;
     border: 1px solid rgba(148, 163, 184, 0.18);
+  }
+
+  &.port-info {
+    background: rgba(14, 165, 233, 0.12);
+    color: #38bdf8;
+    border: 1px solid rgba(14, 165, 233, 0.25);
   }
 `;
 

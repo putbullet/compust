@@ -24,6 +24,8 @@ import {
 import { api } from '../api/client';
 import type { UserProfile, Country, ResumeItem } from '../api/client';
 import { ResumeBuilderView } from './ResumeBuilder/ResumeBuilderView';
+import { UnifiedProfileSection } from './common/UnifiedProfileSection';
+
 
 interface ProfileViewProps {
   user: UserProfile;
@@ -699,7 +701,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         )}
       </div>
 
+      {/* LinkedIn Profile & Unified Profile Middleware Section */}
+      <UnifiedProfileSection />
+
       {/* Experience Section */}
+
       <div className="card-box glass-panel full-width">
         <div className="section-header-row">
           <div className="card-title-row">

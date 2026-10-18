@@ -249,9 +249,8 @@ def test_gemini_rate_limit_backoff_429() -> None:
                     with pytest.raises(AIRateLimitError) as exc_info:
                         GeminiProvider.generate(prompt="Hello", model="gemini-3.5-flash-lite")
 
-                    assert "rate limit exceeded" in str(exc_info.value).lower()
-                    assert mock_sleep.called
-                    assert mock_post.call_count == 3  # 3 attempts before raising
+                    assert "rate limit" in str(exc_info.value).lower()
+                    assert mock_post.call_count == 1  # Immediate raise without 429 retry loop
 
 
 def test_gemini_safety_block() -> None:

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import {
   Briefcase,
@@ -15,7 +15,8 @@ import {
   BrainCircuit,
   Puzzle,
 } from 'lucide-react';
-import type { UserProfile } from '../api/client';
+import { api } from '../api/client';
+import type { UserProfile, AIStatus } from '../api/client';
 import { useTranslation } from '../i18n';
 
 interface NavbarProps {
@@ -36,6 +37,58 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAISettings,
 }) => {
   const { language, setLanguage, t } = useTranslation();
+  const [aiStatus, setAiStatus] = useState<AIStatus | null>(null);
+
+  useEffect(() => {
+    const fetchStatus = () => {
+      api.getAIStatus().then(setAiStatus).catch(() => setAiStatus(null));
+    };
+    fetchStatus();
+
+    window.addEventListener('compust-ai-provider-changed', fetchStatus);
+    window.addEventListener('focus', fetchStatus);
+
+    let bc: BroadcastChannel | null = null;
+    try {
+      bc = new BroadcastChannel('compust-ai-sync');
+      bc.onmessage = () => {
+        fetchStatus();
+      };
+    } catch (e) {
+      // ignore
+    }
+
+    return () => {
+      window.removeEventListener('compust-ai-provider-changed', fetchStatus);
+      window.removeEventListener('focus', fetchStatus);
+      if (bc) bc.close();
+    };
+  }, []);
+
+  const activeProvider = aiStatus?.active_provider || 'ollama';
+  const activeModel =
+    aiStatus?.selected_model ||
+    (activeProvider === 'gemini'
+      ? aiStatus?.gemini_model || 'gemini-2.5-flash'
+      : activeProvider === 'openai'
+      ? aiStatus?.openai_model || 'gpt-4o-mini'
+      : 'qwen3.5:0.8b');
+  const isConnected = aiStatus?.status === 'connected';
+  const aiProviderLabel = !isConnected
+    ? `AI: Offline (${activeProvider})`
+    : activeProvider === 'gemini'
+    ? `AI: Gemini (${activeModel})`
+    : activeProvider === 'openai'
+    ? `AI: OpenAI (${activeModel})`
+    : `AI: Ollama (${activeModel})`;
+
+  const dotColor = !isConnected
+    ? '#f59e0b'
+    : activeProvider === 'gemini'
+    ? '#38bdf8'
+    : activeProvider === 'openai'
+    ? '#10a37f'
+    : '#a855f7';
 
   return (
     <StyledNav>
@@ -244,13 +297,14 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Actions: AI Settings, Language Switcher & Auth */}
         <div className="actions-cluster">
           <button
-            className="ai-settings-btn"
+            className={`ai-settings-btn ${isConnected ? 'connected' : 'offline'}`}
             onClick={onOpenAISettings}
-            title={t.nav.aiSettings}
+            title={`Active AI: ${activeProvider.toUpperCase()} (${isConnected ? 'Connected' : 'Offline / Fallback'}). Click to configure.`}
             aria-label={t.nav.aiSettings}
           >
             <Bot size={14} />
-            <span>AI</span>
+            <span>{aiProviderLabel}</span>
+            <span className="status-dot" style={{ backgroundColor: dotColor }} />
           </button>
 
           {/* Unified 3-way Language Switcher */}
@@ -436,8 +490,8 @@ const StyledNav = styled.header`
   .ai-settings-btn {
     display: flex;
     align-items: center;
-    gap: 4px;
-    padding: 5px 10px;
+    gap: 6px;
+    padding: 5px 11px;
     border-radius: 14px;
     background: rgba(59, 130, 246, 0.12);
     border: 1px solid rgba(59, 130, 246, 0.25);
@@ -448,6 +502,25 @@ const StyledNav = styled.header`
     flex-shrink: 0;
     white-space: nowrap;
     transition: all 0.2s ease;
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    &.connected {
+      background: rgba(16, 185, 129, 0.1);
+      border-color: rgba(16, 185, 129, 0.3);
+      color: #e2e8f0;
+    }
+
+    &.offline {
+      background: rgba(245, 158, 11, 0.1);
+      border-color: rgba(245, 158, 11, 0.3);
+      color: #fbbf24;
+    }
 
     &:hover {
       background: rgba(59, 130, 246, 0.25);

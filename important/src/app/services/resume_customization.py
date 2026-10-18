@@ -4,7 +4,13 @@ from sqlalchemy.orm import Session
 
 from ..models import Job, Resume
 from ..repositories.jobs import get_job_skills
-from .ai_service import generate_completion, check_ollama_runtime
+from .ai_service import (
+    generate_completion,
+    get_active_provider,
+    get_provider,
+    is_ai_available,
+    AIProviderType,
+)
 
 
 def analyze_ats_formatting(resume: Resume) -> list[str]:
@@ -187,6 +193,14 @@ RULES:
 5. Keep the tone concise, encouraging, and professional."""
 
 
+_RESUME_CUSTOMIZATION_CACHE: dict[str, dict[str, Any]] = {}
+
+
+def clear_resume_customization_cache() -> None:
+    """Clear in-memory resume customization cache (useful in tests)."""
+    _RESUME_CUSTOMIZATION_CACHE.clear()
+
+
 def get_ai_resume_customization(
     db: Session,
     job: Job,
@@ -196,38 +210,58 @@ def get_ai_resume_customization(
     skills = get_job_skills(db, job.id)
     analysis = analyze_resume_alignment(job, skills, resume, user=user)
 
-    runtime = check_ollama_runtime()
-    if runtime["status"] != "connected" or not runtime["models"]:
-        return {
+    uid = user.id if user else None
+    active_prov = get_active_provider(db=db, user_id=uid)
+    provider_inst = get_provider(active_prov)
+    model_name = provider_inst.get_active_model(db=db, user_id=uid)
+
+    resume_ver = str(getattr(resume, "updated_at", getattr(resume, "created_at", "v1")))
+    cache_key = f"{job.id}:{resume.id}:{resume_ver}:{active_prov.value}:{model_name}"
+
+    if cache_key in _RESUME_CUSTOMIZATION_CACHE:
+        return dict(_RESUME_CUSTOMIZATION_CACHE[cache_key])
+
+    if not provider_inst.is_available():
+        res = {
             **analysis,
             "ai_enhanced": False,
             "provider": "deterministic",
         }
+        _RESUME_CUSTOMIZATION_CACHE[cache_key] = dict(res)
+        return res
 
-    # Format concise prompt for local 0.8B model
+    # Format concise prompt for active provider
     prompt = (
         f"Job Title: {job.title}\n"
         f"Requirements: {', '.join(skills) if skills else 'Not specified'}\n"
         f"Demonstrated: {', '.join(analysis['already_demonstrated']) if analysis['already_demonstrated'] else 'None'}\n"
         f"Missing or weak: {', '.join(analysis['missing_or_weak']) if analysis['missing_or_weak'] else 'None'}\n"
-        f"Provide 2-3 tailored, ethical bullet points on positioning genuine experience:"
+        f"Provide 3-5 tailored, ethical bullet points on positioning genuine experience for this role:"
     )
 
     try:
         response = generate_completion(
             prompt=prompt,
             system_prompt=CUSTOMIZATION_SYSTEM_PROMPT,
-            model=runtime.get("selected_model"),
+            model=model_name,
             temperature=0.2,
-            timeout_seconds=12.0,
+            timeout_seconds=20.0,
+            db=db,
+            user_id=uid,
         )
         if response:
-            ai_suggestions = [line.strip(" -*•") for line in response.splitlines() if len(line.strip()) > 10]
+            ai_suggestions = []
+            for line in response.splitlines():
+                cleaned = line.strip().lstrip("-*•0123456789.) ").strip()
+                if len(cleaned) > 12 and not cleaned.lower().startswith("here are") and not cleaned.lower().startswith("sure"):
+                    ai_suggestions.append(cleaned)
             if ai_suggestions:
-                analysis["suggestions"] = ai_suggestions
+                analysis["suggestions"] = ai_suggestions[:6]
                 analysis["ai_enhanced"] = True
-                analysis["provider"] = "ollama"
+                analysis["provider"] = active_prov.value
     except Exception:
         pass
 
+    _RESUME_CUSTOMIZATION_CACHE[cache_key] = dict(analysis)
     return analysis
+

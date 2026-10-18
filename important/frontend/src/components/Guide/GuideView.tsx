@@ -344,7 +344,7 @@ export const GuideView: React.FC = () => {
           <div className="guide-docs-title">
             <BookOpen size={20} className="title-icon" />
             <span>Documentation</span>
-            <span className="version-pill">v1.0.2</span>
+            <span className="version-pill">v1.0.3</span>
           </div>
         </div>
 

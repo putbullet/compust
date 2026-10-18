@@ -1,11 +1,11 @@
 """
-AI layer for Mock Interview — all Ollama calls in this module.
+AI layer for Mock Interview — routes through the unified AI gateway (Ollama / Gemini / OpenAI).
 
 Follows the established Compust grounding/anti-hallucination discipline:
 1. System instructions are always structurally separated from user content
    (resume text, job descriptions, spoken transcripts are NEVER in system prompt)
 2. Every LLM call uses structured JSON output with tight schema validation
-3. Graceful degradation: fallback to deterministic scores if Ollama unavailable
+3. Graceful degradation: fallback to deterministic scores if AI provider unavailable
 4. Realtime path: one small structured call (follow-up classification)
 5. Post-interview path: full evaluation batch (runs off realtime critical path)
 
@@ -13,7 +13,7 @@ Privacy:
 - Resume text, job descriptions, and answer transcripts are treated as untrusted
   input content — they are never placed in the system prompt position.
 - The system prompt contains only instructions; user content arrives as the prompt
-  argument (structurally separated by Ollama's own payload fields).
+  argument (structurally separated by the provider's own payload fields).
 """
 
 from __future__ import annotations
@@ -260,10 +260,10 @@ Classify the answer and output the JSON verdict."""
         verdict["follow_up_focus"] = str(verdict.get("follow_up_focus", ""))[:80]
         return verdict
     except OllamaUnavailableError:
-        logger.info("Ollama unavailable for follow-up classification — using fallback")
+        logger.info("AI provider unavailable for follow-up classification — using fallback")
         return fallback
     except OllamaError as e:
-        logger.warning(f"Ollama error in follow-up classification: {e}")
+        logger.warning(f"AI provider error in follow-up classification: {e}")
         return fallback
     except Exception as e:
         logger.error(f"Unexpected error in follow-up classification: {e}")
@@ -531,7 +531,7 @@ def evaluate_answer(
         "improvement_points": [],
         "better_answer_notes": "",
         "asr_notes": "",
-        "evaluation_error": "Evaluation unavailable (Ollama offline or model not loaded)",
+        "evaluation_error": "Evaluation unavailable (AI provider offline or model not loaded)",
     }
 
     raw_t = (raw_transcript or transcript or "").strip()
@@ -649,12 +649,12 @@ Evaluate the answer and output the JSON assessment."""
         return result
 
     except OllamaUnavailableError:
-        logger.info("Ollama unavailable for answer evaluation — using fallback")
+        logger.info("AI provider unavailable for answer evaluation — using fallback")
         if is_behavioral:
             return heuristic_star_evaluation(can_t or raw_t, question_title, competency=category_name or topic)
         return fallback
     except OllamaError as e:
-        logger.warning(f"Ollama error in answer evaluation: {e}")
+        logger.warning(f"AI provider error in answer evaluation: {e}")
         if is_behavioral:
             return heuristic_star_evaluation(can_t or raw_t, question_title, competency=category_name or topic)
         fallback["evaluation_error"] = f"AI evaluation failed: {str(e)[:200]}"
@@ -684,7 +684,7 @@ def detect_domain_from_resume(
     fallback = {
         "domain_id": "data_engineering",
         "confidence": "low",
-        "reasoning": "Default suggestion — could not analyze resume (Ollama offline).",
+        "reasoning": "Default suggestion — could not analyze resume (AI provider offline).",
         "suggested_difficulty": "Intermediate",
     }
 

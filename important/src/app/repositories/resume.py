@@ -314,6 +314,14 @@ def extract_canonical_skills_map(
             if getattr(us, "skill", None):
                 _add_raw(us.skill)
 
+    # 5. From unified profile (LinkedIn + Resume merged) if available and enabled
+    if effective_user:
+        u_prof = getattr(effective_user, "unified_profile", None)
+        if u_prof and getattr(u_prof, "use_linkedin_in_matching", True) and getattr(u_prof, "unified_data", None):
+            for us in u_prof.unified_data.get("skills", []):
+                if not us.get("hidden") and us.get("name"):
+                    _add_raw(us.get("name"))
+
     canonical_set: set[str] = set()
     display_map: dict[str, str] = {}
     for r in raw_skills:
@@ -322,6 +330,7 @@ def extract_canonical_skills_map(
             canonical_set.add(c)
             if c not in display_map:
                 display_map[c] = r
+
 
     return canonical_set, display_map, raw_skills
 

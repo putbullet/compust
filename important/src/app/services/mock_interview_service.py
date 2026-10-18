@@ -79,14 +79,14 @@ logger = logging.getLogger("compust.mock_interview.service")
 PRIVACY_NOTICE = (
     "Your microphone audio is processed locally by faster-whisper (open source, runs on your device). "
     "Raw audio is immediately discarded after transcription — only the text transcript is stored. "
-    "AI evaluation uses your local Ollama installation. "
-    "No audio or transcript data leaves your device."
+    "AI evaluation uses your configured AI provider (Ollama is local; Gemini/OpenAI send text to their cloud). "
+    "No audio data leaves your device."
 )
 LOCAL_PROCESSING_NOTE = (
     "✓ Speech recognition: local (faster-whisper) "
-    "✓ AI evaluation: local (Ollama) "
+    "✓ AI evaluation: configured AI provider (Ollama=local / Gemini,OpenAI=cloud) "
     "✓ Text-to-speech: browser-native (SpeechSynthesis API) "
-    "✗ No data sent to external servers"
+    "✗ No audio data sent to external servers"
 )
 
 

@@ -8,7 +8,7 @@ Used exclusively by the /resumes/{id}/job-target/* endpoints.
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any
+from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -165,6 +165,7 @@ class ApplicationMaterial(BaseModel):
     language: str = "en"
     generated: bool = False
     error: str = ""
+    retry_after_seconds: Optional[float] = None
 
 
 # ---------------------------------------------------------------------------

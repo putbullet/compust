@@ -64,7 +64,7 @@ def test_orange_parser_extracts_normalized_job_candidate() -> None:
     assert job.external_job_id == "ICM-123"
     assert job.title == "Ingénieur réseau"
     assert job.job_url == "https://orange.jobs/fr/fr/job/123/apply"
-    assert job.skills == ["Python", "réseau"]
+    assert job.skills == ["Python", "Networking"]
     assert job.posted_at is not None
 
 

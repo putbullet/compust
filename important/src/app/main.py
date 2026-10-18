@@ -134,6 +134,7 @@ from .schemas_ai_resume import (
     BulkJobDeleteResponse,
     CustomizedResumeRead,
     GeminiKeyUpdate,
+    OpenAIKeyUpdate,
     JobSupervisionUpdate,
     ResumeRead,
     ResumeSuggestionResponse,
@@ -222,10 +223,11 @@ from .services.ai_service import (
     set_selected_model,
     set_active_provider,
     set_gemini_api_key,
+    set_openai_api_key,
     load_ai_config,
     save_ai_config,
-    GeminiProvider,
-    OllamaProvider,
+    save_user_ai_settings,
+    test_provider_connection,
 )
 from .services.ai_tools import answer_user_query
 from .services.resume_parser import (
@@ -373,9 +375,24 @@ extension_rate_limiter = UserRateLimiter(max_requests=30, window_seconds=60.0)
 
 @app.on_event("startup")
 def on_startup():
-    """Verify and initialize database schema on startup."""
+    """Verify and initialize database schema on startup and start scheduler."""
     from .database import init_database_schema
     init_database_schema()
+    try:
+        from .services.scheduler import get_scheduler
+        get_scheduler().start()
+    except Exception as exc:
+        logger.warning(f"Failed to start auto-sync scheduler on startup: {exc}")
+
+
+@app.on_event("shutdown")
+def on_shutdown():
+    """Stop background scheduler on shutdown."""
+    try:
+        from .services.scheduler import get_scheduler
+        get_scheduler().stop()
+    except Exception as exc:
+        logger.warning(f"Failed to stop auto-sync scheduler on shutdown: {exc}")
 
 
 @app.get("/health", response_model=HealthRead, tags=["system"])
@@ -398,7 +415,7 @@ def health(db: Session = Depends(get_db)) -> HealthRead:
         database=db_status,
         latency_ms=latency_ms,
         app="compust",
-        version="1.0.2",
+        version="1.0.3",
         mode=app_mode,
         instance_id=instance_id,
         pid=os.getpid(),
@@ -458,7 +475,7 @@ def health_deep(db: Session = Depends(get_db)) -> dict[str, Any]:
     return {
         "status": "ok" if is_healthy else "degraded",
         "app": "compust",
-        "version": "1.0.2",
+        "version": "1.0.3",
         "mode": app_mode,
         "instance_id": os.environ.get("COMPUST_INSTANCE_ID", f"compust_{app_mode}_{os.getpid()}"),
         "pid": os.getpid(),
@@ -1900,9 +1917,13 @@ def admin_scraper_metrics(
 
 
 @app.get("/api/v1/ai/status", response_model=AIStatusResponse, tags=["ai"])
-def api_get_ai_status() -> AIStatusResponse:
+def api_get_ai_status(
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_current_user),
+) -> AIStatusResponse:
+    uid = current_user.id if (current_user and hasattr(current_user, "id")) else None
     ollama_info = check_ollama_runtime()
-    status_dict = get_ai_status()
+    status_dict = get_ai_status(db=db, user_id=uid)
     status_dict["ollama"] = ollama_info
     if status_dict.get("active_provider", "ollama") == "ollama":
         status_dict["status"] = ollama_info.get("status", status_dict["status"])
@@ -1916,47 +1937,85 @@ def api_get_ai_status() -> AIStatusResponse:
 
 
 @app.get("/api/v1/ai/providers", response_model=list[AIProviderRead], tags=["ai"])
-def list_ai_providers() -> list[AIProviderRead]:
-    return [AIProviderRead.model_validate(p) for p in get_providers_list()]
+def list_ai_providers(
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_current_user),
+) -> list[AIProviderRead]:
+    uid = current_user.id if (current_user and hasattr(current_user, "id")) else None
+    return [AIProviderRead.model_validate(p) for p in get_providers_list(db=db, user_id=uid)]
 
 
 @app.post("/api/v1/ai/settings", response_model=AIStatusResponse, tags=["ai"])
-def update_ai_settings(req: AISettingsUpdate) -> AIStatusResponse:
-    cfg = load_ai_config()
-    if req.active_provider:
-        set_active_provider(req.active_provider)
-    if req.selected_model:
-        set_selected_model(req.selected_model)
-    if req.gemini_model:
-        cfg["gemini_model"] = req.gemini_model
-    if req.gemini_consent_given is not None:
-        cfg["gemini_consent_given"] = req.gemini_consent_given
-    if req.fallback_policy:
-        cfg["fallback_policy"] = req.fallback_policy
-    save_ai_config(cfg)
-    return AIStatusResponse.model_validate(get_ai_status())
+def update_ai_settings(
+    req: AISettingsUpdate,
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_current_user),
+) -> AIStatusResponse:
+    uid = current_user.id if (current_user and hasattr(current_user, "id")) else None
+    updates = req.model_dump(exclude_unset=True)
+    if "consent_granted" in updates and updates["consent_granted"] is not None:
+        updates["gemini_consent_given"] = updates["consent_granted"]
+    save_user_ai_settings(db, uid, updates)
+    return AIStatusResponse.model_validate(get_ai_status(db=db, user_id=uid))
 
 
 @app.post("/api/v1/ai/gemini/key", response_model=AIStatusResponse, tags=["ai"])
-def set_gemini_key(req: GeminiKeyUpdate) -> AIStatusResponse:
-    set_gemini_api_key(req.api_key)
-    return AIStatusResponse.model_validate(get_ai_status())
+def set_gemini_key(
+    req: GeminiKeyUpdate,
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_current_user),
+) -> AIStatusResponse:
+    uid = current_user.id if (current_user and hasattr(current_user, "id")) else None
+    set_gemini_api_key(req.api_key, db=db, user_id=uid)
+    return AIStatusResponse.model_validate(get_ai_status(db=db, user_id=uid))
 
 
 @app.delete("/api/v1/ai/gemini/key", response_model=AIStatusResponse, tags=["ai"])
-def clear_gemini_key() -> AIStatusResponse:
-    set_gemini_api_key(None)
-    return AIStatusResponse.model_validate(get_ai_status())
+def clear_gemini_key(
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_current_user),
+) -> AIStatusResponse:
+    uid = current_user.id if (current_user and hasattr(current_user, "id")) else None
+    set_gemini_api_key(None, db=db, user_id=uid)
+    return AIStatusResponse.model_validate(get_ai_status(db=db, user_id=uid))
+
+
+@app.post("/api/v1/ai/openai/key", response_model=AIStatusResponse, tags=["ai"])
+def set_openai_key(
+    req: OpenAIKeyUpdate,
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_current_user),
+) -> AIStatusResponse:
+    uid = current_user.id if (current_user and hasattr(current_user, "id")) else None
+    set_openai_api_key(req.api_key, db=db, user_id=uid)
+    return AIStatusResponse.model_validate(get_ai_status(db=db, user_id=uid))
+
+
+@app.delete("/api/v1/ai/openai/key", response_model=AIStatusResponse, tags=["ai"])
+def clear_openai_key(
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_current_user),
+) -> AIStatusResponse:
+    uid = current_user.id if (current_user and hasattr(current_user, "id")) else None
+    set_openai_api_key(None, db=db, user_id=uid)
+    return AIStatusResponse.model_validate(get_ai_status(db=db, user_id=uid))
 
 
 @app.post("/api/v1/ai/test-connection", response_model=AITestConnectionResponse, tags=["ai"])
-def test_ai_connection(req: AITestConnectionRequest) -> AITestConnectionResponse:
-    if req.provider == "gemini":
-        res = GeminiProvider.test_connection(api_key=req.api_key, model=req.model)
-        return AITestConnectionResponse(**res)
-    else:
-        res = OllamaProvider.test_connection(model=req.model)
-        return AITestConnectionResponse(**res)
+def test_ai_connection(
+    req: AITestConnectionRequest,
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_current_user),
+) -> AITestConnectionResponse:
+    uid = current_user.id if (current_user and hasattr(current_user, "id")) else None
+    res = test_provider_connection(
+        provider=req.provider,
+        api_key=req.api_key,
+        model=req.model,
+        db=db,
+        user_id=uid,
+    )
+    return AITestConnectionResponse(**res)
 
 
 @app.post("/api/v1/ai/chat", response_model=AIChatResponse, tags=["ai"])
@@ -3451,9 +3510,20 @@ def create_mock_interview_repractice(
         raise HTTPException(status_code=500, detail="Failed to create re-practice session.")
 
 
+def _compute_extension_dir_hash(package_dir: pathlib.Path) -> str:
+    """Computes a deterministic SHA256 hash of all files in an extension distribution directory."""
+    hasher = hashlib.sha256()
+    for file_path in sorted(package_dir.rglob("*")):
+        if file_path.is_file():
+            rel = file_path.relative_to(package_dir).as_posix()
+            hasher.update(rel.encode("utf-8"))
+            hasher.update(file_path.read_bytes())
+    return hasher.hexdigest()
+
+
 @app.get("/api/v1/extension/download/{target_browser}", tags=["extension"])
 def download_extension_package(target_browser: str = Path(..., description="Browser type: chrome, edge, brave, or firefox")):
-    """Serves the pre-built unpacked extension package zipped for local developer-mode onboarding."""
+    """Serves the pre-built unpacked extension package zipped for local developer-mode onboarding with guaranteed freshness."""
     browser_clean = target_browser.lower().strip()
     base_dir = pathlib.Path(__file__).resolve().parent.parent.parent
     extension_dist = base_dir / "extension" / "dist"
@@ -3476,23 +3546,36 @@ def download_extension_package(target_browser: str = Path(..., description="Brow
             detail=f"Extension distribution for '{browser_clean}' not found. Please build the extension first."
         )
 
+    # 1. Compute current distribution content hash
+    current_hash = _compute_extension_dir_hash(package_dir)
+    hash_file = extension_dist / f"{zip_filename}.sha256"
     zip_path = extension_dist / zip_filename
-    if zip_path.is_file():
+
+    # 2. Check if cached zip matches current directory content hash
+    zip_fresh = (
+        zip_path.is_file()
+        and hash_file.is_file()
+        and hash_file.read_text(encoding="utf-8").strip() == current_hash
+    )
+
+    if zip_fresh:
         zip_bytes = zip_path.read_bytes()
     else:
+        # Re-pack directly from latest package_dir ensuring normalized forward-slash paths
         import io
         import zipfile
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-            for file_path in package_dir.rglob("*"):
+            for file_path in sorted(package_dir.rglob("*")):
                 if file_path.is_file():
-                    arcname = file_path.relative_to(package_dir)
+                    arcname = file_path.relative_to(package_dir).as_posix()
                     zf.write(file_path, arcname)
         zip_bytes = zip_buffer.getvalue()
         try:
             zip_path.write_bytes(zip_bytes)
-        except Exception:
-            pass
+            hash_file.write_text(current_hash, encoding="utf-8")
+        except Exception as e:
+            logger.warning(f"Could not cache extension zip to disk: {e}")
 
     return Response(
         content=zip_bytes,
@@ -3501,8 +3584,560 @@ def download_extension_package(target_browser: str = Path(..., description="Brow
             "Content-Type": "application/zip",
             "Content-Disposition": f'attachment; filename="{zip_filename}"',
             "Content-Length": str(len(zip_bytes)),
+            "X-Extension-Content-Hash": current_hash,
+            "ETag": f'"{current_hash[:16]}"',
         },
     )
+
+
+# ─── Central Time Service & Auto-Sync Scheduler Endpoints ────────────────────
+
+@app.get("/api/v1/scheduler/status", tags=["scheduler"])
+def get_scheduler_status():
+    """Returns current auto-sync scheduler status, configuration, next due dates, and run stats."""
+    from .services.scheduler import load_scheduler_state, evaluate_schedule_due
+    from .services.clock import get_clock
+
+    clock = get_clock()
+    state = load_scheduler_state()
+    config = state.config
+
+    scrape_due = evaluate_schedule_due(config, state.companies_scrape, clock)
+    internships_due = evaluate_schedule_due(config, state.internships_sync, clock)
+
+    local_now = clock.local_now(config.timezone)
+
+    return {
+        "enabled": config.enabled,
+        "days_of_week": config.days_of_week,
+        "preferred_hour": config.preferred_hour,
+        "preferred_minute": config.preferred_minute,
+        "max_days_safety_net": config.max_days_safety_net,
+        "timezone": config.timezone or clock.system_timezone_name(),
+        "current_local_time": local_now.isoformat(),
+        "current_utc_time": clock.now().isoformat(),
+        "stale_job_missed_runs": config.stale_job_missed_runs,
+        "stale_job_max_age_days": config.stale_job_max_age_days,
+        "next_due_at": scrape_due.get("next_due_at"),
+        "is_due": scrape_due.get("due") or internships_due.get("due"),
+        "due_reason": scrape_due.get("reason"),
+        "last_opened_at": state.last_opened_at,
+        "last_closed_at": state.last_closed_at,
+        "companies_scrape": {
+            "last_success_at": state.companies_scrape.last_success_at,
+            "last_attempt_at": state.companies_scrape.last_attempt_at,
+            "last_status": state.companies_scrape.last_status,
+            "next_due_at": scrape_due.get("next_due_at"),
+            "consecutive_failures": state.companies_scrape.consecutive_failures,
+            "last_jobs_new": state.companies_scrape.last_jobs_new,
+            "last_jobs_updated": state.companies_scrape.last_jobs_updated,
+            "last_jobs_retired": state.companies_scrape.last_jobs_retired,
+            "last_error": state.companies_scrape.last_error,
+        },
+        "internships_sync": {
+            "last_success_at": state.internships_sync.last_success_at,
+            "last_attempt_at": state.internships_sync.last_attempt_at,
+            "last_status": state.internships_sync.last_status,
+            "next_due_at": internships_due.get("next_due_at"),
+            "consecutive_failures": state.internships_sync.consecutive_failures,
+        },
+        "recent_history": [h.model_dump() for h in state.history[:10]],
+    }
+
+
+class SchedulerSettingsUpdate(BaseModel):
+    enabled: bool | None = None
+    days_of_week: list[int] | None = None
+    preferred_hour: int | None = None
+    preferred_minute: int | None = None
+    max_days_safety_net: int | None = None
+    timezone: str | None = None
+    stale_job_missed_runs: int | None = None
+    stale_job_max_age_days: int | None = None
+
+
+@app.post("/api/v1/scheduler/settings", tags=["scheduler"])
+def update_scheduler_settings(req: SchedulerSettingsUpdate):
+    """Updates auto-sync scheduler configuration."""
+    from .services.scheduler import load_scheduler_state, save_scheduler_state, compute_next_due_local
+    from .services.clock import get_clock
+
+    state = load_scheduler_state()
+    cfg = state.config
+
+    if req.enabled is not None:
+        cfg.enabled = req.enabled
+    if req.days_of_week is not None:
+        cfg.days_of_week = req.days_of_week
+    if req.preferred_hour is not None:
+        cfg.preferred_hour = req.preferred_hour
+    if req.preferred_minute is not None:
+        cfg.preferred_minute = req.preferred_minute
+    if req.max_days_safety_net is not None:
+        cfg.max_days_safety_net = req.max_days_safety_net
+    if req.timezone is not None:
+        cfg.timezone = req.timezone if req.timezone.strip() else None
+    if req.stale_job_missed_runs is not None:
+        cfg.stale_job_missed_runs = req.stale_job_missed_runs
+    if req.stale_job_max_age_days is not None:
+        cfg.stale_job_max_age_days = req.stale_job_max_age_days
+
+    clock = get_clock()
+    local_now = clock.local_now(cfg.timezone)
+    next_due_local = compute_next_due_local(cfg, local_now)
+    next_due_utc = clock.to_utc(next_due_local).isoformat()
+    state.companies_scrape.next_due_at = next_due_utc
+    state.internships_sync.next_due_at = next_due_utc
+
+    save_scheduler_state(state)
+    return {"status": "ok", "config": cfg.model_dump(), "next_due_at": next_due_utc}
+
+
+@app.post("/api/v1/scheduler/sync-now", tags=["scheduler"])
+def trigger_manual_sync():
+    """Triggers an immediate manual sync run sharing the exact scheduler engine path."""
+    from .services.scheduler import execute_sync_run
+    res = execute_sync_run(trigger="manual")
+    return {
+        "success": res.success,
+        "companies_scraped": res.companies_scraped,
+        "jobs_new": res.jobs_new,
+        "jobs_updated": res.jobs_updated,
+        "jobs_retired": res.jobs_retired,
+        "internships_synced": res.internships_synced,
+        "errors": res.errors,
+    }
+
+
+@app.get("/api/v1/scheduler/history", tags=["scheduler"])
+def get_scheduler_history():
+    """Returns run history logs for the auto-sync scheduler."""
+    from .services.scheduler import load_scheduler_state
+    state = load_scheduler_state()
+    return {"history": [h.model_dump() for h in state.history]}
+
+
+class TestSetClockRequest(BaseModel):
+    iso_time: str
+    timezone: str | None = None
+
+
+@app.post("/api/v1/scheduler/test/set-clock", tags=["scheduler"])
+def test_set_clock(req: TestSetClockRequest):
+    """Sets a FrozenClock for accelerated time-travel verification."""
+    from .services.clock import FrozenClock, set_clock
+    dt = datetime.fromisoformat(req.iso_time)
+    set_clock(FrozenClock(initial_time=dt, default_tz=req.timezone or "UTC"))
+    from .services.clock import get_clock
+    return {"status": "ok", "current_time": get_clock().now().isoformat()}
+
+
+@app.post("/api/v1/scheduler/test/reset-clock", tags=["scheduler"])
+def test_reset_clock():
+    """Resets the active clock back to the RealClock."""
+    from .services.clock import reset_clock, get_clock
+    reset_clock()
+    return {"status": "ok", "current_time": get_clock().now().isoformat()}
+
+
+# ==============================================================================
+# LinkedIn Profile Integration & Unified Profile Middleware (Section 3)
+# ==============================================================================
+
+LINKEDIN_EXTENSION_IMPORT_ENABLED = os.environ.get("COMPUST_ENABLE_LINKEDIN_EXTENSION", "false").lower() in ("1", "true", "yes")
+
+from .schemas_profile import (
+    LinkedInUrlUpdateRequest,
+    LinkedInProfileStatusResponse,
+    UnifiedProfileResponse,
+    UnifiedProfileOverridesRequest,
+    UnifiedToggleMatchingRequest,
+)
+
+
+@app.get("/api/v1/profile/linkedin", response_model=LinkedInProfileStatusResponse, tags=["profile"])
+def get_linkedin_profile_status(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> LinkedInProfileStatusResponse:
+    """Return status of user's LinkedIn profile integration."""
+    from .models import UserLinkedInProfile
+    from .services.clock import get_clock
+
+    rec = db.scalar(select(UserLinkedInProfile).where(UserLinkedInProfile.user_id == user.id))
+    if not rec:
+        return LinkedInProfileStatusResponse(
+            status="not_imported",
+            linkedin_url=None,
+            handle=None,
+            import_source=None,
+            imported_at=None,
+            days_since_import=None,
+            extracted_counts={},
+        )
+
+    clock = get_clock()
+    now_utc = clock.now()
+    imp_dt = rec.imported_at
+    if imp_dt.tzinfo is None:
+        imp_dt = imp_dt.replace(tzinfo=timezone.utc)
+    days_since = max(0, (now_utc - imp_dt).days)
+    status_label = "needs_refresh" if days_since > 30 else "imported"
+
+    raw = rec.raw_data or {}
+    counts = {
+        "positions": len(raw.get("positions") or []),
+        "education": len(raw.get("education") or []),
+        "skills": len(raw.get("skills") or []),
+        "certifications": len(raw.get("certifications") or []),
+        "languages": len(raw.get("languages") or []),
+        "projects": len(raw.get("projects") or []),
+    }
+
+    return LinkedInProfileStatusResponse(
+        status=status_label,
+        linkedin_url=rec.linkedin_url,
+        handle=rec.handle,
+        import_source=rec.import_source,
+        imported_at=rec.imported_at.isoformat(),
+        days_since_import=days_since,
+        extracted_counts=counts,
+    )
+
+
+@app.post("/api/v1/profile/linkedin/url", response_model=LinkedInProfileStatusResponse, tags=["profile"])
+def update_linkedin_url(
+    req: LinkedInUrlUpdateRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> LinkedInProfileStatusResponse:
+    """Save or update the user's LinkedIn profile URL and handle with strict validation."""
+    from .services.profile_fusion import validate_and_normalize_linkedin_url
+    from .models import UserLinkedInProfile
+    from .services.clock import get_clock
+
+    try:
+        norm_url, handle = validate_and_normalize_linkedin_url(req.url)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    rec = db.scalar(select(UserLinkedInProfile).where(UserLinkedInProfile.user_id == user.id))
+    if rec:
+        rec.linkedin_url = norm_url
+        rec.handle = handle
+        db.commit()
+        db.refresh(rec)
+    else:
+        rec = UserLinkedInProfile(
+            user_id=user.id,
+            linkedin_url=norm_url,
+            handle=handle,
+            import_source="manual",
+            imported_at=get_clock().now(),
+            raw_data={},
+        )
+        db.add(rec)
+        db.commit()
+        db.refresh(rec)
+
+    return get_linkedin_profile_status(user=user, db=db)
+
+
+@app.post("/api/v1/profile/linkedin/upload-export", tags=["profile"])
+async def upload_linkedin_export(
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Upload official LinkedIn data export (ZIP or CSV).
+    
+    Extracts profile, positions, education, skills, certifications, languages, projects,
+    honors, and courses with zero ban risk and sanitizes against formula injection.
+    """
+    from .services.profile_fusion import (
+        parse_linkedin_export_zip,
+        parse_linkedin_export_csvs,
+        recompute_unified_profile,
+    )
+    from .models import UserLinkedInProfile
+    from .services.clock import get_clock
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+
+    filename = (file.filename or "").lower()
+    raw_extracted = None
+    source_type = "export_zip"
+
+    if filename.endswith(".zip"):
+        try:
+            raw_extracted = parse_linkedin_export_zip(content)
+            source_type = "export_zip"
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"Failed to parse LinkedIn ZIP archive: {exc}")
+    elif filename.endswith(".csv"):
+        try:
+            raw_extracted = parse_linkedin_export_csvs({filename: content})
+            source_type = "export_csv"
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"Failed to parse LinkedIn CSV file: {exc}")
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported file format. Please upload a .zip or .csv export file.")
+
+    # Save to UserLinkedInProfile
+    rec = db.scalar(select(UserLinkedInProfile).where(UserLinkedInProfile.user_id == user.id))
+    clock = get_clock()
+    now_dt = clock.now()
+
+    if rec:
+        rec.import_source = source_type
+        rec.imported_at = now_dt
+        if source_type == "export_csv" and rec.raw_data:
+            merged_raw = dict(rec.raw_data)
+            for k, v in raw_extracted.items():
+                if v:
+                    merged_raw[k] = v
+            rec.raw_data = merged_raw
+        else:
+            rec.raw_data = raw_extracted
+        db.commit()
+    else:
+        rec = UserLinkedInProfile(
+            user_id=user.id,
+            linkedin_url="",
+            handle="",
+            import_source=source_type,
+            imported_at=now_dt,
+            raw_data=raw_extracted,
+        )
+        db.add(rec)
+        db.commit()
+
+    unified_record = recompute_unified_profile(db, user.id)
+
+    counts = {
+        "positions": len(rec.raw_data.get("positions") or []),
+        "education": len(rec.raw_data.get("education") or []),
+        "skills": len(rec.raw_data.get("skills") or []),
+        "certifications": len(rec.raw_data.get("certifications") or []),
+        "languages": len(rec.raw_data.get("languages") or []),
+        "projects": len(rec.raw_data.get("projects") or []),
+    }
+
+    return {
+        "status": "success",
+        "message": "LinkedIn data export imported and unified successfully.",
+        "import_source": source_type,
+        "extracted_counts": counts,
+        "conflicts": unified_record.conflicts,
+        "version_hash": unified_record.version_hash,
+    }
+
+
+@app.post("/api/v1/profile/linkedin/upload-pdf", tags=["profile"])
+async def upload_linkedin_pdf(
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Upload a LinkedIn 'Save to PDF' profile document."""
+    from .services.profile_fusion import parse_linkedin_pdf, recompute_unified_profile
+    from .models import UserLinkedInProfile
+    from .services.clock import get_clock
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+
+    try:
+        raw_extracted = parse_linkedin_pdf(content)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Failed to parse LinkedIn PDF: {exc}")
+
+    rec = db.scalar(select(UserLinkedInProfile).where(UserLinkedInProfile.user_id == user.id))
+    clock = get_clock()
+    now_dt = clock.now()
+
+    if rec:
+        rec.import_source = "pdf"
+        rec.imported_at = now_dt
+        rec.raw_data = raw_extracted
+        db.commit()
+    else:
+        rec = UserLinkedInProfile(
+            user_id=user.id,
+            linkedin_url="",
+            handle="",
+            import_source="pdf",
+            imported_at=now_dt,
+            raw_data=raw_extracted,
+        )
+        db.add(rec)
+        db.commit()
+
+    unified_record = recompute_unified_profile(db, user.id)
+
+    counts = {
+        "positions": len(raw_extracted.get("positions") or []),
+        "education": len(raw_extracted.get("education") or []),
+        "skills": len(raw_extracted.get("skills") or []),
+        "languages": len(raw_extracted.get("languages") or []),
+    }
+
+    return {
+        "status": "success",
+        "message": "LinkedIn PDF profile imported and unified successfully.",
+        "import_source": "pdf",
+        "extracted_counts": counts,
+        "conflicts": unified_record.conflicts,
+        "version_hash": unified_record.version_hash,
+    }
+
+
+@app.post("/api/v1/profile/linkedin/fetch-live", tags=["profile"])
+def fetch_live_linkedin_profile():
+    """Explicit refusal for anonymous server-side scraping to protect user accounts."""
+    raise HTTPException(
+        status_code=400,
+        detail=(
+            "Direct server-side scraping of LinkedIn profiles is prohibited by Compust policy "
+            "to prevent account bans, honeypot blocks, and auth walls. Please use the zero-ban-risk "
+            "official LinkedIn data export (Path A) or 'Save to PDF' import (Path B)."
+        ),
+    )
+
+
+@app.post("/api/v1/profile/linkedin/extension-capture", tags=["profile"])
+def capture_linkedin_via_extension(
+    payload: dict = Body(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Extension-assisted capture of user's own profile page (gated behind build flag)."""
+    if not LINKEDIN_EXTENSION_IMPORT_ENABLED:
+        raise HTTPException(
+            status_code=403,
+            detail="Extension profile capture is disabled by default. Enable COMPUST_ENABLE_LINKEDIN_EXTENSION=true to activate.",
+        )
+    from .services.profile_fusion import recompute_unified_profile
+    from .models import UserLinkedInProfile
+    from .services.clock import get_clock
+
+    rec = db.scalar(select(UserLinkedInProfile).where(UserLinkedInProfile.user_id == user.id))
+    clock = get_clock()
+    now_dt = clock.now()
+    if rec:
+        rec.import_source = "extension"
+        rec.imported_at = now_dt
+        rec.raw_data = payload
+        db.commit()
+    else:
+        rec = UserLinkedInProfile(
+            user_id=user.id,
+            linkedin_url="",
+            handle="",
+            import_source="extension",
+            imported_at=now_dt,
+            raw_data=payload,
+        )
+        db.add(rec)
+        db.commit()
+
+    recompute_unified_profile(db, user.id)
+    return {"status": "ok", "message": "Captured profile from extension successfully."}
+
+
+@app.delete("/api/v1/profile/linkedin", tags=["profile"])
+def delete_user_linkedin_data(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Completely remove user's LinkedIn profile data and revert matching to resume-only."""
+    from .services.profile_fusion import delete_linkedin_profile
+    deleted = delete_linkedin_profile(db, user.id)
+    return {
+        "status": "success",
+        "deleted": deleted,
+        "message": "LinkedIn data removed successfully. Profile reverted to resume-only.",
+    }
+
+
+@app.get("/api/v1/profile/unified", response_model=UnifiedProfileResponse, tags=["profile"])
+def get_user_unified_profile(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> UnifiedProfileResponse:
+    """Return the canonical, deduplicated Unified Profile with full provenance and conflicts."""
+    from .models import UserUnifiedProfile
+    from .services.profile_fusion import recompute_unified_profile
+
+    rec = db.scalar(select(UserUnifiedProfile).where(UserUnifiedProfile.user_id == user.id))
+    if not rec or not rec.unified_data:
+        rec = recompute_unified_profile(db, user.id)
+
+    u = rec.unified_data or {}
+    return UnifiedProfileResponse(
+        version_hash=rec.version_hash or "",
+        use_linkedin_in_matching=rec.use_linkedin_in_matching,
+        updated_at=rec.updated_at.isoformat(),
+        contact=u.get("contact") or {},
+        skills=u.get("skills") or [],
+        experience=u.get("experience") or [],
+        education=u.get("education") or [],
+        certifications=u.get("certifications") or [],
+        languages=u.get("languages") or [],
+        projects=u.get("projects") or [],
+        honors=u.get("honors") or [],
+        courses=u.get("courses") or [],
+        conflicts=rec.conflicts or [],
+        user_overrides=rec.user_overrides or {},
+    )
+
+
+@app.post("/api/v1/profile/unified/overrides", response_model=UnifiedProfileResponse, tags=["profile"])
+def update_unified_profile_overrides(
+    req: UnifiedProfileOverridesRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> UnifiedProfileResponse:
+    """Update user overrides (pinned, hidden skills) on the unified profile."""
+    from .models import UserUnifiedProfile
+    from .services.profile_fusion import recompute_unified_profile
+
+    rec = db.scalar(select(UserUnifiedProfile).where(UserUnifiedProfile.user_id == user.id))
+    if not rec:
+        rec = recompute_unified_profile(db, user.id)
+
+    rec.user_overrides = {
+        "pinned_skills": req.pinned_skills,
+        "hidden_skills": req.hidden_skills,
+    }
+    db.commit()
+    recompute_unified_profile(db, user.id)
+    return get_user_unified_profile(user=user, db=db)
+
+
+@app.post("/api/v1/profile/unified/toggle-matching", response_model=UnifiedProfileResponse, tags=["profile"])
+def toggle_unified_matching(
+    req: UnifiedToggleMatchingRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> UnifiedProfileResponse:
+    """Toggle whether LinkedIn data is included in job matching and gap analysis."""
+    from .models import UserUnifiedProfile
+    from .services.profile_fusion import recompute_unified_profile
+
+    rec = db.scalar(select(UserUnifiedProfile).where(UserUnifiedProfile.user_id == user.id))
+    if not rec:
+        rec = recompute_unified_profile(db, user.id)
+
+    rec.use_linkedin_in_matching = req.enabled
+    db.commit()
+    recompute_unified_profile(db, user.id)
+    return get_user_unified_profile(user=user, db=db)
+
+
 
 
 # Standalone Frontend Production Mount & Global Fallback
@@ -3554,7 +4189,7 @@ async def serve_spa_frontend(request: Request, full_path: str):
         mode=app_mode,
         logs_path=logs_file,
         db_status="ok",
-        version="1.0.2",
+        version="1.0.3",
     )
     return HTMLResponse(content=html_content, status_code=200)
 

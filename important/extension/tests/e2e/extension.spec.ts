@@ -291,6 +291,10 @@ test.describe('Compust Capture Extension E2E Tests', () => {
     await context.route('**/api/v1/jobs/quick-add-and-analyze', async (route) => {
       await route.abort('connectionrefused');
     });
+    await context.route('**/api/v1/jobs/analyze-ephemeral', async (route) => {
+      await route.abort('connectionrefused');
+    });
+
 
     const page = await context.newPage();
     await page.goto('https://www.linkedin.com/jobs/view/9876543210/');

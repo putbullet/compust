@@ -382,17 +382,44 @@ class GitHubInternshipsService:
         return response
 
     def _fetch_repo_content(self, config: dict[str, str]) -> str:
-        """Fetch raw content from GitHub raw URL with timeout and fallback."""
+        """Fetch raw content from GitHub raw URL with conditional ETag headers and fallback."""
         url = config["raw_url"]
         logger.info("Fetching repo content: %s", url)
+
+        etags_file = get_storage_dir() / "github_internships_etags.json"
+        etags: dict[str, str] = {}
+        if etags_file.exists():
+            try:
+                etags = json.loads(etags_file.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+
+        headers = {"User-Agent": "Compust-CareerEngine/2.0"}
+        cached_etag = etags.get(url)
+        if cached_etag:
+            headers["If-None-Match"] = cached_etag
+
         try:
             with httpx.Client(timeout=15.0, follow_redirects=True) as client:
-                resp = client.get(url, headers={"User-Agent": "Compust-CareerEngine/2.0"})
+                resp = client.get(url, headers=headers)
+                if resp.status_code == 304:
+                    logger.info("Repo content not modified (304): %s", url)
+                    scratch_path = self._get_scratch_path(config["id"])
+                    if scratch_path and os.path.exists(scratch_path):
+                        with open(scratch_path, "r", encoding="utf-8") as f:
+                            return f.read()
+                    return ""
                 resp.raise_for_status()
+                new_etag = resp.headers.get("etag")
+                if new_etag:
+                    etags[url] = new_etag
+                    try:
+                        etags_file.write_text(json.dumps(etags, indent=2), encoding="utf-8")
+                    except Exception:
+                        pass
                 return resp.text
         except Exception as err:
             logger.warning("Live fetch failed for %s (%s). Attempting local scratch fallback.", url, err)
-            # Try to read from local scratch if available
             scratch_path = self._get_scratch_path(config["id"])
             if scratch_path and os.path.exists(scratch_path):
                 with open(scratch_path, "r", encoding="utf-8") as f:

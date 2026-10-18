@@ -45,34 +45,33 @@ export const AIAssistantWidget: React.FC<{ onOpenSettings?: () => void }> = ({ o
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Check runtime status periodically when open
-    if (isOpen) {
-      api.getAIStatus().then(setAiStatus).catch(() => setAiStatus(null));
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    const handleProviderChange = () => {
+    const fetchStatus = () => {
       api.getAIStatus().then(setAiStatus).catch(() => setAiStatus(null));
     };
-    window.addEventListener('compust-ai-provider-changed', handleProviderChange);
-    return () => window.removeEventListener('compust-ai-provider-changed', handleProviderChange);
-  }, []);
 
-  const handleToggleProvider = async (target: 'ollama' | 'gemini') => {
-    if (aiStatus?.active_provider === target) return;
-    if (target === 'gemini' && (!aiStatus?.consent_granted || !aiStatus?.gemini_key_configured)) {
-      if (onOpenSettings) onOpenSettings();
-      return;
+    if (isOpen) {
+      fetchStatus();
     }
+
+    window.addEventListener('compust-ai-provider-changed', fetchStatus);
+    window.addEventListener('focus', fetchStatus);
+
+    let bc: BroadcastChannel | null = null;
     try {
-      const updated = await api.setAISettings({ active_provider: target });
-      setAiStatus(updated);
-      window.dispatchEvent(new CustomEvent('compust-ai-provider-changed'));
-    } catch (err) {
-      console.error('Failed to toggle provider:', err);
+      bc = new BroadcastChannel('compust-ai-sync');
+      bc.onmessage = () => {
+        fetchStatus();
+      };
+    } catch (e) {
+      // ignore
     }
-  };
+
+    return () => {
+      window.removeEventListener('compust-ai-provider-changed', fetchStatus);
+      window.removeEventListener('focus', fetchStatus);
+      if (bc) bc.close();
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -118,7 +117,22 @@ export const AIAssistantWidget: React.FC<{ onOpenSettings?: () => void }> = ({ o
     }
   };
 
+  const activeProvider = aiStatus?.active_provider || 'ollama';
+  const activeModel =
+    aiStatus?.selected_model ||
+    (activeProvider === 'gemini'
+      ? aiStatus?.gemini_model || 'gemini-2.5-flash'
+      : activeProvider === 'openai'
+      ? aiStatus?.openai_model || 'gpt-4o-mini'
+      : 'qwen3.5:0.8b');
   const isConnected = aiStatus?.status === 'connected';
+  const providerDisplay = isConnected
+    ? activeProvider === 'gemini'
+      ? `Google Gemini · ${activeModel}`
+      : activeProvider === 'openai'
+      ? `OpenAI · ${activeModel}`
+      : `Ollama Local · ${activeModel}`
+    : `Deterministic (${activeProvider})`;
 
   return (
     <WidgetWrapper>
@@ -135,41 +149,31 @@ export const AIAssistantWidget: React.FC<{ onOpenSettings?: () => void }> = ({ o
                     className={`status-pill ${isConnected ? 'online' : 'offline'}`}
                     onClick={onOpenSettings}
                     title="Click to view AI Settings"
+                    role="button"
+                    tabIndex={0}
                   >
                     <span className="dot" />
-                    <span>
-                      {isConnected
-                        ? aiStatus?.active_provider === 'gemini'
-                          ? 'Gemini Cloud'
-                          : 'Ollama Local'
-                        : 'Deterministic'}
-                    </span>
+                    <span>{providerDisplay}</span>
                   </span>
                 </div>
               </div>
             </div>
 
             <div className="header-actions">
-              <div className="provider-pill-toggle">
+              {onOpenSettings && (
                 <button
                   type="button"
-                  className={`pill-btn ${aiStatus?.active_provider === 'ollama' ? 'active' : ''}`}
-                  onClick={() => handleToggleProvider('ollama')}
-                  title="Switch to Local Ollama"
+                  className="settings-icon-btn"
+                  onClick={onOpenSettings}
+                  title="Open AI Provider & Runtime Settings"
+                  aria-label="Open AI Settings"
                 >
-                  Local
+                  <Bot size={13} />
+                  <span>Settings</span>
                 </button>
-                <button
-                  type="button"
-                  className={`pill-btn ${aiStatus?.active_provider === 'gemini' ? 'active' : ''}`}
-                  onClick={() => handleToggleProvider('gemini')}
-                  title="Switch to Google Gemini (Cloud)"
-                >
-                  Gemini
-                </button>
-              </div>
+              )}
 
-              <button className="minimize-btn" onClick={() => setIsOpen(false)} title="Minimize assistant">
+              <button className="minimize-btn" onClick={() => setIsOpen(false)} title="Minimize assistant" aria-label="Minimize assistant">
                 <ChevronDown size={18} />
               </button>
             </div>
@@ -190,6 +194,8 @@ export const AIAssistantWidget: React.FC<{ onOpenSettings?: () => void }> = ({ o
                       <span className="provider-tag">
                         {msg.provider.toLowerCase().includes('gemini')
                           ? 'Analyzed with Google Gemini (cloud)'
+                          : msg.provider.toLowerCase().includes('openai')
+                          ? 'Analyzed with OpenAI (cloud)'
                           : msg.provider.toLowerCase().includes('ollama')
                           ? 'Analyzed with Ollama (local)'
                           : `Analyzed with ${msg.provider}`}
@@ -389,33 +395,24 @@ const ChatCard = styled.div`
       gap: 8px;
     }
 
-    .provider-pill-toggle {
-      display: flex;
-      background: rgba(0, 0, 0, 0.4);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 12px;
-      padding: 2px;
-      gap: 2px;
+    .settings-icon-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #94a3b8;
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
 
-      .pill-btn {
-        background: none;
-        border: none;
-        color: #94a3b8;
-        font-size: 0.65rem;
-        font-weight: 600;
-        padding: 2px 7px;
-        border-radius: 10px;
-        cursor: pointer;
-        transition: all 0.2s;
-
-        &:hover {
-          color: #ffffff;
-        }
-
-        &.active {
-          background: #2563eb;
-          color: #ffffff;
-        }
+      &:hover {
+        background: rgba(59, 130, 246, 0.18);
+        border-color: #3b82f6;
+        color: #60a5fa;
       }
     }
 

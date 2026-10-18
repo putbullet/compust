@@ -1,8 +1,15 @@
 from unittest.mock import patch
+import pytest
 from fastapi.testclient import TestClient
 import httpx
 
 from src.app.services.ai_service import check_ollama_runtime, get_providers_list, set_selected_model
+
+
+@pytest.fixture(autouse=True)
+def force_ollama_config():
+    with patch("src.app.services.ai_gateway.load_ai_config", return_value={"active_provider": "ollama", "selected_model": "custom-model:latest", "gemini_model": "gemini-2.5-flash", "gemini_consent_given": False}):
+        yield
 
 
 def test_ai_status_when_ollama_connected(client: TestClient) -> None:
@@ -73,12 +80,10 @@ def test_ai_providers_list(client: TestClient) -> None:
     assert p_ids["ollama"]["enabled"] is True
 
     assert "openai" in p_ids
-    assert p_ids["openai"]["enabled"] is False
-    assert p_ids["openai"]["status"] == "coming_soon"
+    assert p_ids["openai"]["enabled"] is True
 
-    assert "anthropic" in p_ids
-    assert p_ids["anthropic"]["enabled"] is False
-    assert p_ids["anthropic"]["status"] == "coming_soon"
+    assert "gemini" in p_ids
+    assert p_ids["gemini"]["enabled"] is True
 
 
 def test_ai_settings_model_selection(client: TestClient) -> None:

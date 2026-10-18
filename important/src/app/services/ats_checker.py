@@ -621,8 +621,9 @@ def evaluate_resume_ats(
 ) -> ATSCheckResult:
     """Evaluates a resume for ATS compliance.
 
-    Attempts local Ollama evaluation first, falling back cleanly to the
-    deterministic engine if Ollama is offline, times out, or errors.
+    Routes the LLM call through the active AI provider (Ollama / Gemini / OpenAI)
+    via the unified gateway, then falls back to the deterministic engine if the
+    provider is unavailable or returns malformed output.
     """
     if not resume_text or len(resume_text.strip()) < 20:
         # Trivial or empty resume -> deterministic fast fail
@@ -643,14 +644,14 @@ def evaluate_resume_ats(
             job_description=job_description,
         )
 
-    # Prepare prompt for Ollama
+    # Prepare prompt for active AI provider
     role_ctx = f"Target Role: {role}\n" if role else ""
     field_ctx = f"Target Industry/Field: {field}\n" if field else ""
     jd_ctx = f"\n--- Target Job Description ---\n{job_description[:1500]}\n" if job_description else ""
 
     active_prov = get_active_provider()
     payload_text = resume_text[:4000]
-    if active_prov == AIProviderType.GEMINI:
+    if active_prov in (AIProviderType.GEMINI, AIProviderType.OPENAI):
         payload_text = redact_personal_identifiers(payload_text)
 
     user_prompt = f"""Evaluate this candidate resume for ATS compatibility and alignment.
@@ -708,7 +709,8 @@ Provide the comprehensive JSON ATS audit strictly conforming to the requested sc
 
     except (OllamaError, json.JSONDecodeError, Exception) as exc:
         logger.warning(
-            "Ollama ATS evaluation unavailable or failed (%s). Falling back to deterministic engine.",
+            "AI (%s) ATS evaluation unavailable or failed (%s). Falling back to deterministic engine.",
+            get_active_provider().value if hasattr(get_active_provider, '__call__') else 'unknown',
             exc,
         )
         fallback_result = calculate_deterministic_ats_score(

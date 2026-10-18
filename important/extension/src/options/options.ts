@@ -50,25 +50,50 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (btnDiscover && instancesListEl) {
     btnDiscover.addEventListener('click', async () => {
       instancesListEl.classList.remove('hidden');
-      instancesListEl.innerHTML = '<p style="color: #94a3b8; margin: 4px 0;">Probing ports 8000–8010 for active Compust instances...</p>';
+      while (instancesListEl.firstChild) instancesListEl.removeChild(instancesListEl.firstChild);
+
+      const probeMsg = document.createElement('p');
+      probeMsg.style.cssText = 'color: #94a3b8; margin: 4px 0;';
+      probeMsg.textContent = 'Probing ports 8000–8010 for active Compust instances...';
+      instancesListEl.appendChild(probeMsg);
 
       try {
         const res = await browserAPI.runtime.sendMessage({ type: 'DISCOVER_INSTANCES' });
         const instances: any[] = res.instances || [];
 
+        while (instancesListEl.firstChild) instancesListEl.removeChild(instancesListEl.firstChild);
+
         if (instances.length === 0) {
-          instancesListEl.innerHTML = '<p style="color: #f87171; margin: 4px 0;">No active Compust instances found on ports 8000–8010.</p>';
+          const noInst = document.createElement('p');
+          noInst.style.cssText = 'color: #f87171; margin: 4px 0;';
+          noInst.textContent = 'No active Compust instances found on ports 8000–8010.';
+          instancesListEl.appendChild(noInst);
           return;
         }
 
-        instancesListEl.innerHTML = `<p style="font-weight: 600; color: #38bdf8; margin: 4px 0 8px 0;">Found ${instances.length} active Compust instance(s):</p>`;
+        const foundMsg = document.createElement('p');
+        foundMsg.style.cssText = 'font-weight: 600; color: #38bdf8; margin: 4px 0 8px 0;';
+        foundMsg.textContent = `Found ${instances.length} active Compust instance(s):`;
+        instancesListEl.appendChild(foundMsg);
 
         instances.forEach((inst) => {
           const item = document.createElement('div');
           item.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; margin-bottom: 6px; background: rgba(15, 23, 42, 0.6); border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); font-size: 0.85rem;';
 
           const info = document.createElement('div');
-          info.innerHTML = `<strong>${inst.url}</strong> <span style="color: #a78bfa; margin-left: 6px;">[${inst.mode.toUpperCase()}]</span> <span style="color: #64748b; margin-left: 6px;">v${inst.version} (PID ${inst.pid || '?'})</span>`;
+          const strong = document.createElement('strong');
+          strong.textContent = inst.url;
+          info.appendChild(strong);
+
+          const modeSpan = document.createElement('span');
+          modeSpan.style.cssText = 'color: #a78bfa; margin-left: 6px;';
+          modeSpan.textContent = `[${String(inst.mode || '').toUpperCase()}]`;
+          info.appendChild(modeSpan);
+
+          const verSpan = document.createElement('span');
+          verSpan.style.cssText = 'color: #64748b; margin-left: 6px;';
+          verSpan.textContent = `v${inst.version || ''} (PID ${inst.pid || '?'})`;
+          info.appendChild(verSpan);
 
           const selectBtn = document.createElement('button');
           selectBtn.className = 'btn btn-secondary';
@@ -101,7 +126,11 @@ document.addEventListener('DOMContentLoaded', async () => {
           setTimeout(() => saveFeedbackEl.classList.add('hidden'), 3000);
         }
       } catch (err: any) {
-        instancesListEl.innerHTML = `<p style="color: #f87171; margin: 4px 0;">Discovery failed: ${err.message}</p>`;
+        while (instancesListEl.firstChild) instancesListEl.removeChild(instancesListEl.firstChild);
+        const errP = document.createElement('p');
+        errP.style.cssText = 'color: #f87171; margin: 4px 0;';
+        errP.textContent = `Discovery failed: ${err.message || String(err)}`;
+        instancesListEl.appendChild(errP);
       }
     });
   }

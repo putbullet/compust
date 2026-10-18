@@ -696,12 +696,118 @@ export interface AuthResponse {
   user: UserProfile;
 }
 
+export interface LinkedInProfileStatus {
+  linkedin_url?: string | null;
+  handle?: string | null;
+  status: 'not_imported' | 'imported' | 'needs_refresh';
+  import_source?: string | null;
+  imported_at?: string | null;
+  days_since_import?: number | null;
+  extracted_counts: Record<string, number>;
+}
+
+export interface UnifiedProfileSkillItem {
+  name: string;
+  canonical_name: string;
+  category?: string;
+  proficiency?: string;
+  provenances: Array<{ source: string; source_ref?: string; confidence?: number }>;
+  pinned?: boolean;
+  hidden?: boolean;
+}
+
+export interface UnifiedProfileExperienceItem {
+  id: string;
+  company: string;
+  title: string;
+  canonical_company?: string;
+  start_date?: string;
+  end_date?: string;
+  description?: string;
+  highlights?: string[];
+  location?: string;
+  provenances: Array<{ source: string; source_ref?: string }>;
+  pinned?: boolean;
+  hidden?: boolean;
+}
+
+export interface UnifiedProfileEducationItem {
+  id: string;
+  institution: string;
+  degree?: string;
+  field?: string;
+  start_date?: string;
+  end_date?: string;
+  provenances: Array<{ source: string; source_ref?: string }>;
+}
+
+export interface UnifiedProfileCertificationItem {
+  id: string;
+  name: string;
+  issuer?: string;
+  issue_date?: string;
+  credential_url?: string;
+  credential_id?: string;
+  provenances: Array<{ source: string; source_ref?: string }>;
+}
+
+export interface UnifiedProfileLanguageItem {
+  language: string;
+  proficiency?: string;
+  provenances: Array<{ source: string; source_ref?: string }>;
+}
+
+export interface UnifiedProfileProjectItem {
+  id: string;
+  name: string;
+  description?: string;
+  technologies?: string[];
+  provenances: Array<{ source: string; source_ref?: string }>;
+}
+
+export interface UnifiedProfileConflictItem {
+  type: string;
+  entity?: string;
+  resume_value?: string;
+  linkedin_value?: string;
+  description: string;
+}
+
+export interface UnifiedProfileData {
+  version_hash: string;
+  use_linkedin_in_matching: boolean;
+  updated_at: string;
+  contact: {
+    full_name?: string;
+    email?: string;
+    phone?: string;
+    location?: string;
+    headline?: string;
+    summary?: string;
+    provenance?: any;
+  };
+  skills: UnifiedProfileSkillItem[];
+  experience: UnifiedProfileExperienceItem[];
+  education: UnifiedProfileEducationItem[];
+  certifications: UnifiedProfileCertificationItem[];
+  languages: UnifiedProfileLanguageItem[];
+  projects: UnifiedProfileProjectItem[];
+  honors?: any[];
+  courses?: any[];
+  conflicts: UnifiedProfileConflictItem[];
+  user_overrides: {
+    pinned_skills?: string[];
+    hidden_skills?: string[];
+  };
+}
+
 export interface SyncResponse {
   jobs_found: number;
   jobs_added: number;
   jobs_updated: number;
   parser_errors: string[];
 }
+
 
 // Token helper
 export const getStoredToken = (): string | null => localStorage.getItem('compust_token');
@@ -1206,6 +1312,8 @@ export const api = {
   setAISettings: (settings: string | {
     selected_model?: string;
     active_provider?: string;
+    gemini_model?: string;
+    openai_model?: string;
     consent_granted?: boolean;
     fallback_policy?: string;
   }) => {
@@ -1226,6 +1334,17 @@ export const api = {
 
   removeGeminiKey: () =>
     request<{ status: string }>('/ai/gemini/key', {
+      method: 'DELETE',
+    }),
+
+  saveOpenAIKey: (apiKey: string) =>
+    request<{ status: string; masked: string }>('/ai/openai/key', {
+      method: 'POST',
+      body: JSON.stringify({ api_key: apiKey }),
+    }),
+
+  removeOpenAIKey: () =>
+    request<{ status: string }>('/ai/openai/key', {
       method: 'DELETE',
     }),
 
@@ -1282,7 +1401,69 @@ export const api = {
       method: 'DELETE',
     }),
 
+  // LinkedIn & Unified Profile (Section 3)
+  getLinkedInStatus: () => request<LinkedInProfileStatus>('/profile/linkedin'),
+  updateLinkedInUrl: (url: string) =>
+    request<LinkedInProfileStatus>('/profile/linkedin/url', {
+      method: 'POST',
+      body: JSON.stringify({ url }),
+    }),
+  uploadLinkedInExport: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const token = getStoredToken();
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    const res = await fetch(`${API_BASE_URL}/profile/linkedin/upload-export`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || 'Failed to upload LinkedIn export');
+    }
+    return res.json();
+  },
+  uploadLinkedInPdf: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const token = getStoredToken();
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    const res = await fetch(`${API_BASE_URL}/profile/linkedin/upload-pdf`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || 'Failed to upload LinkedIn PDF');
+    }
+    return res.json();
+  },
+  deleteLinkedInData: () =>
+    request<{ status: string; deleted: boolean; message: string }>('/profile/linkedin', {
+      method: 'DELETE',
+    }),
+  getUnifiedProfile: () => request<UnifiedProfileData>('/profile/unified'),
+  updateUnifiedOverrides: (overrides: { pinned_skills: string[]; hidden_skills: string[] }) =>
+    request<UnifiedProfileData>('/profile/unified/overrides', {
+      method: 'POST',
+      body: JSON.stringify(overrides),
+    }),
+  toggleUnifiedMatching: (enabled: boolean) =>
+    request<UnifiedProfileData>('/profile/unified/toggle-matching', {
+      method: 'POST',
+      body: JSON.stringify({ enabled }),
+    }),
+
   // Phase 20 — Resume Customization Suggestions
+
   getResumeSuggestions: (jobId: number) =>
     request<ResumeSuggestion>(`/jobs/${jobId}/resume-suggestions`, {
       method: 'POST',
@@ -1524,6 +1705,89 @@ export const api = {
     request<GitHubInternshipsResponse>('/internships/github-repos/sync', {
       method: 'POST',
     }),
+
+  // Central Time Service & Auto-Sync Scheduler
+  getSchedulerStatus: () =>
+    request<{
+      enabled: boolean;
+      days_of_week: number[];
+      preferred_hour: number;
+      preferred_minute: number;
+      max_days_safety_net: number;
+      timezone: string;
+      current_local_time: string;
+      current_utc_time: string;
+      stale_job_missed_runs: number;
+      stale_job_max_age_days: number;
+      next_due_at: string | null;
+      is_due: boolean;
+      due_reason: string | null;
+      last_opened_at: string | null;
+      last_closed_at: string | null;
+      companies_scrape: {
+        last_success_at: string | null;
+        last_attempt_at: string | null;
+        last_status: string;
+        next_due_at: string | null;
+        consecutive_failures: number;
+        last_jobs_new: number;
+        last_jobs_updated: number;
+        last_jobs_retired: number;
+        last_error: string | null;
+      };
+      internships_sync: {
+        last_success_at: string | null;
+        last_attempt_at: string | null;
+        last_status: string;
+        next_due_at: string | null;
+        consecutive_failures: number;
+      };
+      recent_history: Array<{
+        id: string;
+        started_at: string;
+        finished_at: string;
+        trigger: string;
+        status: string;
+        companies_scraped: number;
+        jobs_new: number;
+        jobs_updated: number;
+        jobs_retired: number;
+        internships_synced: number;
+        error: string | null;
+      }>;
+    }>('/scheduler/status'),
+
+  updateSchedulerSettings: (data: {
+    enabled?: boolean;
+    days_of_week?: number[];
+    preferred_hour?: number;
+    preferred_minute?: number;
+    max_days_safety_net?: number;
+    timezone?: string;
+    stale_job_missed_runs?: number;
+    stale_job_max_age_days?: number;
+  }) =>
+    request<any>('/scheduler/settings', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  triggerSchedulerSync: () =>
+    request<{
+      success: boolean;
+      companies_scraped: number;
+      jobs_new: number;
+      jobs_updated: number;
+      jobs_retired: number;
+      internships_synced: number;
+      errors: string[];
+    }>('/scheduler/sync-now', {
+      method: 'POST',
+    }),
+
+  getSchedulerHistory: () =>
+    request<{ history: any[] }>('/scheduler/history'),
+
 
   // Job-Specific Resume & Career Assistant
   analyzeJobTarget: (resumeId: number, input: ExternalJobInput) =>
@@ -1799,8 +2063,15 @@ export interface AIStatus {
   consent_granted?: boolean;
   gemini_key_configured?: boolean;
   gemini_key_masked?: string | null;
+  gemini_model?: string | null;
+  openai_key_configured?: boolean;
+  openai_key_masked?: string | null;
+  openai_model?: string | null;
   fallback_policy?: string;
   available_providers?: AIProvider[];
+  ollama?: Record<string, any> | null;
+  gemini?: Record<string, any> | null;
+  openai?: Record<string, any> | null;
 }
 
 export interface AIProvider {
@@ -2174,6 +2445,7 @@ export interface ApplicationMaterial {
   language: string;
   generated: boolean;
   error: string;
+  retry_after_seconds?: number | null;
 }
 
 export type InterviewQuestionType = 'behavioral' | 'technical' | 'domain' | 'qualification_gap';

@@ -249,14 +249,82 @@ export class CompustOverlay {
     style.textContent = `
       :host {
         all: initial;
+        --cp-bg-main: #0b1120;
+        --cp-bg-surface: #0f172a;
+        --cp-bg-card: #17223b;
+        --cp-bg-elevated: #1e293b;
+        --cp-border: rgba(255, 255, 255, 0.08);
+        --cp-border-subtle: rgba(255, 255, 255, 0.05);
+        --cp-text-primary: #f8fafc;
+        --cp-text-secondary: #94a3b8;
+        --cp-text-muted: #64748b;
+        --cp-accent-primary: #3b82f6;
+        --cp-accent-hover: #2563eb;
+        --cp-accent-gradient: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+        --cp-applied-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        --cp-success: #22c55e;
+        --cp-success-bg: rgba(34, 197, 94, 0.12);
+        --cp-success-border: rgba(34, 197, 94, 0.25);
+        --cp-success-text: #86efac;
+        --cp-danger: #ef4444;
+        --cp-danger-bg: rgba(239, 68, 68, 0.12);
+        --cp-danger-border: rgba(239, 68, 68, 0.25);
+        --cp-danger-text: #fca5a5;
+        --cp-warning: #f59e0b;
+        --cp-warning-bg: rgba(245, 158, 11, 0.12);
+        --cp-warning-border: rgba(245, 158, 11, 0.25);
+        --cp-warning-text: #fcd34d;
+        --cp-radius-sm: 6px;
+        --cp-radius-md: 8px;
+        --cp-radius-lg: 12px;
+        --cp-radius-pill: 9999px;
+        --cp-shadow: -8px 0 32px rgba(0, 0, 0, 0.45);
+        --cp-focus-ring: #60a5fa;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-        font-size: 14px;
-        line-height: 1.4;
-        color: #1e293b;
+        font-size: 13px;
+        line-height: 1.45;
+        color: var(--cp-text-primary);
+      }
+
+      @media (prefers-color-scheme: light) {
+        :host {
+          --cp-bg-main: #f8fafc;
+          --cp-bg-surface: #ffffff;
+          --cp-bg-card: #f1f5f9;
+          --cp-bg-elevated: #e2e8f0;
+          --cp-border: rgba(15, 23, 42, 0.12);
+          --cp-border-subtle: rgba(15, 23, 42, 0.06);
+          --cp-text-primary: #0f172a;
+          --cp-text-secondary: #475569;
+          --cp-text-muted: #64748b;
+          --cp-accent-primary: #2563eb;
+          --cp-accent-hover: #1d4ed8;
+          --cp-accent-gradient: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+          --cp-applied-gradient: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+          --cp-success: #16a34a;
+          --cp-success-bg: rgba(22, 163, 74, 0.1);
+          --cp-success-border: rgba(22, 163, 74, 0.25);
+          --cp-success-text: #15803d;
+          --cp-danger: #dc2626;
+          --cp-danger-bg: rgba(220, 38, 38, 0.08);
+          --cp-danger-border: rgba(220, 38, 38, 0.25);
+          --cp-danger-text: #b91c1c;
+          --cp-warning: #d97706;
+          --cp-warning-bg: rgba(217, 119, 6, 0.1);
+          --cp-warning-border: rgba(217, 119, 6, 0.25);
+          --cp-warning-text: #b45309;
+          --cp-shadow: -8px 0 28px rgba(0, 0, 0, 0.15);
+          --cp-focus-ring: #2563eb;
+        }
       }
 
       * {
         box-sizing: border-box;
+      }
+
+      :focus-visible {
+        outline: 2px solid var(--cp-focus-ring);
+        outline-offset: 2px;
       }
 
       .compust-fab {
@@ -267,22 +335,22 @@ export class CompustOverlay {
         display: flex;
         align-items: center;
         gap: 8px;
-        padding: 10px 16px;
-        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-        color: white;
+        padding: 10px 18px;
+        background: var(--cp-accent-gradient);
+        color: #ffffff;
         border: none;
-        border-radius: 50px;
+        border-radius: var(--cp-radius-pill);
         cursor: pointer;
         font-size: 13px;
         font-weight: 600;
-        box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
-        transition: transform 0.2s, box-shadow 0.2s;
+        box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4);
+        transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         white-space: nowrap;
       }
 
       .compust-fab:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 24px rgba(99, 102, 241, 0.5);
+        box-shadow: 0 6px 24px rgba(59, 130, 246, 0.55);
       }
 
       .compust-fab svg {
@@ -295,25 +363,26 @@ export class CompustOverlay {
         position: fixed;
         top: 0;
         right: 0;
-        width: 360px;
-        height: 100vh;
-        background: #0f172a;
-        border-left: 1px solid rgba(255, 255, 255, 0.08);
+        width: min(380px, 100vw);
+        height: 100dvh;
+        max-height: 100vh;
+        background: var(--cp-bg-surface);
+        border-left: 1px solid var(--cp-border);
         z-index: 2147483647;
         display: flex;
         flex-direction: column;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         overflow: hidden;
-        box-shadow: -8px 0 32px rgba(0, 0, 0, 0.4);
+        box-shadow: var(--cp-shadow);
       }
 
       .compust-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 14px 16px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-        background: rgba(15, 23, 42, 0.95);
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--cp-border);
+        background: var(--cp-bg-surface);
         flex-shrink: 0;
       }
 
@@ -321,25 +390,28 @@ export class CompustOverlay {
         display: flex;
         align-items: center;
         gap: 8px;
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 700;
-        color: #f8fafc;
+        color: var(--cp-text-primary);
         letter-spacing: -0.01em;
       }
 
       .compust-close-btn {
         background: none;
         border: none;
-        color: #64748b;
+        color: var(--cp-text-muted);
         cursor: pointer;
         font-size: 16px;
         padding: 4px 8px;
-        border-radius: 4px;
-        transition: color 0.2s, background 0.2s;
+        border-radius: var(--cp-radius-sm);
+        transition: color 0.15s, background 0.15s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
 
       .compust-close-btn:hover {
-        color: #f8fafc;
+        color: var(--cp-text-primary);
         background: rgba(255, 255, 255, 0.08);
       }
 
@@ -348,11 +420,11 @@ export class CompustOverlay {
         overflow-y: auto;
         padding: 0;
         scrollbar-width: thin;
-        scrollbar-color: rgba(255,255,255,0.1) transparent;
+        scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
       }
 
       .compust-body::-webkit-scrollbar {
-        width: 4px;
+        width: 5px;
       }
 
       .compust-body::-webkit-scrollbar-track {
@@ -360,15 +432,19 @@ export class CompustOverlay {
       }
 
       .compust-body::-webkit-scrollbar-thumb {
-        background: rgba(255,255,255,0.1);
-        border-radius: 2px;
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: var(--cp-radius-pill);
       }
 
       .compust-actions {
-        padding: 12px 16px;
-        border-top: 1px solid rgba(255, 255, 255, 0.07);
-        background: rgba(15, 23, 42, 0.98);
+        padding: 14px 16px;
+        border-top: 1px solid var(--cp-border);
+        background: var(--cp-bg-surface);
         flex-shrink: 0;
+        position: sticky;
+        bottom: 0;
+        z-index: 10;
+        box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
       }
 
       .compust-btn {
@@ -376,52 +452,85 @@ export class CompustOverlay {
         align-items: center;
         justify-content: center;
         gap: 6px;
-        padding: 9px 14px;
-        border-radius: 8px;
+        padding: 10px 14px;
+        border-radius: var(--cp-radius-md);
         font-size: 12px;
         font-weight: 600;
         border: none;
         cursor: pointer;
-        transition: all 0.2s;
+        transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
         width: 100%;
         text-align: center;
       }
 
       .compust-btn-primary {
-        background: linear-gradient(135deg, #6366f1, #8b5cf6);
-        color: white;
-        box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+        background: var(--cp-accent-gradient);
+        color: #ffffff;
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
       }
 
       .compust-btn-primary:hover {
         transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        box-shadow: 0 4px 14px rgba(59, 130, 246, 0.45);
+      }
+
+      .compust-btn-applied {
+        background: var(--cp-applied-gradient) !important;
+        color: #ffffff !important;
+        box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35) !important;
+      }
+
+      .compust-btn-applied:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 14px rgba(16, 185, 129, 0.45) !important;
+      }
+
+      .compust-btn-save {
+        background: var(--cp-bg-card);
+        color: #fcd34d;
+        border: 1px solid rgba(245, 158, 11, 0.3);
+      }
+
+      .compust-btn-save:hover {
+        background: rgba(245, 158, 11, 0.15);
+        transform: translateY(-1px);
+      }
+
+      .compust-btn-add {
+        background: var(--cp-bg-card);
+        color: #7dd3fc;
+        border: 1px solid rgba(56, 189, 248, 0.3);
+      }
+
+      .compust-btn-add:hover {
+        background: rgba(56, 189, 248, 0.15);
+        transform: translateY(-1px);
       }
 
       .compust-btn-secondary {
-        background: rgba(255, 255, 255, 0.07);
-        color: #cbd5e1;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: var(--cp-bg-card);
+        color: var(--cp-text-primary);
+        border: 1px solid var(--cp-border);
       }
 
       .compust-btn-secondary:hover {
-        background: rgba(255, 255, 255, 0.12);
-        color: #f8fafc;
+        background: var(--cp-bg-elevated);
+        color: #ffffff;
       }
 
       .compust-btn-ghost {
         background: transparent;
-        color: #64748b;
-        border: 1px solid rgba(255, 255, 255, 0.06);
+        color: var(--cp-text-muted);
+        border: 1px solid var(--cp-border-subtle);
       }
 
       .compust-btn-ghost:hover {
-        color: #94a3b8;
-        background: rgba(255, 255, 255, 0.04);
+        color: var(--cp-text-secondary);
+        background: rgba(255, 255, 255, 0.05);
       }
 
       .compust-btn:disabled {
-        opacity: 0.5;
+        opacity: 0.55;
         cursor: not-allowed;
         transform: none !important;
       }
@@ -430,8 +539,8 @@ export class CompustOverlay {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        padding: 4px 10px;
-        border-radius: 100px;
+        padding: 5px 12px;
+        border-radius: var(--cp-radius-pill);
         font-size: 10px;
         font-weight: 700;
         letter-spacing: 0.04em;
@@ -446,23 +555,23 @@ export class CompustOverlay {
       }
 
       .compust-status-existing {
-        background: rgba(148, 163, 184, 0.1);
-        color: #94a3b8;
-        border: 1px solid rgba(148, 163, 184, 0.2);
+        background: rgba(148, 163, 184, 0.12);
+        color: var(--cp-text-secondary);
+        border: 1px solid rgba(148, 163, 184, 0.25);
       }
 
       .compust-status-ephemeral {
-        background: rgba(245, 158, 11, 0.1);
-        color: #fbbf24;
-        border: 1px solid rgba(245, 158, 11, 0.25);
+        background: var(--cp-warning-bg);
+        color: var(--cp-warning-text);
+        border: 1px solid var(--cp-warning-border);
       }
 
       .compust-job-title {
         font-size: 16px;
         font-weight: 700;
-        color: #f8fafc;
-        margin: 10px 16px 4px;
-        line-height: 1.3;
+        color: var(--cp-text-primary);
+        margin: 12px 16px 4px;
+        line-height: 1.35;
       }
 
       .compust-company-row {
@@ -470,33 +579,35 @@ export class CompustOverlay {
         align-items: center;
         gap: 6px;
         font-size: 12px;
-        color: #64748b;
-        margin: 0 16px 12px;
+        color: var(--cp-text-secondary);
+        margin: 0 16px 14px;
       }
 
       .compust-score-card {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 12px 16px;
-        background: rgba(99, 102, 241, 0.08);
-        border-top: 1px solid rgba(99, 102, 241, 0.15);
-        border-bottom: 1px solid rgba(99, 102, 241, 0.15);
+        padding: 14px 18px;
+        background: rgba(59, 130, 246, 0.08);
+        border-top: 1px solid rgba(59, 130, 246, 0.2);
+        border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+        margin-bottom: 8px;
       }
 
       .compust-score-num {
-        font-size: 28px;
+        font-size: 30px;
         font-weight: 800;
-        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        background: var(--cp-accent-gradient);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
+        letter-spacing: -0.02em;
       }
 
       .compust-section-title {
         font-size: 11px;
         font-weight: 700;
-        color: #475569;
+        color: var(--cp-text-muted);
         text-transform: uppercase;
         letter-spacing: 0.06em;
         padding: 10px 16px 6px;
@@ -505,148 +616,176 @@ export class CompustOverlay {
       .compust-chips-wrap {
         display: flex;
         flex-wrap: wrap;
-        gap: 5px;
+        gap: 6px;
         padding: 0 16px 12px;
       }
 
       .compust-chip {
         display: inline-flex;
         align-items: center;
-        gap: 3px;
-        padding: 3px 9px;
-        border-radius: 100px;
+        gap: 4px;
+        padding: 4px 10px;
+        border-radius: var(--cp-radius-pill);
         font-size: 11px;
         font-weight: 600;
       }
 
       .compust-chip-demonstrated {
-        background: rgba(34, 197, 94, 0.12);
-        color: #86efac;
-        border: 1px solid rgba(34, 197, 94, 0.2);
+        background: var(--cp-success-bg);
+        color: var(--cp-success-text);
+        border: 1px solid var(--cp-success-border);
       }
 
       .compust-chip-missing {
-        background: rgba(239, 68, 68, 0.1);
-        color: #fca5a5;
-        border: 1px solid rgba(239, 68, 68, 0.2);
+        background: var(--cp-danger-bg);
+        color: var(--cp-danger-text);
+        border: 1px solid var(--cp-danger-border);
       }
 
       .compust-alert-box {
         margin: 8px 16px;
-        padding: 10px 12px;
-        background: rgba(239, 68, 68, 0.08);
-        border: 1px solid rgba(239, 68, 68, 0.2);
-        border-radius: 8px;
-        color: #fca5a5;
+        padding: 12px 14px;
+        background: var(--cp-danger-bg);
+        border: 1px solid var(--cp-danger-border);
+        border-radius: var(--cp-radius-md);
+        color: var(--cp-danger-text);
         font-size: 12px;
         line-height: 1.5;
       }
 
       .compust-warning-box {
         margin: 8px 16px;
-        padding: 9px 12px;
-        background: rgba(245, 158, 11, 0.08);
-        border: 1px solid rgba(245, 158, 11, 0.2);
-        border-radius: 8px;
-        color: #fcd34d;
+        padding: 10px 14px;
+        background: var(--cp-warning-bg);
+        border: 1px solid var(--cp-warning-border);
+        border-radius: var(--cp-radius-md);
+        color: var(--cp-warning-text);
         font-size: 12px;
         line-height: 1.5;
       }
 
       .compust-success-banner {
-        padding: 10px 12px;
-        background: rgba(34, 197, 94, 0.1);
-        border: 1px solid rgba(34, 197, 94, 0.25);
-        border-radius: 8px;
-        color: #86efac;
+        padding: 12px 14px;
+        background: var(--cp-success-bg);
+        border: 1px solid var(--cp-success-border);
+        border-radius: var(--cp-radius-md);
+        color: var(--cp-success-text);
         font-size: 12px;
         font-weight: 600;
       }
 
       .compust-suggestion-card {
-        margin: 0 16px 8px;
-        padding: 10px 12px;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.07);
-        border-radius: 8px;
+        margin: 0 16px 10px;
+        padding: 12px 14px;
+        background: var(--cp-bg-card);
+        border: 1px solid var(--cp-border);
+        border-radius: var(--cp-radius-md);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
       }
 
       .compust-suggestion-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 4px;
+        gap: 8px;
+        margin-bottom: 6px;
+      }
+
+      .compust-suggestion-item-label {
+        font-weight: 600;
+        color: var(--cp-text-primary);
+        font-size: 12px;
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .compust-suggestion-placement {
+        font-size: 11px;
+        color: var(--cp-text-secondary);
+        margin-bottom: 6px;
+        line-height: 1.4;
       }
 
       .compust-badge-grounded {
         font-size: 9px;
         font-weight: 700;
-        padding: 2px 6px;
-        border-radius: 100px;
-        background: rgba(34, 197, 94, 0.15);
-        color: #86efac;
-        border: 1px solid rgba(34, 197, 94, 0.25);
+        padding: 2px 7px;
+        border-radius: var(--cp-radius-pill);
+        background: var(--cp-success-bg);
+        color: var(--cp-success-text);
+        border: 1px solid var(--cp-success-border);
         letter-spacing: 0.03em;
+        flex-shrink: 0;
+        white-space: nowrap;
       }
 
       .compust-badge-ungrounded {
         font-size: 9px;
         font-weight: 700;
-        padding: 2px 6px;
-        border-radius: 100px;
-        background: rgba(245, 158, 11, 0.12);
-        color: #fcd34d;
-        border: 1px solid rgba(245, 158, 11, 0.25);
+        padding: 2px 7px;
+        border-radius: var(--cp-radius-pill);
+        background: var(--cp-warning-bg);
+        color: var(--cp-warning-text);
+        border: 1px solid var(--cp-warning-border);
         letter-spacing: 0.03em;
+        flex-shrink: 0;
+        white-space: nowrap;
       }
 
       .compust-suggestion-box {
         display: flex;
         align-items: flex-start;
-        gap: 6px;
-        margin: 6px 0;
-        padding: 7px 10px;
-        background: rgba(99, 102, 241, 0.08);
-        border-radius: 6px;
-        border: 1px solid rgba(99, 102, 241, 0.15);
+        gap: 8px;
+        margin: 8px 0;
+        padding: 8px 12px;
+        background: rgba(59, 130, 246, 0.08);
+        border-radius: var(--cp-radius-sm);
+        border: 1px solid rgba(59, 130, 246, 0.18);
       }
 
       .compust-suggestion-text {
         flex: 1;
+        min-width: 0;
         font-size: 11px;
-        color: #c7d2fe;
+        color: var(--cp-text-primary);
         font-style: italic;
         line-height: 1.5;
+        word-break: break-word;
+        overflow-wrap: break-word;
       }
 
       .compust-copy-btn {
         flex-shrink: 0;
-        background: none;
-        border: none;
-        color: #6366f1;
+        background: var(--cp-bg-surface);
+        border: 1px solid var(--cp-border);
+        color: var(--cp-accent-primary);
         cursor: pointer;
         font-size: 10px;
         font-weight: 700;
-        padding: 2px 4px;
-        border-radius: 3px;
-        transition: color 0.2s;
+        padding: 3px 8px;
+        border-radius: var(--cp-radius-sm);
+        transition: all 0.15s ease;
       }
 
       .compust-copy-btn:hover {
-        color: #a5b4fc;
+        background: var(--cp-accent-primary);
+        color: #ffffff;
       }
 
       .compust-suggestion-reason {
-        font-size: 10px;
-        color: #64748b;
-        line-height: 1.4;
-        margin-top: 3px;
+        font-size: 11px;
+        color: var(--cp-text-muted);
+        line-height: 1.45;
+        margin-top: 5px;
       }
 
       .compust-bullet-list {
         list-style: disc;
-        padding-left: 16px;
-        margin: 4px 0 0;
+        padding-left: 18px;
+        margin: 6px 0 0;
         font-size: 11px;
         color: #fecaca;
       }
@@ -655,7 +794,7 @@ export class CompustOverlay {
         width: 14px;
         height: 14px;
         border: 2px solid rgba(255, 255, 255, 0.2);
-        border-top-color: white;
+        border-top-color: currentColor;
         border-radius: 50%;
         animation: compust-spin 0.7s linear infinite;
         flex-shrink: 0;
@@ -668,38 +807,46 @@ export class CompustOverlay {
       .compust-stage-list {
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: 8px;
       }
 
       .compust-stage-item {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 10px;
         font-size: 12px;
-        padding: 6px 10px;
-        border-radius: 6px;
-        transition: all 0.3s;
+        padding: 8px 12px;
+        border-radius: var(--cp-radius-md);
+        transition: all 0.25s ease;
       }
 
       .compust-stage-completed {
         color: #4ade80;
-        background: rgba(74, 222, 128, 0.05);
+        background: var(--cp-success-bg);
       }
 
       .compust-stage-active {
-        color: #f8fafc;
-        background: rgba(99, 102, 241, 0.1);
+        color: var(--cp-text-primary);
+        background: rgba(59, 130, 246, 0.12);
         font-weight: 600;
       }
 
       .compust-stage-pending {
-        color: #475569;
+        color: var(--cp-text-muted);
       }
 
       .compust-stage-icon {
         width: 16px;
         text-align: center;
         font-size: 12px;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
       }
     `;
     this.shadow.appendChild(style);
@@ -928,17 +1075,16 @@ export class CompustOverlay {
     if (!items || items.length === 0) return null;
     const frag = document.createDocumentFragment();
 
-    const container = elStyle('div', 'margin-bottom: 12px;');
+    const container = elStyle('div', 'margin-bottom: 14px;');
 
     // Section header
-    const header = elStyle('div', 'font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; display: flex; align-items: center; gap: 4px;');
-    const bullet = el('span');
-    bullet.textContent = '•';
+    const header = elStyle('div', 'font-size: 11px; font-weight: 700; color: var(--cp-text-secondary); text-transform: uppercase; letter-spacing: 0.05em; padding: 6px 16px; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;');
+    const bullet = el('span', { style: 'color: var(--cp-accent-primary);' });
+    bullet.textContent = '●';
     const titleSpan = el('span');
     titleSpan.textContent = title;
     const countSpan = document.createTextNode(` (${items.length})`);
     header.appendChild(bullet);
-    header.appendChild(document.createTextNode(' '));
     header.appendChild(titleSpan);
     header.appendChild(countSpan);
     container.appendChild(header);
@@ -948,18 +1094,18 @@ export class CompustOverlay {
 
       // Card header row
       const cardHeader = el('div', { class: 'compust-suggestion-header' });
-      const itemLabel = el('span', { style: 'font-weight: 600; color: #f8fafc; font-size: 12px;' });
+      const itemLabel = el('span', { class: 'compust-suggestion-item-label' });
       itemLabel.textContent = item.item_label;
       cardHeader.appendChild(itemLabel);
 
       const badge = item.grounded
         ? el('span', { class: 'compust-badge-grounded' }, '✓ Grounded')
-        : el('span', { class: 'compust-badge-ungrounded' }, '⚠️ Verify Experience First');
+        : el('span', { class: 'compust-badge-ungrounded' }, '⚠️ Verify First');
       cardHeader.appendChild(badge);
       card.appendChild(cardHeader);
 
       // Placement
-      const placement = elStyle('div', 'font-size: 11px; color: #94a3b8; margin-bottom: 4px;');
+      const placement = el('div', { class: 'compust-suggestion-placement' });
       placement.appendChild(document.createTextNode('📍 '));
       const strong = el('strong', {}, 'Placement:');
       placement.appendChild(strong);
@@ -1087,8 +1233,8 @@ export class CompustOverlay {
       // Score card
       const scoreCard = el('div', { class: 'compust-score-card' });
       const scoreLeft = el('div');
-      const scoreLabel = elStyle('div', 'font-size: 11px; color: #94a3b8; text-transform: uppercase; font-weight: 600;', 'Resume Match');
-      const scoreSubLabel = elStyle('div', 'font-size: 12px; color: #cbd5e1;', 'Active Resume Alignment');
+      const scoreLabel = elStyle('div', 'font-size: 11px; color: var(--cp-text-secondary); text-transform: uppercase; font-weight: 700; letter-spacing: 0.04em;', 'Resume Match');
+      const scoreSubLabel = elStyle('div', 'font-size: 12px; color: var(--cp-text-muted);', 'Active Resume Alignment');
       scoreLeft.appendChild(scoreLabel);
       scoreLeft.appendChild(scoreSubLabel);
       const scoreNum = el('div', { class: 'compust-score-num' });
@@ -1105,7 +1251,7 @@ export class CompustOverlay {
       if (demonstrated.length > 0) {
         demonstrated.forEach((s) => demChips.appendChild(chip('✓ ' + s, 'compust-chip compust-chip-demonstrated')));
       } else {
-        const none = elStyle('span', 'color: #64748b; font-size: 12px;', 'No matching skills detected');
+        const none = elStyle('span', 'color: var(--cp-text-muted); font-size: 12px;', 'No matching skills detected');
         demChips.appendChild(none);
       }
       body.appendChild(demChips);
@@ -1118,7 +1264,7 @@ export class CompustOverlay {
       if (missing.length > 0) {
         missing.forEach((s) => misChips.appendChild(chip('! ' + s, 'compust-chip compust-chip-missing')));
       } else {
-        const none = elStyle('span', 'color: #64748b; font-size: 12px;', 'None detected');
+        const none = elStyle('span', 'color: var(--cp-text-muted); font-size: 12px;', 'None detected');
         misChips.appendChild(none);
       }
       body.appendChild(misChips);
@@ -1212,23 +1358,23 @@ export class CompustOverlay {
     const actionsLabel = elStyle('div', 'font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;', 'Choose Action (Not yet saved)');
     actions.appendChild(actionsLabel);
 
-    const btnGrid = elStyle('div', 'display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px;');
+    const btnGrid = elStyle('div', 'display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;');
 
-    const addBtn = el('button', { class: 'compust-btn compust-btn-secondary', id: 'compust-action-add', title: 'Save to Opportunities directory only' });
+    const addBtn = el('button', { class: 'compust-btn compust-btn-secondary compust-btn-add', id: 'compust-action-add', title: 'Save to Opportunities directory only', 'aria-label': 'Save to Opportunities directory' });
     const addSpan = el('span', {}, '+ Add');
-    const addSub = el('small', { style: 'display:block; font-size:9px; opacity:0.75; font-weight:400;' }, 'Opportunities');
+    const addSub = el('small', { style: 'display:block; font-size:9px; opacity:0.85; font-weight:500;' }, 'Opportunities');
     addBtn.appendChild(addSpan);
     addBtn.appendChild(addSub);
 
-    const appliedBtn = el('button', { class: 'compust-btn compust-btn-primary', id: 'compust-action-applied', title: 'Save and mark as Applied in Kanban' });
+    const appliedBtn = el('button', { class: 'compust-btn compust-btn-primary compust-btn-applied', id: 'compust-action-applied', title: 'Save and mark as Applied in Kanban', 'aria-label': 'Save and mark as Applied in Kanban' });
     const appliedSpan = el('span', {}, '✓ Applied');
-    const appliedSub = el('small', { style: 'display:block; font-size:9px; opacity:0.85; font-weight:400;' }, 'Mark Applied');
+    const appliedSub = el('small', { style: 'display:block; font-size:9px; opacity:0.95; font-weight:500;' }, 'Mark Applied');
     appliedBtn.appendChild(appliedSpan);
     appliedBtn.appendChild(appliedSub);
 
-    const saveBtn = el('button', { class: 'compust-btn compust-btn-secondary', id: 'compust-action-save', title: 'Save and mark as Interested in Kanban' });
+    const saveBtn = el('button', { class: 'compust-btn compust-btn-secondary compust-btn-save', id: 'compust-action-save', title: 'Save and mark as Interested in Kanban', 'aria-label': 'Save and mark as Interested in Kanban' });
     const saveSpan = el('span', {}, '★ Save');
-    const saveSub = el('small', { style: 'display:block; font-size:9px; opacity:0.75; font-weight:400;' }, 'Interested');
+    const saveSub = el('small', { style: 'display:block; font-size:9px; opacity:0.85; font-weight:500;' }, 'Interested');
     saveBtn.appendChild(saveSpan);
     saveBtn.appendChild(saveSub);
 
@@ -1237,8 +1383,8 @@ export class CompustOverlay {
     btnGrid.appendChild(saveBtn);
     actions.appendChild(btnGrid);
 
-    const dismissRow = elStyle('div', 'display: flex; gap: 6px; margin-top: 4px;');
-    const dismissBtn = el('button', { class: 'compust-btn compust-btn-ghost', id: 'compust-action-dismiss', style: 'flex: 1; font-size: 11px; padding: 6px; color: #94a3b8;' }, '✕ Skip / Dismiss (0 Writes)');
+    const dismissRow = elStyle('div', 'display: flex; gap: 6px; margin-top: 6px;');
+    const dismissBtn = el('button', { class: 'compust-btn compust-btn-ghost', id: 'compust-action-dismiss', style: 'flex: 1; font-size: 11px; padding: 7px; color: var(--cp-text-muted);', 'aria-label': 'Skip and dismiss without saving' }, '✕ Skip / Dismiss (0 Writes)');
     dismissRow.appendChild(dismissBtn);
     actions.appendChild(dismissRow);
 
@@ -1337,8 +1483,8 @@ export class CompustOverlay {
       // Score card
       const scoreCard = el('div', { class: 'compust-score-card' });
       const scoreLeft = el('div');
-      const scoreLabel = elStyle('div', 'font-size: 11px; color: #94a3b8; text-transform: uppercase; font-weight: 600;', 'Resume Match');
-      const scoreSubLabel = elStyle('div', 'font-size: 12px; color: #cbd5e1;', 'Active Resume Alignment');
+      const scoreLabel = elStyle('div', 'font-size: 11px; color: var(--cp-text-secondary); text-transform: uppercase; font-weight: 700; letter-spacing: 0.04em;', 'Resume Match');
+      const scoreSubLabel = elStyle('div', 'font-size: 12px; color: var(--cp-text-muted);', 'Active Resume Alignment');
       scoreLeft.appendChild(scoreLabel);
       scoreLeft.appendChild(scoreSubLabel);
       const scoreNum = el('div', { class: 'compust-score-num' });
@@ -1355,7 +1501,7 @@ export class CompustOverlay {
       if (demonstrated.length > 0) {
         demonstrated.forEach((s) => demChips.appendChild(chip('✓ ' + s, 'compust-chip compust-chip-demonstrated')));
       } else {
-        demChips.appendChild(elStyle('span', 'color: #64748b; font-size: 12px;', 'No matching skills found'));
+        demChips.appendChild(elStyle('span', 'color: var(--cp-text-muted); font-size: 12px;', 'No matching skills found'));
       }
       body.appendChild(demChips);
 
@@ -1367,7 +1513,7 @@ export class CompustOverlay {
       if (missing.length > 0) {
         missing.forEach((s) => misChips.appendChild(chip('! ' + s, 'compust-chip compust-chip-missing')));
       } else {
-        misChips.appendChild(elStyle('span', 'color: #64748b; font-size: 12px;', 'None detected'));
+        misChips.appendChild(elStyle('span', 'color: var(--cp-text-muted); font-size: 12px;', 'None detected'));
       }
       body.appendChild(misChips);
     } else {

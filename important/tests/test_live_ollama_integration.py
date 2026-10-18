@@ -26,11 +26,16 @@ def is_ollama_ready():
 
 def test_ollama_generate_with_think_false(is_ollama_ready):
     """Verify that generate_completion with think: False returns non-empty structured text quickly."""
+    from src.app.services.ai_gateway import AIProviderType
+
+    model_name = is_ollama_ready["models"][0]["name"]
     resp = generate_completion(
         prompt="Return valid JSON: {\"status\": \"ready\", \"engine\": \"ollama\"}",
         system_prompt="You are a precise assistant. Return ONLY valid JSON.",
+        model=model_name,
         temperature=0.1,
         timeout_seconds=30.0,
+        provider=AIProviderType.OLLAMA,
     )
     assert resp, "Response from Ollama should not be empty"
     assert "ready" in resp or "status" in resp

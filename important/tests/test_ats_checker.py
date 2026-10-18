@@ -136,7 +136,9 @@ def test_evaluate_resume_ats_with_mocked_ollama():
         "recommended_action_verbs": ["Spearheaded", "Architected"]
     }
 
-    with patch("src.app.services.ats_checker.generate_completion", return_value=f"```json\n{json.dumps(mock_payload)}\n```"):
+    from src.app.services.ai_gateway import AIProviderType
+    with patch("src.app.services.ats_checker.generate_completion", return_value=f"```json\n{json.dumps(mock_payload)}\n```"), \
+         patch("src.app.services.ats_checker.get_active_provider", return_value=AIProviderType.OLLAMA):
         result = evaluate_resume_ats(
             resume_text=STRONG_RESUME_TEXT,
             role="Software Engineer",

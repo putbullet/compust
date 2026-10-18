@@ -16,7 +16,13 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from ..logging import get_logger
-from .ai_service import generate_completion, check_ollama_runtime, get_selected_model
+from .ai_service import (
+    generate_completion,
+    get_active_provider,
+    get_provider,
+    is_ai_available,
+    get_selected_model,
+)
 
 logger = get_logger(__name__)
 
@@ -195,8 +201,9 @@ def generate_actionable_resume_suggestions(
             structured_data=structured_data,
         )
 
-    runtime = check_ollama_runtime()
-    if runtime["status"] != "connected" or not runtime["models"]:
+    active_prov = get_active_provider()
+    provider_inst = get_provider(active_prov)
+    if not provider_inst.is_available():
         return generate_deterministic_resume_guidance(
             job_title=job_title,
             job_description=job_description,
@@ -220,7 +227,7 @@ Generate 4-6 specific, actionable, grounded suggestions for incorporating or add
         raw = generate_completion(
             prompt=prompt,
             system_prompt=GUIDANCE_SYSTEM_PROMPT,
-            model=runtime.get("selected_model"),
+            model=provider_inst.get_active_model(),
             temperature=0.1,
             timeout_seconds=20.0,
         )
@@ -242,7 +249,7 @@ Generate 4-6 specific, actionable, grounded suggestions for incorporating or add
         if results:
             return results
     except Exception as exc:
-        logger.warning(f"Ollama resume guidance error ({exc}). Falling back to deterministic guidance.")
+        logger.warning(f"AI ({get_active_provider().value}) resume guidance error ({exc}). Falling back to deterministic guidance.")
 
     return generate_deterministic_resume_guidance(
         job_title=job_title,

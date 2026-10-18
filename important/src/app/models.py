@@ -175,6 +175,12 @@ class User(Base):
         cascade="all, delete-orphan",
         lazy="selectin",
     )
+    ai_config: Mapped["UserAIConfig | None"] = relationship(
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
     skills: Mapped[list["UserSkill"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
@@ -214,6 +220,18 @@ class User(Base):
         cascade="all, delete-orphan",
         lazy="selectin",
         order_by="desc(Resume.created_at)",
+    )
+    linkedin_profile: Mapped["UserLinkedInProfile | None"] = relationship(
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+    unified_profile: Mapped["UserUnifiedProfile | None"] = relationship(
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+        lazy="selectin",
     )
 
 
@@ -281,6 +299,25 @@ class UserPreference(Base):
     max_salary: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
     salary_currency: Mapped[str | None] = mapped_column(CHAR(3), nullable=True)
     user: Mapped[User] = relationship(back_populates="preferences")
+
+
+class UserAIConfig(Base):
+    __tablename__ = "user_ai_configs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True)
+    active_provider: Mapped[str] = mapped_column(String(50), default="ollama")
+    selected_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    gemini_model: Mapped[str | None] = mapped_column(String(100), default="gemini-2.5-flash", nullable=True)
+    openai_model: Mapped[str | None] = mapped_column(String(100), default="gpt-4o-mini", nullable=True)
+    consent_granted: Mapped[bool] = mapped_column(Boolean, default=False)
+    gemini_api_key_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    openai_api_key_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    fallback_policy: Mapped[str] = mapped_column(String(50), default="deterministic")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user: Mapped["User"] = relationship(back_populates="ai_config")
 
 
 class UserSkill(Base):
@@ -479,4 +516,34 @@ class InterviewExplanation(Base):
     __table_args__ = (
         UniqueConstraint("question_id", "language", "model_name", "schema_version", name="uq_interview_exp_q_lang_model_ver"),
     )
+
+
+class UserLinkedInProfile(Base):
+    __tablename__ = "user_linkedin_profiles"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
+    linkedin_url: Mapped[str] = mapped_column(String(500))
+    handle: Mapped[str] = mapped_column(String(100))
+    import_source: Mapped[str] = mapped_column(String(50), default="manual")
+    imported_at: Mapped[datetime] = mapped_column(DateTime)
+    raw_data: Mapped[dict] = mapped_column(JSON, default=dict)
+
+    user: Mapped["User"] = relationship(back_populates="linkedin_profile")
+
+
+class UserUnifiedProfile(Base):
+    __tablename__ = "user_unified_profiles"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
+    version_hash: Mapped[str] = mapped_column(String(64), default="")
+    use_linkedin_in_matching: Mapped[bool] = mapped_column(Boolean, default=True)
+    unified_data: Mapped[dict] = mapped_column(JSON, default=dict)
+    conflicts: Mapped[list] = mapped_column(JSON, default=list)
+    user_overrides: Mapped[dict] = mapped_column(JSON, default=dict)
+    updated_at: Mapped[datetime] = mapped_column(DateTime)
+
+    user: Mapped["User"] = relationship(back_populates="unified_profile")
+
 

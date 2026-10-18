@@ -13,8 +13,11 @@ All prompts live in this file, NOT in React components.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import re
+import threading
+import time
 import uuid
 from typing import Any
 from sqlalchemy import select
@@ -22,7 +25,14 @@ from sqlalchemy.orm import Session
 
 from ..models import User, UserSkill, UserExperience, UserEducation, UserLanguage, Resume
 from ..services.ai_service import generate_completion, check_ollama_runtime, OllamaUnavailableError, OllamaError
-from ..services.ai_gateway import get_active_provider, get_provider, AIProviderType, AIGatewayError, redact_personal_identifiers
+from ..services.ai_gateway import get_active_provider, get_provider, AIProviderType, AIGatewayError, AIRateLimitError, redact_personal_identifiers
+
+# Thread-safe in-memory cache for Job Target Analysis & Materials (24h TTL)
+_ANALYSIS_CACHE: dict[str, tuple[float, Any]] = {}
+_MATERIAL_CACHE: dict[str, tuple[float, Any]] = {}
+_IN_FLIGHT_LOCKS: dict[str, threading.Lock] = {}
+_CACHE_LOCK = threading.Lock()
+_CACHE_TTL_SECONDS = 86400  # 24 hours
 from ..schemas_job_assistant import (
     ApplicationMaterial,
     CandidateContext,
@@ -308,7 +318,35 @@ def build_candidate_context(db: Session, user_id: int, resume: Resume) -> Candid
                     source="profile",
                 ))
 
+        # Incorporate unified profile data (LinkedIn additions with provenance)
+        unified_rec = getattr(user, "unified_profile", None)
+        if unified_rec and getattr(unified_rec, "use_linkedin_in_matching", True) and getattr(unified_rec, "unified_data", None):
+            u_data = unified_rec.unified_data
+            for us in u_data.get("skills", []):
+                if us.get("hidden"):
+                    continue
+                s_name = us.get("name", "")
+                norm = normalize_skill(s_name)
+                if not norm:
+                    continue
+                if not any(normalize_skill(cs.name) == norm for cs in ctx.skills):
+                    ctx.skills.append(CandidateContextSkill(
+                        name=s_name,
+                        proficiency=us.get("proficiency", ""),
+                        source="linkedin",
+                    ))
+            existing_cert_names = {c.name.lower() for c in ctx.certifications}
+            for uc in u_data.get("certifications", []):
+                if not uc.get("hidden") and uc.get("name") and uc["name"].lower() not in existing_cert_names:
+                    ctx.certifications.append(CandidateContextCertification(
+                        id=str(uc.get("id", "")),
+                        name=uc.get("name", ""),
+                        issuer=uc.get("issuer", ""),
+                        source="linkedin",
+                    ))
+
     return ctx
+
 
 
 def _extract_corpus_tokens(ctx: CandidateContext) -> set[str]:
@@ -759,6 +797,186 @@ def _fallback_recommendations(match_analysis: MatchAnalysis, ctx: CandidateConte
 
 
 # ---------------------------------------------------------------------------
+# Cloud Single-Pass Analysis (Stage 1 + 2 + 3 in exactly 1 API call)
+# ---------------------------------------------------------------------------
+
+STAGE_UNIFIED_SYSTEM = (
+    "You are an expert technical recruiter, ATS optimizer, and executive career consultant.\n"
+    "RULES:\n"
+    "1. Read the job description and candidate resume carefully.\n"
+    "2. Extract essential requirements: technical skills, tools, methodologies, experience, education.\n"
+    "3. Match candidate data against requirements: classify as strong, partial, missing, or verify. Quote real evidence. NEVER invent skills or experience.\n"
+    "4. Suggest specific, grounded resume edits (emphasize, rewrite, move, keep). For missing skills, note that they are not in candidate data.\n"
+    "5. Return ONLY valid JSON with keys: 'requirements', 'matches', 'recommendations'."
+)
+
+STAGE_UNIFIED_TEMPLATE = (
+    "=== TARGET JOB ===\n"
+    "ROLE: {role}\n"
+    "DESCRIPTION:\n{description}\n\n"
+    "{additional}\n\n"
+    "=== CANDIDATE RESUME ===\n"
+    "NAME: {name}\n"
+    "HEADLINE: {headline}\n"
+    "SUMMARY: {summary}\n"
+    "SKILLS: {skills}\n"
+    "EXPERIENCE:\n{experience}\n"
+    "PROJECTS:\n{projects}\n"
+    "EDUCATION:\n{education}\n"
+    "LANGUAGES: {languages}\n"
+    "CERTIFICATIONS: {certifications}\n\n"
+    "{lang_instruction}\n\n"
+    "Return JSON format:\n"
+    '{{\n'
+    '  "requirements": [\n'
+    '    {{"text": "Skill or qualification", "category": "technical_skill", "importance": "required", "raw_keyword": "keyword"}}\n'
+    '  ],\n'
+    '  "matches": [\n'
+    '    {{"requirement": "Skill name", "match_status": "strong", "evidence_sources": ["Source"], "note": "Notes"}}\n'
+    '  ],\n'
+    '  "recommendations": [\n'
+    '    {{"rec_type": "emphasize", "section": "skills", "item_id": "", "item_label": "Label", "current_text": "...", "suggested_text": "...", "reason": "...", "evidence_sources": ["..."]}}\n'
+    '  ]\n'
+    '}}'
+)
+
+
+def _cloud_single_pass_analysis(
+    ctx: CandidateContext,
+    job_input: ExternalJobInput,
+    lang: str,
+    model: str | None = None,
+) -> tuple[list[JobRequirement], MatchAnalysis, list[ResumeRecommendation]]:
+    additional = f"ADDITIONAL INFORMATION:\n{job_input.additional_information}" if job_input.additional_information else ""
+    sections = _build_candidate_text_sections(ctx)
+    exp_detail = "\n".join(f"[ID:{e.id}] {e.title} at {e.company}: {e.description[:250]}" for e in ctx.experience[:5])
+    proj_detail = "\n".join(f"[ID:{p.id}] {p.name}: {p.description[:200]} [{p.technologies}]" for p in ctx.projects[:4])
+    edu_detail = " | ".join(f"{e.degree} in {e.field} at {e.institution}" for e in ctx.education[:2])
+
+    prompt = STAGE_UNIFIED_TEMPLATE.format(
+        role=job_input.target_role,
+        description=job_input.job_description[:3000],
+        additional=additional,
+        name=ctx.profile.full_name or "Candidate",
+        headline=ctx.profile.headline or "",
+        summary=ctx.profile.summary[:400] or "None listed",
+        skills=sections["skills"][:500],
+        experience=exp_detail[:800],
+        projects=proj_detail[:600],
+        education=edu_detail[:300],
+        languages=sections["languages"][:200],
+        certifications=sections["certifications"][:200],
+        lang_instruction=LANG_INSTRUCTION.get(lang, LANG_INSTRUCTION["en"]),
+    )
+
+    raw = generate_completion(prompt, system_prompt=STAGE_UNIFIED_SYSTEM, model=model, temperature=0.1, timeout_seconds=50.0)
+    data = _try_extract_json(raw)
+    if not isinstance(data, dict):
+        raise ValueError("Model output was not a valid JSON dictionary")
+
+    # Parse requirements
+    requirements: list[JobRequirement] = []
+    for item in data.get("requirements", []):
+        if not isinstance(item, dict):
+            continue
+        text = _safe_str(item.get("text"))
+        if not text:
+            continue
+        try:
+            cat = RequirementCategory(item.get("category", "other"))
+        except ValueError:
+            cat = RequirementCategory.OTHER
+        try:
+            imp = RequirementImportance(item.get("importance", "required"))
+        except ValueError:
+            imp = RequirementImportance.REQUIRED
+        requirements.append(JobRequirement(
+            text=text, category=cat, importance=imp,
+            raw_keyword=_safe_str(item.get("raw_keyword", text)),
+        ))
+    if not requirements:
+        requirements = _fallback_extract_requirements(job_input)
+
+    # Parse match analysis
+    analysis = MatchAnalysis()
+    candidate_corpus = _extract_corpus_tokens(ctx)
+    for item in data.get("matches", []):
+        if not isinstance(item, dict):
+            continue
+        req_text = _safe_str(item.get("requirement"))
+        if not req_text:
+            continue
+        try:
+            status = MatchStatus(item.get("match_status", "unknown"))
+        except ValueError:
+            status = MatchStatus.UNKNOWN
+        evidence = item.get("evidence_sources") or []
+        if isinstance(evidence, str):
+            evidence = [evidence]
+        evidence = [str(e) for e in evidence][:4]
+        req_lower = req_text.lower()
+        if status in (MatchStatus.STRONG, MatchStatus.PARTIAL):
+            found = any(req_lower in t or t in req_lower for t in candidate_corpus if len(t) > 2)
+            if not found:
+                status = MatchStatus.VERIFY
+        match = CandidateEvidenceMatch(
+            requirement=req_text, match_status=status,
+            evidence_sources=evidence, note=_safe_str(item.get("note", "")),
+        )
+        if status == MatchStatus.STRONG:
+            analysis.strong_matches.append(match)
+        elif status == MatchStatus.PARTIAL:
+            analysis.partial_matches.append(match)
+        elif status == MatchStatus.MISSING:
+            analysis.missing_or_unconfirmed.append(match)
+        else:
+            analysis.verify_items.append(match)
+
+    if not (analysis.strong_matches or analysis.partial_matches or analysis.missing_or_unconfirmed):
+        analysis = deterministic_match(ctx, job_input)
+
+    # Parse recommendations
+    recommendations: list[ResumeRecommendation] = []
+    for item in data.get("recommendations", []):
+        if not isinstance(item, dict):
+            continue
+        try:
+            rec_type = RecommendationType(item.get("rec_type", "verify"))
+        except ValueError:
+            rec_type = RecommendationType.VERIFY
+        suggested_text = _safe_str(item.get("suggested_text", ""))
+        reason = _safe_str(item.get("reason", ""))
+        grounded = True
+        if rec_type in (RecommendationType.ADD, RecommendationType.REWRITE, RecommendationType.EMPHASIZE) and suggested_text:
+            sug_words = {w for w in suggested_text.lower().split() if len(w) > 3}
+            overlap = sug_words & candidate_corpus
+            if len(overlap) < min(2, max(1, len(sug_words) // 3)):
+                grounded = False
+                rec_type = RecommendationType.VERIFY
+                reason += " [Verify: suggested content could not be confirmed in your data.]"
+        evidence = item.get("evidence_sources") or []
+        if isinstance(evidence, str):
+            evidence = [evidence]
+        recommendations.append(ResumeRecommendation(
+            id=str(uuid.uuid4())[:8],
+            rec_type=rec_type,
+            section=_safe_str(item.get("section", "skills")),
+            item_id=_safe_str(item.get("item_id", "")),
+            item_label=_safe_str(item.get("item_label", "")),
+            current_text=_safe_str(item.get("current_text", "")),
+            suggested_text=suggested_text,
+            reason=reason or "Suggested to align better with job requirements.",
+            evidence_sources=[str(e) for e in evidence][:3],
+            grounded=grounded,
+        ))
+
+    if not recommendations:
+        recommendations = _fallback_recommendations(analysis, ctx, job_input)
+
+    return requirements[:40], analysis, recommendations
+
+
+# ---------------------------------------------------------------------------
 # Stage 4 - Application materials
 # ---------------------------------------------------------------------------
 
@@ -864,6 +1082,16 @@ STAGE4_SINGLE_TEMPLATES = {
 }
 
 
+def is_ai_available() -> bool:
+    """Helper to check AI availability honoring check_ollama_runtime mocks."""
+    active_prov = get_active_provider()
+    if active_prov == AIProviderType.OLLAMA:
+        status = check_ollama_runtime()
+        return status.get("status") == "connected"
+    provider_inst = get_provider(active_prov)
+    return provider_inst.is_available()
+
+
 def regenerate_single_material(
     db: Session,
     user_id: int,
@@ -873,85 +1101,124 @@ def regenerate_single_material(
     """
     Regenerate a single application material (Cold Email, Short DM, or Motivation Letter).
     Extracts candidate context and prompts the local LLM with high efficiency.
+    Guarantees:
+      - 24h per-job cache reuse (no redundant calls)
+      - In-flight request deduplication
+      - Clear countdown-aware AIRateLimitError handling
     """
     lang = request.language.value
     active_prov = get_active_provider()
-    if active_prov == AIProviderType.OLLAMA:
-        runtime = check_ollama_runtime()
-        ai_available = runtime.get("status") == "connected" and bool(runtime.get("models"))
-        model = runtime.get("selected_model")
-    else:
-        provider_inst = get_provider(active_prov)
-        ai_available = provider_inst.is_available()
-        model = provider_inst.get_active_model()
+    provider_inst = get_provider(active_prov)
+    ai_available = is_ai_available()
+    model = provider_inst.get_active_model()
 
     if not ai_available:
+        prov_label = active_prov.value.title()
+        if active_prov == AIProviderType.OLLAMA:
+            err_msg = "Local AI unavailable (Ollama offline). Start Ollama or switch provider in AI Settings."
+        else:
+            err_msg = f"{prov_label} unavailable. Check your API key and connection in AI Settings."
         return ApplicationMaterial(
             material_type=request.material_type,
             language=lang,
             generated=False,
-            error="Local AI unavailable. Start Ollama to generate application materials.",
+            error=err_msg,
         )
 
-    ctx = build_candidate_context(db, user_id, resume)
-    top_skills = ", ".join(s.name for s in ctx.skills[:10])
-    top_exp = "\n".join(f"- {e.title} at {e.company}" for e in ctx.experience[:3]) or "No experience listed"
-    edu_str = ", ".join(f"{e.degree} in {e.field} at {e.institution}" for e in ctx.education[:2]) or "Not listed"
-    lang_str = ", ".join(l.language for l in ctx.languages) or ""
-    company_info = request.additional_information or "[Company details not provided]"
+    # Compute deterministic cache & deduplication key
+    job_hash = hashlib.sha256(f"{request.target_role}|{request.additional_information}|{lang}".encode()).hexdigest()[:16]
+    resume_ver = f"{resume.id}_{getattr(resume, 'updated_at', getattr(resume, 'created_at', '0'))}"
+    cache_key = f"mat_{job_hash}_{resume_ver}_{request.material_type.value}_{active_prov.value}_{model}"
 
-    template = STAGE4_SINGLE_TEMPLATES.get(request.material_type, STAGE4_SINGLE_TEMPLATES[MaterialType.COLD_EMAIL])
-    prompt = template.format(
-        role=request.target_role,
-        company_info=company_info[:400],
-        name=ctx.profile.full_name or "[YOUR NAME]",
-        headline=ctx.profile.headline or "",
-        summary=ctx.profile.summary[:400] or "",
-        top_skills=top_skills[:400],
-        top_experience=top_exp[:500],
-        education=edu_str[:300],
-        languages=lang_str[:200],
-        lang_instruction=LANG_INSTRUCTION.get(lang, LANG_INSTRUCTION["en"]),
-    )
+    with _CACHE_LOCK:
+        if cache_key in _MATERIAL_CACHE:
+            ts, cached_mat = _MATERIAL_CACHE[cache_key]
+            if time.time() - ts < _CACHE_TTL_SECONDS:
+                logger.info(f"Reusing cached material ({request.material_type.value}) for resume={resume.id}")
+                return cached_mat
+        if cache_key not in _IN_FLIGHT_LOCKS:
+            _IN_FLIGHT_LOCKS[cache_key] = threading.Lock()
+        inflight_lock = _IN_FLIGHT_LOCKS[cache_key]
 
-    try:
-        raw = generate_completion(prompt, system_prompt=STAGE4_SYSTEM, model=model, temperature=0.25, timeout_seconds=45.0)
-        data = _try_extract_json(raw)
-        m_data = None
-        if isinstance(data, dict):
-            m_data = data.get(request.material_type.value) or data.get("material") or data
+    with inflight_lock:
+        with _CACHE_LOCK:
+            if cache_key in _MATERIAL_CACHE:
+                ts, cached_mat = _MATERIAL_CACHE[cache_key]
+                if time.time() - ts < _CACHE_TTL_SECONDS:
+                    return cached_mat
 
-        if isinstance(m_data, dict):
-            body = _safe_str(m_data.get("body", ""))
-            subject = _safe_str(m_data.get("subject", ""))
-            phs = m_data.get("placeholders") or []
-            if isinstance(phs, str):
-                phs = [phs]
-            auto_phs = re.findall(r"\[[A-Z ]{3,}\]", body)
-            all_phs = list(dict.fromkeys([str(p) for p in phs] + auto_phs))
+        ctx = build_candidate_context(db, user_id, resume)
+        top_skills = ", ".join(s.name for s in ctx.skills[:10])
+        top_exp = "\n".join(f"- {e.title} at {e.company}" for e in ctx.experience[:3]) or "No experience listed"
+        edu_str = ", ".join(f"{e.degree} in {e.field} at {e.institution}" for e in ctx.education[:2]) or "Not listed"
+        lang_str = ", ".join(l.language for l in ctx.languages) or ""
+        company_info = request.additional_information or "[Company details not provided]"
+
+        template = STAGE4_SINGLE_TEMPLATES.get(request.material_type, STAGE4_SINGLE_TEMPLATES[MaterialType.COLD_EMAIL])
+        prompt = template.format(
+            role=request.target_role,
+            company_info=company_info[:400],
+            name=ctx.profile.full_name or "[YOUR NAME]",
+            headline=ctx.profile.headline or "",
+            summary=ctx.profile.summary[:400] or "",
+            top_skills=top_skills[:400],
+            top_experience=top_exp[:500],
+            education=edu_str[:300],
+            languages=lang_str[:200],
+            lang_instruction=LANG_INSTRUCTION.get(lang, LANG_INSTRUCTION["en"]),
+        )
+
+        try:
+            raw = generate_completion(prompt, system_prompt=STAGE4_SYSTEM, model=model, temperature=0.25, timeout_seconds=45.0)
+            data = _try_extract_json(raw)
+            m_data = None
+            if isinstance(data, dict):
+                m_data = data.get(request.material_type.value) or data.get("material") or data
+
+            if isinstance(m_data, dict):
+                body = _safe_str(m_data.get("body", ""))
+                subject = _safe_str(m_data.get("subject", ""))
+                phs = m_data.get("placeholders") or []
+                if isinstance(phs, str):
+                    phs = [phs]
+                auto_phs = re.findall(r"\[[A-Z ]{3,}\]", body)
+                all_phs = list(dict.fromkeys([str(p) for p in phs] + auto_phs))
+                mat = ApplicationMaterial(
+                    material_type=request.material_type,
+                    subject=subject,
+                    body=body,
+                    placeholders=all_phs,
+                    language=lang,
+                    generated=bool(body),
+                    error="" if body else "No content generated",
+                )
+                if mat.generated:
+                    with _CACHE_LOCK:
+                        _MATERIAL_CACHE[cache_key] = (time.time(), mat)
+                return mat
             return ApplicationMaterial(
                 material_type=request.material_type,
-                subject=subject,
-                body=body,
-                placeholders=all_phs,
                 language=lang,
-                generated=bool(body),
-                error="" if body else "No content generated",
+                generated=False,
+                error="LLM returned invalid output format",
             )
-        return ApplicationMaterial(
-            material_type=request.material_type,
-            language=lang,
-            generated=False,
-            error="LLM returned invalid output format",
-        )
-    except Exception as exc:
-        logger.error(f"Failed to regenerate single material: {exc}")
-        return ApplicationMaterial(
-            material_type=request.material_type,
-            language=lang,
-            generated=False,
-            error=f"Generation failed: {exc}",
-        )
+        except AIRateLimitError as exc:
+            logger.warning(f"Rate limit hit during {request.material_type.value} generation: {exc}")
+            return ApplicationMaterial(
+                material_type=request.material_type,
+                language=lang,
+                generated=False,
+                error=str(exc),
+                retry_after_seconds=getattr(exc, "retry_after_seconds", None),
+            )
+        except Exception as exc:
+            logger.error(f"Failed to regenerate single material: {exc}")
+            return ApplicationMaterial(
+                material_type=request.material_type,
+                language=lang,
+                generated=False,
+                error=f"Generation failed: {exc}",
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -1155,111 +1422,142 @@ def run_job_target_analysis(
     job_input: ExternalJobInput,
 ) -> JobTargetAnalysisResult:
     """
-    Full 4-stage analysis pipeline.
-    Deterministic layer always runs.
-    LLM stages run if Ollama is available.
-    Partial failures handled gracefully.
+    Optimized Job Target Analysis pipeline:
+      - 24h caching per (job_hash, resume_ver, provider, model)
+      - In-flight request deduplication (prevents duplicate calls on re-renders/double-clicks)
+      - Single-pass analysis for cloud AI providers (exactly 1 API call instead of 7)
+      - Strictly on-demand application materials (cold email, DM, motivation letter NEVER pre-generated)
+      - Deterministic reliable fallbacks on rate-limit or offline state
     """
+    import copy
     lang = job_input.language.value
     ctx = build_candidate_context(db, user_id, resume)
     det_score = deterministic_score(ctx, job_input)
 
     active_prov = get_active_provider()
-    if active_prov == AIProviderType.OLLAMA:
-        runtime = check_ollama_runtime()
-        ai_available = runtime.get("status") == "connected" and bool(runtime.get("models"))
-        model = runtime.get("selected_model")
-        is_ollama = True
-    else:
-        provider_inst = get_provider(active_prov)
-        ai_available = provider_inst.is_available()
-        model = provider_inst.get_active_model()
-        is_ollama = False
+    provider_inst = get_provider(active_prov)
+    ai_available = is_ai_available()
+    model = provider_inst.get_active_model()
+    is_ollama = active_prov == AIProviderType.OLLAMA
+    is_cloud = active_prov in (AIProviderType.GEMINI, AIProviderType.OPENAI)
 
-    result = JobTargetAnalysisResult(
-        resume_id=resume.id,
-        target_role=job_input.target_role,
-        language=lang,
-        deterministic_score=det_score,
-        data_conflicts=ctx.conflicts,
-        ollama_used=ai_available and is_ollama,
-        ollama_model=model if (ai_available and is_ollama) else None,
-        ai_provider=active_prov.value if ai_available else "deterministic",
-        ai_model=model if ai_available else None,
-    )
+    add_info = getattr(job_input, "additional_information", "") or ""
+    job_hash = hashlib.sha256(f"{job_input.target_role}|{add_info}|{job_input.job_description}|{lang}".encode()).hexdigest()[:16]
+    resume_ver = f"{resume.id}_{getattr(resume, 'updated_at', getattr(resume, 'created_at', '0'))}"
+    analysis_cache_key = f"analysis_{job_hash}_{resume_ver}_{active_prov.value}_{model}"
 
-    # Stage 1
-    try:
-        if ai_available:
-            requirements = _stage1_extract_requirements(job_input, model=model)
-        else:
-            requirements = _fallback_extract_requirements(job_input)
-        result.job_requirements = requirements
-    except (OllamaError, OllamaUnavailableError, AIGatewayError, Exception) as exc:
-        logger.warning(f"Stage 1 failed: {exc}")
-        requirements = _fallback_extract_requirements(job_input)
-        result.job_requirements = requirements
-        result.ollama_used = False
-        result.ai_provider = "deterministic"
+    with _CACHE_LOCK:
+        if analysis_cache_key in _ANALYSIS_CACHE:
+            ts, cached_result = _ANALYSIS_CACHE[analysis_cache_key]
+            if time.time() - ts < _CACHE_TTL_SECONDS:
+                logger.info(f"Reusing cached job target analysis for resume={resume.id}")
+                return copy.deepcopy(cached_result)
+        if analysis_cache_key not in _IN_FLIGHT_LOCKS:
+            _IN_FLIGHT_LOCKS[analysis_cache_key] = threading.Lock()
+        inflight_lock = _IN_FLIGHT_LOCKS[analysis_cache_key]
 
-    # Stage 2
-    try:
-        if ai_available and requirements:
-            match_analysis = _stage2_match_candidate(requirements, ctx, lang, model=model)
-        else:
-            match_analysis = deterministic_match(ctx, job_input)
-        result.match_analysis = match_analysis
-    except (OllamaError, OllamaUnavailableError, AIGatewayError, Exception) as exc:
-        logger.warning(f"Stage 2 failed: {exc}")
-        result.match_analysis = deterministic_match(ctx, job_input)
+    with inflight_lock:
+        with _CACHE_LOCK:
+            if analysis_cache_key in _ANALYSIS_CACHE:
+                ts, cached_result = _ANALYSIS_CACHE[analysis_cache_key]
+                if time.time() - ts < _CACHE_TTL_SECONDS:
+                    return copy.deepcopy(cached_result)
 
-    match_analysis = result.match_analysis
+        result = JobTargetAnalysisResult(
+            resume_id=resume.id,
+            target_role=job_input.target_role,
+            language=lang,
+            deterministic_score=det_score,
+            data_conflicts=ctx.conflicts,
+            ollama_used=ai_available and is_ollama,
+            ollama_model=model if (ai_available and is_ollama) else None,
+            ai_provider=active_prov.value if ai_available else "deterministic",
+            ai_model=model if ai_available else None,
+        )
 
-    # Stage 3
-    try:
-        if ai_available:
-            recs = _stage3_recommendations(requirements, match_analysis, ctx, job_input, model=model)
-        else:
-            recs = _fallback_recommendations(match_analysis, ctx, job_input)
-        result.resume_recommendations = recs
-    except (OllamaError, OllamaUnavailableError, AIGatewayError, Exception) as exc:
-        logger.warning(f"Stage 3 failed: {exc}")
-        result.resume_recommendations = _fallback_recommendations(match_analysis, ctx, job_input)
+        single_pass_done = False
+        if ai_available and is_cloud:
+            try:
+                logger.info(f"Running single-pass job analysis via {active_prov.value} (model={model})")
+                requirements, match_analysis, recs = _cloud_single_pass_analysis(ctx, job_input, lang, model=model)
+                result.job_requirements = requirements
+                result.match_analysis = match_analysis
+                result.resume_recommendations = recs
+                single_pass_done = True
+            except AIRateLimitError as exc:
+                logger.warning(f"Single-pass cloud analysis hit rate limit: {exc}")
+                result.partial_failure = True
+                result.partial_failure_detail = f"Rate limited by {active_prov.value.title()} free tier: {exc}"
+            except Exception as exc:
+                logger.warning(f"Single-pass cloud analysis failed, falling back: {exc}")
 
-    # Stage 4
-    no_ai_msg = f"AI service unavailable ({active_prov.value}). Configure active AI provider to generate application materials."
-    try:
-        if ai_available:
-            email, dm, letter = _stage4_materials(ctx, job_input, model=model)
-        else:
-            email = ApplicationMaterial(material_type=MaterialType.COLD_EMAIL, language=lang, generated=False, error=no_ai_msg)
-            dm = ApplicationMaterial(material_type=MaterialType.SHORT_MESSAGE, language=lang, generated=False, error=no_ai_msg)
-            letter = ApplicationMaterial(material_type=MaterialType.MOTIVATION_LETTER, language=lang, generated=False, error=no_ai_msg)
-        result.cold_email = email
-        result.short_message = dm
-        result.motivation_letter = letter
-    except (OllamaError, OllamaUnavailableError, AIGatewayError) as exc:
-        logger.warning(f"Stage 4 failed: {exc}")
-        result.partial_failure = True
-        result.partial_failure_detail = "Application materials could not be generated (AI unavailable). Resume analysis completed."
-        for mtype, attr in [(MaterialType.COLD_EMAIL, "cold_email"), (MaterialType.SHORT_MESSAGE, "short_message"), (MaterialType.MOTIVATION_LETTER, "motivation_letter")]:
-            setattr(result, attr, ApplicationMaterial(material_type=mtype, language=lang, generated=False, error=str(exc)))
-    except Exception as exc:
-        logger.error(f"Stage 4 unexpected error: {exc}")
-        result.partial_failure = True
-        result.partial_failure_detail = f"Application materials generation failed: {exc}. Resume analysis is complete."
+        if not single_pass_done:
+            # Stage 1
+            try:
+                if ai_available:
+                    requirements = _stage1_extract_requirements(job_input, model=model)
+                else:
+                    requirements = _fallback_extract_requirements(job_input)
+                result.job_requirements = requirements
+            except (OllamaError, OllamaUnavailableError, AIGatewayError, Exception) as exc:
+                logger.warning(f"Stage 1 failed: {exc}")
+                requirements = _fallback_extract_requirements(job_input)
+                result.job_requirements = requirements
+                result.ollama_used = False
+                result.ai_provider = "deterministic"
 
-    # Stage 5 - Interview & STAR Prep
-    try:
-        if ai_available:
-            result.interview_prep = _stage5_interview_prep(ctx, job_input, match_analysis, model=model)
-        else:
-            result.interview_prep = _fallback_interview_prep(ctx, job_input, match_analysis)
-    except Exception as exc:
-        logger.warning(f"Stage 5 failed, using fallback: {exc}")
-        result.interview_prep = _fallback_interview_prep(ctx, job_input, match_analysis)
+            # Stage 2
+            try:
+                if ai_available and requirements:
+                    match_analysis = _stage2_match_candidate(requirements, ctx, lang, model=model)
+                else:
+                    match_analysis = deterministic_match(ctx, job_input)
+                result.match_analysis = match_analysis
+            except (OllamaError, OllamaUnavailableError, AIGatewayError, Exception) as exc:
+                logger.warning(f"Stage 2 failed: {exc}")
+                result.match_analysis = deterministic_match(ctx, job_input)
 
-    return result
+            match_analysis = result.match_analysis
+
+            # Stage 3
+            try:
+                if ai_available:
+                    recs = _stage3_recommendations(requirements, match_analysis, ctx, job_input, model=model)
+                else:
+                    recs = _fallback_recommendations(match_analysis, ctx, job_input)
+                result.resume_recommendations = recs
+            except (OllamaError, OllamaUnavailableError, AIGatewayError, Exception) as exc:
+                logger.warning(f"Stage 3 failed: {exc}")
+                result.resume_recommendations = _fallback_recommendations(match_analysis, ctx, job_input)
+
+        # Stage 4 - Strictly ON DEMAND. Materials are NEVER pre-generated during match analysis.
+        # This preserves the user's free tier quota and eliminates redundant calls.
+        result.cold_email = ApplicationMaterial(
+            material_type=MaterialType.COLD_EMAIL,
+            language=lang,
+            generated=False,
+            error="",
+        )
+        result.short_message = ApplicationMaterial(
+            material_type=MaterialType.SHORT_MESSAGE,
+            language=lang,
+            generated=False,
+            error="",
+        )
+        result.motivation_letter = ApplicationMaterial(
+            material_type=MaterialType.MOTIVATION_LETTER,
+            language=lang,
+            generated=False,
+            error="",
+        )
+
+        # Stage 5 - Interview & STAR Prep (instant deterministic baseline)
+        result.interview_prep = _fallback_interview_prep(ctx, job_input, result.match_analysis)
+
+        with _CACHE_LOCK:
+            _ANALYSIS_CACHE[analysis_cache_key] = (time.time(), result)
+
+        return result
 
 
 # ---------------------------------------------------------------------------

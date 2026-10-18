@@ -778,7 +778,7 @@ class DataManagerService:
 
         manifest = {
             "app": "compust",
-            "version": "1.0.2",
+            "version": "1.0.3",
             "exported_at": datetime.now(timezone.utc).isoformat(),
             "stats": stats,
             "database_file": "compust.db",

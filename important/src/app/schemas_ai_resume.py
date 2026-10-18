@@ -38,12 +38,18 @@ class AIStatusResponse(BaseModel):
     gemini_key_configured: bool = False
     gemini_key_hint: str | None = None
     gemini_key_masked: str | None = None
-    gemini_model: str | None = "gemini-3.5-flash-lite"
+    gemini_model: str | None = "gemini-3.8-flash"
     gemini_consent_given: bool = False
     consent_granted: bool = False
+    openai_configured: bool = False
+    openai_key_configured: bool = False
+    openai_key_hint: str | None = None
+    openai_key_masked: str | None = None
+    openai_model: str | None = "gpt-4o-mini"
     fallback_policy: str = "deterministic"
     ollama: dict[str, Any] | None = None
     gemini: dict[str, Any] | None = None
+    openai: dict[str, Any] | None = None
 
 
 class AIProviderRead(BaseModel):
@@ -65,10 +71,16 @@ class AISettingsUpdate(BaseModel):
     selected_model: str | None = None
     gemini_model: str | None = None
     gemini_consent_given: bool | None = None
+    consent_granted: bool | None = None
+    openai_model: str | None = None
     fallback_policy: str | None = None
 
 
 class GeminiKeyUpdate(BaseModel):
+    api_key: str
+
+
+class OpenAIKeyUpdate(BaseModel):
     api_key: str
 
 

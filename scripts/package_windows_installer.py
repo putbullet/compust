@@ -33,7 +33,7 @@ if hasattr(sys.stdout, "reconfigure"):
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("compust.packager")
 
-DEFAULT_VERSION = "1.0.2"
+DEFAULT_VERSION = "1.0.3"
 PYTHON_EMBED_URL = "https://www.python.org/ftp/python/3.12.9/python-3.12.9-embed-amd64.zip"
 PYTHON_EMBED_SHA256 = "615861fb801e8b04c847598db4e1e46e4b046295017caa37cb5486dde72b5865"
 

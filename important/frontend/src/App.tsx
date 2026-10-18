@@ -29,6 +29,7 @@ import { ExtensionInstallView } from './components/ExtensionInstallView';
 import { FloatingHelpControls } from './components/Guide/FloatingHelpControls';
 import { AISettingsModal } from './components/AISettingsModal';
 import { AIAssistantWidget } from './components/AIAssistantWidget';
+import { SyncStatusBanner } from './components/common/SyncStatusBanner';
 import { Loader } from './components/Loader';
 import { Sparkles, Layers, ShieldCheck, ChevronLeft, ChevronRight, Bookmark } from 'lucide-react';
 import { useTranslation } from './i18n';
@@ -304,6 +305,9 @@ export const App: React.FC = () => {
                 onSelectRemote={(r) => { setSelectedRemote(r); setCurrentPage(1); }}
               />
             </section>
+
+            {/* Central Time Service & Auto-Sync Freshness Header */}
+            <SyncStatusBanner onSyncCompleted={refreshCompaniesAndJobs} />
 
             {/* Controls Row */}
             <div className="controls-row">

@@ -197,7 +197,7 @@ class HealthRead(BaseModel):
     database: str
     latency_ms: float | None = None
     app: str = "compust"
-    version: str = "1.0.2"
+    version: str = "1.0.3"
     mode: str = "installed"
     instance_id: str | None = None
     pid: int | None = None

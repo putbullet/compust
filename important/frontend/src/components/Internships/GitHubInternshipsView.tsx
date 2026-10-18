@@ -5,7 +5,6 @@ import {
   MapPin,
   Calendar,
   Search,
-  RefreshCw,
   LayoutGrid,
   List,
   CheckCircle2,
@@ -13,7 +12,6 @@ import {
   Flag,
   Shield,
   Tag,
-  Clock,
   GitBranch,
   SlidersHorizontal,
   ChevronLeft,
@@ -28,6 +26,7 @@ import type {
 import { api } from '../../api/client';
 import { CompanyLogo } from './CompanyLogo';
 import { VisaBadge } from './VisaBadge';
+import { SyncStatusBanner } from '../common/SyncStatusBanner';
 import { useTranslation } from '../../i18n';
 
 const PAGE_SIZE_OPTIONS = [24, 48, 96, 200];
@@ -60,7 +59,6 @@ export const GitHubInternshipsView: React.FC = () => {
   const { t } = useTranslation();
   const [data, setData] = useState<GitHubInternshipsResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Filters
@@ -77,8 +75,7 @@ export const GitHubInternshipsView: React.FC = () => {
 
   const fetchInternships = async (isSync = false) => {
     try {
-      if (isSync) setSyncing(true);
-      else setLoading(true);
+      setLoading(true);
       setErrorMsg(null);
 
       const response = isSync
@@ -89,7 +86,6 @@ export const GitHubInternshipsView: React.FC = () => {
       setErrorMsg(err.message || 'Failed to load curated internships.');
     } finally {
       setLoading(false);
-      setSyncing(false);
     }
   };
 
@@ -205,24 +201,7 @@ export const GitHubInternshipsView: React.FC = () => {
         </div>
 
         <div className="banner-action-side">
-          <button
-            type="button"
-            className={`sync-github-btn ${syncing ? 'syncing' : ''}`}
-            onClick={() => fetchInternships(true)}
-            disabled={syncing || loading}
-            title="Fetch latest README commits and updates directly from GitHub"
-          >
-            <RefreshCw size={15} className={syncing ? 'spin-icon' : ''} />
-            <span>{syncing ? t.internships.syncing : t.internships.syncGithub}</span>
-          </button>
-          {data?.stats?.last_synced_at && (
-            <span className="last-sync-text">
-              <Clock size={12} />
-              <span>
-                Updated {new Date(data.stats.last_synced_at).toLocaleDateString()} {new Date(data.stats.last_synced_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </span>
-            </span>
-          )}
+          <SyncStatusBanner onSyncCompleted={() => fetchInternships(false)} compact />
         </div>
       </div>
 

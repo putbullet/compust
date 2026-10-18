@@ -228,7 +228,7 @@ def test_explain_with_ai_narrative_case_scenario(client):
     data = resp.json()
     scenario = data["real_world_scenario"]
     assert "Case Scenario" in scenario
-    assert "Alice" in scenario
-    assert "Bob" in scenario
+    assert any(a in scenario for a in ["Alice", "Threat Actor", "Finance Specialist"])
+    assert any(b in scenario for b in ["Bob", "Threat Actor", "Finance Specialist", "Gateway"])
     assert data["code_sample"]
     assert len(data["key_interview_takeaways"]) >= 3

@@ -296,9 +296,15 @@ def test_quick_add_does_not_create_application(client: TestClient, auth_headers:
 
 
 def test_extension_download_chrome_and_firefox(client: TestClient):
-    """Verify Issue 3 requirement: download endpoints serve real, valid zip files with proper headers."""
+    """Verify download endpoints serve fresh zip files whose hash matches the latest build output."""
     import zipfile
     import io
+    import json
+    import pathlib
+    from src.app.main import _compute_extension_dir_hash
+
+    base_dir = pathlib.Path(__file__).resolve().parent.parent
+    extension_dist = base_dir / "extension" / "dist"
 
     for browser in ["chrome", "firefox"]:
         response = client.get(f"/api/v1/extension/download/{browser}")
@@ -308,11 +314,24 @@ def test_extension_download_chrome_and_firefox(client: TestClient):
         assert f'filename="{expected_filename}"' in response.headers.get("content-disposition", "")
         assert len(response.content) > 1000
 
-        # Verify it is a valid zip containing manifest.json
+        # Assert X-Extension-Content-Hash matches the latest package_dir build output
+        package_dir = extension_dist / browser
+        expected_hash = _compute_extension_dir_hash(package_dir)
+        served_hash = response.headers.get("X-Extension-Content-Hash")
+        assert served_hash == expected_hash, f"Served zip hash ({served_hash}) must match latest build output ({expected_hash})"
+
+        # Verify it is a valid zip containing manifest.json and forward slashes only
         zf = zipfile.ZipFile(io.BytesIO(response.content))
         namelist = zf.namelist()
         assert "manifest.json" in namelist
         assert any("content/linkedin.js" in name for name in namelist)
+
+        # Invariant: 0 backslashes
+        assert not any("\\" in name for name in namelist), f"Archive for {browser} contains backslash paths: {namelist}"
+
+        # Invariant: Manifest version is 1.0.2
+        manifest_data = json.loads(zf.read("manifest.json").decode("utf-8"))
+        assert manifest_data.get("version") == "1.0.2"
 
 
 def test_analyze_ephemeral_zero_database_writes(client: TestClient, auth_headers: dict, db_session: Session, active_resume: Resume):

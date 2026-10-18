@@ -308,7 +308,7 @@ def answer_user_query(
             system_prompt=COMPUST_ASSISTANT_SYSTEM_PROMPT,
             model=selected_model,
             temperature=0.1,
-            timeout_seconds=8.0,
+            timeout_seconds=15.0,
         )
         final_answer = llm_response if llm_response else deterministic_fallback
         return {

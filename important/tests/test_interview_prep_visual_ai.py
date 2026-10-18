@@ -209,7 +209,10 @@ def test_explain_with_ai_offline_degradation():
     a fully-formed, schema-validated structured payload with no raw prose dumping.
     """
     import asyncio
-    with patch("httpx.AsyncClient.post", side_effect=Exception("Connection refused (Ollama offline)")):
+    with patch("src.app.services.ai_service.generate_completion", side_effect=Exception("Connection refused (Ollama offline)")), \
+         patch("src.app.services.interview_prep.SessionLocal") as mock_session:
+        mock_db = mock_session.return_value.__enter__.return_value
+        mock_db.query.return_value.filter.return_value.first.return_value = None
         res = asyncio.run(interview_prep_service.explain_with_ai(
             domain_id="security_engineering",
             question_slug="sec-what-is-two-factor-authentication-2fa-and-what-factors-compose-it",

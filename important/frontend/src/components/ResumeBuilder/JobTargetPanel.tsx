@@ -459,21 +459,104 @@ export const JobTargetPanel: React.FC<JobTargetPanelProps> = ({
       });
     };
 
-    if (!material.generated && material.error) {
+    const initialCooldown = material.retry_after_seconds ? Math.ceil(material.retry_after_seconds) : 0;
+    const [cooldown, setCooldown] = useState<number>(initialCooldown);
+
+    React.useEffect(() => {
+      if (material.retry_after_seconds && material.retry_after_seconds > 0) {
+        setCooldown(Math.ceil(material.retry_after_seconds));
+      }
+    }, [material.retry_after_seconds, material.error]);
+
+    React.useEffect(() => {
+      if (cooldown <= 0) return;
+      const interval = setInterval(() => {
+        setCooldown((prev) => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(interval);
+    }, [cooldown]);
+
+    if (!material.generated && !material.error) {
       return (
-        <div className="jtp-material-unavailable">
-          <AlertCircle size={16} />
-          <span>{material.error}</span>
+        <div className="jtp-material-on-demand">
+          <div className="jtp-on-demand-icon">
+            <Sparkles size={28} />
+          </div>
+          <h4 className="jtp-on-demand-title">
+            Tailored {filename.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase())} Ready to Generate
+          </h4>
+          <p className="jtp-on-demand-desc">
+            Compust generates application materials strictly on demand to preserve your AI quota. Click below to draft a highly relevant, candidate-grounded message for this position.
+          </p>
           {onRegenerate && (
             <button
-              className="jtp-action-pill"
-              style={{ marginLeft: 'auto' }}
+              id={`generate-btn-${filename}`}
+              className="jtp-generate-btn"
               onClick={onRegenerate}
               disabled={isRegenerating}
-              title="Generate this material using local AI"
             >
-              {isRegenerating ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
-              {isRegenerating ? 'Generating...' : 'Try Generating'}
+              {isRegenerating ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>Drafting tailored content…</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles size={16} />
+                  <span>Generate with AI</span>
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      );
+    }
+
+    if (!material.generated && material.error) {
+      const isRateLimit = cooldown > 0 || material.error.toLowerCase().includes('rate limit') || material.error.toLowerCase().includes('quota');
+      return (
+        <div className={`jtp-material-unavailable ${isRateLimit ? 'rate-limited' : ''}`}>
+          <div className="jtp-unavailable-header">
+            <AlertCircle size={20} className="jtp-alert-icon" />
+            <div className="jtp-unavailable-text">
+              <strong>{isRateLimit ? 'AI Quota / Rate Limit Reached' : 'Generation Unavailable'}</strong>
+              <p>
+                {cooldown > 0
+                  ? `Google Gemini free tier quota exhausted. Cooldown active (~${cooldown}s). Manual retry re-enables automatically.`
+                  : material.error}
+              </p>
+            </div>
+          </div>
+          {onRegenerate && (
+            <button
+              id={`retry-btn-${filename}`}
+              className="jtp-action-pill retry-btn"
+              onClick={onRegenerate}
+              disabled={isRegenerating || cooldown > 0}
+              title={cooldown > 0 ? `Please wait ${cooldown}s before retrying` : 'Retry generating this material'}
+            >
+              {isRegenerating ? (
+                <>
+                  <Loader2 size={13} className="animate-spin" />
+                  <span>Drafting…</span>
+                </>
+              ) : cooldown > 0 ? (
+                <>
+                  <Loader2 size={13} className="animate-spin" />
+                  <span>Retry in {cooldown}s</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles size={13} />
+                  <span>Retry Generation</span>
+                </>
+              )}
             </button>
           )}
         </div>

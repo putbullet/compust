@@ -735,9 +735,11 @@ class InterviewPrepService:
         if lang not in ["en", "fr", "de"]:
             lang = "en"
 
-        settings = get_settings()
-        ollama_url = settings.ollama_url or "http://127.0.0.1:11434"
-        model = settings.default_ai_model or "qwen2.5:0.5b"
+        from .ai_gateway import get_active_provider, get_selected_model
+        _active_prov = get_active_provider()
+        _active_model = get_selected_model(_active_prov)
+        # Cache key includes provider so Gemini/OpenAI/Ollama answers are stored separately
+        model = f"{_active_prov.value}:{_active_model or 'default'}"
         SCHEMA_VERSION = 1
 
         # 1. Database Cache Check
@@ -752,11 +754,12 @@ class InterviewPrepService:
                 if cached and cached.payload:
                     try:
                         structured_payload = StructuredAIExplanationPayload(**cached.payload)
+                        actor_names = " vs ".join(a.label for a in structured_payload.actors)
                         return QuestionAIExplainResponse(
                             question_id=q.id,
                             mode=mode,
                             explanation=structured_payload.concept_summary,
-                            real_world_scenario=structured_payload.scenario.title,
+                            real_world_scenario=f"Case Scenario — {structured_payload.scenario.title} ({actor_names})",
                             code_sample=structured_payload.code_sample.code if structured_payload.code_sample else None,
                             key_interview_takeaways=structured_payload.takeaways,
                             structured_payload=structured_payload,
@@ -872,7 +875,7 @@ class InterviewPrepService:
             question_id=q.id,
             mode=mode,
             explanation=structured_payload.concept_summary,
-            real_world_scenario=f"{structured_payload.scenario.title} ({actor_names})",
+            real_world_scenario=f"Case Scenario — {structured_payload.scenario.title} ({actor_names})",
             code_sample=structured_payload.code_sample.code if structured_payload.code_sample else None,
             key_interview_takeaways=structured_payload.takeaways,
             structured_payload=structured_payload,

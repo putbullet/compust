@@ -8,8 +8,14 @@ from ..logging import get_logger
 from ..models import Country
 from ..repositories.jobs import resolve_or_create_company, persist_candidate
 from ..scraper.orange_parser import JobCandidate
-from .ai_service import generate_completion, check_ollama_runtime, OllamaError, OllamaUnavailableError
-from .ai_gateway import get_active_provider
+from .ai_service import (
+    generate_completion,
+    get_active_provider,
+    get_provider,
+    is_ai_available,
+    OllamaError,
+    OllamaUnavailableError,
+)
 
 logger = get_logger("scraper.assistant")
 
@@ -131,16 +137,15 @@ def _generate_deterministic_explanation(report_dict: dict[str, Any]) -> dict[str
 def explain_scraper_run(report_dict: dict[str, Any]) -> dict[str, Any]:
     """
     Produces an LLM-assisted explanation of a scraper run, grounded in Compust scraper mechanics.
-    Falls back gracefully to deterministic explanation if Ollama is unavailable or times out.
+    Falls back gracefully to deterministic explanation if the active AI provider is unavailable or times out.
     """
-    runtime = check_ollama_runtime()
-    ollama_available = runtime.get("status") == "connected" and bool(runtime.get("models"))
-
-    if not ollama_available:
-        logger.info("Ollama is not available. Using deterministic scraper diagnostics explanation.")
+    active_prov = get_active_provider()
+    provider_inst = get_provider(active_prov)
+    if not provider_inst.is_available():
+        logger.info(f"AI provider '{active_prov.value}' is not available. Using deterministic scraper diagnostics explanation.")
         return _generate_deterministic_explanation(report_dict)
 
-    # Prepare grounding prompt for Ollama
+    # Prepare grounding prompt for active provider
     system_prompt = (
         "You are the Compust Career & Scraper Diagnostics Assistant. "
         "Analyze the provided scraper run diagnostic report and explain the results clearly to an admin engineer. "
@@ -180,6 +185,7 @@ def explain_scraper_run(report_dict: dict[str, Any]) -> dict[str, Any]:
         raw_output = generate_completion(
             prompt=user_prompt,
             system_prompt=system_prompt,
+            model=provider_inst.get_active_model(),
             temperature=0.2,
             timeout_seconds=20.0,
         )
@@ -195,11 +201,11 @@ def explain_scraper_run(report_dict: dict[str, Any]) -> dict[str, Any]:
                 "provider": get_active_provider().value,
             }
         else:
-            logger.warning("Ollama output did not contain valid JSON. Falling back to deterministic explanation.")
+            logger.warning("AI provider output did not contain valid JSON. Falling back to deterministic explanation.")
             return _generate_deterministic_explanation(report_dict)
 
     except (OllamaError, OllamaUnavailableError, json.JSONDecodeError, Exception) as exc:
-        logger.warning(f"Ollama scraper explanation failed ({exc}). Falling back to deterministic explanation.")
+        logger.warning(f"AI ({get_active_provider().value}) scraper explanation failed ({exc}). Falling back to deterministic explanation.")
         return _generate_deterministic_explanation(report_dict)
 
 

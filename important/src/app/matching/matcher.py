@@ -179,12 +179,19 @@ def calculate_job_match(
     # -------------------------------------------------------------
     # 2. Experience Matching (Weight: 25%)
     # -------------------------------------------------------------
-    user_experiences = list(getattr(user, "experience", []) or [])
     resume = _get_active_resume(user)
-    if resume and getattr(resume, "structured_data", None):
-        r_exp = (resume.structured_data or {}).get("experience", [])
-        if isinstance(r_exp, list):
-            user_experiences.extend(r_exp)
+    unified_prof = getattr(user, "unified_profile", None)
+    if unified_prof and getattr(unified_prof, "use_linkedin_in_matching", True) and getattr(unified_prof, "unified_data", None):
+        u_exp = unified_prof.unified_data.get("experience", [])
+        user_experiences = [e for e in u_exp if not e.get("hidden")]
+    else:
+        user_experiences = list(getattr(user, "experience", []) or [])
+        if resume and getattr(resume, "structured_data", None):
+            r_exp = (resume.structured_data or {}).get("experience", [])
+            if isinstance(r_exp, list):
+                user_experiences.extend(r_exp)
+
+
 
     is_senior_role = any(w in job_full_text[:300] for w in ["senior", "lead", "principal", "head", "director", "architect"])
     is_junior_role = any(w in job_full_text[:300] for w in ["intern", "stage", "junior", "entry", "trainee", "alternance"])
@@ -264,10 +271,15 @@ def calculate_job_match(
     requires_education = any(term in job_full_text for term in edu_req_terms)
 
     user_educations = list(getattr(user, "education", []) or [])
-    if resume and getattr(resume, "structured_data", None):
+    if unified_prof and getattr(unified_prof, "use_linkedin_in_matching", True) and getattr(unified_prof, "unified_data", None):
+        u_edu = unified_prof.unified_data.get("education", [])
+        if u_edu:
+            user_educations = [e for e in u_edu if not e.get("hidden")]
+    elif resume and getattr(resume, "structured_data", None):
         r_edu = (resume.structured_data or {}).get("education", [])
         if isinstance(r_edu, list):
             user_educations.extend(r_edu)
+
 
     edu_score = 100  # default 100 if unmentioned
     if requires_education:

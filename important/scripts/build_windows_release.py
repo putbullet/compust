@@ -17,7 +17,7 @@ from pathlib import Path
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
-VERSION = "1.0.2"
+VERSION = "1.0.3"
 RELEASE_NAME = f"Compust-Windows-Portable-v{VERSION}"
 
 

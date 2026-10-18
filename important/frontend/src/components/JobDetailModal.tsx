@@ -40,6 +40,8 @@ const RESUME_SUGGESTION_STAGES = [
   'Done',
 ];
 
+const suggestionsCache: Record<number, ResumeSuggestion> = {};
+
 interface JobDetailModalProps {
   job: JobDetail | null;
   companyName: string;
@@ -111,6 +113,28 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
     setTimeout(() => setCopiedIndex(null), 1600);
   };
 
+  const [copiedAdviceIdx, setCopiedAdviceIdx] = useState<number | null>(null);
+  const [copiedAtsIdx, setCopiedAtsIdx] = useState<number | null>(null);
+  const [copiedRecIdx, setCopiedRecIdx] = useState<number | null>(null);
+
+  const handleCopyAdvice = (text: string, idx: number) => {
+    navigator.clipboard.writeText(text);
+    setCopiedAdviceIdx(idx);
+    setTimeout(() => setCopiedAdviceIdx(null), 1600);
+  };
+
+  const handleCopyAts = (text: string, idx: number) => {
+    navigator.clipboard.writeText(text);
+    setCopiedAtsIdx(idx);
+    setTimeout(() => setCopiedAtsIdx(null), 1600);
+  };
+
+  const handleCopyRec = (text: string, idx: number) => {
+    navigator.clipboard.writeText(text);
+    setCopiedRecIdx(idx);
+    setTimeout(() => setCopiedRecIdx(null), 1600);
+  };
+
   const sectionsGrouped = React.useMemo(() => {
     const groups: { [key: string]: ResumeEditSuggestionItem[] } = {
       Skills: [],
@@ -156,12 +180,34 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
     if (!job) return;
     setSelectedLang('original');
     setErrorMsg(null);
-    setShowSuggestions(false);
+    setShowSuggestions(true);
     setCustomizedResume(null);
     setRecreationError(null);
-    setSuggestions(null);
-    setSuggestionError(null);
     setIsApplied(isAppliedInitially);
+
+    // Auto-fetch suggestions or use cached result
+    if (suggestionsCache[job.id]) {
+      setSuggestions(suggestionsCache[job.id]);
+      setLoadingSuggestions(false);
+      setSuggestionError(null);
+    } else {
+      setSuggestions(null);
+      setLoadingSuggestions(true);
+      setSuggestionError(null);
+      api.getResumeSuggestions(job.id)
+        .then((data) => {
+          suggestionsCache[job.id] = data;
+          setSuggestions(data);
+        })
+        .catch((err: any) => {
+          setSuggestionError(
+            err.message || 'Unable to generate resume suggestions. Please ensure you have uploaded a resume in your profile.'
+          );
+        })
+        .finally(() => {
+          setLoadingSuggestions(false);
+        });
+    }
 
     api.getJobTranslations(job.id)
       .then((items) => setTranslations(items))
@@ -187,15 +233,19 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
     }
   };
 
-  const handleFetchResumeSuggestions = async () => {
+  const handleFetchResumeSuggestions = async (forceRefresh: boolean = true) => {
     if (!job) return;
     setShowSuggestions(true);
-    if (suggestions) return; // already fetched
+    if (!forceRefresh && suggestionsCache[job.id]) {
+      setSuggestions(suggestionsCache[job.id]);
+      return;
+    }
 
     try {
       setLoadingSuggestions(true);
       setSuggestionError(null);
       const data = await api.getResumeSuggestions(job.id);
+      suggestionsCache[job.id] = data;
       setSuggestions(data);
     } catch (err: any) {
       setSuggestionError(
@@ -629,13 +679,16 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                   {/* Already Demonstrated */}
                   <div className="factor-box demonstrated">
                     <div className="box-title">
-                      <CheckCircle2 size={14} />
+                      <CheckCircle2 size={15} />
                       <span>Already Demonstrated in Resume ({suggestions.already_demonstrated.length})</span>
                     </div>
                     <div className="tags-row">
                       {suggestions.already_demonstrated.length > 0 ? (
                         suggestions.already_demonstrated.map((s, idx) => (
-                          <span key={idx} className="match-tag demonstrated">{s}</span>
+                          <span key={idx} className="match-tag demonstrated">
+                            <Check size={11} style={{ marginRight: 4, display: 'inline' }} />
+                            {s}
+                          </span>
                         ))
                       ) : (
                         <span className="none-text">No direct skills matched yet.</span>
@@ -646,16 +699,19 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                   {/* Missing or Weak Requirements */}
                   <div className="factor-box missing">
                     <div className="box-title">
-                      <AlertCircle size={14} />
-                      <span>Missing or Weakly Highlighted ({suggestions.missing_or_weak.length})</span>
+                      <AlertCircle size={15} />
+                      <span>Identified Gaps / Missing Requirements ({suggestions.missing_or_weak.length})</span>
                     </div>
                     <div className="tags-row">
                       {suggestions.missing_or_weak.length > 0 ? (
                         suggestions.missing_or_weak.map((s, idx) => (
-                          <span key={idx} className="match-tag missing">{s}</span>
+                          <span key={idx} className="match-tag missing">
+                            <AlertCircle size={11} style={{ marginRight: 4, display: 'inline' }} />
+                            {s}
+                          </span>
                         ))
                       ) : (
-                        <span className="none-text">All extracted skills are demonstrated!</span>
+                        <span className="none-text">All extracted skills are demonstrated in your profile!</span>
                       )}
                     </div>
                   </div>
@@ -663,28 +719,56 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                   {/* Actionable Suggestions */}
                   <div className="actionable-suggestions">
                     <div className="box-title">
-                      <Sparkles size={14} />
-                      <span>Actionable Advice & Recommendations</span>
+                      <Sparkles size={15} />
+                      <span>Actionable Advice & Recommendations ({suggestions.suggestions.length})</span>
                     </div>
-                    <ul className="advice-list">
+                    <div className="advice-cards-list">
                       {suggestions.suggestions.map((sug, idx) => (
-                        <li key={idx}>{sug}</li>
+                        <div key={idx} className="advice-card">
+                          <div className="advice-card-content">
+                            <Sparkles size={14} className="advice-card-icon" />
+                            <p>{sug}</p>
+                          </div>
+                          <button
+                            type="button"
+                            className="copy-mini-btn"
+                            onClick={() => handleCopyAdvice(sug, idx)}
+                            title="Copy suggestion"
+                          >
+                            {copiedAdviceIdx === idx ? <Check size={12} /> : <Copy size={12} />}
+                            <span>{copiedAdviceIdx === idx ? 'Copied' : 'Copy'}</span>
+                          </button>
+                        </div>
                       ))}
-                    </ul>
+                    </div>
                   </div>
 
                   {/* ATS Formatting Improvements */}
                   {suggestions.ats_improvements && suggestions.ats_improvements.length > 0 && (
                     <div className="factor-box ats-box">
                       <div className="box-title">
-                        <FileText size={14} />
-                        <span>ATS Compatibility Improvements</span>
+                        <FileText size={15} />
+                        <span>ATS Compatibility Improvements ({suggestions.ats_improvements.length})</span>
                       </div>
-                      <ul className="advice-list">
+                      <div className="advice-cards-list">
                         {suggestions.ats_improvements.map((imp, idx) => (
-                          <li key={idx}>{imp}</li>
+                          <div key={idx} className="advice-card ats">
+                            <div className="advice-card-content">
+                              <CheckCircle2 size={14} className="advice-card-icon ats" />
+                              <p>{imp}</p>
+                            </div>
+                            <button
+                              type="button"
+                              className="copy-mini-btn"
+                              onClick={() => handleCopyAts(imp, idx)}
+                              title="Copy ATS advice"
+                            >
+                              {copiedAtsIdx === idx ? <Check size={12} /> : <Copy size={12} />}
+                              <span>{copiedAtsIdx === idx ? 'Copied' : 'Copy'}</span>
+                            </button>
+                          </div>
                         ))}
-                      </ul>
+                      </div>
                     </div>
                   )}
 
@@ -692,7 +776,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                   {suggestions.actionable_recommendations && suggestions.actionable_recommendations.length > 0 && (
                     <div className="detailed-recs">
                       <div className="box-title">
-                        <Wand2 size={14} />
+                        <Wand2 size={15} />
                         <span>Targeted Section Enhancements ({suggestions.actionable_recommendations.length})</span>
                       </div>
                       <div className="rec-cards-list">
@@ -703,7 +787,18 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                               <span className="rec-loc">{rec.location}</span>
                             </div>
                             <p className="rec-weak">{rec.weakness}</p>
-                            <p className="rec-act"><strong>Suggested action:</strong> {rec.suggested_action}</p>
+                            <div className="rec-act-row">
+                              <p className="rec-act"><strong>Suggested action:</strong> {rec.suggested_action}</p>
+                              <button
+                                type="button"
+                                className="copy-mini-btn"
+                                onClick={() => handleCopyRec(rec.suggested_action, idx)}
+                                title="Copy suggested action"
+                              >
+                                {copiedRecIdx === idx ? <Check size={12} /> : <Copy size={12} />}
+                                <span>{copiedRecIdx === idx ? 'Copied' : 'Copy'}</span>
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -793,14 +888,16 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
             <span>AI Tailoring (Coming Soon)</span>
           </button>
 
-          {/* Suggest Resume Customization Button */}
+          {/* Refresh Suggestions Button */}
           <button
             type="button"
             className={`suggestion-btn ${showSuggestions ? 'active' : ''}`}
-            onClick={handleFetchResumeSuggestions}
+            onClick={() => handleFetchResumeSuggestions(true)}
+            disabled={loadingSuggestions}
+            title="Suggest Resume Customization: Recalculate gap analysis against your active resume and selected AI model"
           >
-            <FileSearch size={15} />
-            <span>{showSuggestions ? 'Refresh Suggestions' : 'Suggest Resume Customization'}</span>
+            <RefreshCw size={14} className={loadingSuggestions ? 'spin' : ''} />
+            <span>{loadingSuggestions ? 'Analyzing Resume…' : 'Suggest Resume Customization'}</span>
           </button>
 
           {/* Mark as Applied Action */}
@@ -1505,6 +1602,73 @@ const StyledModalBackdrop = styled.div`
         margin-bottom: 8px;
       }
 
+      .advice-cards-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .advice-card {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+        background: rgba(15, 23, 42, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 8px;
+        padding: 10px 12px;
+
+        &.ats {
+          border-color: rgba(168, 85, 247, 0.25);
+          background: rgba(88, 28, 135, 0.15);
+        }
+
+        .advice-card-content {
+          display: flex;
+          align-items: flex-start;
+          gap: 8px;
+          flex: 1;
+
+          .advice-card-icon {
+            color: #60a5fa;
+            flex-shrink: 0;
+            margin-top: 2px;
+
+            &.ats {
+              color: #c084fc;
+            }
+          }
+
+          p {
+            margin: 0;
+            font-size: 0.8rem;
+            color: #cbd5e1;
+            line-height: 1.45;
+          }
+        }
+      }
+
+      .copy-mini-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 8px;
+        border-radius: 6px;
+        background: rgba(59, 130, 246, 0.15);
+        border: 1px solid rgba(59, 130, 246, 0.3);
+        color: #93c5fd;
+        font-size: 0.72rem;
+        font-weight: 600;
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: all 0.2s;
+
+        &:hover {
+          background: rgba(59, 130, 246, 0.3);
+          color: #ffffff;
+        }
+      }
+
       .advice-list {
         margin: 0;
         padding-left: 20px;
@@ -1586,10 +1750,20 @@ const StyledModalBackdrop = styled.div`
           margin-bottom: 4px;
         }
 
-        .rec-act {
-          font-size: 0.78rem;
-          color: #93c5fd;
-          line-height: 1.4;
+        .rec-act-row {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 10px;
+          margin-top: 4px;
+
+          .rec-act {
+            margin: 0;
+            font-size: 0.78rem;
+            color: #93c5fd;
+            line-height: 1.4;
+            flex: 1;
+          }
         }
       }
     }

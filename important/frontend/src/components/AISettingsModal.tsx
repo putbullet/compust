@@ -20,6 +20,7 @@ import {
   AlertTriangle,
   ChevronRight,
   ChevronLeft,
+  Sparkles,
 } from 'lucide-react';
 import { api } from '../api/client';
 import type { AIStatus, AIProvider } from '../api/client';
@@ -30,11 +31,25 @@ interface AISettingsModalProps {
   onSettingsSaved?: () => void;
 }
 
+// Verified real Google Gemini API model IDs (Oct 2026).
+// When a key is set, the live list is fetched from the backend which queries /v1beta/models.
 const GEMINI_MODELS = [
-  { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash', desc: 'Recommended Default · Fast & highly capable' },
-  { id: 'gemini-flash-latest', name: 'Gemini Flash Latest', desc: 'Balanced reasoning & multimodal support' },
-  { id: 'gemini-flash-lite-latest', name: 'Gemini Flash Lite Latest', desc: 'Ultra-low latency & high throughput' },
-  { id: 'gemini-pro-latest', name: 'Gemini Pro Latest', desc: 'Maximum capability & complex generation' },
+  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', desc: 'Recommended · Fast, highly capable, cost-effective' },
+  { id: 'gemini-2.5-flash-latest', name: 'Gemini 2.5 Flash Latest', desc: 'Latest 2.5 Flash release' },
+  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', desc: 'Deep reasoning · Complex multi-step tasks' },
+  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', desc: 'Previous generation Flash · Stable production' },
+  { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', desc: 'Long context · Legacy stable' },
+  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', desc: 'High capability · Long context · Legacy stable' },
+];
+
+const OPENAI_MODELS = [
+  { id: 'gpt-4o-mini', name: 'GPT-4o Mini', desc: 'Recommended · High speed, cost-effective & capable' },
+  { id: 'gpt-4o', name: 'GPT-4o', desc: 'Flagship omni model · Superior complex reasoning' },
+  { id: 'gpt-4.1', name: 'GPT-4.1', desc: 'Latest GPT-4 flagship with enhanced instruction following' },
+  { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini', desc: 'Smaller, faster GPT-4.1 for latency-sensitive tasks' },
+  { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', desc: 'High capability · Large context window' },
+  { id: 'o4-mini', name: 'o4-mini', desc: 'Fast reasoning model for complex logic and math' },
+  { id: 'o3-mini', name: 'o3-mini', desc: 'Reasoning model · Deep analytical problem solving' },
 ];
 
 export const AISettingsModal: React.FC<AISettingsModalProps> = ({
@@ -45,7 +60,7 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
   const [aiStatus, setAIStatus] = useState<AIStatus | null>(null);
   const [, setProviders] = useState<AIProvider[]>([]);
   const [loading, setLoading] = useState(false);
-  const [activeProvider, setActiveProvider] = useState<'ollama' | 'gemini'>('ollama');
+  const [activeProvider, setActiveProvider] = useState<'ollama' | 'gemini' | 'openai'>('ollama');
 
   // Gemini 4-step wizard state: 1: Consent, 2: Key & Model, 3: Test, 4: Apply
   const [wizardStep, setWizardStep] = useState<1 | 2 | 3 | 4>(1);
@@ -54,11 +69,19 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
   const [selectedOllamaModel, setSelectedOllamaModel] = useState<string>('qwen3.5:0.8b');
 
   // Gemini state
-  const [selectedGeminiModel, setSelectedGeminiModel] = useState<string>('gemini-3.8-flash');
+  const [selectedGeminiModel, setSelectedGeminiModel] = useState<string>('gemini-2.5-flash');
   const [geminiKeyInput, setGeminiKeyInput] = useState<string>('');
   const [showGeminiKey, setShowGeminiKey] = useState<boolean>(false);
   const [savingKey, setSavingKey] = useState<boolean>(false);
   const [keySavedMessage, setKeySavedMessage] = useState<string | null>(null);
+
+  // OpenAI state
+  const [selectedOpenAIModel, setSelectedOpenAIModel] = useState<string>('gpt-4o-mini');
+  const [openAIKeyInput, setOpenAIKeyInput] = useState<string>('');
+  const [showOpenAIKey, setShowOpenAIKey] = useState<boolean>(false);
+  const [savingOpenAIKey, setSavingOpenAIKey] = useState<boolean>(false);
+  const [openAIKeySavedMessage, setOpenAIKeySavedMessage] = useState<string | null>(null);
+
   const [fallbackPolicy, setFallbackPolicy] = useState<string>('deterministic');
 
   // Consent & testing
@@ -74,6 +97,39 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
+  // Dynamic models discovered from live endpoints
+  const availableGeminiModels = React.useMemo(() => {
+    const live = aiStatus?.gemini?.models;
+    if (Array.isArray(live) && live.length > 0) {
+      const modelNames = live.map((m: any) => (typeof m === 'string' ? m : m.id || m.name));
+      const items = modelNames.map((id: string) => {
+        const found = GEMINI_MODELS.find((gm) => gm.id === id);
+        return found || { id, name: id, desc: 'Live Google Gemini model' };
+      });
+      if (selectedGeminiModel && !items.some((i) => i.id === selectedGeminiModel)) {
+        items.unshift({ id: selectedGeminiModel, name: selectedGeminiModel, desc: 'Configured model' });
+      }
+      return items;
+    }
+    return GEMINI_MODELS;
+  }, [aiStatus?.gemini?.models, selectedGeminiModel]);
+
+  const availableOpenAIModels = React.useMemo(() => {
+    const live = aiStatus?.openai?.models;
+    if (Array.isArray(live) && live.length > 0) {
+      const modelNames = live.map((m: any) => (typeof m === 'string' ? m : m.id || m.name));
+      const items = modelNames.map((id: string) => {
+        const found = OPENAI_MODELS.find((om) => om.id === id);
+        return found || { id, name: id, desc: 'Live OpenAI model' };
+      });
+      if (selectedOpenAIModel && !items.some((i) => i.id === selectedOpenAIModel)) {
+        items.unshift({ id: selectedOpenAIModel, name: selectedOpenAIModel, desc: 'Configured model' });
+      }
+      return items;
+    }
+    return OPENAI_MODELS;
+  }, [aiStatus?.openai?.models, selectedOpenAIModel]);
+
   const fetchAIInfo = async () => {
     try {
       setLoading(true);
@@ -84,18 +140,26 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
       setAIStatus(statusRes);
       setProviders(provList);
 
-      const prov = (statusRes.active_provider as 'ollama' | 'gemini') || 'ollama';
+      const prov = (statusRes.active_provider as 'ollama' | 'gemini' | 'openai') || 'ollama';
       setActiveProvider(prov);
+
+      if (statusRes.gemini_model) {
+        setSelectedGeminiModel(statusRes.gemini_model);
+      } else if (prov === 'gemini' && statusRes.selected_model) {
+        setSelectedGeminiModel(statusRes.selected_model);
+      }
+
+      if (statusRes.openai_model) {
+        setSelectedOpenAIModel(statusRes.openai_model);
+      } else if (prov === 'openai' && statusRes.selected_model) {
+        setSelectedOpenAIModel(statusRes.selected_model);
+      }
 
       if (prov === 'ollama') {
         if (statusRes.selected_model) {
           setSelectedOllamaModel(statusRes.selected_model);
         } else if (statusRes.models && statusRes.models.length > 0) {
           setSelectedOllamaModel(statusRes.models[0].name);
-        }
-      } else {
-        if (statusRes.selected_model) {
-          setSelectedGeminiModel(statusRes.selected_model);
         }
       }
 
@@ -126,18 +190,64 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
       setTestResult(null);
       setKeySavedMessage(null);
       setGeminiKeyInput('');
+      setOpenAIKeyInput('');
+      setOpenAIKeySavedMessage(null);
     }
   }, [isOpen]);
 
-  const handleSelectProvider = (provId: 'ollama' | 'gemini') => {
+  const handleSelectProvider = (provId: 'ollama' | 'gemini' | 'openai') => {
     setActiveProvider(provId);
     setTestResult(null);
     if (provId === 'gemini') {
       if (!aiStatus?.consent_granted) {
         setWizardStep(1);
-      } else if (!aiStatus?.gemini_key_configured) {
+      } else {
         setWizardStep(2);
       }
+      return;
+    }
+    if (provId === 'openai') {
+      setWizardStep(2);
+      return;
+    }
+  };
+
+  const handleOneClickSwitch = async (provId: 'ollama' | 'gemini' | 'openai') => {
+    try {
+      setSaving(true);
+      setActiveProvider(provId);
+      const model =
+        provId === 'gemini'
+          ? selectedGeminiModel
+          : provId === 'openai'
+          ? selectedOpenAIModel
+          : selectedOllamaModel;
+      const updated = await api.setAISettings({
+        active_provider: provId,
+        selected_model: model,
+        gemini_model: selectedGeminiModel,
+        openai_model: selectedOpenAIModel,
+        fallback_policy: fallbackPolicy,
+        consent_granted: (provId === 'gemini' || provId === 'openai') ? true : undefined,
+      });
+      setAIStatus(updated);
+      setSavedSuccess(true);
+      try {
+        const bc = new BroadcastChannel('compust-ai-sync');
+        bc.postMessage({ type: 'ai-provider-changed', active_provider: provId, selected_model: model });
+        bc.close();
+      } catch (e) {
+        // ignore
+      }
+      window.dispatchEvent(new CustomEvent('compust-ai-provider-changed'));
+      if (onSettingsSaved) onSettingsSaved();
+      setTimeout(() => {
+        onClose();
+      }, 400);
+    } catch (err) {
+      console.error('Failed to switch AI provider:', err);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -189,13 +299,54 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
     }
   };
 
-  const handleTestConnection = async (targetProvider?: 'gemini' | 'ollama') => {
+  const handleSaveOpenAIKey = async () => {
+    if (!openAIKeyInput.trim()) return;
+    try {
+      setSavingOpenAIKey(true);
+      const res = await api.saveOpenAIKey(openAIKeyInput.trim());
+      setOpenAIKeySavedMessage(`API key encrypted and saved locally (${res.masked}).`);
+      setOpenAIKeyInput('');
+      await fetchAIInfo();
+      setTimeout(() => setOpenAIKeySavedMessage(null), 4000);
+    } catch (err) {
+      console.error('Failed to save OpenAI API key:', err);
+      setOpenAIKeySavedMessage('Failed to save API key. Please check your credentials.');
+    } finally {
+      setSavingOpenAIKey(false);
+    }
+  };
+
+  const handleRemoveOpenAIKey = async () => {
+    try {
+      setSavingOpenAIKey(true);
+      await api.removeOpenAIKey();
+      setOpenAIKeySavedMessage('API key removed from secure storage.');
+      await fetchAIInfo();
+      setTimeout(() => setOpenAIKeySavedMessage(null), 4000);
+    } catch (err) {
+      console.error('Failed to remove OpenAI API key:', err);
+    } finally {
+      setSavingOpenAIKey(false);
+    }
+  };
+
+  const handleTestConnection = async (targetProvider?: 'gemini' | 'ollama' | 'openai') => {
     const prov = targetProvider || activeProvider;
     try {
       setTestingConnection(true);
       setTestResult(null);
-      const modelToTest = prov === 'gemini' ? selectedGeminiModel : selectedOllamaModel;
-      const res = await api.testAIConnection(prov, modelToTest, geminiKeyInput.trim() || undefined);
+      let modelToTest = selectedOllamaModel;
+      let keyToTest: string | undefined;
+
+      if (prov === 'gemini') {
+        modelToTest = selectedGeminiModel;
+        keyToTest = geminiKeyInput.trim() || undefined;
+      } else if (prov === 'openai') {
+        modelToTest = selectedOpenAIModel;
+        keyToTest = openAIKeyInput.trim() || undefined;
+      }
+
+      const res = await api.testAIConnection(prov, modelToTest, keyToTest);
       setTestResult(res);
     } catch (err: any) {
       setTestResult({
@@ -211,18 +362,35 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
   const handleSaveAllSettings = async () => {
     try {
       setSaving(true);
-      const model = activeProvider === 'gemini' ? selectedGeminiModel : selectedOllamaModel;
+      const model =
+        activeProvider === 'gemini'
+          ? selectedGeminiModel
+          : activeProvider === 'openai'
+          ? selectedOpenAIModel
+          : selectedOllamaModel;
       const updated = await api.setAISettings({
         active_provider: activeProvider,
         selected_model: model,
+        gemini_model: selectedGeminiModel,
+        openai_model: selectedOpenAIModel,
         fallback_policy: fallbackPolicy,
-        consent_granted: activeProvider === 'gemini' ? true : undefined,
+        consent_granted: (activeProvider === 'gemini' || activeProvider === 'openai') ? true : undefined,
       });
       setAIStatus(updated);
       setSavedSuccess(true);
+      try {
+        const bc = new BroadcastChannel('compust-ai-sync');
+        bc.postMessage({ type: 'ai-provider-changed', active_provider: activeProvider, selected_model: model });
+        bc.close();
+      } catch (e) {
+        // ignore
+      }
       window.dispatchEvent(new CustomEvent('compust-ai-provider-changed'));
       if (onSettingsSaved) onSettingsSaved();
-      setTimeout(() => setSavedSuccess(false), 3000);
+      setTimeout(() => {
+        setSavedSuccess(false);
+        onClose();
+      }, 500);
     } catch (err) {
       console.error('Failed to save AI settings:', err);
     } finally {
@@ -243,7 +411,7 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
             <Bot size={22} className="header-icon" />
             <div>
               <h3>AI Provider & Runtime Settings</h3>
-              <p className="modal-subtitle">Configure local offline AI or cloud Google Gemini intelligence</p>
+              <p className="modal-subtitle">Configure local offline AI, Google Gemini, or OpenAI cloud intelligence</p>
             </div>
           </div>
           <button className="close-btn" onClick={onClose} aria-label="Close modal">
@@ -287,6 +455,28 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
                     {isOllamaConnected
                       ? `${aiStatus?.models?.length || 0} local models available`
                       : 'Not running on 127.0.0.1:11434'}
+                    {isOllamaConnected && activeProvider !== 'ollama' && (
+                      <div style={{ marginTop: 6 }}>
+                        <button
+                          type="button"
+                          style={{
+                            fontSize: '0.75rem',
+                            background: 'rgba(16, 185, 129, 0.2)',
+                            border: '1px solid #10b981',
+                            color: '#34d399',
+                            borderRadius: 4,
+                            padding: '2px 8px',
+                            cursor: 'pointer',
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOneClickSwitch('ollama');
+                          }}
+                        >
+                          Quick Activate
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </ProviderCard>
 
@@ -319,6 +509,82 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
                   </div>
                   <div className="provider-meta">
                     PII automatically scrubbed locally before request.
+                    {aiStatus?.gemini_key_configured && activeProvider !== 'gemini' && (
+                      <div style={{ marginTop: 6 }}>
+                        <button
+                          type="button"
+                          style={{
+                            fontSize: '0.75rem',
+                            background: 'rgba(59, 130, 246, 0.2)',
+                            border: '1px solid #3b82f6',
+                            color: '#60a5fa',
+                            borderRadius: 4,
+                            padding: '2px 8px',
+                            cursor: 'pointer',
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOneClickSwitch('gemini');
+                          }}
+                        >
+                          Quick Activate
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </ProviderCard>
+
+                {/* OpenAI Card */}
+                <ProviderCard
+                  $selected={activeProvider === 'openai'}
+                  onClick={() => handleSelectProvider('openai')}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <div className="provider-top">
+                    <div className="provider-name-row">
+                      <Sparkles size={18} className="icon-openai" style={{ color: '#10a37f' }} />
+                      <span className="provider-title">OpenAI</span>
+                    </div>
+                    <span
+                      className={`provider-badge ${
+                        aiStatus?.openai_key_configured
+                          ? 'connected'
+                          : 'configured'
+                      }`}
+                    >
+                      {aiStatus?.openai_key_configured
+                        ? `Configured (${aiStatus.openai_key_masked})`
+                        : 'Requires Key'}
+                    </span>
+                  </div>
+                  <div className="provider-desc">
+                    Industry standard cloud models: GPT-4o, GPT-4o-mini & o3-mini.
+                  </div>
+                  <div className="provider-meta">
+                    PII scrubbed locally; key encrypted via Windows DPAPI.
+                    {aiStatus?.openai_key_configured && activeProvider !== 'openai' && (
+                      <div style={{ marginTop: 6 }}>
+                        <button
+                          type="button"
+                          style={{
+                            fontSize: '0.75rem',
+                            background: 'rgba(16, 163, 127, 0.2)',
+                            border: '1px solid #10a37f',
+                            color: '#10a37f',
+                            borderRadius: 4,
+                            padding: '2px 8px',
+                            cursor: 'pointer',
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOneClickSwitch('openai');
+                          }}
+                        >
+                          Quick Activate
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </ProviderCard>
               </div>
@@ -427,7 +693,7 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
                   </OfflineNotice>
                 )}
               </div>
-            ) : (
+            ) : activeProvider === 'gemini' ? (
               /* Google Gemini 4-Step Stepped Setup Flow */
               <div className="config-section">
                 <div className="section-title">Google Gemini Provider Setup Flow</div>
@@ -612,7 +878,7 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
                           value={selectedGeminiModel}
                           onChange={(e) => setSelectedGeminiModel(e.target.value)}
                         >
-                          {GEMINI_MODELS.map((m) => (
+                          {availableGeminiModels.map((m) => (
                             <option key={m.id} value={m.id}>
                               {m.name} — {m.desc}
                             </option>
@@ -825,6 +1091,197 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
                   </StepContainer>
                 )}
               </div>
+            ) : (
+              /* OpenAI Cloud Provider Configuration */
+              <div className="config-section">
+                <div className="section-title">OpenAI Cloud Provider Configuration</div>
+                <div className="config-box">
+                  {/* Privacy note */}
+                  <div className="privacy-card" style={{ marginBottom: 16 }}>
+                    <div className="privacy-point">
+                      <ShieldCheck size={16} className="pt-icon" style={{ color: '#10a37f' }} />
+                      <div>
+                        <strong>Local Privacy & Encryption:</strong> API key is stored locally with Windows DPAPI encryption. Personal identity data (name, email, phone, location) is scrubbed client-side before any prompt is sent to OpenAI.
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* API Key */}
+                  <div className="field-group">
+                    <label>
+                      OpenAI API Key
+                      <span className="tag-safe">Encrypted locally with Windows DPAPI</span>
+                    </label>
+                    <div className="key-input-row">
+                      <div className="input-wrap">
+                        <Key size={15} className="input-icon" />
+                        <input
+                          type={showOpenAIKey ? 'text' : 'password'}
+                          placeholder={
+                            aiStatus?.openai_key_configured
+                              ? `Active Key: ${aiStatus.openai_key_masked} (enter new key to replace)`
+                              : 'Enter OpenAI API key (sk-...)'
+                          }
+                          value={openAIKeyInput}
+                          onChange={(e) => setOpenAIKeyInput(e.target.value)}
+                        />
+                        <button
+                          type="button"
+                          className="eye-btn"
+                          onClick={() => setShowOpenAIKey(!showOpenAIKey)}
+                          title={showOpenAIKey ? 'Hide key' : 'Show key'}
+                        >
+                          {showOpenAIKey ? <EyeOff size={15} /> : <Eye size={15} />}
+                        </button>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="save-key-btn"
+                        style={{ background: '#10a37f' }}
+                        onClick={handleSaveOpenAIKey}
+                        disabled={savingOpenAIKey || !openAIKeyInput.trim()}
+                      >
+                        {savingOpenAIKey ? <RefreshCw size={13} className="spin" /> : <Save size={13} />}
+                        <span>Save Key</span>
+                      </button>
+
+                      {aiStatus?.openai_key_configured && (
+                        <button
+                          type="button"
+                          className="remove-key-btn"
+                          onClick={handleRemoveOpenAIKey}
+                          disabled={savingOpenAIKey}
+                          title="Remove stored key"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </div>
+
+                    {openAIKeySavedMessage && <div className="key-msg">{openAIKeySavedMessage}</div>}
+
+                    <div className="helper-text">
+                      Keys are write-only from the user interface and encrypted on disk via Windows DPAPI. Get a key at{' '}
+                      <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer">
+                        OpenAI Platform <ExternalLink size={11} />
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* Model selector */}
+                  <div className="field-group" style={{ marginTop: 14 }}>
+                    <label>Selected Model</label>
+                    <select
+                      value={selectedOpenAIModel}
+                      onChange={(e) => setSelectedOpenAIModel(e.target.value)}
+                    >
+                      {availableOpenAIModels.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name} — {m.desc}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Fallback policy */}
+                  <div className="field-group" style={{ marginTop: 14 }}>
+                    <label>Fallback Failure Policy</label>
+                    <select
+                      value={fallbackPolicy}
+                      onChange={(e) => setFallbackPolicy(e.target.value)}
+                    >
+                      <option value="deterministic">
+                        Deterministic Fallback (Offline rules, recommended)
+                      </option>
+                      <option value="ollama">
+                        Try local Ollama (if running)
+                      </option>
+                      <option value="error">
+                        Fail with plain-language error message
+                      </option>
+                    </select>
+                  </div>
+
+                  {/* Test Connection */}
+                  <div className="test-area" style={{ marginTop: 14 }}>
+                    <button
+                      type="button"
+                      className="test-btn"
+                      style={{ background: '#0f766e', borderColor: '#14b8a6' }}
+                      onClick={() => handleTestConnection('openai')}
+                      disabled={testingConnection || (!aiStatus?.openai_key_configured && !openAIKeyInput.trim())}
+                    >
+                      {testingConnection ? (
+                        <>
+                          <RefreshCw size={14} className="spin" />
+                          <span>Testing OpenAI connection & latency...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Zap size={14} />
+                          <span>Test OpenAI Connection & Latency</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {testResult && testResult.provider === 'openai' && (
+                    <TestResultCard $success={testResult.success} style={{ marginTop: 14 }}>
+                      {testResult.success ? (
+                        <CheckCircle2 size={18} className="icon-success" />
+                      ) : (
+                        <AlertTriangle size={18} className="icon-error" />
+                      )}
+                      <div className="test-text">
+                        <strong>{testResult.message}</strong>
+                        {testResult.latency_ms !== undefined && (
+                          <span className="latency-badge">
+                            Round-trip Latency: <strong>{testResult.latency_ms} ms</strong>
+                          </span>
+                        )}
+                      </div>
+                    </TestResultCard>
+                  )}
+
+                  {savedSuccess && activeProvider === 'openai' && (
+                    <SuccessBanner>
+                      <CheckCircle2 size={16} />
+                      <span>
+                        Applied globally! All features now use OpenAI ({selectedOpenAIModel}) immediately.
+                      </span>
+                    </SuccessBanner>
+                  )}
+
+                  {/* Apply Button */}
+                  <div style={{ marginTop: 18, display: 'flex', justifyContent: 'flex-end' }}>
+                    <button
+                      type="button"
+                      className="save-all-btn"
+                      style={{ background: '#10a37f' }}
+                      onClick={handleSaveAllSettings}
+                      disabled={saving || (!aiStatus?.openai_key_configured && !openAIKeyInput.trim())}
+                    >
+                      {saving ? (
+                        <>
+                          <RefreshCw size={14} className="spin" />
+                          <span>Applying settings...</span>
+                        </>
+                      ) : savedSuccess ? (
+                        <>
+                          <Check size={14} />
+                          <span>Applied Globally!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Save size={14} />
+                          <span>Apply OpenAI Globally</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
 
             {/* Test result card if tested in Ollama mode */}
@@ -874,6 +1331,31 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
               )}
             </button>
           )}
+          {activeProvider === 'openai' && (
+            <button
+              className="save-all-btn"
+              style={{ background: '#10a37f' }}
+              onClick={handleSaveAllSettings}
+              disabled={saving || (!aiStatus?.openai_key_configured && !openAIKeyInput.trim())}
+            >
+              {saving ? (
+                <>
+                  <RefreshCw size={14} className="spin" />
+                  <span>Saving...</span>
+                </>
+              ) : savedSuccess ? (
+                <>
+                  <Check size={14} />
+                  <span>Saved!</span>
+                </>
+              ) : (
+                <>
+                  <Save size={14} />
+                  <span>Apply OpenAI Settings</span>
+                </>
+              )}
+            </button>
+          )}
         </div>
       </ModalCard>
     </ModalOverlay>
@@ -899,7 +1381,7 @@ const ModalCard = styled.div`
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 20px;
   width: 100%;
-  max-width: 660px;
+  max-width: 740px;
   max-height: 90vh;
   overflow-y: auto;
   padding: 24px;
@@ -963,8 +1445,12 @@ const ModalCard = styled.div`
 
   .providers-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr);
     gap: 12px;
+
+    @media (max-width: 680px) {
+      grid-template-columns: 1fr;
+    }
   }
 
   .config-box {

@@ -169,9 +169,11 @@ def test_scraper_assistant_deterministic_explanation():
         "errors": [],
     }
 
-    # Force offline Ollama
-    with patch("src.app.services.scraper_assistant.check_ollama_runtime") as mock_runtime:
-        mock_runtime.return_value = {"status": "unavailable", "models": []}
+    # Force offline AI provider
+    with patch("src.app.services.scraper_assistant.get_provider") as mock_get_provider:
+        mock_inst = MagicMock()
+        mock_inst.is_available.return_value = False
+        mock_get_provider.return_value = mock_inst
         explanation = explain_scraper_run(report_dict)
 
     assert explanation["provider"] == "deterministic"

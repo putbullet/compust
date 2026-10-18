@@ -22,6 +22,13 @@ from src.app.security import create_access_token
 # Shared test environment fixture
 # ---------------------------------------------------------------------------
 
+@pytest.fixture(autouse=True)
+def force_ollama_provider():
+    from src.app.services.ai_gateway import AIProviderType
+    with patch("src.app.services.job_assistant.get_active_provider", return_value=AIProviderType.OLLAMA):
+        yield
+
+
 @pytest.fixture
 def api_env():
     engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)

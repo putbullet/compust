@@ -42,7 +42,7 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
 logger = logging.getLogger("compust.launcher")
-APP_VERSION = "1.0.2"
+APP_VERSION = "1.0.3"
 
 # Global tracking for clean shutdown
 _ACTIVE_CHILDREN: list[tuple[str, subprocess.Popen]] = []
@@ -1131,7 +1131,7 @@ def launch_compust(keep_alive: bool = True) -> int:
     logger.info("=" * 60)
 
     # Check if frontend dev server is already running (supporting test_duplicate_prevention_in_launch)
-    if is_http_alive("http://127.0.0.1:5173"):
+    if mode == "dev" and is_http_alive("http://127.0.0.1:5173"):
         logger.info("Compust frontend is already alive at http://127.0.0.1:5173. Opening browser.")
         webbrowser.open("http://127.0.0.1:5173")
         return 0

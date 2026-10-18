@@ -47,6 +47,16 @@
 
 ---
 
+> [!NOTE]
+> ### 📢 Notice on Known UI Bugs & Upcoming Hotfix
+> We are actively tracking a few visual and modal display issues identified in the current release:
+> - **Dark-on-Dark Text Contrast**: Certain UI elements and buttons may inadvertently display dark or black text on dark background surfaces in dark mode, making them difficult to read.
+> - **Modal Configuration & Display Behavior**: Some dialog modals may open with unexpected dimensions, misplaced focus, or unconfigured default states in specific layouts.
+> 
+> **We are actively working on these fixes!** A follow-up release addressing these UI contrast issues and modal configuration defects is coming **ASAP**. Thank you for your patience and support!
+
+---
+
 ## 🚀 Download & Install (No Technical Skills Needed)
 
 Get Compust up and running on Windows in less than two minutes. **No Python, Node.js, XAMPP, MySQL, Git, or command-line experience required.**

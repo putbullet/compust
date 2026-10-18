@@ -55,8 +55,7 @@ If enabled on the repository, submit your report confidentially via GitHub Secur
 ### Alternative Method: Direct Security Contact
 If you cannot use GitHub's private vulnerability advisory tool, you may reach out directly to the project maintainers:
 
-<!-- TODO: add security contact email or dedicated private reporting address here -->
-**Contact**: `[Security contact to be configured by maintainer - see repository owner @putbullet]`
+**Contact**: `soulaimanettabaas@gmail.com`
 
 ### What to Include in Your Report
 To help us investigate and reproduce the issue quickly, please provide:

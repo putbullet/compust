@@ -80,7 +80,7 @@
   font-size: clamp(1.4rem, 2.5vw, 1.85rem);
   font-family: var(--font-heading, 'Outfit', sans-serif);
   font-weight: 800;
-  color: #ffffff;
+  color: var(--text-primary);
   margin: 0;
   letter-spacing: -0.01em;
 }
@@ -1261,6 +1261,84 @@
   display: block;
 }
 
+.hero-ill-placeholder {
+  width: 100%;
+  min-height: 160px;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(30, 58, 138, 0.45) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  padding: 24px 32px;
+}
+
+.hero-ill-placeholder-glow {
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.35) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.hero-ill-placeholder-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.placeholder-icon-wrap {
+  width: 60px;
+  height: 60px;
+  border-radius: 14px;
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.placeholder-track-icon {
+  color: #60a5fa;
+}
+
+.placeholder-text-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.placeholder-domain-pill {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #38bdf8;
+}
+
+.placeholder-domain-title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #ffffff;
+  font-family: var(--font-heading, 'Outfit', sans-serif);
+}
+
+.placeholder-domain-tagline {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #94a3b8;
+  line-height: 1.4;
+  max-width: 680px;
+}
+
 .question-header-bar {
   display: flex;
   align-items: center;
@@ -1709,6 +1787,68 @@
   color: #fbbf24;
 }
 
+.ai-section-badge.diagram {
+  background: rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  color: #818cf8;
+}
+
+.ai-svg-diagram-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 20px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(30, 27, 75, 0.3) 0%, rgba(15, 23, 42, 0.7) 100%);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  margin-top: 14px;
+  overflow: hidden;
+}
+
+.ai-svg-rendered-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  padding: 8px 0;
+}
+
+.ai-svg-rendered-wrapper svg {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 8px;
+}
+
+.regenerate-ai-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #cbd5e1;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.regenerate-ai-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+}
+
+.regenerate-ai-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .ai-scenario-card {
   display: flex;
   flex-direction: column;
@@ -1908,6 +2048,8 @@
   cursor: pointer;
   transition: all 0.2s;
   max-width: 48%;
+  min-width: 0;
+  flex: 1 1 0;
   text-align: left;
 }
 
@@ -1921,6 +2063,13 @@
 .p-btn.next {
   margin-left: auto;
   text-align: right;
+  justify-content: flex-end;
+}
+
+.p-text-col {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
 }
 
 .p-dir {
@@ -1930,6 +2079,7 @@
   color: #64748b;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
 .p-title {
@@ -1940,6 +2090,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 100%;
 }
 
 /* Loading states */
@@ -3757,5 +3908,81 @@
     animation: none !important;
   }
 }
+
+/* ==========================================================================
+   KaTeX Mathematical Formulas & Typography (Dark & Light Theme)
+   ========================================================================== */
+.md-math-block,
+.katex-display-wrapper {
+  margin: 1.25rem 0;
+  padding: 14px 18px;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.25);
+  display: flex;
+  justify-content: center;
+}
+
+.katex-inline-wrapper {
+  display: inline-block;
+  padding: 0 4px;
+}
+
+.katex {
+  color: #f1f5f9 !important;
+  font-size: 1.08em;
+}
+
+.katex-display {
+  margin: 0 !important;
+}
+
+.md-math-block.error,
+.katex-display-wrapper.error,
+.katex-inline-wrapper.error {
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #f87171;
+}
+
+/* Light Theme overrides for KaTeX and Math elements */
+[data-theme='light'] .md-math-block,
+[data-theme='light'] .katex-display-wrapper,
+:root[data-theme='light'] .md-math-block,
+:root[data-theme='light'] .katex-display-wrapper,
+.light .md-math-block,
+.light .katex-display-wrapper {
+  background: #f1f5f9;
+  border-color: rgba(37, 99, 235, 0.2);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme='light'] .katex,
+:root[data-theme='light'] .katex,
+.light .katex {
+  color: #0f172a !important;
+}
+
+[data-theme='light'] .hero-ill-placeholder,
+:root[data-theme='light'] .hero-ill-placeholder,
+.light .hero-ill-placeholder {
+  background: linear-gradient(135deg, #e0e7ff 0%, #f8fafc 100%);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+[data-theme='light'] .placeholder-domain-title,
+:root[data-theme='light'] .placeholder-domain-title,
+.light .placeholder-domain-title {
+  color: #0f172a;
+}
+
+[data-theme='light'] .placeholder-domain-tagline,
+:root[data-theme='light'] .placeholder-domain-tagline,
+.light .placeholder-domain-tagline {
+  color: #475569;
+}
+
 
 

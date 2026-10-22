@@ -42,7 +42,7 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
 logger = logging.getLogger("compust.launcher")
-APP_VERSION = "1.0.3"
+APP_VERSION = "1.0.4"
 
 # Global tracking for clean shutdown
 _ACTIVE_CHILDREN: list[tuple[str, subprocess.Popen]] = []

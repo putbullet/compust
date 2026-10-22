@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     app_name: str = Field(default="Compust API", validation_alias="COMPUST_APP_NAME")
-    app_version: str = Field(default="1.0.3", validation_alias="COMPUST_APP_VERSION")
+    app_version: str = Field(default="1.0.4", validation_alias="COMPUST_APP_VERSION")
     debug: bool = Field(default=False, validation_alias="COMPUST_DEBUG")
     database_url: str = Field(
         default="mysql+pymysql://root:@127.0.0.1:3306/compust",

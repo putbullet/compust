@@ -162,6 +162,21 @@ class BulkJobDeleteResponse(BaseModel):
     total_requested: int
 
 
+class DeleteAllJobsRequest(BaseModel):
+    confirmation: str
+    search: str | None = None
+    force_tracked: bool = False
+
+
+class DeleteAllJobsResponse(BaseModel):
+    status: str
+    deleted_count: int
+    preserved_tracked_count: int
+    total_matched: int
+    scope: str
+    message: str
+
+
 class ScraperDiagnosticRequest(BaseModel):
     url: str
     strategy: str | None = None

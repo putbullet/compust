@@ -329,9 +329,9 @@ def test_extension_download_chrome_and_firefox(client: TestClient):
         # Invariant: 0 backslashes
         assert not any("\\" in name for name in namelist), f"Archive for {browser} contains backslash paths: {namelist}"
 
-        # Invariant: Manifest version is 1.0.2
+        # Invariant: Manifest version is 1.0.3
         manifest_data = json.loads(zf.read("manifest.json").decode("utf-8"))
-        assert manifest_data.get("version") == "1.0.2"
+        assert manifest_data.get("version") == "1.0.3"
 
 
 def test_analyze_ephemeral_zero_database_writes(client: TestClient, auth_headers: dict, db_session: Session, active_resume: Resume):

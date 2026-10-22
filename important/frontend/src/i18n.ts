@@ -74,6 +74,7 @@ export interface Translations {
     notSpecified: string;
     allCategories: string;
     openOnly: string;
+    showArchived: string;
     totalListings: string;
     activeOpenings: string;
     syncGithub: string;
@@ -370,6 +371,7 @@ export const translations: Record<Language, Translations> = {
       notSpecified: 'Not Specified',
       allCategories: 'All Categories',
       openOnly: 'Active Only',
+      showArchived: 'Show Archived',
       totalListings: 'Total Tracked',
       activeOpenings: 'Active Openings',
       syncGithub: 'Sync with GitHub',
@@ -664,6 +666,7 @@ export const translations: Record<Language, Translations> = {
       notSpecified: 'Non Spécifié',
       allCategories: 'Toutes Catégories',
       openOnly: 'Actives Uniquement',
+      showArchived: 'Afficher les archives',
       totalListings: 'Total Suivi',
       activeOpenings: 'Postes Actifs',
       syncGithub: 'Synchroniser GitHub',
@@ -958,6 +961,7 @@ export const translations: Record<Language, Translations> = {
       notSpecified: 'Nicht angegeben',
       allCategories: 'Alle Kategorien',
       openOnly: 'Nur Offene',
+      showArchived: 'Archivierte anzeigen',
       totalListings: 'Gesamte Einträge',
       activeOpenings: 'Aktive Stellen',
       syncGithub: 'Mit GitHub synchronisieren',
@@ -1197,6 +1201,7 @@ export const translations: Record<Language, Translations> = {
       notSpecified: 'Niet Gespecificeerd',
       allCategories: 'Alle Categorieën',
       openOnly: 'Alleen Openstaand',
+      showArchived: 'Toon Gearchiveerd',
       totalListings: 'Totaal Gevolgde',
       activeOpenings: 'Actieve Vacatures',
       syncGithub: 'Synchroniseren met GitHub',

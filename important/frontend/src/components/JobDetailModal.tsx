@@ -537,10 +537,10 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                   className="refresh-guidance-btn"
                   onClick={handleRefreshAttached}
                   disabled={refreshingAttached}
-                  title="Recalculate suggestions against your active resume"
+                  title="Generate a new version — may differ slightly, uses 1 AI request under active provider"
                 >
                   <RefreshCw size={13} className={refreshingAttached ? 'spin' : ''} />
-                  <span>{refreshingAttached ? 'Refreshing…' : 'Refresh Guidance'}</span>
+                  <span>{refreshingAttached ? 'Generating…' : 'Generate new version (uses 1 AI request)'}</span>
                 </button>
               </div>
             </div>
@@ -560,9 +560,10 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                   className="generate-guidance-btn"
                   onClick={handleRefreshAttached}
                   disabled={refreshingAttached}
+                  title="Generate suggestions — uses 1 AI request"
                 >
                   {refreshingAttached ? <Loader2 size={13} className="spin" /> : <Sparkles size={13} />}
-                  <span>{refreshingAttached ? 'Generating suggestions…' : 'Generate Suggestions Now'}</span>
+                  <span>{refreshingAttached ? 'Generating suggestions…' : 'Generate Suggestions Now (uses 1 AI request)'}</span>
                 </button>
               </div>
             ) : (
@@ -845,24 +846,6 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                     </div>
                   )}
 
-                  {/* Recreate Resume Action Bar (Disabled - Coming Soon) */}
-                  <div className="recreate-action-bar disabled-tailor-bar">
-                    <div className="tailor-coming-soon-notice">
-                      <Sparkles size={15} className="cs-icon" />
-                      <span>AI resume tailoring is coming soon.</span>
-                    </div>
-                    <button
-                      type="button"
-                      className="recreate-btn disabled"
-                      disabled
-                      aria-disabled="true"
-                      title="AI resume tailoring is coming soon."
-                    >
-                      <Wand2 size={15} />
-                      <span>AI resume tailoring is coming soon</span>
-                    </button>
-                  </div>
-
                   <div className="ethics-notice">
                     COMPUST AI advisory only. Never invent experience.
                   </div>
@@ -875,18 +858,6 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
         {/* Footer Actions */}
         <div className="modal-footer">
           <button className="secondary-btn" onClick={onClose}>Close</button>
-
-          {/* AI Resume Studio Tailor Button (Coming Soon) */}
-          <button
-            type="button"
-            className="studio-tailor-footer-btn disabled"
-            disabled
-            aria-disabled="true"
-            title="AI resume tailoring is coming soon."
-          >
-            <Sparkles size={15} />
-            <span>AI Tailoring (Coming Soon)</span>
-          </button>
 
           {/* Refresh Suggestions Button */}
           <button
@@ -1364,45 +1335,6 @@ const StyledModalBackdrop = styled.div`
     }
   }
 
-  .studio-tailor-footer-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 10px 18px;
-    border-radius: 10px;
-    font-weight: 700;
-    font-size: 0.88rem;
-    color: #ffffff;
-    background: linear-gradient(135deg, #8b5cf6, #ec4899);
-    border: none;
-    cursor: pointer;
-    box-shadow: 0 4px 14px rgba(139, 92, 246, 0.4);
-    transition: all 0.2s;
-
-    &:hover {
-      filter: brightness(1.1);
-      box-shadow: 0 6px 18px rgba(139, 92, 246, 0.55);
-      transform: translateY(-1px);
-    }
-
-    &.disabled {
-      background: rgba(255, 255, 255, 0.06);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      color: #94a3b8;
-      cursor: not-allowed;
-      box-shadow: none;
-      filter: none;
-      transform: none;
-
-      &:hover {
-        filter: none;
-        transform: none;
-        background: rgba(255, 255, 255, 0.06);
-        color: #94a3b8;
-        box-shadow: none;
-      }
-    }
-  }
 
   .suggestion-btn {
     display: inline-flex;
@@ -1651,21 +1583,21 @@ const StyledModalBackdrop = styled.div`
       .copy-mini-btn {
         display: inline-flex;
         align-items: center;
-        gap: 4px;
-        padding: 4px 8px;
+        gap: 5px;
+        padding: 5px 12px;
         border-radius: 6px;
-        background: rgba(59, 130, 246, 0.15);
-        border: 1px solid rgba(59, 130, 246, 0.3);
-        color: #93c5fd;
-        font-size: 0.72rem;
-        font-weight: 600;
+        background: #2563eb;
+        border: 1px solid #3b82f6;
+        color: #ffffff !important;
+        font-size: 0.76rem;
+        font-weight: 700;
         cursor: pointer;
         flex-shrink: 0;
         transition: all 0.2s;
 
         &:hover {
-          background: rgba(59, 130, 246, 0.3);
-          color: #ffffff;
+          background: #1d4ed8;
+          color: #ffffff !important;
         }
       }
 
@@ -1682,9 +1614,9 @@ const StyledModalBackdrop = styled.div`
       }
 
       .ethics-notice {
-        margin-top: 8px;
-        font-size: 0.7rem;
-        color: #64748b;
+        margin-top: 10px;
+        font-size: 0.74rem;
+        color: #94a3b8 !important;
         font-style: italic;
       }
     }
@@ -1895,21 +1827,20 @@ const StyledModalBackdrop = styled.div`
           .refresh-guidance-btn {
             display: inline-flex;
             align-items: center;
-            gap: 5px;
-            padding: 5px 10px;
-            border-radius: 6px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #cbd5e1;
-            font-size: 0.75rem;
-            font-weight: 600;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 8px;
+            background: #2563eb;
+            border: 1px solid #3b82f6;
+            color: #ffffff !important;
+            font-size: 0.78rem;
+            font-weight: 700;
             cursor: pointer;
             transition: all 0.2s;
 
             &:hover:not(:disabled) {
-              background: rgba(59, 130, 246, 0.15);
-              border-color: rgba(59, 130, 246, 0.4);
-              color: #60a5fa;
+              background: #1d4ed8;
+              color: #ffffff !important;
             }
 
             &:disabled {
@@ -1944,23 +1875,29 @@ const StyledModalBackdrop = styled.div`
         border: 1px dashed rgba(255, 255, 255, 0.1);
 
         p {
-          font-size: 0.82rem;
-          color: #94a3b8;
-          margin-bottom: 8px;
+          font-size: 0.85rem;
+          color: #cbd5e1;
+          margin-bottom: 10px;
         }
 
         .generate-guidance-btn {
           display: inline-flex;
           align-items: center;
           gap: 6px;
-          padding: 6px 12px;
-          border-radius: 6px;
-          background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-          border: none;
-          color: #fff;
-          font-size: 0.78rem;
-          font-weight: 600;
+          padding: 8px 16px;
+          border-radius: 8px;
+          background: #2563eb;
+          border: 1px solid #3b82f6;
+          color: #ffffff !important;
+          font-size: 0.82rem;
+          font-weight: 700;
           cursor: pointer;
+          transition: all 0.2s;
+
+          &:hover:not(:disabled) {
+            background: #1d4ed8;
+            color: #ffffff !important;
+          }
 
           .spin {
             animation: spin 1s linear infinite;
@@ -2065,9 +2002,9 @@ const StyledModalBackdrop = styled.div`
         }
 
         .guidance-rationale {
-          font-size: 0.8rem;
-          color: #94a3b8;
-          line-height: 1.4;
+          font-size: 0.84rem;
+          color: #f8fafc !important;
+          line-height: 1.5;
           margin: 0;
         }
 
@@ -2089,16 +2026,17 @@ const StyledModalBackdrop = styled.div`
         }
 
         .original-box {
-          font-size: 0.75rem;
-          color: #64748b;
-          background: rgba(0, 0, 0, 0.2);
-          padding: 6px 10px;
+          font-size: 0.78rem;
+          color: #cbd5e1 !important;
+          background: rgba(0, 0, 0, 0.45);
+          padding: 8px 12px;
           border-radius: 6px;
-          border-left: 2px solid #64748b;
+          border-left: 3px solid #3b82f6;
 
           .orig-label {
-            font-weight: 600;
-            margin-right: 4px;
+            font-weight: 700;
+            color: #93c5fd !important;
+            margin-right: 6px;
           }
         }
 
@@ -2115,7 +2053,7 @@ const StyledModalBackdrop = styled.div`
           .suggested-text {
             font-family: 'JetBrains Mono', monospace, ui-monospace;
             font-size: 0.82rem;
-            color: #e2e8f0;
+            color: #f8fafc !important;
             line-height: 1.45;
             flex: 1;
             white-space: pre-wrap;
@@ -2125,21 +2063,21 @@ const StyledModalBackdrop = styled.div`
           .copy-suggestion-btn {
             display: inline-flex;
             align-items: center;
-            gap: 4px;
-            padding: 4px 8px;
-            border-radius: 5px;
-            background: rgba(59, 130, 246, 0.2);
-            border: 1px solid rgba(59, 130, 246, 0.35);
-            color: #93c5fd;
-            font-size: 0.72rem;
-            font-weight: 600;
+            gap: 5px;
+            padding: 5px 12px;
+            border-radius: 6px;
+            background: #2563eb;
+            border: 1px solid #3b82f6;
+            color: #ffffff !important;
+            font-size: 0.75rem;
+            font-weight: 700;
             cursor: pointer;
             flex-shrink: 0;
             transition: all 0.15s;
 
             &:hover {
-              background: rgba(59, 130, 246, 0.35);
-              color: #fff;
+              background: #1d4ed8;
+              color: #ffffff !important;
             }
           }
         }
@@ -2242,69 +2180,6 @@ const StyledModalBackdrop = styled.div`
       }
     }
 
-    .recreate-action-bar {
-      margin-top: 10px;
-
-      &.disabled-tailor-bar {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-
-        .tailor-coming-soon-notice {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 10px 14px;
-          background: rgba(255, 255, 255, 0.03);
-          border: 1px dashed rgba(148, 163, 184, 0.25);
-          border-radius: 10px;
-          color: #cbd5e1;
-          font-size: 0.82rem;
-
-          .cs-icon {
-            color: #60a5fa;
-            flex-shrink: 0;
-          }
-        }
-      }
-
-      .recreate-btn {
-        width: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        padding: 12px;
-        border-radius: 10px;
-        font-size: 0.85rem;
-        font-weight: 700;
-        color: #ffffff;
-        background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-        border: none;
-        cursor: pointer;
-        transition: all 0.2s;
-
-        &:hover:not(:disabled) {
-          filter: brightness(1.1);
-          transform: translateY(-1px);
-        }
-
-        &.disabled {
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          color: #94a3b8;
-          cursor: not-allowed;
-          box-shadow: none;
-          filter: none;
-          transform: none;
-
-          &:hover {
-            filter: none;
-            transform: none;
-          }
-        }
-      }
-    }
   }
 
   /* Responsive Text and Layout Adjustments */
@@ -2361,6 +2236,158 @@ const StyledModalBackdrop = styled.div`
       button, a {
         width: 100%;
         justify-content: center;
+      }
+    }
+  /* Light Mode High-Contrast Overrides */
+  @media (prefers-color-scheme: light) {
+    .modal-container {
+      background: #ffffff;
+      color: #0f172a;
+      border: 1px solid #cbd5e1;
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.18);
+    }
+
+    .modal-header {
+      border-bottom-color: #e2e8f0;
+      background: #f8fafc;
+    }
+
+    .job-title {
+      color: #0f172a;
+    }
+
+    .company-line {
+      color: #334155;
+    }
+
+    .translation-bar {
+      background: #f1f5f9;
+      border-bottom-color: #cbd5e1;
+    }
+
+    .pill-group {
+      background: #ffffff;
+      border-color: #cbd5e1;
+    }
+
+    .pill-btn {
+      color: #334155;
+      &:hover:not(:disabled) {
+        color: #0f172a;
+        background: #f1f5f9;
+      }
+    }
+
+    .modal-body {
+      background: #ffffff;
+    }
+
+    .meta-grid {
+      background: #f8fafc;
+      border-color: #e2e8f0;
+    }
+
+    .meta-item .label {
+      color: #475569;
+    }
+
+    .meta-item .val {
+      color: #0f172a;
+    }
+
+    .section-title {
+      color: #0f172a;
+    }
+
+    .description-content {
+      color: #334155;
+      h2, h3, h4 { color: #0f172a; }
+    }
+
+    .modal-footer {
+      background: #f8fafc;
+      border-top-color: #e2e8f0;
+    }
+
+    .secondary-btn {
+      background: #e2e8f0;
+      color: #0f172a;
+      &:hover {
+        background: #cbd5e1;
+        color: #000000;
+      }
+    }
+
+    .applied-btn {
+      background: #f1f5f9;
+      border-color: #cbd5e1;
+      color: #0f172a;
+    }
+
+    .attached-guidance-panel {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+    }
+
+    .guidance-title {
+      color: #0f172a;
+    }
+
+    .guidance-subtitle {
+      color: #334155 !important;
+    }
+
+    .guidance-card {
+      background: #ffffff;
+      border-color: #cbd5e1;
+
+      &.unverified {
+        background: #fffbeb;
+        border-color: #fde68a;
+      }
+      &.grounded {
+        background: #f0fdf4;
+        border-color: #bbf7d0;
+      }
+    }
+
+    .guidance-rationale {
+      color: #1e293b !important;
+    }
+
+    .suggested-box {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+
+      .suggested-text {
+        color: #0f172a !important;
+      }
+    }
+
+    .original-box {
+      background: #f1f5f9;
+      color: #334155 !important;
+      border-left-color: #2563eb;
+    }
+
+    .advice-card {
+      background: #ffffff;
+      border-color: #e2e8f0;
+
+      .advice-card-content p {
+        color: #1e293b !important;
+      }
+    }
+
+    .rec-card {
+      background: #ffffff;
+      border-color: #e2e8f0;
+
+      .rec-header .rec-req {
+        color: #0f172a;
+      }
+      .rec-act-row .rec-act {
+        color: #1e40af;
       }
     }
   }

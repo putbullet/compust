@@ -9,8 +9,11 @@ Grounded in real candidate resume content and target job requirements:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
+import threading
+import time
 import uuid
 from typing import Any
 from pydantic import BaseModel, Field
@@ -25,6 +28,19 @@ from .ai_service import (
 )
 
 logger = get_logger(__name__)
+
+# 24-hour in-memory cache & deduplication locks to prevent redundant AI provider calls
+_GUIDANCE_CACHE: dict[str, tuple[float, list[ResumeEditSuggestion]]] = {}
+_GUIDANCE_LOCK = threading.Lock()
+_GUIDANCE_INFLIGHT_LOCKS: dict[str, threading.Lock] = {}
+_GUIDANCE_CACHE_TTL_SECONDS = 86400  # 24 hours
+
+
+def clear_guidance_cache() -> None:
+    """Clear in-memory resume guidance cache (useful in tests)."""
+    with _GUIDANCE_LOCK:
+        _GUIDANCE_CACHE.clear()
+        _GUIDANCE_INFLIGHT_LOCKS.clear()
 
 
 class ResumeEditSuggestion(BaseModel):
@@ -213,7 +229,29 @@ def generate_actionable_resume_suggestions(
             structured_data=structured_data,
         )
 
-    prompt = f"""Target Job Title: {job_title}
+    model_name = provider_inst.get_active_model()
+    input_str = f"{job_title}|{job_description[:500]}|{','.join(sorted(missing_skills))}|{','.join(sorted(demonstrated_skills))}|{resume_text[:2000]}"
+    ctx_hash = hashlib.sha256(input_str.encode()).hexdigest()[:16]
+    cache_key = f"guidance_{ctx_hash}_{active_prov.value}_{model_name}"
+
+    with _GUIDANCE_LOCK:
+        if cache_key in _GUIDANCE_CACHE:
+            ts, cached_res = _GUIDANCE_CACHE[cache_key]
+            if time.time() - ts < _GUIDANCE_CACHE_TTL_SECONDS:
+                logger.info(f"Reusing cached resume guidance for job '{job_title}'")
+                return [ResumeEditSuggestion(**item.model_dump()) for item in cached_res]
+        if cache_key not in _GUIDANCE_INFLIGHT_LOCKS:
+            _GUIDANCE_INFLIGHT_LOCKS[cache_key] = threading.Lock()
+        inflight_lock = _GUIDANCE_INFLIGHT_LOCKS[cache_key]
+
+    with inflight_lock:
+        with _GUIDANCE_LOCK:
+            if cache_key in _GUIDANCE_CACHE:
+                ts, cached_res = _GUIDANCE_CACHE[cache_key]
+                if time.time() - ts < _GUIDANCE_CACHE_TTL_SECONDS:
+                    return [ResumeEditSuggestion(**item.model_dump()) for item in cached_res]
+
+        prompt = f"""Target Job Title: {job_title}
 Key Missing/Weak Requirements: {', '.join(missing_skills[:8]) if missing_skills else 'None'}
 Demonstrated Skills: {', '.join(demonstrated_skills[:8]) if demonstrated_skills else 'None'}
 
@@ -223,33 +261,35 @@ Demonstrated Skills: {', '.join(demonstrated_skills[:8]) if demonstrated_skills 
 Generate 4-6 specific, actionable, grounded suggestions for incorporating or addressing missing requirements.
 """
 
-    try:
-        raw = generate_completion(
-            prompt=prompt,
-            system_prompt=GUIDANCE_SYSTEM_PROMPT,
-            model=provider_inst.get_active_model(),
-            temperature=0.1,
-            timeout_seconds=20.0,
-        )
+        try:
+            raw = generate_completion(
+                prompt=prompt,
+                system_prompt=GUIDANCE_SYSTEM_PROMPT,
+                model=model_name,
+                temperature=0.1,
+                timeout_seconds=20.0,
+            )
 
-        # Parse JSON
-        cleaned = raw.strip()
-        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", cleaned, re.DOTALL)
-        if match:
-            cleaned = match.group(1)
-        else:
-            first_brace = cleaned.find("{")
-            last_brace = cleaned.rfind("}")
-            if first_brace != -1 and last_brace != -1:
-                cleaned = cleaned[first_brace : last_brace + 1]
+            # Parse JSON
+            cleaned = raw.strip()
+            match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", cleaned, re.DOTALL)
+            if match:
+                cleaned = match.group(1)
+            else:
+                first_brace = cleaned.find("{")
+                last_brace = cleaned.rfind("}")
+                if first_brace != -1 and last_brace != -1:
+                    cleaned = cleaned[first_brace : last_brace + 1]
 
-        data = json.loads(cleaned)
-        items = data.get("suggestions", [])
-        results = [ResumeEditSuggestion(**item) for item in items if isinstance(item, dict)]
-        if results:
-            return results
-    except Exception as exc:
-        logger.warning(f"AI ({get_active_provider().value}) resume guidance error ({exc}). Falling back to deterministic guidance.")
+            data = json.loads(cleaned)
+            items = data.get("suggestions", [])
+            results = [ResumeEditSuggestion(**item) for item in items if isinstance(item, dict)]
+            if results:
+                with _GUIDANCE_LOCK:
+                    _GUIDANCE_CACHE[cache_key] = (time.time(), results)
+                return results
+        except Exception as exc:
+            logger.warning(f"AI ({get_active_provider().value}) resume guidance error ({exc}). Falling back to deterministic guidance.")
 
     return generate_deterministic_resume_guidance(
         job_title=job_title,

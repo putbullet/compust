@@ -4,7 +4,7 @@
   "short_title": "AI Tech",
   "tagline": "LLM foundations, RAG pipelines, AI agents (MCP), fine-tuning (LoRA/DPO), and production LLMOps.",
   "description": "Master technical interview questions and systems architectures for modern AI Engineers, GenAI Developers, and LLM Platform Architects. Sourced directly from Amit Shekhar's comprehensive AI Engineering curriculum.",
-  "hero_illustration": "/illustrations/ai_engineering_banner.png",
+  "hero_illustration": "/illustrations/ai_tech_hero.png",
   "educational_diagrams": [
     "/illustrations/ai_engineering_banner.png",
     "/illustrations/diagram_transformer_attention.svg",

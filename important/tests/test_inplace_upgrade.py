@@ -16,11 +16,11 @@ def test_inplace_upgrade():
     local_app = Path(os.environ.get("LOCALAPPDATA", "")) / "Compust"
     db_path = local_app / "data" / "compust.db"
     ai_config_path = local_app / "ai_config.json"
-    installer_exe = Path("A:/code/compust/release/Compust-Setup-v1.0.3.exe")
+    installer_exe = Path("A:/code/compust/release/Compust-Setup-v1.0.4.exe")
     install_target = Path("A:/Compust")
 
     print("=" * 60)
-    print("STARTING IN-PLACE UPGRADE TEST: v1.0.3")
+    print("STARTING IN-PLACE UPGRADE TEST: v1.0.4")
     print("=" * 60)
 
     if not installer_exe.is_file():
@@ -104,7 +104,7 @@ def test_inplace_upgrade():
     assert install_marker.is_file(), "Installation marker .install_complete missing!"
     marker_text = install_marker.read_text(encoding="utf-8")
     print(f"Installed marker content:\n{marker_text.strip()}")
-    assert "1.0.3" in marker_text, f"Expected 1.0.3 in marker, got {marker_text}"
+    assert "1.0.4" in marker_text, f"Expected 1.0.4 in marker, got {marker_text}"
 
     # 5. Start upgraded backend service and test live endpoints
     print("\n4. Starting upgraded Compust backend service from A:\\Compust...")
@@ -142,7 +142,7 @@ def test_inplace_upgrade():
         print(f"  - Mode: {health_data.get('mode')}")
         print(f"  - Database: {health_data.get('database')}")
         print(f"  - Latency: {health_data.get('latency_ms')} ms")
-        assert health_data.get("version") == "1.0.3", f"Expected version 1.0.3, got {health_data.get('version')}"
+        assert health_data.get("version") == "1.0.4", f"Expected version 1.0.4, got {health_data.get('version')}"
 
         # Verify live jobs endpoint
         with urllib.request.urlopen("http://127.0.0.1:8000/api/v1/jobs?page=1&page_size=5&active_only=false", timeout=3.0) as resp:

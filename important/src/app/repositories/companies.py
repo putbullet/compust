@@ -37,6 +37,18 @@ def create_company(
     db.add(company)
     db.commit()
     db.refresh(company)
+
+    if company.careers_url:
+        target = ScrapeTarget(
+            company_id=company.id,
+            url=company.careers_url,
+            type="generic_html",
+            active=company.active,
+            status="pending",
+        )
+        db.add(target)
+        db.commit()
+
     return company
 
 
@@ -77,9 +89,34 @@ def update_company(
                 elif company.countries and j.country_id not in [c.id for c in company.countries]:
                     j.country_id = company.countries[0].id
 
+    # Synchronize primary scrape target with company careers_url
+    if company.careers_url:
+        existing_targets = list(db.scalars(select(ScrapeTarget).where(ScrapeTarget.company_id == company.id)).all())
+        matching = [t for t in existing_targets if t.url.strip() == company.careers_url]
+        if not matching:
+            if existing_targets:
+                existing_targets[0].url = company.careers_url
+                existing_targets[0].active = company.active
+            else:
+                new_target = ScrapeTarget(
+                    company_id=company.id,
+                    url=company.careers_url,
+                    type="generic_html",
+                    active=company.active,
+                    status="pending",
+                )
+                db.add(new_target)
+        else:
+            for t in matching:
+                t.active = company.active
+
     db.commit()
     db.refresh(company)
     return company
+
+
+# Re-export scrape_targets functions for backward compatibility
+from .scrape_targets import list_scrape_targets, get_scrape_target  # noqa: E402
 
 
 def toggle_company_active(db: Session, company_id: int) -> Company | None:

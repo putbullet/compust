@@ -13,8 +13,8 @@
   --border-glow: rgba(59, 130, 246, 0.35);
 
   --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
 
   --primary: #3b82f6;
   --primary-hover: #2563eb;
@@ -42,6 +42,39 @@
   --duration-fast: 160ms;
   --duration-normal: 240ms;
   --duration-slow: 300ms;
+}
+
+:root[data-theme='light'],
+[data-theme='light'],
+.light {
+  --bg-primary: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #f1f5f9;
+  --bg-card: rgba(255, 255, 255, 0.92);
+  --bg-card-hover: rgba(248, 250, 252, 0.98);
+
+  --border-subtle: rgba(0, 0, 0, 0.1);
+  --border-focus: #2563eb;
+  --border-glow: rgba(37, 99, 235, 0.25);
+
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #475569;
+
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-glow: rgba(37, 99, 235, 0.2);
+
+  --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.08);
+  --shadow-glow: 0 0 25px rgba(37, 99, 235, 0.1);
+}
+
+:root[data-theme='light'] .hero-badge,
+[data-theme='light'] .hero-badge,
+.light .hero-badge {
+  background: #dbeafe !important;
+  border-color: #93c5fd !important;
+  color: #1e40af !important;
 }
 
 * {
@@ -72,7 +105,7 @@ h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
   letter-spacing: -0.02em;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--text-primary);
   overflow-wrap: break-word;
 }
 

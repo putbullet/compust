@@ -252,6 +252,124 @@ def clean_text(text: str) -> str:
     return t.strip()
 
 
+from .clock import get_clock
+
+
+def parse_age_days(dp: str | None) -> int:
+    """Parse relative age strings like '4d', '2w', '1mo', 'Aug 16' into approximate day counts."""
+    if not dp:
+        return 0
+    s = str(dp).strip().lower()
+    m = re.match(r"^(\d+)\s*d", s)
+    if m:
+        return int(m.group(1))
+    m = re.match(r"^(\d+)\s*w", s)
+    if m:
+        return int(m.group(1)) * 7
+    m = re.match(r"^(\d+)\s*mo", s)
+    if m:
+        return int(m.group(1)) * 30
+    for mo, days_ago in [
+        ("jan", 270), ("feb", 240), ("mar", 210), ("apr", 180),
+        ("may", 150), ("jun", 120), ("jul", 90), ("aug", 60), ("sep", 30)
+    ]:
+        if mo in s:
+            return days_ago
+    return 0
+
+
+def canonical_internship_key(company: str, role: str, location: str) -> str:
+    """Compute uniform canonical deduplication key across disparate GitHub repositories."""
+    norm_comp = re.sub(r"[^a-z0-9]", "", (company or "").lower())
+    norm_role = re.sub(r"[^a-z0-9]", "", (role or "").lower())
+    norm_loc = re.sub(r"[^a-z0-9]", "", (location or "").lower())
+    return f"{norm_comp}#{norm_role}#{norm_loc}"
+
+
+def get_user_tracked_internships() -> tuple[set[str], set[tuple[str, str]]]:
+    """
+    Retrieve user-saved/tracked applications to guarantee zero data loss.
+    Internships touched by users are strictly exempt from automated retirement.
+    """
+    tracked_urls: set[str] = set()
+    tracked_pairs: set[tuple[str, str]] = set()
+    try:
+        from ..database import SessionLocal
+        from ..models import UserApplication
+        with SessionLocal() as db:
+            apps = db.query(
+                UserApplication.custom_job_url,
+                UserApplication.custom_company_name,
+                UserApplication.custom_job_title
+            ).all()
+            for url, comp, title in apps:
+                if url and url.strip():
+                    tracked_urls.add(url.strip().lower())
+                if comp and title:
+                    norm_comp = re.sub(r"[^a-z0-9]", "", comp.lower())
+                    norm_role = re.sub(r"[^a-z0-9]", "", title.lower())
+                    tracked_pairs.add((norm_comp, norm_role))
+    except Exception as exc:
+        logger.warning("Could not query user applications for internship protection: %s", exc)
+    return tracked_urls, tracked_pairs
+
+
+def is_internship_user_tracked(
+    item: GitHubInternshipItem,
+    tracked_urls: set[str],
+    tracked_pairs: set[tuple[str, str]],
+) -> bool:
+    """Check if an internship item has been saved or tracked by any user."""
+    if item.apply_url and item.apply_url.strip().lower() in tracked_urls:
+        return True
+    norm_comp = re.sub(r"[^a-z0-9]", "", (item.company or "").lower())
+    norm_role = re.sub(r"[^a-z0-9]", "", (item.role or "").lower())
+    if (norm_comp, norm_role) in tracked_pairs:
+        return True
+    return False
+
+
+def merge_internships(existing: GitHubInternshipItem, incoming: GitHubInternshipItem) -> GitHubInternshipItem:
+    """Merge cross-repository duplicates into a single high-fidelity listing."""
+    is_closed = existing.is_closed and incoming.is_closed
+
+    visa_status = existing.visa_status
+    visa_text = existing.visa_text
+    if visa_status in ("not_specified", "") and incoming.visa_status not in ("not_specified", ""):
+        visa_status = incoming.visa_status
+        visa_text = incoming.visa_text
+
+    apply_url = existing.apply_url or incoming.apply_url
+    domain = existing.company_domain or incoming.company_domain
+    logo = existing.logo_url or incoming.logo_url
+    date_posted = existing.date_posted or incoming.date_posted
+    season = max(existing.season or "2027", incoming.season or "2027")
+
+    return GitHubInternshipItem(
+        id=existing.id,
+        company=existing.company,
+        company_domain=domain,
+        logo_url=logo,
+        role=existing.role,
+        location=existing.location,
+        country=existing.country or incoming.country,
+        category=existing.category or incoming.category,
+        season=season,
+        source_repo_id=existing.source_repo_id,
+        source_repo_name=existing.source_repo_name,
+        source_repo_url=existing.source_repo_url,
+        apply_url=apply_url,
+        date_posted=date_posted,
+        visa_status=visa_status,
+        visa_text=visa_text,
+        is_closed=is_closed,
+        notes=existing.notes or incoming.notes,
+        is_archived=existing.is_archived and incoming.is_archived,
+        archived_at=existing.archived_at,
+        archived_reason=existing.archived_reason,
+    )
+
+
 class GitHubInternshipsService:
     """Service to fetch, parse, cache, and serve opportunities from active GitHub repos."""
 
@@ -265,6 +383,7 @@ class GitHubInternshipsService:
         category: str | None = None,
         search: str | None = None,
         open_only: bool = False,
+        include_archived: bool = False,
     ) -> GitHubInternshipsResponse:
         """Return curated internships from cache or bundled seed. Never blocks synchronously on external fetch."""
         cached_data = self._load_cache()
@@ -276,6 +395,7 @@ class GitHubInternshipsService:
                     total_listings=0,
                     active_listings=0,
                     closed_listings=0,
+                    archived_listings=0,
                     visa_sponsored_count=0,
                     no_sponsorship_count=0,
                     us_citizens_count=0,
@@ -286,7 +406,7 @@ class GitHubInternshipsService:
                     by_repo={},
                     by_category={},
                 ),
-                repos=[
+                repositories=[
                     GitHubRepoMeta(
                         id=cfg["id"],
                         name=cfg["name"],
@@ -297,14 +417,14 @@ class GitHubInternshipsService:
                     )
                     for cfg in REPO_CONFIGS
                 ],
-                filters_available={
-                    "repos": [cfg["id"] for cfg in REPO_CONFIGS],
-                    "categories": [],
-                    "visa_statuses": [],
-                },
+                categories=[],
             )
 
         items = cached_data.items
+
+        # Front-facing view: default to active, non-archived listings only
+        if not include_archived:
+            items = [it for it in items if not it.is_archived]
 
         # Apply filters
         if repo_id and repo_id.strip() and repo_id != "all":
@@ -340,16 +460,15 @@ class GitHubInternshipsService:
         )
 
     def sync_all_repos(self) -> GitHubInternshipsResponse:
-        """Synchronize all 7 repositories live from GitHub and update cache."""
-        all_items: list[GitHubInternshipItem] = []
+        """Synchronize all repositories live from GitHub, deduplicate canonically, retire stale, and update cache."""
+        all_raw_items: list[GitHubInternshipItem] = []
         repo_metas: list[GitHubRepoMeta] = []
-        categories_set: set[str] = set()
 
         for config in REPO_CONFIGS:
             try:
                 content = self._fetch_repo_content(config)
                 items = self._parse_repo(config, content)
-                all_items.extend(items)
+                all_raw_items.extend(items)
                 repo_metas.append(
                     GitHubRepoMeta(
                         id=config["id"],
@@ -362,17 +481,72 @@ class GitHubInternshipsService:
                         item_count=len(items),
                     )
                 )
-                for it in items:
-                    if it.category:
-                        categories_set.add(it.category)
             except Exception as exc:
                 logger.error("Failed to parse repo %s: %s", config['id'], exc)
 
+        # 1. Deduplicate cross-repo duplicates into canonical keys
+        current_by_key: dict[str, GitHubInternshipItem] = {}
+        for it in all_raw_items:
+            k = canonical_internship_key(it.company, it.role, it.location)
+            if k in current_by_key:
+                current_by_key[k] = merge_internships(current_by_key[k], it)
+            else:
+                current_by_key[k] = it
+
+        # 2. Get user tracked applications (URL + company/role) for strict protection
+        tracked_urls, tracked_pairs = get_user_tracked_internships()
+
+        # 3. Load existing cached items to handle retirement of listings no longer present
+        cached_data = self._load_cache()
+        existing_items = cached_data.items if cached_data else []
+
+        now_iso = get_clock().now().isoformat()
+        final_items_by_key: dict[str, GitHubInternshipItem] = {}
+
+        # First add all current listings with lifecycle assessment
+        for k, it in current_by_key.items():
+            is_tracked = is_internship_user_tracked(it, tracked_urls, tracked_pairs)
+            if not is_tracked:
+                # Past season (e.g. Summer 2026) -> archive
+                if it.season and it.season <= "2026":
+                    it.is_archived = True
+                    it.archived_at = it.archived_at or now_iso
+                    it.archived_reason = f"Past season ({it.season})"
+                # Closed listing older than 30 days -> archive
+                elif it.is_closed and parse_age_days(it.date_posted) >= 30:
+                    it.is_archived = True
+                    it.archived_at = it.archived_at or now_iso
+                    it.archived_reason = "Closed listing older than 30 days"
+            else:
+                # User touched/tracked -> strictly protected
+                it.is_archived = False
+            final_items_by_key[k] = it
+
+        # Next check previous cache items for retirement
+        for old in existing_items:
+            k = canonical_internship_key(old.company, old.role, old.location)
+            if k not in final_items_by_key:
+                # Listing was in cache but is NO LONGER present in upstream fetch
+                is_tracked = is_internship_user_tracked(old, tracked_urls, tracked_pairs)
+                if is_tracked:
+                    # User touched/saved/applied -> strictly protect, keep active!
+                    old.is_archived = False
+                    final_items_by_key[k] = old
+                else:
+                    # Not in source anymore -> move to archived if older than 30 days or closed or past season
+                    if old.is_closed or (old.season and old.season <= "2026") or parse_age_days(old.date_posted) >= 30 or old.is_archived:
+                        old.is_archived = True
+                        old.archived_at = old.archived_at or now_iso
+                        old.archived_reason = old.archived_reason or "No longer present in upstream repository source"
+                        final_items_by_key[k] = old
+
+        all_final_items = list(final_items_by_key.values())
+        categories_set = {it.category for it in all_final_items if it.category and not it.is_archived}
         categories = sorted(list(categories_set))
-        stats = self._compute_stats(all_items)
+        stats = self._compute_stats(all_final_items)
 
         response = GitHubInternshipsResponse(
-            items=all_items,
+            items=all_final_items,
             stats=stats,
             repositories=repo_metas,
             categories=categories,
@@ -382,9 +556,13 @@ class GitHubInternshipsService:
         return response
 
     def _fetch_repo_content(self, config: dict[str, str]) -> str:
-        """Fetch raw content from GitHub raw URL with conditional ETag headers and fallback."""
+        """Fetch raw content from GitHub raw URL with conditional ETag headers and local persistent caching."""
         url = config["raw_url"]
         logger.info("Fetching repo content: %s", url)
+
+        raw_cache_dir = get_storage_dir() / "github_raw_repos"
+        raw_cache_dir.mkdir(parents=True, exist_ok=True)
+        local_raw_path = raw_cache_dir / f"{config['id']}.md"
 
         etags_file = get_storage_dir() / "github_internships_etags.json"
         etags: dict[str, str] = {}
@@ -396,20 +574,24 @@ class GitHubInternshipsService:
 
         headers = {"User-Agent": "Compust-CareerEngine/2.0"}
         cached_etag = etags.get(url)
-        if cached_etag:
+        # Only use If-None-Match if we actually have the cached content saved locally!
+        if cached_etag and local_raw_path.exists() and local_raw_path.stat().st_size > 0:
             headers["If-None-Match"] = cached_etag
 
         try:
-            with httpx.Client(timeout=15.0, follow_redirects=True) as client:
+            with httpx.Client(timeout=20.0, follow_redirects=True) as client:
                 resp = client.get(url, headers=headers)
                 if resp.status_code == 304:
-                    logger.info("Repo content not modified (304): %s", url)
-                    scratch_path = self._get_scratch_path(config["id"])
-                    if scratch_path and os.path.exists(scratch_path):
-                        with open(scratch_path, "r", encoding="utf-8") as f:
-                            return f.read()
-                    return ""
+                    logger.info("Repo content not modified (304): %s, using local cache", url)
+                    if local_raw_path.exists() and local_raw_path.stat().st_size > 0:
+                        return local_raw_path.read_text(encoding="utf-8")
+                    # If local file was missing, fall back to re-fetching without If-None-Match
+                    resp = client.get(url, headers={"User-Agent": "Compust-CareerEngine/2.0"})
+
                 resp.raise_for_status()
+                text = resp.text
+                if text.strip():
+                    local_raw_path.write_text(text, encoding="utf-8")
                 new_etag = resp.headers.get("etag")
                 if new_etag:
                     etags[url] = new_etag
@@ -417,9 +599,11 @@ class GitHubInternshipsService:
                         etags_file.write_text(json.dumps(etags, indent=2), encoding="utf-8")
                     except Exception:
                         pass
-                return resp.text
+                return text
         except Exception as err:
-            logger.warning("Live fetch failed for %s (%s). Attempting local scratch fallback.", url, err)
+            logger.warning("Live fetch failed for %s (%s). Attempting local cached raw fallback.", url, err)
+            if local_raw_path.exists() and local_raw_path.stat().st_size > 0:
+                return local_raw_path.read_text(encoding="utf-8")
             scratch_path = self._get_scratch_path(config["id"])
             if scratch_path and os.path.exists(scratch_path):
                 with open(scratch_path, "r", encoding="utf-8") as f:
@@ -981,19 +1165,21 @@ class GitHubInternshipsService:
         return items
 
     def _compute_stats(self, items: list[GitHubInternshipItem]) -> GitHubInternshipStats:
-        total = len(items)
-        active = sum(1 for it in items if not it.is_closed)
-        closed = sum(1 for it in items if it.is_closed)
+        non_archived = [it for it in items if not it.is_archived]
+        total = len(non_archived)
+        active = sum(1 for it in non_archived if not it.is_closed)
+        closed = sum(1 for it in non_archived if it.is_closed)
+        archived = sum(1 for it in items if it.is_archived)
 
-        sponsored = sum(1 for it in items if it.visa_status == "sponsors_visa")
-        no_spon = sum(1 for it in items if it.visa_status == "no_sponsorship")
-        us_cit = sum(1 for it in items if it.visa_status == "us_citizen_only")
-        ca_auth = sum(1 for it in items if it.visa_status == "canada_authorized")
-        not_spec = sum(1 for it in items if it.visa_status == "not_specified")
+        sponsored = sum(1 for it in non_archived if it.visa_status == "sponsors_visa")
+        no_spon = sum(1 for it in non_archived if it.visa_status == "no_sponsorship")
+        us_cit = sum(1 for it in non_archived if it.visa_status == "us_citizen_only")
+        ca_auth = sum(1 for it in non_archived if it.visa_status == "canada_authorized")
+        not_spec = sum(1 for it in non_archived if it.visa_status == "not_specified")
 
         by_repo: dict[str, int] = {}
         by_cat: dict[str, int] = {}
-        for it in items:
+        for it in non_archived:
             by_repo[it.source_repo_id] = by_repo.get(it.source_repo_id, 0) + 1
             by_cat[it.category] = by_cat.get(it.category, 0) + 1
 
@@ -1001,13 +1187,14 @@ class GitHubInternshipsService:
             total_listings=total,
             active_listings=active,
             closed_listings=closed,
+            archived_listings=archived,
             visa_sponsored_count=sponsored,
             no_sponsorship_count=no_spon,
             us_citizens_count=us_cit,
             canada_authorized_count=ca_auth,
             not_specified_count=not_spec,
             repos_count=len(REPO_CONFIGS),
-            last_synced_at=datetime.now(timezone.utc).isoformat(),
+            last_synced_at=get_clock().now().isoformat(),
             by_repo=by_repo,
             by_category=by_cat,
         )
@@ -1049,3 +1236,88 @@ class GitHubInternshipsService:
             logger.info("Saved internships cache to %s (%d items)", cache_path, len(resp.items))
         except Exception as err:
             logger.error("Failed to save internships cache (%s): %s", cache_path, err)
+
+
+def cleanup_internships_file(target_file: Path) -> dict[str, Any]:
+    """
+    Run one-time cleanup migration against specified internships json file:
+    1. Deduplicates cross-repository identical listings.
+    2. Protects user-saved/tracked applications.
+    3. Archives stale (past season e.g. 2026, closed > 30 days).
+    4. Computes accurate stats.
+    """
+    if not target_file.exists():
+        return {"error": "file_not_found"}
+
+    with open(target_file, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    raw_items = [GitHubInternshipItem.model_validate(it) for it in data.get("items", [])]
+    before_count = len(raw_items)
+
+    # 1. Deduplicate by canonical key
+    deduped_by_key: dict[str, GitHubInternshipItem] = {}
+    for it in raw_items:
+        k = canonical_internship_key(it.company, it.role, it.location)
+        if k in deduped_by_key:
+            deduped_by_key[k] = merge_internships(deduped_by_key[k], it)
+        else:
+            deduped_by_key[k] = it
+
+    # 2. User tracking protection
+    tracked_urls, tracked_pairs = get_user_tracked_internships()
+
+    now_iso = get_clock().now().isoformat()
+    for k, it in deduped_by_key.items():
+        is_tracked = is_internship_user_tracked(it, tracked_urls, tracked_pairs)
+        if not is_tracked:
+            if it.season and it.season <= "2026":
+                it.is_archived = True
+                it.archived_at = it.archived_at or now_iso
+                it.archived_reason = f"Past season ({it.season})"
+            elif it.is_closed and parse_age_days(it.date_posted) >= 30:
+                it.is_archived = True
+                it.archived_at = it.archived_at or now_iso
+                it.archived_reason = "Closed listing older than 30 days"
+        else:
+            it.is_archived = False
+
+    cleaned_items = list(deduped_by_key.values())
+    service = GitHubInternshipsService()
+    stats = service._compute_stats(cleaned_items)
+
+    repo_metas = [GitHubRepoMeta.model_validate(r) for r in data.get("repositories", [])]
+    if not repo_metas:
+        repo_metas = [
+            GitHubRepoMeta(
+                id=cfg["id"],
+                name=cfg["name"],
+                url=cfg["url"],
+                region=cfg["region"],
+                year=cfg["year"],
+                description=cfg["description"],
+            )
+            for cfg in REPO_CONFIGS
+        ]
+
+    categories_set = {it.category for it in cleaned_items if it.category and not it.is_archived}
+    categories = sorted(list(categories_set))
+
+    resp = GitHubInternshipsResponse(
+        items=cleaned_items,
+        stats=stats,
+        repositories=repo_metas,
+        categories=categories,
+    )
+
+    with open(target_file, "w", encoding="utf-8") as f:
+        f.write(resp.model_dump_json(indent=2))
+
+    return {
+        "file": str(target_file),
+        "before_count": before_count,
+        "after_total_count": len(cleaned_items),
+        "active_non_archived_count": stats.total_listings,
+        "archived_count": stats.archived_listings,
+        "closed_count": stats.closed_listings,
+    }

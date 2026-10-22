@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../api/client';
 import { useTranslation } from '../../i18n';
+import { Modal } from './Modal';
 
 interface SyncStatusBannerProps {
   onSyncCompleted?: () => void;
@@ -230,180 +231,174 @@ export const SyncStatusBanner: React.FC<SyncStatusBannerProps> = ({
         </ToastNotification>
       )}
 
-      {/* Settings Modal */}
-      {isModalOpen && (
-        <ModalBackdrop onClick={() => setIsModalOpen(false)}>
-          <ModalContent onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="title-area">
-                <Calendar size={20} className="header-icon" />
-                <h3>Automatic Opportunity Updates</h3>
+      {/* Settings Modal (Portaled to document.body to avoid stacking context entrapment) */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Automatic Opportunity Updates"
+        icon={<Calendar size={20} />}
+        maxWidth="620px"
+      >
+        <SettingsModalContent>
+          <div className="modal-inner-body">
+            <p className="desc-text">
+              Compust periodically checks verified employer career portals and the curated GitHub internship directories,
+              imports new vacancies, and archives stale ones while ensuring your saved jobs and applications remain strictly preserved.
+            </p>
+
+            {/* Enable Toggle */}
+            <div className="setting-row">
+              <div>
+                <div className="row-label">Enable Scheduled Sync</div>
+                <div className="row-sub">Runs automatically when the app is open or starts up.</div>
               </div>
-              <button className="close-btn" onClick={() => setIsModalOpen(false)}>
-                <X size={18} />
-              </button>
+              <label className="switch">
+                <input
+                  type="checkbox"
+                  checked={cfgEnabled}
+                  onChange={(e) => setCfgEnabled(e.target.checked)}
+                />
+                <span className="slider round" />
+              </label>
             </div>
 
-            <div className="modal-body">
-              <p className="desc-text">
-                Compust periodically checks verified employer career portals and the curated GitHub internship directories,
-                imports new vacancies, and archives stale ones while ensuring your saved jobs and applications remain strictly preserved.
+            {/* Days of Week */}
+            <div className="setting-block">
+              <div className="row-label">Scheduled Days</div>
+              <div className="row-sub">Select which days of the week automatic runs take place:</div>
+              <div className="days-picker">
+                {DAYS_OF_WEEK.map((d) => (
+                  <button
+                    key={d.value}
+                    type="button"
+                    className={`day-btn ${cfgDays.includes(d.value) ? 'selected' : ''}`}
+                    onClick={() => toggleDay(d.value)}
+                  >
+                    {cfgDays.includes(d.value) && <Check size={12} className="check-icon" />}
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Preferred Time Window */}
+            <div className="setting-row">
+              <div>
+                <div className="row-label">Preferred Time (Local)</div>
+                <div className="row-sub">Sync triggers on the first app launch on or after this time.</div>
+              </div>
+              <div className="time-inputs">
+                <input
+                  type="number"
+                  min="0"
+                  max="23"
+                  value={cfgHour}
+                  onChange={(e) => setCfgHour(Math.max(0, Math.min(23, parseInt(e.target.value) || 0)))}
+                  className="time-num-input"
+                />
+                <span>:</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="59"
+                  value={cfgMinute}
+                  onChange={(e) => setCfgMinute(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))}
+                  className="time-num-input"
+                />
+              </div>
+            </div>
+
+            {/* Safety Net */}
+            <div className="setting-row">
+              <div>
+                <div className="row-label">Safety Net Interval</div>
+                <div className="row-sub">Trigger a catch-up run if more than N days pass without a successful sync:</div>
+              </div>
+              <div className="num-with-unit">
+                <input
+                  type="number"
+                  min="1"
+                  max="30"
+                  value={cfgSafetyNet}
+                  onChange={(e) => setCfgSafetyNet(Math.max(1, parseInt(e.target.value) || 5))}
+                  className="number-input"
+                />
+                <span>days</span>
+              </div>
+            </div>
+
+            {/* Stale Retirement Rules */}
+            <div className="setting-block safety-notice">
+              <div className="notice-header">
+                <ShieldCheck size={16} />
+                <span>Vacancy Retention & Safety Guarantee</span>
+              </div>
+              <p>
+                Any opportunity you bookmark, note, track, or apply to is <strong>strictly protected</strong> and will NEVER be removed.
+                Untracked vacancies are marked archived only after missing <strong>{cfgMissedRuns} consecutive verified scrapes</strong> or exceeding <strong>{cfgMaxAgeDays} days</strong> of age.
               </p>
+            </div>
 
-              {/* Enable Toggle */}
-              <div className="setting-row">
-                <div>
-                  <div className="row-label">Enable Scheduled Sync</div>
-                  <div className="row-sub">Runs automatically when the app is open or starts up.</div>
-                </div>
-                <label className="switch">
-                  <input
-                    type="checkbox"
-                    checked={cfgEnabled}
-                    onChange={(e) => setCfgEnabled(e.target.checked)}
-                  />
-                  <span className="slider round" />
-                </label>
-              </div>
-
-              {/* Days of Week */}
+            {/* Recent Run History */}
+            {status?.recent_history && status.recent_history.length > 0 && (
               <div className="setting-block">
-                <div className="row-label">Scheduled Days</div>
-                <div className="row-sub">Select which days of the week automatic runs take place:</div>
-                <div className="days-picker">
-                  {DAYS_OF_WEEK.map((d) => (
-                    <button
-                      key={d.value}
-                      type="button"
-                      className={`day-btn ${cfgDays.includes(d.value) ? 'selected' : ''}`}
-                      onClick={() => toggleDay(d.value)}
-                    >
-                      {cfgDays.includes(d.value) && <Check size={12} className="check-icon" />}
-                      {d.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Preferred Time Window */}
-              <div className="setting-row">
-                <div>
-                  <div className="row-label">Preferred Time (Local)</div>
-                  <div className="row-sub">Sync triggers on the first app launch on or after this time.</div>
-                </div>
-                <div className="time-inputs">
-                  <input
-                    type="number"
-                    min="0"
-                    max="23"
-                    value={cfgHour}
-                    onChange={(e) => setCfgHour(Math.max(0, Math.min(23, parseInt(e.target.value) || 0)))}
-                    className="time-num-input"
-                  />
-                  <span>:</span>
-                  <input
-                    type="number"
-                    min="0"
-                    max="59"
-                    value={cfgMinute}
-                    onChange={(e) => setCfgMinute(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))}
-                    className="time-num-input"
-                  />
-                </div>
-              </div>
-
-              {/* Safety Net */}
-              <div className="setting-row">
-                <div>
-                  <div className="row-label">Safety Net Interval</div>
-                  <div className="row-sub">Trigger a catch-up run if more than N days pass without a successful sync:</div>
-                </div>
-                <div className="num-with-unit">
-                  <input
-                    type="number"
-                    min="1"
-                    max="30"
-                    value={cfgSafetyNet}
-                    onChange={(e) => setCfgSafetyNet(Math.max(1, parseInt(e.target.value) || 5))}
-                    className="number-input"
-                  />
-                  <span>days</span>
-                </div>
-              </div>
-
-              {/* Stale Retirement Rules */}
-              <div className="setting-block safety-notice">
-                <div className="notice-header">
-                  <ShieldCheck size={16} />
-                  <span>Vacancy Retention & Safety Guarantee</span>
-                </div>
-                <p>
-                  Any opportunity you bookmark, note, track, or apply to is <strong>strictly protected</strong> and will NEVER be removed.
-                  Untracked vacancies are marked archived only after missing <strong>{cfgMissedRuns} consecutive verified scrapes</strong> or exceeding <strong>{cfgMaxAgeDays} days</strong> of age.
-                </p>
-              </div>
-
-              {/* Recent Run History */}
-              {status?.recent_history && status.recent_history.length > 0 && (
-                <div className="setting-block">
-                  <div className="row-label">Recent Run History</div>
-                  <div className="history-table-wrapper">
-                    <table className="history-table">
-                      <thead>
-                        <tr>
-                          <th>Finished</th>
-                          <th>Trigger</th>
-                          <th>Outcome</th>
-                          <th>New / Retired</th>
+                <div className="row-label">Recent Run History</div>
+                <div className="history-table-wrapper">
+                  <table className="history-table">
+                    <thead>
+                      <tr>
+                        <th>Finished</th>
+                        <th>Trigger</th>
+                        <th>Outcome</th>
+                        <th>New / Retired</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {status.recent_history.slice(0, 5).map((h: any) => (
+                        <tr key={h.id}>
+                          <td>{formatTimestamp(h.finished_at)}</td>
+                          <td><span className="trigger-badge">{h.trigger}</span></td>
+                          <td>
+                            <span className={`status-badge ${h.status}`}>
+                              {h.status}
+                            </span>
+                          </td>
+                          <td>+{h.jobs_new} / -{h.jobs_retired}</td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {status.recent_history.slice(0, 5).map((h: any) => (
-                          <tr key={h.id}>
-                            <td>{formatTimestamp(h.finished_at)}</td>
-                            <td><span className="trigger-badge">{h.trigger}</span></td>
-                            <td>
-                              <span className={`status-badge ${h.status}`}>
-                                {h.status}
-                              </span>
-                            </td>
-                            <td>+{h.jobs_new} / -{h.jobs_retired}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              )}
-            </div>
-
-            <div className="modal-footer">
-              <button
-                className="btn-secondary"
-                onClick={() => {
-                  setIsModalOpen(false);
-                  handleSyncNow();
-                }}
-              >
-                <Play size={14} />
-                <span>Run Now</span>
-              </button>
-              <div className="footer-right">
-                <button className="btn-cancel" onClick={() => setIsModalOpen(false)}>
-                  Cancel
-                </button>
-                <button
-                  className="btn-primary"
-                  onClick={handleSaveSettings}
-                  disabled={savingSettings}
-                >
-                  {savingSettings ? 'Saving...' : 'Save Settings'}
-                </button>
               </div>
+            )}
+          </div>
+
+          <div className="modal-footer">
+            <button
+              className="btn-secondary"
+              onClick={() => {
+                setIsModalOpen(false);
+                handleSyncNow();
+              }}
+            >
+              <Play size={14} />
+              <span>Run Now</span>
+            </button>
+            <div className="footer-right">
+              <button className="btn-cancel" onClick={() => setIsModalOpen(false)}>
+                Cancel
+              </button>
+              <button
+                className="btn-primary"
+                onClick={handleSaveSettings}
+                disabled={savingSettings}
+              >
+                {savingSettings ? 'Saving...' : 'Save Settings'}
+              </button>
             </div>
-          </ModalContent>
-        </ModalBackdrop>
-      )}
+          </div>
+        </SettingsModalContent>
+      </Modal>
     </BannerContainer>
   );
 };
@@ -412,6 +407,8 @@ const BannerContainer = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
   padding: 8px 16px;
   background: rgba(15, 23, 42, 0.6);
   border: 1px solid rgba(59, 130, 246, 0.2);
@@ -424,17 +421,23 @@ const BannerContainer = styled.div`
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 
   &.compact {
-    padding: 6px 12px;
+    padding: 6px 14px;
     font-size: 0.8rem;
+    gap: 16px;
+    margin-bottom: 0;
   }
 
   .status-info {
     display: flex;
     align-items: center;
     gap: 8px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: max-content;
 
     .clock-icon {
       color: #3b82f6;
+      flex-shrink: 0;
     }
 
     strong {
@@ -444,6 +447,7 @@ const BannerContainer = styled.div`
 
     .dot-sep {
       opacity: 0.4;
+      margin: 0 2px;
     }
   }
 
@@ -451,6 +455,8 @@ const BannerContainer = styled.div`
     display: flex;
     align-items: center;
     gap: 10px;
+    flex-shrink: 0;
+    margin-left: auto;
 
     .sync-stage-pill {
       font-size: 0.75rem;
@@ -460,21 +466,28 @@ const BannerContainer = styled.div`
       border-radius: 12px;
       border: 1px solid rgba(59, 130, 246, 0.25);
       animation: pulse 1.5s infinite;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
 
     .sync-btn {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 5px 12px;
-      background: linear-gradient(135deg, rgba(59, 130, 246, 0.85), rgba(37, 99, 235, 0.85));
+      justify-content: center;
+      gap: 8px;
+      padding: 6px 14px;
+      min-width: 105px;
+      background: #2563eb linear-gradient(135deg, rgba(59, 130, 246, 0.95), rgba(37, 99, 235, 0.95));
+      background-color: #2563eb;
       border: 1px solid rgba(96, 165, 250, 0.4);
       border-radius: 8px;
       color: #ffffff;
-      font-size: 0.8rem;
-      font-weight: 500;
+      font-size: 0.82rem;
+      font-weight: 600;
       cursor: pointer;
       transition: all 0.2s ease;
+      white-space: nowrap;
+      flex-shrink: 0;
 
       &:hover:not(:disabled) {
         background: linear-gradient(135deg, #3b82f6, #1d4ed8);
@@ -502,11 +515,36 @@ const BannerContainer = styled.div`
       display: flex;
       align-items: center;
       transition: all 0.2s ease;
+      flex-shrink: 0;
 
       &:hover {
         color: #f1f5f9;
         border-color: rgba(148, 163, 184, 0.4);
         background: rgba(51, 65, 85, 0.8);
+      }
+    }
+  }
+
+  /* Light theme overrides */
+  [data-theme='light'] &,
+  :root[data-theme='light'] &,
+  .light & {
+    background: rgba(255, 255, 255, 0.95);
+    border-color: rgba(37, 99, 235, 0.2);
+    color: #334155;
+
+    .status-info strong {
+      color: #0f172a;
+    }
+
+    .settings-btn {
+      background: #f1f5f9;
+      border-color: rgba(0, 0, 0, 0.1);
+      color: #475569;
+
+      &:hover {
+        background: #e2e8f0;
+        color: #0f172a;
       }
     }
   }
@@ -567,66 +605,12 @@ const ToastNotification = styled.div`
   }
 `;
 
-const ModalBackdrop = styled.div`
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(4px);
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-`;
-
-const ModalContent = styled.div`
-  background: #0f172a;
-  border: 1px solid rgba(59, 130, 246, 0.3);
-  border-radius: 16px;
-  width: 100%;
-  max-width: 580px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+const SettingsModalContent = styled.div`
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  color: #f8fafc;
+  color: var(--text-primary, #f8fafc);
 
-  .modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 18px 24px;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.12);
-
-    .title-area {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-
-      .header-icon {
-        color: #3b82f6;
-      }
-
-      h3 {
-        margin: 0;
-        font-size: 1.1rem;
-        font-weight: 600;
-      }
-    }
-
-    .close-btn {
-      background: transparent;
-      border: none;
-      color: #94a3b8;
-      cursor: pointer;
-      &:hover { color: #f1f5f9; }
-    }
-  }
-
-  .modal-body {
-    padding: 20px 24px;
-    overflow-y: auto;
-    max-height: 70vh;
+  .modal-inner-body {
     display: flex;
     flex-direction: column;
     gap: 18px;

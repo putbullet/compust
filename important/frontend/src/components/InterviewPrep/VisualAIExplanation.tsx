@@ -58,6 +58,19 @@ export const VisualAIExplanation: React.FC<VisualAIExplanationProps> = ({
           </div>
         )}
 
+        {result.svg_diagram && (
+          <div className="ai-svg-diagram-card glass-panel" aria-label="Visual Architecture Diagram">
+            <div className="ai-section-badge diagram">
+              <Layers size={15} />
+              <span>Architecture & Concept Flow Diagram</span>
+            </div>
+            <div
+              className="ai-svg-rendered-wrapper"
+              dangerouslySetInnerHTML={{ __html: result.svg_diagram }}
+            />
+          </div>
+        )}
+
         {result.code_sample && (
           <div className="ai-code-card glass-panel">
             <div className="ai-code-header">
@@ -110,6 +123,7 @@ export const VisualAIExplanation: React.FC<VisualAIExplanationProps> = ({
   const actors: Actor[] = payload.actors || [];
   const steps: ScenarioStep[] = currentVariant?.steps || [];
   const displayedSteps = showAllSteps ? steps : steps.slice(0, currentPlaybackStep + 1);
+  const svgDiagram = result.svg_diagram || payload.svg_diagram;
 
   // SVG dimensions & layout calculations
   const laneCount = Math.max(1, actors.length);
@@ -167,6 +181,20 @@ export const VisualAIExplanation: React.FC<VisualAIExplanationProps> = ({
           </div>
         )}
       </div>
+
+      {/* OPTIONAL ARCHITECTURAL SVG DIAGRAM (VISUAL ONLY, SANITIZED, NO RAW CODE) */}
+      {svgDiagram && (
+        <section className="ai-svg-diagram-card glass-panel" aria-label="Visual Architecture Diagram">
+          <div className="ai-section-badge diagram">
+            <Layers size={15} />
+            <span>Architecture & System Flow Diagram</span>
+          </div>
+          <div
+            className="ai-svg-rendered-wrapper"
+            dangerouslySetInnerHTML={{ __html: svgDiagram }}
+          />
+        </section>
+      )}
 
       {/* 2. SCENARIO SEQUENCE LANE DIAGRAM */}
       <section className="actor-diagram-card glass-panel">

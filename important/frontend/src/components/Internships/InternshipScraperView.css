@@ -599,6 +599,16 @@
   flex-direction: column;
   align-items: flex-end;
   gap: 8px;
+  flex-shrink: 0;
+  min-width: max-content;
+}
+
+@media (max-width: 900px) {
+  .banner-action-side {
+    align-items: stretch;
+    width: 100%;
+    min-width: 0;
+  }
 }
 
 .sync-github-btn {
@@ -652,7 +662,7 @@
   gap: 12px;
 }
 
-.stat-card {
+.stats-cards-grid .stat-card {
   padding: 14px 16px;
   background: rgba(15, 23, 42, 0.75);
   border: 1px solid rgba(255, 255, 255, 0.07);
@@ -664,12 +674,12 @@
   transition: transform 0.2s ease, border-color 0.2s ease;
 }
 
-.stat-card:hover {
+.stats-cards-grid .stat-card:hover {
   transform: translateY(-2px);
   border-color: rgba(255, 255, 255, 0.15);
 }
 
-.stat-card-label {
+.stats-cards-grid .stat-card-label {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -680,30 +690,30 @@
   letter-spacing: 0.04em;
 }
 
-.stat-card-value {
+.stats-cards-grid .stat-card-value {
   font-size: 1.5em;
   font-weight: 700;
   color: #f8fafc;
 }
 
-.stat-card-sub {
+.stats-cards-grid .stat-card-sub {
   font-size: 0.75em;
-  color: #64748b;
+  color: var(--text-muted, #94a3b8);
 }
 
-.stat-card-green {
+.stats-cards-grid .stat-card-green {
   border-left: 3px solid #10b981;
 }
 
-.stat-card-amber {
+.stats-cards-grid .stat-card-amber {
   border-left: 3px solid #f59e0b;
 }
 
-.stat-card-blue {
+.stats-cards-grid .stat-card-blue {
   border-left: 3px solid #0284c7;
 }
 
-.stat-card-red {
+.stats-cards-grid .stat-card-red {
   border-left: 3px solid #e11d48;
 }
 
@@ -1503,4 +1513,276 @@
   font-size: 0.85em;
   color: #94a3b8;
 }
+
+/* ==========================================================================
+   Light Theme & WCAG Contrast Overrides for Curated Internships
+   ========================================================================== */
+[data-theme='light'] .curated-card,
+:root[data-theme='light'] .curated-card,
+.light .curated-card {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme='light'] .curated-company-name,
+:root[data-theme='light'] .curated-company-name,
+.light .curated-company-name {
+  color: #0f172a;
+}
+
+[data-theme='light'] .curated-role-title,
+:root[data-theme='light'] .curated-role-title,
+.light .curated-role-title {
+  color: #1e293b;
+}
+
+[data-theme='light'] .curated-location-row,
+[data-theme='light'] .curated-category-pill,
+:root[data-theme='light'] .curated-location-row,
+:root[data-theme='light'] .curated-category-pill,
+.light .curated-location-row,
+.light .curated-category-pill {
+  color: #475569;
+  background: #f1f5f9;
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme='light'] .curated-controls-card,
+:root[data-theme='light'] .curated-controls-card,
+.light .curated-controls-card {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme='light'] .curated-search-input,
+:root[data-theme='light'] .curated-search-input,
+.light .curated-search-input {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+[data-theme='light'] .repo-tab-btn,
+:root[data-theme='light'] .repo-tab-btn,
+.light .repo-tab-btn {
+  background: #f1f5f9;
+  border-color: rgba(0, 0, 0, 0.1);
+  color: #1e293b;
+}
+
+[data-theme='light'] .repo-tab-btn:hover,
+:root[data-theme='light'] .repo-tab-btn:hover,
+.light .repo-tab-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+[data-theme='light'] .repo-tab-btn.active,
+:root[data-theme='light'] .repo-tab-btn.active,
+.light .repo-tab-btn.active {
+  background: rgba(37, 99, 235, 0.12);
+  border-color: #2563eb;
+  color: #1d4ed8;
+}
+
+[data-theme='light'] .tab-count,
+:root[data-theme='light'] .tab-count,
+.light .tab-count {
+  background: rgba(0, 0, 0, 0.08);
+  color: #1e293b;
+}
+
+[data-theme='light'] .curated-table-container,
+:root[data-theme='light'] .curated-table-container,
+.light .curated-table-container {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme='light'] .pagination-btn,
+:root[data-theme='light'] .pagination-btn,
+.light .pagination-btn {
+  background: #f1f5f9;
+  border-color: rgba(0, 0, 0, 0.1);
+  color: #334155;
+}
+
+[data-theme='light'] .pagination-btn:hover:not(:disabled),
+:root[data-theme='light'] .pagination-btn:hover:not(:disabled),
+.light .pagination-btn:hover:not(:disabled) {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+[data-theme='light'] .pagination-info,
+:root[data-theme='light'] .pagination-info,
+.light .pagination-info {
+  color: #475569;
+}
+
+[data-theme='light'] .internships-banner,
+:root[data-theme='light'] .internships-banner,
+.light .internships-banner {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme='light'] .banner-title,
+:root[data-theme='light'] .banner-title,
+.light .banner-title {
+  color: #0f172a;
+}
+
+[data-theme='light'] .banner-desc,
+:root[data-theme='light'] .banner-desc,
+.light .banner-desc {
+  color: #475569;
+}
+
+[data-theme='light'] .source-counter-badge,
+:root[data-theme='light'] .source-counter-badge,
+.light .source-counter-badge {
+  background: #d1fae5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+
+[data-theme='light'] .season-badge,
+:root[data-theme='light'] .season-badge,
+.light .season-badge {
+  background: #ede9fe;
+  color: #5b21b6;
+  border-color: #ddd6fe;
+}
+
+[data-theme='light'] .stats-cards-grid .stat-card,
+:root[data-theme='light'] .stats-cards-grid .stat-card,
+.light .stats-cards-grid .stat-card {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme='light'] .stats-cards-grid .stat-card-label,
+:root[data-theme='light'] .stats-cards-grid .stat-card-label,
+.light .stats-cards-grid .stat-card-label {
+  color: #475569;
+}
+
+[data-theme='light'] .stats-cards-grid .stat-card-value,
+:root[data-theme='light'] .stats-cards-grid .stat-card-value,
+.light .stats-cards-grid .stat-card-value {
+  color: #0f172a;
+}
+
+[data-theme='light'] .stats-cards-grid .stat-card-sub,
+:root[data-theme='light'] .stats-cards-grid .stat-card-sub,
+.light .stats-cards-grid .stat-card-sub {
+  color: #475569;
+}
+
+[data-theme='light'] .filter-pill,
+:root[data-theme='light'] .filter-pill,
+.light .filter-pill {
+  background: #f1f5f9;
+  border-color: rgba(0, 0, 0, 0.1);
+  color: #334155;
+}
+
+[data-theme='light'] .filter-pill:hover,
+:root[data-theme='light'] .filter-pill:hover,
+.light .filter-pill:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+[data-theme='light'] .filter-pill.active,
+:root[data-theme='light'] .filter-pill.active,
+.light .filter-pill.active {
+  background: #2563eb;
+  border-color: #1d4ed8;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+[data-theme='light'] .visa-badge-unspecified,
+:root[data-theme='light'] .visa-badge-unspecified,
+.light .visa-badge-unspecified {
+  background: #f1f5f9;
+  color: #475569;
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+[data-theme='light'] .visa-badge-sponsor,
+:root[data-theme='light'] .visa-badge-sponsor,
+.light .visa-badge-sponsor {
+  background: #d1fae5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+
+[data-theme='light'] .visa-badge-nosponsor,
+:root[data-theme='light'] .visa-badge-nosponsor,
+.light .visa-badge-nosponsor {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fde68a;
+}
+
+[data-theme='light'] .visa-badge-uscit,
+:root[data-theme='light'] .visa-badge-uscit,
+.light .visa-badge-uscit {
+  background: #e0f2fe;
+  color: #0369a1;
+  border-color: #bae6fd;
+}
+
+[data-theme='light'] .visa-badge-canada,
+:root[data-theme='light'] .visa-badge-canada,
+.light .visa-badge-canada {
+  background: #ffe4e6;
+  color: #9f1239;
+  border-color: #fecdd3;
+}
+
+[data-theme='light'] .visa-badge-closed,
+:root[data-theme='light'] .visa-badge-closed,
+.light .visa-badge-closed {
+  background: #f1f5f9;
+  color: #475569;
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+[data-theme='light'] .source-repo-tag,
+:root[data-theme='light'] .source-repo-tag,
+.light .source-repo-tag {
+  background: #dbeafe;
+  color: #1e40af;
+  border-color: #bfdbfe;
+}
+
+[data-theme='light'] .results-status-bar,
+:root[data-theme='light'] .results-status-bar,
+.light .results-status-bar {
+  color: #475569;
+}
+
+[data-theme='light'] .results-status-bar strong,
+:root[data-theme='light'] .results-status-bar strong,
+.light .results-status-bar strong {
+  color: #0f172a;
+}
+
+[data-theme='light'] .page-size-select,
+:root[data-theme='light'] .page-size-select,
+.light .page-size-select {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+
 

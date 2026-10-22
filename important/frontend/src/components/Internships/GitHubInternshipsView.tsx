@@ -28,6 +28,7 @@ import { CompanyLogo } from './CompanyLogo';
 import { VisaBadge } from './VisaBadge';
 import { SyncStatusBanner } from '../common/SyncStatusBanner';
 import { useTranslation } from '../../i18n';
+import './InternshipScraperView.css';
 
 const PAGE_SIZE_OPTIONS = [24, 48, 96, 200];
 
@@ -67,6 +68,7 @@ export const GitHubInternshipsView: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [openOnly, setOpenOnly] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
   // Pagination
@@ -80,7 +82,7 @@ export const GitHubInternshipsView: React.FC = () => {
 
       const response = isSync
         ? await api.syncCuratedGitHubInternships()
-        : await api.getCuratedGitHubInternships();
+        : await api.getCuratedGitHubInternships({ include_archived: true });
       setData(response);
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to load curated internships.');
@@ -97,6 +99,10 @@ export const GitHubInternshipsView: React.FC = () => {
   const filteredItems = useMemo(() => {
     if (!data) return [];
     let items = data.items;
+
+    if (!showArchived) {
+      items = items.filter((it) => !it.is_archived);
+    }
 
     if (selectedRepoId !== 'all') {
       items = items.filter((it) => it.source_repo_id === selectedRepoId);
@@ -134,12 +140,12 @@ export const GitHubInternshipsView: React.FC = () => {
     }
 
     return items;
-  }, [data, selectedRepoId, selectedVisaStatus, selectedCategory, openOnly, searchQuery]);
+  }, [data, selectedRepoId, selectedVisaStatus, selectedCategory, openOnly, showArchived, searchQuery]);
 
   // Reset pagination on filter change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedRepoId, selectedVisaStatus, selectedCategory, openOnly, searchQuery, pageSize]);
+  }, [selectedRepoId, selectedVisaStatus, selectedCategory, openOnly, showArchived, searchQuery, pageSize]);
 
   const totalPages = Math.ceil(filteredItems.length / pageSize) || 1;
   const paginatedItems = useMemo(() => {
@@ -162,7 +168,8 @@ export const GitHubInternshipsView: React.FC = () => {
     selectedVisaStatus !== 'all' ||
     selectedCategory !== 'all' ||
     Boolean(searchQuery.trim()) ||
-    openOnly;
+    openOnly ||
+    showArchived;
 
   const handleResetFilters = () => {
     setSelectedRepoId('all');
@@ -170,6 +177,7 @@ export const GitHubInternshipsView: React.FC = () => {
     setSelectedCategory('all');
     setSearchQuery('');
     setOpenOnly(false);
+    setShowArchived(false);
   };
 
   const visaPillOptions = [
@@ -384,6 +392,16 @@ export const GitHubInternshipsView: React.FC = () => {
               onChange={(e) => setOpenOnly(e.target.checked)}
             />
             <span>{t.internships.openOnly}</span>
+          </label>
+
+          {/* Show Archived Toggle */}
+          <label className="open-only-toggle" title="Show archived/retired opportunities for historical reference">
+            <input
+              type="checkbox"
+              checked={showArchived}
+              onChange={(e) => setShowArchived(e.target.checked)}
+            />
+            <span>{t.internships.showArchived} ({data?.stats?.archived_listings || 0})</span>
           </label>
 
           {/* Reset All Filters Button */}

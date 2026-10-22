@@ -1663,6 +1663,19 @@ export const api = {
       }
     ),
 
+  superviseDeleteAllJobs: (data: { confirmation: string; search?: string; force_tracked?: boolean }) =>
+    request<{
+      status: string;
+      deleted_count: number;
+      preserved_tracked_count: number;
+      total_matched: number;
+      scope: string;
+      message: string;
+    }>('/admin/jobs/delete-all', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
   getAllScrapingRuns: (limit: number = 50) =>
     request<ScrapingRunItem[]>(`/admin/scraping-runs?limit=${limit}`),
 
@@ -1697,6 +1710,7 @@ export const api = {
     if (params.category) q.set('category', params.category);
     if (params.search) q.set('search', params.search);
     if (params.open_only !== undefined) q.set('open_only', params.open_only.toString());
+    if (params.include_archived !== undefined) q.set('include_archived', params.include_archived.toString());
     const queryStr = q.toString() ? `?${q.toString()}` : '';
     return request<GitHubInternshipsResponse>(`/internships/github-repos${queryStr}`);
   },
@@ -1865,13 +1879,19 @@ export const api = {
     slug: string,
     mode: string = 'simplify',
     userDraftAnswer?: string,
-    language: string = 'en'
+    language: string = 'en',
+    forceRegenerate: boolean = false
   ) =>
     request<QuestionAIExplainResponse>(
       `/interview-prep/questions/${encodeURIComponent(domainId)}/${encodeURIComponent(slug)}/ai-explain`,
       {
         method: 'POST',
-        body: JSON.stringify({ mode, user_draft_answer: userDraftAnswer, language }),
+        body: JSON.stringify({
+          mode,
+          user_draft_answer: userDraftAnswer,
+          language,
+          force_regenerate: forceRegenerate,
+        }),
       }
     ),
 
@@ -2321,6 +2341,9 @@ export interface GitHubInternshipItem {
   visa_text: string;
   is_closed: boolean;
   notes?: string | null;
+  is_archived?: boolean;
+  archived_at?: string | null;
+  archived_reason?: string | null;
 }
 
 export interface GitHubRepoMeta {
@@ -2338,6 +2361,7 @@ export interface GitHubInternshipStats {
   total_listings: number;
   active_listings: number;
   closed_listings: number;
+  archived_listings?: number;
   visa_sponsored_count: number;
   no_sponsorship_count: number;
   us_citizens_count: number;
@@ -2362,6 +2386,7 @@ export interface GitHubInternshipsParams {
   category?: string | null;
   search?: string | null;
   open_only?: boolean;
+  include_archived?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -2709,6 +2734,8 @@ export interface StructuredAIExplanationPayload {
   comparison_table: ComparisonRow[];
   takeaways: string[];
   common_mistakes: string[];
+  has_diagram?: boolean;
+  svg_diagram?: string | null;
 }
 
 export interface STAREvaluationRequest {
@@ -2748,6 +2775,8 @@ export interface QuestionAIExplainResponse {
   ai_model_used: string;
   is_ai_generated: boolean;
   disclaimer: string;
+  has_diagram?: boolean;
+  svg_diagram?: string | null;
 }
 
 // ---------------------------------------------------------------------------

@@ -564,9 +564,9 @@ const StyledNav = styled.header`
     }
 
     &.active {
-      background: rgba(59, 130, 246, 0.35);
-      color: #60a5fa;
-      box-shadow: 0 0 8px rgba(59, 130, 246, 0.3);
+      background: #2563eb;
+      color: #ffffff;
+      box-shadow: 0 0 8px rgba(37, 99, 235, 0.4);
     }
 
     &:focus-visible {

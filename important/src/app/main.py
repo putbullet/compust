@@ -132,6 +132,8 @@ from .schemas_ai_resume import (
     AITestConnectionResponse,
     BulkJobDeleteRequest,
     BulkJobDeleteResponse,
+    DeleteAllJobsRequest,
+    DeleteAllJobsResponse,
     CustomizedResumeRead,
     GeminiKeyUpdate,
     OpenAIKeyUpdate,
@@ -415,7 +417,7 @@ def health(db: Session = Depends(get_db)) -> HealthRead:
         database=db_status,
         latency_ms=latency_ms,
         app="compust",
-        version="1.0.3",
+        version="1.0.4",
         mode=app_mode,
         instance_id=instance_id,
         pid=os.getpid(),
@@ -475,7 +477,7 @@ def health_deep(db: Session = Depends(get_db)) -> dict[str, Any]:
     return {
         "status": "ok" if is_healthy else "degraded",
         "app": "compust",
-        "version": "1.0.3",
+        "version": "1.0.4",
         "mode": app_mode,
         "instance_id": os.environ.get("COMPUST_INSTANCE_ID", f"compust_{app_mode}_{os.getpid()}"),
         "pid": os.getpid(),
@@ -2666,6 +2668,37 @@ def supervise_bulk_delete_jobs(
     )
 
 
+@app.post("/api/v1/admin/jobs/delete-all", response_model=DeleteAllJobsResponse, tags=["admin"])
+def supervise_delete_all_jobs(
+    req: DeleteAllJobsRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> DeleteAllJobsResponse:
+    if req.confirmation.strip().upper() != "DELETE":
+        raise HTTPException(
+            status_code=400,
+            detail="Confirmation token mismatch. You must type 'DELETE' to confirm deletion.",
+        )
+
+    from .repositories.job_supervision import delete_all_jobs_safely
+
+    deleted, preserved, total_matched = delete_all_jobs_safely(
+        db,
+        search=req.search,
+        force_tracked=req.force_tracked,
+    )
+    scope_desc = f"Filter matching '{req.search.strip()}'" if req.search and req.search.strip() else "All database jobs"
+    msg = f"Successfully removed {deleted} jobs ({scope_desc}). {preserved} user-tracked jobs were preserved."
+    return DeleteAllJobsResponse(
+        status="success",
+        deleted_count=deleted,
+        preserved_tracked_count=preserved,
+        total_matched=total_matched,
+        scope=scope_desc,
+        message=msg,
+    )
+
+
 # --- Scraper Diagnostic Testing Endpoints ---
 
 
@@ -2755,28 +2788,6 @@ def apply_scraper_target_decision(
 
 
 
-# --- Internship Intelligence Scraper Endpoints ---
-
-
-class InternshipSearchRequest(BaseModel):
-    field: str = Field(..., min_length=1, max_length=150, description="Technical field or role keywords (e.g. Cybersecurity, Software Engineering)")
-    country: str | None = Field(default=None, max_length=80, description="Optional target country. Omit for worldwide mode.")
-    year: int | str | None = Field(default=None, description="Target internship year (e.g. 2026, 2027)")
-    max_results: int = Field(default=20, ge=1, le=50)
-
-
-@app.post("/api/v1/internships/search", tags=["internships"])
-def search_internships_endpoint(
-    payload: InternshipSearchRequest = Body(...),
-):
-    from .scraper.internship_scraper import InternshipIntelligenceScraper
-    scraper = InternshipIntelligenceScraper()
-    return scraper.search_and_extract(
-        field=payload.field,
-        country=payload.country,
-        year=payload.year,
-        max_results=payload.max_results,
-    )
 
 
 @app.get("/api/v1/internships/github-repos", tags=["internships"])
@@ -2786,6 +2797,7 @@ def get_curated_github_internships_endpoint(
     category: str | None = Query(default=None),
     search: str | None = Query(default=None),
     open_only: bool = Query(default=False),
+    include_archived: bool = Query(default=False),
 ):
     """Retrieve parsed opportunities from the 7 curated GitHub repositories."""
     from .services.github_internships_service import GitHubInternshipsService
@@ -2796,6 +2808,7 @@ def get_curated_github_internships_endpoint(
         category=category,
         search=search,
         open_only=open_only,
+        include_archived=include_archived,
     )
 
 
@@ -3032,6 +3045,7 @@ async def explain_interview_prep_question_ai(
         mode=payload.mode,
         user_draft_answer=payload.user_draft_answer,
         language=payload.language,
+        force_regenerate=payload.force_regenerate,
     )
 
 
@@ -4189,7 +4203,7 @@ async def serve_spa_frontend(request: Request, full_path: str):
         mode=app_mode,
         logs_path=logs_file,
         db_status="ok",
-        version="1.0.3",
+        version="1.0.4",
     )
     return HTMLResponse(content=html_content, status_code=200)
 

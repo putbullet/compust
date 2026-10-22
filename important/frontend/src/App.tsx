@@ -31,7 +31,7 @@ import { AISettingsModal } from './components/AISettingsModal';
 import { AIAssistantWidget } from './components/AIAssistantWidget';
 import { SyncStatusBanner } from './components/common/SyncStatusBanner';
 import { Loader } from './components/Loader';
-import { Sparkles, Layers, ShieldCheck, ChevronLeft, ChevronRight, Bookmark } from 'lucide-react';
+import { Sparkles, Layers, ShieldCheck, ChevronLeft, ChevronRight, Bookmark, Briefcase, Building2, Globe2 } from 'lucide-react';
 import { useTranslation } from './i18n';
 
 type AppTab = 'directory' | 'profile' | 'scraper' | 'applications' | 'companies' | 'supervision' | 'guide' | 'internships' | 'interview-prep' | 'extension';
@@ -272,25 +272,42 @@ export const App: React.FC = () => {
               </p>
 
               {/* Stats Ribbon */}
-              <div className="stats-ribbon">
-                <div className="stat-card">
-                  <span className="stat-val">{totalJobs}</span>
-                  <span className="stat-lbl">Active Vacancies</span>
+              <div className="stats-ribbon" role="region" aria-label="Directory statistics">
+                <div className="stat-card stat-vacancies">
+                  <div className="stat-icon-wrap icon-blue">
+                    <Briefcase size={20} />
+                  </div>
+                  <div className="stat-text-col">
+                    <span className="stat-val">{totalJobs}</span>
+                    <span className="stat-lbl">Active Vacancies</span>
+                  </div>
                 </div>
-                <div className="stat-sep" />
-                <div className="stat-card">
-                  <span className="stat-val">{companies.length || 3}</span>
-                  <span className="stat-lbl">Direct Sources</span>
+                <div className="stat-card stat-sources">
+                  <div className="stat-icon-wrap icon-purple">
+                    <Building2 size={20} />
+                  </div>
+                  <div className="stat-text-col">
+                    <span className="stat-val">{companies.length || 3}</span>
+                    <span className="stat-lbl">Direct Sources</span>
+                  </div>
                 </div>
-                <div className="stat-sep" />
-                <div className="stat-card">
-                  <span className="stat-val">{countries.length || 2}</span>
-                  <span className="stat-lbl">Countries</span>
+                <div className="stat-card stat-countries">
+                  <div className="stat-icon-wrap icon-cyan">
+                    <Globe2 size={20} />
+                  </div>
+                  <div className="stat-text-col">
+                    <span className="stat-val">{countries.length || 2}</span>
+                    <span className="stat-lbl">Countries</span>
+                  </div>
                 </div>
-                <div className="stat-sep" />
-                <div className="stat-card">
-                  <span className="stat-val">100%</span>
-                  <span className="stat-lbl">XSS Sanitized</span>
+                <div className="stat-card stat-sanitized">
+                  <div className="stat-icon-wrap icon-emerald">
+                    <ShieldCheck size={20} />
+                  </div>
+                  <div className="stat-text-col">
+                    <span className="stat-val">100%</span>
+                    <span className="stat-lbl">Access Sanitized</span>
+                  </div>
                 </div>
               </div>
 
@@ -492,9 +509,20 @@ export const App: React.FC = () => {
             <span className="f-name">Compust</span>
             <span className="f-tag">Local-First Career Intelligence</span>
           </div>
-          <div className="footer-compliance">
-            <ShieldCheck size={16} />
-            <span>Robots.txt Enforced • Bleach HTML Sanitized • Zero AI Hallucination</span>
+          <div className="footer-links">
+            <button type="button" className="footer-link-btn" onClick={() => setActiveTab('directory')}>Opportunities</button>
+            <span className="footer-dot" aria-hidden="true">•</span>
+            <button type="button" className="footer-link-btn" onClick={() => setActiveTab('internships')}>Internships</button>
+            <span className="footer-dot" aria-hidden="true">•</span>
+            <button type="button" className="footer-link-btn" onClick={() => setActiveTab('applications')}>Applications</button>
+            <span className="footer-dot" aria-hidden="true">•</span>
+            <button type="button" className="footer-link-btn" onClick={() => setActiveTab('interview-prep')}>Interview Prep</button>
+            <span className="footer-dot" aria-hidden="true">•</span>
+            <button type="button" className="footer-link-btn" onClick={() => setActiveTab('guide')}>Guide & Docs</button>
+          </div>
+          <div className="footer-meta">
+            <ShieldCheck size={14} className="f-shield" />
+            <span>Private & Local-First • Compust v2.4</span>
           </div>
         </div>
       </footer>
@@ -585,10 +613,18 @@ const StyledApp = styled.div`
     background: rgba(59, 130, 246, 0.12);
     border: 1px solid rgba(59, 130, 246, 0.3);
     border-radius: 20px;
-    color: #60a5fa;
+    color: var(--primary);
     font-size: 0.8rem;
     font-weight: 600;
     margin: 0 auto;
+  }
+
+  [data-theme='light'] .hero-badge,
+  :root[data-theme='light'] .hero-badge,
+  .light .hero-badge {
+    background: #dbeafe;
+    border-color: #93c5fd;
+    color: #1e40af;
   }
 
   .hero-title {
@@ -597,17 +633,28 @@ const StyledApp = styled.div`
     max-width: 850px;
     margin: 0 auto;
     text-align: center;
+    color: var(--text-primary);
   }
 
   .gradient-text {
     background: linear-gradient(135deg, #60a5fa 20%, #c084fc 80%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    color: #3b82f6;
+  }
+
+  [data-theme='light'] .gradient-text,
+  :root[data-theme='light'] .gradient-text,
+  .light .gradient-text {
+    background: linear-gradient(135deg, #1d4ed8 20%, #6d28d9 80%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: #1d4ed8;
   }
 
   .hero-subtitle {
     font-size: 1.05rem;
-    color: #94a3b8;
+    color: var(--text-muted);
     max-width: 680px;
     line-height: 1.6;
     margin: 0 auto;
@@ -616,39 +663,143 @@ const StyledApp = styled.div`
 
   .stats-ribbon {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: center;
-    gap: 24px;
-    padding: 12px 28px;
-    background: rgba(15, 23, 42, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 20px;
-    margin: 8px auto 16px;
-    width: fit-content;
+    gap: 14px;
+    width: 100%;
+    max-width: 980px;
+    margin: 12px auto 26px;
   }
 
   .stat-card {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 20px 6px 8px;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 9999px;
+    box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.35);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+
+    &:hover {
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.2);
+      box-shadow: 0 6px 22px -2px rgba(0, 0, 0, 0.5);
+    }
+  }
+
+  .stat-icon-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    flex-shrink: 0;
+
+    &.icon-blue {
+      background: rgba(30, 58, 138, 0.28);
+      color: #60a5fa;
+      border: 1px solid rgba(59, 130, 246, 0.38);
+    }
+
+    &.icon-purple {
+      background: rgba(88, 28, 135, 0.28);
+      color: #c084fc;
+      border: 1px solid rgba(168, 85, 247, 0.38);
+    }
+
+    &.icon-cyan {
+      background: rgba(19, 78, 74, 0.32);
+      color: #2dd4bf;
+      border: 1px solid rgba(20, 184, 166, 0.38);
+    }
+
+    &.icon-emerald {
+      background: rgba(6, 78, 59, 0.32);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.38);
+    }
+  }
+
+  .stat-text-col {
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-start;
+    justify-content: center;
+    min-width: 0;
   }
 
   .stat-val {
-    font-size: 1.25rem;
+    font-size: 1.35rem;
     font-weight: 800;
+    line-height: 1.1;
     color: #ffffff;
     font-family: var(--font-heading);
+    letter-spacing: -0.01em;
   }
 
   .stat-lbl {
-    font-size: 0.75rem;
-    color: #64748b;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1.2;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #94a3b8;
+    margin-top: 2px;
+    white-space: nowrap;
   }
 
-  .stat-sep {
-    width: 1px;
-    height: 28px;
-    background: rgba(255, 255, 255, 0.08);
+  /* Light Theme Overrides for Stat Pill Cards */
+  [data-theme='light'] &,
+  :root[data-theme='light'] &,
+  .light & {
+    .stat-card {
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.06);
+
+      &:hover {
+        border-color: rgba(0, 0, 0, 0.16);
+        box-shadow: 0 6px 20px -2px rgba(0, 0, 0, 0.1);
+      }
+    }
+
+    .stat-val {
+      color: #0f172a;
+    }
+
+    .stat-lbl {
+      color: #64748b;
+    }
+
+    .stat-icon-wrap {
+      &.icon-blue {
+        background: #dbeafe;
+        color: #1d4ed8;
+        border-color: #bfdbfe;
+      }
+      &.icon-purple {
+        background: #f3e8ff;
+        color: #7e22ce;
+        border-color: #e9d5ff;
+      }
+      &.icon-cyan {
+        background: #ccfbf1;
+        color: #0f766e;
+        border-color: #99f6e4;
+      }
+      &.icon-emerald {
+        background: #d1fae5;
+        color: #065f46;
+        border-color: #a7f3d0;
+      }
+    }
   }
 
   .controls-row {
@@ -663,7 +814,7 @@ const StyledApp = styled.div`
     align-items: center;
     gap: 14px;
     font-size: 0.9rem;
-    color: #94a3b8;
+    color: var(--text-muted);
   }
 
   .match-active-tag {
@@ -680,23 +831,23 @@ const StyledApp = styled.div`
     align-items: center;
     gap: 6px;
     padding: 7px 14px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
     border-radius: 10px;
-    color: #94a3b8;
+    color: var(--text-secondary);
     font-size: 0.82rem;
     font-weight: 600;
     transition: all 0.2s;
 
     &:hover {
-      background: rgba(255, 255, 255, 0.08);
-      color: #ffffff;
+      background: var(--border-subtle);
+      color: var(--text-primary);
     }
 
     &.active {
       background: rgba(59, 130, 246, 0.15);
       border-color: rgba(59, 130, 246, 0.3);
-      color: #60a5fa;
+      color: var(--primary);
     }
   }
 
@@ -715,9 +866,9 @@ const StyledApp = styled.div`
     gap: 14px;
     padding: 60px 20px;
 
-    .empty-icon { color: #64748b; }
+    .empty-icon { color: var(--text-muted); }
     h3 { font-size: 1.3rem; }
-    p { color: #94a3b8; max-width: 420px; font-size: 0.9rem; }
+    p { color: var(--text-muted); max-width: 420px; font-size: 0.9rem; }
   }
 
   .reset-btn {
@@ -746,16 +897,16 @@ const StyledApp = styled.div`
     align-items: center;
     gap: 6px;
     padding: 8px 18px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--bg-surface-elevated);
+    border: 1px solid var(--border-subtle);
     border-radius: 10px;
-    color: #f8fafc;
+    color: var(--text-primary);
     font-size: 0.85rem;
     font-weight: 600;
     transition: all 0.2s;
 
     &:hover:not(:disabled) {
-      background: rgba(255, 255, 255, 0.12);
+      background: var(--border-subtle);
     }
     &:disabled {
       opacity: 0.4;
@@ -765,7 +916,7 @@ const StyledApp = styled.div`
 
   .page-indicator {
     font-size: 0.88rem;
-    color: #94a3b8;
+    color: var(--text-muted);
     font-weight: 500;
   }
 
@@ -781,7 +932,7 @@ const StyledApp = styled.div`
 
     .sparkle-icon { color: #8b5cf6; }
     h2 { font-size: 1.6rem; }
-    p { color: #94a3b8; line-height: 1.6; }
+    p { color: var(--text-muted); line-height: 1.6; }
   }
 
   .open-auth-btn {
@@ -801,9 +952,10 @@ const StyledApp = styled.div`
   }
 
   .app-footer {
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
-    background: rgba(8, 12, 20, 0.9);
-    padding: 24px 20px;
+    border-top: 1px solid var(--border-subtle);
+    background: var(--bg-surface);
+    padding: 22px 20px;
+    margin-top: auto;
   }
 
   .footer-content {
@@ -823,8 +975,8 @@ const StyledApp = styled.div`
   }
 
   .f-logo {
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
     object-fit: contain;
     filter: drop-shadow(0 0 6px rgba(0, 240, 255, 0.4));
   }
@@ -832,23 +984,56 @@ const StyledApp = styled.div`
   .f-name {
     font-family: var(--font-heading);
     font-weight: 800;
-    font-size: 1rem;
+    font-size: 1.05rem;
     letter-spacing: -0.01em;
-    color: #ffffff;
+    color: var(--text-primary);
   }
 
   .f-tag {
     font-size: 0.8rem;
-    color: #64748b;
+    color: var(--text-muted);
     margin-left: 6px;
   }
 
-  .footer-compliance {
+  .footer-links {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .footer-link-btn {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: color 0.15s ease;
+
+    &:hover {
+      color: var(--primary);
+    }
+  }
+
+  .footer-dot {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+  }
+
+  .footer-meta {
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 0.8rem;
-    color: #64748b;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+
+    .f-shield {
+      color: var(--accent-emerald);
+      flex-shrink: 0;
+    }
   }
 `;
 

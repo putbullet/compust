@@ -4,6 +4,7 @@ Provides fast in-memory access to structured domains, categories, topics, questi
 multilingual behavioral preparation, and optional local AI explanation.
 """
 
+import html
 import json
 import logging
 from pathlib import Path
@@ -73,12 +74,194 @@ DOMAIN_DEFINITIONS = [
         "short_title": "AI Tech",
         "tagline": "LLM foundations, Transformers, RAG pipelines, AI agents (MCP), and production LLMOps.",
         "description": "Master foundational AI architectures, attention mechanics, vector retrieval, agent tool calling, fine-tuning adaptations, and high-concurrency LLM serving.",
-        "hero_illustration": "/illustrations/ai_engineering_banner.png",
+        "hero_illustration": "/illustrations/ai_tech_hero.png",
         "source_repository": "https://github.com/amitshekhariitbhu/ai-engineering-interview-questions",
         "source_license": "Public Open Source (Outcome School / Amit Shekhar)",
         "source_url": "https://github.com/amitshekhariitbhu/ai-engineering-interview-questions",
     },
 ]
+
+
+def should_question_have_diagram(q: InterviewQuestionDetail) -> bool:
+    """
+    Determines whether an interview question genuinely benefits from an architectural,
+    flow, protocol, comparative, or data pipeline diagram.
+    Purely definitional or occupational questions return False.
+    """
+    title = (q.title or "").lower()
+    cat = (q.category or "").lower()
+    topic = (q.topic or "").lower()
+    slug = (q.slug or "").lower()
+
+    # Definitional, taxonomy, or occupational questions do not need a visual diagram
+    definitional_prefixes = [
+        "what are the elements of",
+        "how can you classify the roles",
+        "what is a career in",
+        "what are common job functions",
+        "what does a security engineer do",
+        "what is the definition of",
+        "list the types of",
+        "describe the role",
+    ]
+    if any(title.startswith(p) for p in definitional_prefixes):
+        return False
+
+    # Structural, protocol, or architectural domains and concepts benefit greatly from a diagram
+    visual_keywords = [
+        "architecture", "flow", "pipeline", "protocol", "handshake", "oauth",
+        "pkce", "2fa", "mfa", "arp", "firewall", "vpn", "sql injection",
+        "injection", "xss", "csrf", "transformer", "attention", "rag",
+        "vector", "agent", "mcp", "kafka", "streaming", "spark",
+        "distributed", "lakehouse", "dimensional", "mitm", "man-in-the-middle",
+        "proxy", "dns", "cache", "sharding", "replication", "broadcast",
+        "shuffle", "batch", "model context protocol", "tool calling",
+        "fine-tuning", "mixture of experts", "moe", "kv cache", "tokenization",
+        "rdd", "mapreduce", "dag", "iceberg", "delta lake", "kimball", "star schema",
+    ]
+    return any(k in title or k in cat or k in topic or k in slug for k in visual_keywords)
+
+
+def _generate_question_svg_diagram(q: InterviewQuestionDetail) -> Optional[str]:
+    """
+    Generates a clean, valid, professional SVG diagram tailored to the question's archetype.
+    All markup is guaranteed well-formed and visually constrained to viewBox 0 0 640 200.
+    """
+    title = (q.title or "").lower()
+    cat = (q.category or "").lower()
+    domain = (q.domain_id or "").lower()
+    escaped_topic = html.escape((q.topic or "System Architecture")[:28])
+
+    if "security" in domain or any(k in title for k in ["auth", "oauth", "pkce", "2fa", "mfa", "firewall", "vpn", "arp", "injection", "mitm"]):
+        return f"""<svg viewBox="0 0 640 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="secCardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#1e293b" />
+    </linearGradient>
+    <marker id="secArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#38bdf8" />
+    </marker>
+    <marker id="secGreenArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#34d399" />
+    </marker>
+  </defs>
+  <rect x="2" y="2" width="636" height="196" rx="10" fill="url(#secCardGrad)" stroke="#334155" stroke-width="1.5" />
+  <text x="20" y="28" fill="#38bdf8" font-size="11" font-weight="700" letter-spacing="1">SECURITY ARCHITECTURE: {escaped_topic.upper()}</text>
+
+  <rect x="24" y="60" width="130" height="90" rx="8" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5" />
+  <circle cx="44" cy="82" r="10" fill="#3b82f6" fill-opacity="0.2" stroke="#3b82f6" />
+  <text x="44" y="86" fill="#60a5fa" font-size="11" font-weight="bold" text-anchor="middle">👤</text>
+  <text x="62" y="86" fill="#f8fafc" font-size="12" font-weight="700">Client / Ingress</text>
+  <text x="36" y="112" fill="#94a3b8" font-size="10">Untrusted Origin</text>
+  <text x="36" y="128" fill="#64748b" font-size="9">Initiates Request</text>
+
+  <line x1="154" y1="105" x2="238" y2="105" stroke="#38bdf8" stroke-width="2" stroke-dasharray="4 2" marker-end="url(#secArrow)" />
+  <text x="196" y="96" fill="#38bdf8" font-size="9" text-anchor="middle">Handshake / Probe</text>
+
+  <rect x="246" y="52" width="150" height="106" rx="8" fill="#0b1329" stroke="#8b5cf6" stroke-width="2" />
+  <circle cx="268" cy="76" r="10" fill="#8b5cf6" fill-opacity="0.2" stroke="#8b5cf6" />
+  <text x="268" y="80" fill="#a78bfa" font-size="11" font-weight="bold" text-anchor="middle">🛡️</text>
+  <text x="286" y="80" fill="#f8fafc" font-size="12" font-weight="700">Validation Gate</text>
+  <text x="260" y="104" fill="#a78bfa" font-size="10">Stateful Inspection</text>
+  <text x="260" y="120" fill="#94a3b8" font-size="9">Constraint Verification</text>
+  <text x="260" y="136" fill="#34d399" font-size="9">✓ Constraints Passed</text>
+
+  <line x1="396" y1="105" x2="478" y2="105" stroke="#34d399" stroke-width="2" marker-end="url(#secGreenArrow)" />
+  <text x="437" y="96" fill="#34d399" font-size="9" text-anchor="middle">Verified Payload</text>
+
+  <rect x="486" y="60" width="130" height="90" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="1.5" />
+  <circle cx="506" cy="82" r="10" fill="#10b981" fill-opacity="0.2" stroke="#10b981" />
+  <text x="506" y="86" fill="#34d399" font-size="11" font-weight="bold" text-anchor="middle">⚡</text>
+  <text x="524" y="86" fill="#f8fafc" font-size="12" font-weight="700">Protected Core</text>
+  <text x="498" y="112" fill="#94a3b8" font-size="10">Application / DB</text>
+  <text x="498" y="128" fill="#64748b" font-size="9">Deterministic State</text>
+</svg>"""
+
+    if "ai" in domain or any(k in title for k in ["rag", "attention", "transformer", "agent", "mcp", "llm", "embedding"]):
+        return f"""<svg viewBox="0 0 640 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="aiCardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#090d16" />
+      <stop offset="100%" stop-color="#111827" />
+    </linearGradient>
+    <marker id="aiArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#60a5fa" />
+    </marker>
+    <marker id="aiGreenArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#34d399" />
+    </marker>
+  </defs>
+  <rect x="2" y="2" width="636" height="196" rx="10" fill="url(#aiCardGrad)" stroke="#1e293b" stroke-width="1.5" />
+  <text x="20" y="28" fill="#38bdf8" font-size="11" font-weight="700" letter-spacing="1">AI PIPELINE TOPOLOGY: {escaped_topic.upper()}</text>
+
+  <rect x="24" y="60" width="125" height="90" rx="8" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5" />
+  <text x="36" y="84" fill="#60a5fa" font-size="12" font-weight="700">1. Query Ingest</text>
+  <text x="36" y="106" fill="#94a3b8" font-size="10">Dense Embedding</text>
+  <text x="36" y="124" fill="#64748b" font-size="9">Cosine Similarity</text>
+
+  <line x1="149" y1="105" x2="191" y2="105" stroke="#60a5fa" stroke-width="2" marker-end="url(#aiArrow)" />
+
+  <rect x="199" y="60" width="125" height="90" rx="8" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5" />
+  <text x="211" y="84" fill="#c084fc" font-size="12" font-weight="700">2. Vector Search</text>
+  <text x="211" y="106" fill="#94a3b8" font-size="10">RRF Hybrid BM25</text>
+  <text x="211" y="124" fill="#64748b" font-size="9">Top-K Passages</text>
+
+  <line x1="324" y1="105" x2="366" y2="105" stroke="#c084fc" stroke-width="2" marker-end="url(#aiArrow)" />
+
+  <rect x="374" y="52" width="125" height="106" rx="8" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+  <text x="386" y="78" fill="#22d3ee" font-size="12" font-weight="700">3. Attention / Core</text>
+  <text x="386" y="100" fill="#f8fafc" font-size="10">Q · Kᵀ / √d_k</text>
+  <text x="386" y="118" fill="#94a3b8" font-size="9">Context Augment</text>
+  <text x="386" y="136" fill="#34d399" font-size="9">Tool Invocation</text>
+
+  <line x1="499" y1="105" x2="541" y2="105" stroke="#34d399" stroke-width="2" marker-end="url(#aiGreenArrow)" />
+
+  <rect x="549" y="60" width="75" height="90" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="1.5" />
+  <text x="557" y="84" fill="#34d399" font-size="11" font-weight="700">Output</text>
+  <text x="557" y="106" fill="#94a3b8" font-size="9">Zero-Halluc</text>
+  <text x="557" y="124" fill="#64748b" font-size="9">Grounded</text>
+</svg>"""
+
+    # Data Engineering / Distributed Pipelines
+    return f"""<svg viewBox="0 0 640 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="deCardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a101d" />
+      <stop offset="100%" stop-color="#1e293b" />
+    </linearGradient>
+    <marker id="deArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#38bdf8" />
+    </marker>
+    <marker id="deGreenArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#34d399" />
+    </marker>
+  </defs>
+  <rect x="2" y="2" width="636" height="196" rx="10" fill="url(#deCardGrad)" stroke="#334155" stroke-width="1.5" />
+  <text x="20" y="28" fill="#38bdf8" font-size="11" font-weight="700" letter-spacing="1">DISTRIBUTED DATA PIPELINE: {escaped_topic.upper()}</text>
+
+  <rect x="24" y="60" width="130" height="90" rx="8" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5" />
+  <text x="36" y="84" fill="#60a5fa" font-size="12" font-weight="700">1. Ingestion / Event</text>
+  <text x="36" y="106" fill="#94a3b8" font-size="10">Kafka / CDC Event</text>
+  <text x="36" y="124" fill="#64748b" font-size="9">Partition Sharding</text>
+
+  <line x1="154" y1="105" x2="228" y2="105" stroke="#38bdf8" stroke-width="2" marker-end="url(#deArrow)" />
+  <text x="191" y="96" fill="#38bdf8" font-size="9" text-anchor="middle">Stream Push</text>
+
+  <rect x="236" y="52" width="155" height="106" rx="8" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
+  <text x="248" y="78" fill="#fbbf24" font-size="12" font-weight="700">2. Distributed Cluster</text>
+  <text x="248" y="100" fill="#f8fafc" font-size="10">Spark / Flink RDD Engine</text>
+  <text x="248" y="118" fill="#94a3b8" font-size="9">Broadcast Join / Shuffle</text>
+  <text x="248" y="136" fill="#34d399" font-size="9">Memory DAG Execution</text>
+
+  <line x1="391" y1="105" x2="475" y2="105" stroke="#34d399" stroke-width="2" marker-end="url(#deGreenArrow)" />
+  <text x="433" y="96" fill="#34d399" font-size="9" text-anchor="middle">Parquet Write</text>
+
+  <rect x="483" y="60" width="133" height="90" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="1.5" />
+  <text x="495" y="84" fill="#34d399" font-size="12" font-weight="700">3. Lakehouse Tier</text>
+  <text x="495" y="106" fill="#94a3b8" font-size="10">Delta / Iceberg ACID</text>
+  <text x="495" y="124" fill="#64748b" font-size="9">Kimball Dimensions</text>
+</svg>"""
 
 
 class InterviewPrepService:
@@ -598,7 +781,7 @@ class InterviewPrepService:
     def _build_structured_fallback_payload(self, q: InterviewQuestionDetail, lang: str = "en") -> StructuredAIExplanationPayload:
         """
         Builds a deterministic, schema-validated StructuredAIExplanationPayload.
-        Used when local AI is offline, slow, or fails validation.
+        Used when AI is offline, slow, or fails validation.
         """
         slug = (q.slug or "").lower()
         title = (q.title or "").lower()
@@ -607,19 +790,37 @@ class InterviewPrepService:
         # 1. Domain-specific exact fixture matches (2FA, OAuth, Spark, RAG)
         if ("2fa" in slug or "two-factor" in slug or "authenticat" in slug) and fixture_data and "2fa" in str(fixture_data).lower():
             try:
-                return StructuredAIExplanationPayload(**fixture_data)
+                payload = StructuredAIExplanationPayload(**fixture_data)
+                if not payload.svg_diagram and should_question_have_diagram(q):
+                    from ..scraper.sanitizer import sanitize_svg
+                    raw_svg = _generate_question_svg_diagram(q)
+                    payload.svg_diagram = sanitize_svg(raw_svg)
+                    payload.has_diagram = bool(payload.svg_diagram)
+                return payload
             except Exception:
                 pass
 
         if ("broadcast" in slug or "spark" in slug or "shuffle" in slug) and fixture_data and "broadcast" in str(fixture_data).lower():
             try:
-                return StructuredAIExplanationPayload(**fixture_data)
+                payload = StructuredAIExplanationPayload(**fixture_data)
+                if not payload.svg_diagram and should_question_have_diagram(q):
+                    from ..scraper.sanitizer import sanitize_svg
+                    raw_svg = _generate_question_svg_diagram(q)
+                    payload.svg_diagram = sanitize_svg(raw_svg)
+                    payload.has_diagram = bool(payload.svg_diagram)
+                return payload
             except Exception:
                 pass
 
         if ("rag" in slug or "vector" in slug or "retriev" in slug) and fixture_data and "rag" in str(fixture_data).lower():
             try:
-                return StructuredAIExplanationPayload(**fixture_data)
+                payload = StructuredAIExplanationPayload(**fixture_data)
+                if not payload.svg_diagram and should_question_have_diagram(q):
+                    from ..scraper.sanitizer import sanitize_svg
+                    raw_svg = _generate_question_svg_diagram(q)
+                    payload.svg_diagram = sanitize_svg(raw_svg)
+                    payload.has_diagram = bool(payload.svg_diagram)
+                return payload
             except Exception:
                 pass
 
@@ -698,6 +899,15 @@ class InterviewPrepService:
             "Forgetting to address observability, logging, and metrics."
         ]
 
+        # Determine diagram requirement & sanitize
+        has_diag = should_question_have_diagram(q)
+        clean_svg = None
+        if has_diag:
+            from ..scraper.sanitizer import sanitize_svg
+            raw_svg = _generate_question_svg_diagram(q)
+            clean_svg = sanitize_svg(raw_svg)
+            has_diag = bool(clean_svg)
+
         return StructuredAIExplanationPayload(
             concept_summary=summary,
             analogy=analogy,
@@ -706,7 +916,9 @@ class InterviewPrepService:
             code_sample=code_sample,
             comparison_table=comparison_table,
             takeaways=takeaways,
-            common_mistakes=common_mistakes
+            common_mistakes=common_mistakes,
+            has_diagram=has_diag,
+            svg_diagram=clean_svg,
         )
 
     async def explain_with_ai(
@@ -716,6 +928,7 @@ class InterviewPrepService:
         mode: str = "simplify",
         user_draft_answer: Optional[str] = None,
         language: str = "en",
+        force_regenerate: bool = False,
     ) -> QuestionAIExplainResponse:
         """
         Generates or retrieves a structured, visual-ready explanation for a question.
@@ -739,65 +952,81 @@ class InterviewPrepService:
         _active_prov = get_active_provider()
         _active_model = get_selected_model(_active_prov)
         # Cache key includes provider so Gemini/OpenAI/Ollama answers are stored separately
-        model = f"{_active_prov.value}:{_active_model or 'default'}"
-        SCHEMA_VERSION = 1
+        model_key = f"{_active_prov.value}:{_active_model or 'default'}"
+        SCHEMA_VERSION = 2
 
-        # 1. Database Cache Check
-        try:
-            with SessionLocal() as db:
-                cached = db.query(InterviewExplanation).filter(
-                    InterviewExplanation.question_id == q.id,
-                    InterviewExplanation.language == lang,
-                    InterviewExplanation.model_name == model,
-                    InterviewExplanation.schema_version == SCHEMA_VERSION,
-                ).first()
-                if cached and cached.payload:
-                    try:
-                        structured_payload = StructuredAIExplanationPayload(**cached.payload)
-                        actor_names = " vs ".join(a.label for a in structured_payload.actors)
-                        return QuestionAIExplainResponse(
-                            question_id=q.id,
-                            mode=mode,
-                            explanation=structured_payload.concept_summary,
-                            real_world_scenario=f"Case Scenario — {structured_payload.scenario.title} ({actor_names})",
-                            code_sample=structured_payload.code_sample.code if structured_payload.code_sample else None,
-                            key_interview_takeaways=structured_payload.takeaways,
-                            structured_payload=structured_payload,
-                            ai_model_used=model,
-                        )
-                    except Exception as e:
-                        logger.warning(f"Cached explanation payload failed validation: {e}")
-        except Exception as e:
-            logger.warning(f"Cache lookup failed: {e}")
+        # 1. Database Cache Check (skip if user explicitly requested regenerate)
+        if not force_regenerate:
+            try:
+                with SessionLocal() as db:
+                    cached = db.query(InterviewExplanation).filter(
+                        InterviewExplanation.question_id == q.id,
+                        InterviewExplanation.language == lang,
+                        InterviewExplanation.model_name.in_([model_key, "deterministic-smart-ai"]),
+                        InterviewExplanation.schema_version == SCHEMA_VERSION,
+                    ).order_by(InterviewExplanation.id.desc()).first()
+                    if cached and cached.payload:
+                        try:
+                            structured_payload = StructuredAIExplanationPayload(**cached.payload)
+                            actor_names = " vs ".join(a.label for a in structured_payload.actors)
+                            return QuestionAIExplainResponse(
+                                question_id=q.id,
+                                mode=mode,
+                                explanation=structured_payload.concept_summary,
+                                real_world_scenario=f"Case Scenario — {structured_payload.scenario.title} ({actor_names})",
+                                code_sample=structured_payload.code_sample.code if structured_payload.code_sample else None,
+                                key_interview_takeaways=structured_payload.takeaways,
+                                structured_payload=structured_payload,
+                                ai_model_used=cached.model_name or model_key,
+                                has_diagram=structured_payload.has_diagram,
+                                svg_diagram=structured_payload.svg_diagram,
+                            )
+                        except Exception as e:
+                            logger.warning(f"Cached explanation payload failed validation: {e}")
+            except Exception as e:
+                logger.warning(f"Cache lookup failed: {e}")
 
-        # 2. Ollama JSON Generation Attempt
+        # 2. AI Gateway Generation Attempt (Ollama, Gemini, OpenAI)
         structured_payload: Optional[StructuredAIExplanationPayload] = None
-        model_used = "deterministic-smart-ai"
+        model_used = model_key
 
         few_shot = self._load_few_shot_fixture(domain_id, lang)
         few_shot_str = json.dumps(few_shot, indent=2) if few_shot else "{}"
 
         prompt = (
             "You are an expert technical interviewer and systems architect.\n"
-            "Explain the technical interview question below by returning ONLY a valid JSON object matching the schema.\n"
-            "DO NOT output markdown formatting like ```json or ```. DO NOT output conversational prose.\n"
-            "Return raw valid JSON only.\n\n"
-            f"Target Language: {lang.upper()}\n"
+            f"Explain the technical interview question below in {lang.upper()}.\n"
+            "Return ONLY a valid JSON object matching the StructuredAIExplanationPayload schema.\n"
+            "DO NOT output markdown code fences like ```json or conversational prose. Return raw valid JSON only.\n\n"
             f"Question Title: {q.title}\n"
             f"Category: {q.category} ({q.topic})\n"
-            f"Source Answer Summary: {q.markdown_content[:600]}\n\n"
-            "Few-Shot Exemplar:\n"
+            f"Source Technical Context: {q.markdown_content[:700]}\n\n"
+            "Required Output Structure:\n"
+            "1. concept_summary: A simplified, plain-language restatement of the concept (explain clearly as to a colleague).\n"
+            "2. analogy: A practical real-world analogy grounded in everyday life (use appropriate emoji like 🏢, 🛡️, ⚙️, 🚀 for approachable clarity).\n"
+            "3. actors: List 2-4 key architectural actors (id, role, label, description).\n"
+            "4. scenario: Case scenario with title and 2 variants: 'Without Recommended Architecture (Naive / Unprotected)' and 'With Production Architecture (Optimized / Hardened)'. Each step's 'from' and 'to' must match declared actor ids.\n"
+            "5. code_sample: Concise production code sample with 1-3 explanation lines (or null if purely theoretical).\n"
+            "6. comparison_table: 2-3 comparison rows evaluating trade-offs (criterion, option_a, option_b).\n"
+            "7. takeaways: 3 practical talking points for interviews.\n"
+            "8. common_mistakes: 2-3 traps or misconceptions to avoid.\n"
+            "9. has_diagram: boolean. Set to true if an architecture, flow, or sequence diagram genuinely clarifies this concept; false for purely definitional questions.\n"
+            "10. svg_diagram: string or null. If has_diagram is true, provide clean, valid standalone SVG markup with viewBox '0 0 640 200' using only visual elements (<svg>, <rect>, <circle>, <path>, <line>, <text>, <g>, <defs>, <marker>). DO NOT include <script>, <foreignObject>, <iframe>, or external URLs. If has_diagram is false, set to null.\n\n"
+            "Few-Shot Exemplar Structure Reference:\n"
             f"{few_shot_str}\n"
         )
 
         try:
-            from .ai_gateway import generate_completion, get_active_provider
+            from .ai_gateway import generate_completion
+            from ..scraper.sanitizer import sanitize_svg
+
             raw_resp = generate_completion(
                 prompt=prompt,
-                model=model,
+                model=_active_model,
+                provider=_active_prov,
                 response_json=True,
-                temperature=0.1,
-                timeout_seconds=35.0,
+                temperature=0.2,
+                timeout_seconds=40.0,
             )
             if raw_resp:
                 clean_json = raw_resp.strip()
@@ -811,8 +1040,25 @@ class InterviewPrepService:
 
                 try:
                     parsed_dict = json.loads(clean_json)
+
+                    # Sanitize any SVG diagram produced by the model
+                    if parsed_dict.get("svg_diagram"):
+                        clean_svg = sanitize_svg(parsed_dict["svg_diagram"])
+                        parsed_dict["svg_diagram"] = clean_svg
+                        parsed_dict["has_diagram"] = bool(clean_svg)
+                    else:
+                        parsed_dict["svg_diagram"] = None
+                        parsed_dict["has_diagram"] = False
+
+                    # If model didn't generate SVG but concept genuinely needs one, provide tailored visual
+                    if not parsed_dict.get("svg_diagram") and should_question_have_diagram(q):
+                        fallback_svg = _generate_question_svg_diagram(q)
+                        clean_svg = sanitize_svg(fallback_svg)
+                        parsed_dict["svg_diagram"] = clean_svg
+                        parsed_dict["has_diagram"] = bool(clean_svg)
+
                     structured_payload = StructuredAIExplanationPayload(**parsed_dict)
-                    model_used = model or get_active_provider().value
+                    model_used = model_key
                 except Exception as parse_err:
                     logger.warning(f"Model JSON failed validation: {parse_err}. Attempting repair retry...")
                     repair_prompt = (
@@ -823,7 +1069,8 @@ class InterviewPrepService:
                     )
                     repair_resp = generate_completion(
                         prompt=repair_prompt,
-                        model=model,
+                        model=_active_model,
+                        provider=_active_prov,
                         response_json=True,
                         temperature=0.1,
                         timeout_seconds=35.0,
@@ -835,14 +1082,26 @@ class InterviewPrepService:
                         if repair_text.endswith("```"):
                             repair_text = repair_text[:-3]
                         repair_dict = json.loads(repair_text.strip())
-                        structured_payload = StructuredAIExplanationPayload(**repair_dict)
-                        model_used = model or get_active_provider().value
-        except Exception as exc:
-            logger.info(f"AI generation unavailable ({exc}). Using deterministic structured fallback.")
 
-        # 3. Deterministic fallback if Ollama was offline or failed schema
+                        if repair_dict.get("svg_diagram"):
+                            clean_svg = sanitize_svg(repair_dict["svg_diagram"])
+                            repair_dict["svg_diagram"] = clean_svg
+                            repair_dict["has_diagram"] = bool(clean_svg)
+                        elif should_question_have_diagram(q):
+                            fallback_svg = _generate_question_svg_diagram(q)
+                            clean_svg = sanitize_svg(fallback_svg)
+                            repair_dict["svg_diagram"] = clean_svg
+                            repair_dict["has_diagram"] = bool(clean_svg)
+
+                        structured_payload = StructuredAIExplanationPayload(**repair_dict)
+                        model_used = model_key
+        except Exception as exc:
+            logger.info(f"AI gateway generation unavailable ({exc}). Using deterministic structured fallback.")
+
+        # 3. Deterministic fallback if AI was offline or failed schema
         if not structured_payload:
             structured_payload = self._build_structured_fallback_payload(q, lang)
+            model_used = "deterministic-smart-ai"
 
         # 4. Cache in Database
         try:
@@ -880,6 +1139,8 @@ class InterviewPrepService:
             key_interview_takeaways=structured_payload.takeaways,
             structured_payload=structured_payload,
             ai_model_used=model_used,
+            has_diagram=structured_payload.has_diagram,
+            svg_diagram=structured_payload.svg_diagram,
         )
 
     def evaluate_star_draft(

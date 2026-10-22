@@ -1,13 +1,51 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..models import ScrapeTarget
+from ..models import ScrapeTarget, Company
+
+
+def sync_company_scrape_targets(db: Session, company_id: int | None = None) -> None:
+    """Ensure any company with a careers_url has a corresponding ScrapeTarget."""
+    stmt = select(Company).where(Company.careers_url.is_not(None), Company.careers_url != "")
+    if company_id is not None:
+        stmt = stmt.where(Company.id == company_id)
+    companies = list(db.scalars(stmt).all())
+    changed = False
+    for comp in companies:
+        url = comp.careers_url.strip() if comp.careers_url else ""
+        if not url:
+            continue
+        existing_targets = list(db.scalars(select(ScrapeTarget).where(ScrapeTarget.company_id == comp.id)).all())
+        matching = [t for t in existing_targets if t.url.strip() == url]
+        if not matching:
+            if existing_targets:
+                existing_targets[0].url = url
+                existing_targets[0].active = comp.active
+                changed = True
+            else:
+                new_target = ScrapeTarget(
+                    company_id=comp.id,
+                    url=url,
+                    type="generic_html",
+                    active=comp.active,
+                    status="pending",
+                )
+                db.add(new_target)
+                changed = True
+        else:
+            for t in matching:
+                if t.active != comp.active:
+                    t.active = comp.active
+                    changed = True
+    if changed:
+        db.commit()
 
 
 def list_scrape_targets(
     db: Session,
     company_id: int | None = None,
 ) -> list[ScrapeTarget]:
+    sync_company_scrape_targets(db, company_id)
     statement = select(ScrapeTarget).order_by(ScrapeTarget.id)
     if company_id is not None:
         statement = statement.where(ScrapeTarget.company_id == company_id)

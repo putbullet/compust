@@ -29,6 +29,9 @@ class GitHubInternshipItem(BaseModel):
     visa_status: VisaStatusType = "not_specified"
     visa_text: str = "Not Specified"
     is_closed: bool = False
+    is_archived: bool = False
+    archived_at: str | None = None
+    archived_reason: str | None = None
     notes: str | None = None
 
 
@@ -47,6 +50,7 @@ class GitHubInternshipStats(BaseModel):
     total_listings: int = 0
     active_listings: int = 0
     closed_listings: int = 0
+    archived_listings: int = 0
     visa_sponsored_count: int = 0
     no_sponsorship_count: int = 0
     us_citizens_count: int = 0

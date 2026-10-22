@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Compust Capture",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Capture job postings from LinkedIn, Indeed, and Glassdoor directly into your local Compust career tracker with instant resume match analysis.",
   "browser_specific_settings": {
     "gecko": {

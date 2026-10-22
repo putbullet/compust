@@ -48,12 +48,10 @@
 ---
 
 > [!NOTE]
-> ### 📢 Notice on Known UI Bugs & Upcoming Hotfix
-> We are actively tracking a few visual and modal display issues identified in the current release:
-> - **Dark-on-Dark Text Contrast**: Certain UI elements and buttons may inadvertently display dark or black text on dark background surfaces in dark mode, making them difficult to read.
-> - **Modal Configuration & Display Behavior**: Some dialog modals may open with unexpected dimensions, misplaced focus, or unconfigured default states in specific layouts.
-> 
-> **We are actively working on these fixes!** A follow-up release addressing these UI contrast issues and modal configuration defects is coming **ASAP**. Thank you for your patience and support!
+> ### 📢 What's New in v1.0.4
+> - **Functional "Explain with AI" with Safe SVG Diagrams**: AI concept breakdowns, narrative case scenarios, and server-side sanitized architectural diagrams in the Technical Interview Prep center.
+> - **Stat-Card Pill Redesign**: Opportunities metrics restructured into sleek horizontal pill containers with dedicated icons and high-contrast typography.
+> - **Sync Now Button Spacing**: Fixed visual text collision and spacing across all responsive viewports.
 
 ---
 
@@ -61,17 +59,17 @@
 
 Get Compust up and running on Windows in less than two minutes. **No Python, Node.js, XAMPP, MySQL, Git, or command-line experience required.**
 
-### 📥 1. Official Downloads (v1.0.3)
+### 📥 1. Official Downloads (v1.0.4)
 Download the release assets directly from GitHub Releases:
-- 💿 **[Windows Setup Wizard (Compust-Setup-v1.0.3.exe)](https://github.com/putbullet/compust/releases/latest)** (~222 MB) — Recommended for most users. Includes bundled Python runtime, automatic updates, start menu and desktop shortcuts, and system tray integration.
-- 📦 **[Windows Portable Release (Compust-Windows-Portable-v1.0.3.zip)](https://github.com/putbullet/compust/releases/latest)** (~82 MB) — Zero installation required. Simply extract anywhere and launch `Compust.bat`.
+- 💿 **[Windows Setup Wizard (Compust-Setup-v1.0.4.exe)](https://github.com/putbullet/compust/releases/latest)** (~224 MB) — Recommended for most users. Includes bundled Python runtime, automatic updates, start menu and desktop shortcuts, and system tray integration.
+- 📦 **[Windows Portable Release (Compust-Windows-Portable-v1.0.4.zip)](https://github.com/putbullet/compust/releases/latest)** (~84 MB) — Zero installation required. Simply extract anywhere and launch `Compust.bat`.
 - Each release provides an official SHA-256 checksum file to independently verify package integrity.
 
 ---
 
 ### 🪄 2. The 5-Step Setup Walkthrough
 
-1. **Download the Setup File**: Click the link above to download `Compust-Setup-v1.0.3.exe` (or extract `Compust-Windows-Portable-v1.0.3.zip`).
+1. **Download the Setup File**: Click the link above to download `Compust-Setup-v1.0.4.exe` (or extract `Compust-Windows-Portable-v1.0.4.zip`).
 2. **Start the Installer**: Double-click the downloaded setup file. Choose your preferred language: **English**, **Français**, or **Nederlands**.
 3. **Choose Installation Folder**: The installer defaults to your user profile directory (`%LOCALAPPDATA%\Programs\Compust`), requiring **zero administrator permissions**.
 4. **AI Assistance Setup**:
@@ -192,7 +190,7 @@ In addition to job discovery, Compust provides a **Career Intelligence & Resume 
 - **Universal Context Menu & Generic Extractor**: Right-click anywhere on arbitrary career portals (Workday, Greenhouse, Ashby, Lever, company career pages) to extract vacancy metadata from semantic HTML cards and embedded JSON-LD.
 - **Analyze-First Ephemeral Flow**: Activating capture triggers an in-page, isolated Shadow DOM panel that performs an instant, ephemeral match analysis against your active resume (match score, demonstrated vs. missing skills, visa requirements, tailored suggestions) with **zero auto-persistence** — positions are only stored when explicitly clicked (`Add to Directory`, `Mark Applied`, `Save`, or `Skip`).
 - **In-App Onboarding & Package Download**: Dedicated `/extension` onboarding view inside Compust featuring automatic browser detection, one-click zip package downloads, and step-by-step installation guides.
-- **Firefox AMO Submission Status**: The Firefox extension package has been submitted to Mozilla's official add-ons store (**addons.mozilla.org / AMO**) and is **currently awaiting review** (will be linked once approved). In the meantime, users can install it immediately via the in-app manual build / "Load Temporary Add-on" developer flow.
+- **Firefox Add-ons Store (AMO) Live**: The Firefox extension is published and live on Mozilla's official add-on directory for direct one-click installation: [Compust Capture on Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/compust-capture/). Users can also build and unpack locally for development.
 
 ### 3. GitHub Tech & Engineering Internships Hub
 - **Direct GitHub Repository Ingestion**: Aggregates live summer and off-cycle tech, software engineering, AI/ML, quantitative finance, and hardware internships synchronized from community-curated GitHub repositories (SimplifyJobs, Zapply, Vansh/Ouckah, Negar Canadian).
@@ -240,7 +238,7 @@ In addition to job discovery, Compust provides a **Career Intelligence & Resume 
 ### 8. Dedicated Technical & Behavioral Interview Prep Center
 - **Multilingual Behavioral Prep**: Comprehensive STAR method (Situation, Task, Action, Result) interview coaching across 4 languages (**English, French, German, Spanish**).
 - **Curated Domain Tracks**: Dedicated curriculum for **Data Engineering**, **Cybersecurity & Network Defense**, **AI & Machine Learning Engineering**, and **Frontend & Web Engineering**.
-- **"Explain with AI" Narrative Case Scenarios**: Intelligent deep-dive generator that illustrates concepts through multi-step narrative case scenarios with named actors (e.g., Alice and Bob navigating spear-phishing attack vectors, or distributed stream architectures), trade-off breakdowns, and interview talking points.
+- **"Explain with AI" Narrative Case Scenarios & Safe SVG Diagrams**: Intelligent concept breakdown and real-world narrative case scenarios powered by the unified AI Gateway (Google Gemini 3.8 Flash & local Ollama). Automatically renders sanitized, responsive vector architectural and concept flow diagrams (`<svg viewBox="0 0 640 200">`) verified through ElementTree XML and Bleach HTML sanitization (stripping scripts, event handlers, and foreign objects). Features multi-stage generation progress tracking (`StageProgressList`), instant database caching (<370ms), and a cache-bypassing "Regenerate" workflow.
 - **Source Preservation**: Complete attribution and direct links to upstream open-source curriculum repositories.
 
 ### 9. Data Supervision & LLM-Assisted Scraper Diagnostics
@@ -506,7 +504,7 @@ To install the browser extension locally:
    ```
 3. **Load in Browser**:
    - **Chrome / Edge / Brave**: Open `chrome://extensions/`, enable **Developer mode**, click **Load unpacked**, and select `important/extension/dist/chrome`.
-   - **Firefox**: Open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on...**, and select `important/extension/dist/firefox/manifest.json`. *(The official package is currently under review at addons.mozilla.org and will be available for direct one-click install upon approval).*
+   - **Firefox**: Install directly with one click from the official store: **[Compust Capture on Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/compust-capture/)**. For local dev builds, open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on...**, and select `important/extension/dist/firefox/manifest.json`.
 
 ---
 
@@ -639,7 +637,7 @@ The following enhancements are planned for upcoming releases:
 - [ ] **Automated Background Scheduler Daemon**: Autonomous background service to schedule recurring company scrapes based on cooldown intervals.
 - [ ] **Instant Job Alerts**: Real-time vacancy notifications via WhatsApp and Email based on personalized skill preferences.
 - [ ] **LinkedIn & GitHub One-Click Profile Import**: Seamless portfolio synchronization.
-- [ ] **Firefox Add-ons Store (AMO) Public Listing**: Finalize Mozilla review and publish direct one-click install links on addons.mozilla.org.
+- [x] **Firefox Add-ons Store (AMO) Public Listing**: Live on Mozilla Add-ons: [Compust Capture](https://addons.mozilla.org/en-US/firefox/addon/compust-capture/). *(Delivered)*
 
 ---
 

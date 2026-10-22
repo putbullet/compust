@@ -5,7 +5,7 @@
 ; ==============================================================================
 
 #ifndef AppVersion
-  #define AppVersion "1.0.3"
+  #define AppVersion "1.0.4"
 #endif
 
 #ifndef StagingDir

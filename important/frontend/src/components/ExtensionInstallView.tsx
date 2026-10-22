@@ -11,6 +11,7 @@ import {
   ExternalLink,
   HelpCircle,
   Zap,
+  Sparkles,
 } from 'lucide-react';
 import { useTranslation } from '../i18n';
 import { API_BASE_URL } from '../api/client';
@@ -180,15 +181,66 @@ export const ExtensionInstallView: React.FC = () => {
         </TabButton>
       </BrowserTabs>
 
+      {/* Firefox Direct Store Banner */}
+      {selectedBrowser === 'firefox' ? (
+        <FirefoxStoreCard>
+          <div className="store-badge">
+            <Sparkles size={16} />
+            <span>{tTxt('Recommended • Official Store Release', 'Recommandé • Version Officielle', 'Aanbevolen • Officiële Store-versie')}</span>
+          </div>
+          <div className="store-content">
+            <div className="store-text">
+              <h3>
+                {tTxt(
+                  'Firefox users — install directly from the Firefox Add-ons store',
+                  'Utilisateurs Firefox — installez directement depuis le store Firefox Add-ons',
+                  'Firefox-gebruikers — installeer rechtstreeks vanuit de Firefox Add-ons store'
+                )}
+              </h3>
+              <p>
+                {tTxt(
+                  'Enjoy 1-click verified installation with automatic updates directly through Mozilla. No manual ZIP extraction or developer mode required.',
+                  'Bénéficiez d’une installation vérifiée en 1 clic avec mises à jour automatiques via Mozilla. Aucune extraction ZIP ou mode développeur nécessaire.',
+                  'Profiteer van 1-klik geverifieerde installatie met automatische updates via Mozilla. Geen handmatige ZIP-uitpakking of ontwikkelaarsmodus nodig.'
+                )}
+              </p>
+            </div>
+            <a
+              href="https://addons.mozilla.org/en-US/firefox/addon/compust-capture/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="store-btn"
+            >
+              <ExternalLink size={18} />
+              <span>{tTxt('Install from Firefox Add-ons', 'Installer depuis Firefox Add-ons', 'Installeren vanaf Firefox Add-ons')}</span>
+            </a>
+          </div>
+        </FirefoxStoreCard>
+      ) : (
+        <FirefoxGlobalCallout>
+          <Sparkles size={16} className="callout-icon" />
+          <span>
+            {tTxt(
+              'Firefox users: Compust Capture is officially live on the Firefox Add-ons store! Switch to the Firefox tab to install with 1 click.',
+              'Utilisateurs Firefox : Compust Capture est disponible sur le store officiel Firefox Add-ons ! Basculez sur l’onglet Firefox pour installer en 1 clic.',
+              'Firefox-gebruikers: Compust Capture staat officieel in de Firefox Add-ons store! Schakel naar het Firefox-tabblad voor 1-klik installatie.'
+            )}
+          </span>
+          <button type="button" onClick={() => setSelectedBrowser('firefox')} className="callout-link">
+            {tTxt('Switch to Firefox Tab →', 'Aller sur l’onglet Firefox →', 'Naar Firefox-tabblad →')}
+          </button>
+        </FirefoxGlobalCallout>
+      )}
+
       {/* Main Instructions Card */}
       <InstructionsCard>
         <div className="card-top">
           <div className="browser-info">
             <h2>
               {tTxt(
-                `Installation Guide for ${selectedBrowser === 'chrome' ? 'Google Chrome' : selectedBrowser === 'edge' ? 'Microsoft Edge' : selectedBrowser === 'brave' ? 'Brave' : 'Mozilla Firefox'}`,
-                `Instructions d’installation pour ${selectedBrowser.toUpperCase()}`,
-                `Installatiehandleiding voor ${selectedBrowser === 'chrome' ? 'Google Chrome' : selectedBrowser === 'edge' ? 'Microsoft Edge' : selectedBrowser === 'brave' ? 'Brave' : 'Mozilla Firefox'}`
+                `Installation Guide ${selectedBrowser === 'firefox' ? '(Manual Local Build) ' : ''}for ${selectedBrowser === 'chrome' ? 'Google Chrome' : selectedBrowser === 'edge' ? 'Microsoft Edge' : selectedBrowser === 'brave' ? 'Brave' : 'Mozilla Firefox'}`,
+                `Instructions d’installation ${selectedBrowser === 'firefox' ? '(Développement local) ' : ''}pour ${selectedBrowser.toUpperCase()}`,
+                `Installatiehandleiding ${selectedBrowser === 'firefox' ? '(Lokale ontwikkelmodus) ' : ''}voor ${selectedBrowser === 'chrome' ? 'Google Chrome' : selectedBrowser === 'edge' ? 'Microsoft Edge' : selectedBrowser === 'brave' ? 'Brave' : 'Mozilla Firefox'}`
               )}
             </h2>
             <p className="security-notice">
@@ -673,3 +725,122 @@ const PlatformCard = styled.div`
     line-height: 1.4;
   }
 `;
+
+const FirefoxStoreCard = styled.div`
+  background: linear-gradient(135deg, rgba(234, 88, 12, 0.12) 0%, rgba(99, 102, 241, 0.12) 100%);
+  border: 1px solid rgba(249, 115, 22, 0.35);
+  border-radius: 16px;
+  padding: 24px 28px;
+  margin-bottom: 24px;
+  box-shadow: 0 8px 32px rgba(234, 88, 12, 0.15);
+  backdrop-filter: blur(12px);
+
+  .store-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(249, 115, 22, 0.2);
+    color: #fb923c;
+    border: 1px solid rgba(249, 115, 22, 0.4);
+    padding: 4px 10px;
+    border-radius: 9999px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 12px;
+  }
+
+  .store-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  .store-text {
+    flex: 1;
+    min-width: 280px;
+
+    h3 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #f8fafc;
+      margin-bottom: 6px;
+    }
+
+    p {
+      font-size: 0.92rem;
+      color: #cbd5e1;
+      line-height: 1.5;
+      margin: 0;
+    }
+  }
+
+  .store-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+    color: #ffffff;
+    padding: 13px 24px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 0.98rem;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 16px rgba(234, 88, 12, 0.4);
+    flex-shrink: 0;
+
+    &:hover {
+      background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(234, 88, 12, 0.55);
+    }
+  }
+`;
+
+const FirefoxGlobalCallout = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: rgba(249, 115, 22, 0.1);
+  border: 1px solid rgba(249, 115, 22, 0.25);
+  border-radius: 12px;
+  padding: 12px 20px;
+  margin-bottom: 24px;
+  color: #fdba74;
+  font-size: 0.88rem;
+  flex-wrap: wrap;
+
+  .callout-icon {
+    flex-shrink: 0;
+    color: #f97316;
+  }
+
+  span {
+    flex: 1;
+    min-width: 260px;
+    line-height: 1.45;
+  }
+
+  .callout-link {
+    background: none;
+    border: none;
+    color: #f97316;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 0.88rem;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: all 0.2s;
+
+    &:hover {
+      background: rgba(249, 115, 22, 0.15);
+      color: #ea580c;
+    }
+  }
+`;
+

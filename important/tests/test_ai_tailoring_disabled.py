@@ -24,13 +24,14 @@ def test_frontend_ai_tailoring_is_disabled_and_shows_coming_soon():
     modal_content = job_detail_modal_path.read_text(encoding="utf-8")
     drawer_content = resume_tailor_drawer_path.read_text(encoding="utf-8")
 
-    # 1. Coming soon message must be prominent
-    assert "AI resume tailoring is coming soon" in modal_content
+    # 1. Dead placeholder button removed from JobDetailModal entirely (Bug 7 fix)
+    assert "disabled-tailor-bar" not in modal_content
+    assert "studio-tailor-footer-btn" not in modal_content
+    assert "AI resume tailoring is coming soon" not in modal_content
     assert "AI resume tailoring is coming soon" in drawer_content
 
-    # 2. Tailoring action buttons must be disabled and not open drawer or trigger API calls
-    assert "disabled" in modal_content
-    assert 'aria-disabled="true"' in modal_content
+    # 2. Honest AI guidance label wired and functional
+    assert "Generate new version (uses 1 AI request)" in modal_content
 
     # 3. Normal CV recommendations must be preserved and wired
     assert "handleFetchResumeSuggestions" in modal_content

@@ -25,6 +25,7 @@ import {
   Briefcase,
   GraduationCap,
   Mic,
+  RefreshCw,
 } from 'lucide-react';
 import { api } from '../../api/client';
 import type {
@@ -43,8 +44,19 @@ import {
 } from './STARVisuals';
 import { VisualAIExplanation } from './VisualAIExplanation';
 import { MockInterviewView } from './MockInterviewView';
+import { StageProgressList, useStageProgress } from '../common/StageProgressList';
 import { useTranslation } from '../../i18n';
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
 import './InterviewPrepView.css';
+
+const AI_EXPLAIN_STAGES = [
+  'Connecting to active AI gateway...',
+  'Analyzing question domain & technical requirements...',
+  'Synthesizing real-world scenario & practical analogy...',
+  'Validating architecture & visual SVG diagram...',
+  'Finalizing structured breakdown & interview takeaways...',
+];
 
 export const STAR_TARGET_SPLIT = {
   situation: 15,
@@ -78,6 +90,7 @@ export const InterviewPrepView: React.FC<InterviewPrepViewProps> = ({ onNavigate
   const [selectedDomainId, setSelectedDomainId] = useState<string>('security_engineering');
   const [domainTree, setDomainTree] = useState<InterviewDomainTree | null>(null);
   const [loadingTree, setLoadingTree] = useState(false);
+  const [heroImageError, setHeroImageError] = useState(false);
 
   // Active question viewer
   const [activeQuestionSlug, setActiveQuestionSlug] = useState<string>('oauth2-pkce-architecture');
@@ -114,6 +127,7 @@ export const InterviewPrepView: React.FC<InterviewPrepViewProps> = ({ onNavigate
   const [userDraftAnswer, setUserDraftAnswer] = useState('');
   const [showAiModal, setShowAiModal] = useState(false);
   const [aiMode, setAiMode] = useState<'simplify' | 'mock_feedback'>('simplify');
+  const explainProgressStage = useStageProgress(AI_EXPLAIN_STAGES, aiExplainLoading, 480);
 
   // Copy code feedback
   const [copiedCodeIndex, setCopiedCodeIndex] = useState<number | null>(null);
@@ -159,6 +173,7 @@ export const InterviewPrepView: React.FC<InterviewPrepViewProps> = ({ onNavigate
 
   // Fetch Domain Tree when selected domain changes
   useEffect(() => {
+    setHeroImageError(false);
     if (!selectedDomainId) return;
     setLoadingTree(true);
     api.getInterviewDomainTree(selectedDomainId)
@@ -234,7 +249,10 @@ export const InterviewPrepView: React.FC<InterviewPrepViewProps> = ({ onNavigate
   };
 
   // Trigger AI explanation
-  const handleRequestAIExplanation = async (mode: 'simplify' | 'mock_feedback') => {
+  const handleRequestAIExplanation = async (
+    mode: 'simplify' | 'mock_feedback',
+    forceRegenerate: boolean = false
+  ) => {
     if (!activeQuestion) return;
     setAiExplainLoading(true);
     setAiMode(mode);
@@ -245,17 +263,18 @@ export const InterviewPrepView: React.FC<InterviewPrepViewProps> = ({ onNavigate
         activeQuestion.slug,
         mode,
         mode === 'mock_feedback' ? userDraftAnswer : undefined,
-        prepLanguage
+        prepLanguage,
+        forceRegenerate
       );
       setAiExplainResult(res);
     } catch (err: any) {
       setAiExplainResult({
         question_id: activeQuestion.id,
         mode,
-        explanation: `Local AI service is currently offline or unreachable: ${err.message}. Question content, educational diagrams, and repository material remain fully functional.`,
-        ai_model_used: 'none (offline)',
+        explanation: `AI service encountered an issue: ${err.message}. Question content, educational diagrams, and repository material remain fully functional.`,
+        ai_model_used: 'unavailable',
         is_ai_generated: true,
-        disclaimer: 'Ollama local LLM offline. Run "ollama serve" to enable dynamic generation.',
+        disclaimer: 'Active AI gateway generation unavailable. Deterministic educational resources remain available.',
       });
     } finally {
       setAiExplainLoading(false);
@@ -269,7 +288,46 @@ export const InterviewPrepView: React.FC<InterviewPrepViewProps> = ({ onNavigate
     setTimeout(() => setCopiedCodeIndex(null), 2000);
   };
 
-  // Render Markdown safely into styled semantic HTML elements
+  // Helper for inline bold, code, links, and LaTeX math formulas
+  const formatInlineMarkdown = (text: string): string => {
+    if (!text) return '';
+
+    // 1. Process block math if embedded in paragraph: $$...$$
+    let out = text.replace(/\$\$([\s\S]+?)\$\$/g, (_match, math) => {
+      try {
+        return `<div class="katex-display-wrapper">${katex.renderToString(math.trim(), {
+          displayMode: true,
+          throwOnError: false,
+        })}</div>`;
+      } catch {
+        return `<div class="katex-display-wrapper error"><code>${math}</code></div>`;
+      }
+    });
+
+    // 2. Process inline math: $...$ (ensure not escaped with backslash)
+    out = out.replace(/(^|[^\\])\$([^\$\n]+?)\$/g, (_match, prefix, math) => {
+      try {
+        const rendered = katex.renderToString(math.trim(), {
+          displayMode: false,
+          throwOnError: false,
+        });
+        return `${prefix}<span class="katex-inline-wrapper">${rendered}</span>`;
+      } catch {
+        return `${prefix}<span class="katex-inline-wrapper error"><code>${math}</code></span>`;
+      }
+    });
+
+    // 3. Process markdown formatting: bold, inline code, links
+    out = out
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
+      .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="md-link">$1</a>')
+      .replace(/\\(\$)/g, '$1');
+
+    return out;
+  };
+
+  // Render Markdown safely into styled semantic HTML elements with KaTeX math
   const renderMarkdown = (markdown: string) => {
     if (!markdown) return null;
 
@@ -279,31 +337,61 @@ export const InterviewPrepView: React.FC<InterviewPrepViewProps> = ({ onNavigate
     return sections.map((sec, idx) => {
       const trimmed = sec.trim();
 
-      // Heading 3: ### Title
+      // Heading 3: ### Title (with inline math support)
       if (trimmed.startsWith('### ')) {
         return (
-          <h3 key={idx} className="md-h3">
-            {trimmed.replace('### ', '')}
-          </h3>
+          <h3
+            key={idx}
+            className="md-h3"
+            dangerouslySetInnerHTML={{ __html: formatInlineMarkdown(trimmed.replace('### ', '')) }}
+          />
         );
       }
 
       // Heading 4: #### Title
       if (trimmed.startsWith('#### ')) {
         return (
-          <h4 key={idx} className="md-h4">
-            {trimmed.replace('#### ', '')}
-          </h4>
+          <h4
+            key={idx}
+            className="md-h4"
+            dangerouslySetInnerHTML={{ __html: formatInlineMarkdown(trimmed.replace('#### ', '')) }}
+          />
         );
       }
 
       // Heading 5: ##### Title
       if (trimmed.startsWith('##### ')) {
         return (
-          <h5 key={idx} className="md-h5">
-            {trimmed.replace('##### ', '')}
-          </h5>
+          <h5
+            key={idx}
+            className="md-h5"
+            dangerouslySetInnerHTML={{ __html: formatInlineMarkdown(trimmed.replace('##### ', '')) }}
+          />
         );
+      }
+
+      // Dedicated Standalone Math Block: $$...$$
+      if (trimmed.startsWith('$$') && trimmed.endsWith('$$') && trimmed.length >= 4) {
+        const mathContent = trimmed.slice(2, -2).trim();
+        try {
+          const renderedMath = katex.renderToString(mathContent, {
+            displayMode: true,
+            throwOnError: false,
+          });
+          return (
+            <div
+              key={idx}
+              className="md-math-block"
+              dangerouslySetInnerHTML={{ __html: renderedMath }}
+            />
+          );
+        } catch {
+          return (
+            <div key={idx} className="md-math-block error">
+              <code>{mathContent}</code>
+            </div>
+          );
+        }
       }
 
       // Code block
@@ -347,7 +435,10 @@ export const InterviewPrepView: React.FC<InterviewPrepViewProps> = ({ onNavigate
                 <thead>
                   <tr>
                     {headers.map((h, hi) => (
-                      <th key={hi}>{h.replace(/\*\*/g, '')}</th>
+                      <th
+                        key={hi}
+                        dangerouslySetInnerHTML={{ __html: formatInlineMarkdown(h.replace(/\*\*/g, '')) }}
+                      />
                     ))}
                   </tr>
                 </thead>
@@ -357,7 +448,10 @@ export const InterviewPrepView: React.FC<InterviewPrepViewProps> = ({ onNavigate
                     return (
                       <tr key={dri}>
                         {cells.map((cell, ci) => (
-                          <td key={ci}>{cell.replace(/\*\*/g, '')}</td>
+                          <td
+                            key={ci}
+                            dangerouslySetInnerHTML={{ __html: formatInlineMarkdown(cell.replace(/\*\*/g, '')) }}
+                          />
                         ))}
                       </tr>
                     );
@@ -396,9 +490,11 @@ export const InterviewPrepView: React.FC<InterviewPrepViewProps> = ({ onNavigate
       // Blockquote
       if (trimmed.startsWith('> ')) {
         return (
-          <blockquote key={idx} className="md-blockquote">
-            {trimmed.replace(/^>\s+/, '')}
-          </blockquote>
+          <blockquote
+            key={idx}
+            className="md-blockquote"
+            dangerouslySetInnerHTML={{ __html: formatInlineMarkdown(trimmed.replace(/^>\s+/, '')) }}
+          />
         );
       }
 
@@ -416,7 +512,7 @@ export const InterviewPrepView: React.FC<InterviewPrepViewProps> = ({ onNavigate
         );
       }
 
-      // Regular Paragraph with inline bold, code formatting
+      // Regular Paragraph with inline bold, code formatting, and math formulas
       return (
         <p
           key={idx}
@@ -425,15 +521,6 @@ export const InterviewPrepView: React.FC<InterviewPrepViewProps> = ({ onNavigate
         />
       );
     });
-  };
-
-  // Helper for inline bold, code, and links
-  const formatInlineMarkdown = (text: string): string => {
-    let out = text
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
-      .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="md-link">$1</a>');
-    return out;
   };
 
   return (
@@ -1039,13 +1126,34 @@ export const InterviewPrepView: React.FC<InterviewPrepViewProps> = ({ onNavigate
                 <>
                   {/* Domain Hero Banner */}
                   <div className="domain-hero-banner">
-                    {domainTree?.domain.hero_illustration && (
+                    {domainTree?.domain.hero_illustration && !heroImageError ? (
                       <div className="hero-ill-wrapper">
                         <img
                           src={domainTree.domain.hero_illustration}
                           alt={domainTree.domain.title}
                           className="hero-ill-img"
+                          onError={() => setHeroImageError(true)}
                         />
+                      </div>
+                    ) : (
+                      <div className="hero-ill-placeholder">
+                        <div className="hero-ill-placeholder-glow" />
+                        <div className="hero-ill-placeholder-content">
+                          <div className="placeholder-icon-wrap">
+                            <BrainCircuit size={38} className="placeholder-track-icon" />
+                          </div>
+                          <div className="placeholder-text-wrap">
+                            <span className="placeholder-domain-pill">
+                              {domainTree?.domain.short_title || 'Engineering Track'}
+                            </span>
+                            <h3 className="placeholder-domain-title">
+                              {domainTree?.domain.title || 'Technical Knowledge Track'}
+                            </h3>
+                            <p className="placeholder-domain-tagline">
+                              {domainTree?.domain.tagline || 'Curated repository-backed interview technical questions and system architectures.'}
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1168,22 +1276,38 @@ export const InterviewPrepView: React.FC<InterviewPrepViewProps> = ({ onNavigate
                       <div className="drawer-header">
                         <div className="drawer-title-row">
                           <Bot size={18} className="text-primary" />
-                          <h4>Local AI Assistance · {aiMode === 'simplify' ? 'Concept Simplification & Real-World Example' : 'Answer Evaluation'}</h4>
-                          <span className="ai-notice-pill">AI Generated — Practical Synthesis</span>
+                          <h4>AI Technical Explanation · {aiMode === 'simplify' ? 'Concept Simplification & Real-World Example' : 'Answer Evaluation'}</h4>
+                          <span className="ai-notice-pill">Active AI Gateway</span>
                         </div>
-                        <button
-                          type="button"
-                          className="close-drawer-btn"
-                          onClick={() => setShowAiModal(false)}
-                        >
-                          ✕
-                        </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <button
+                            type="button"
+                            className="regenerate-ai-btn"
+                            onClick={() => handleRequestAIExplanation(aiMode, true)}
+                            disabled={aiExplainLoading}
+                            title="Regenerate explanation bypassing cache"
+                          >
+                            <RefreshCw size={12} className={aiExplainLoading ? 'animate-spin' : ''} />
+                            <span>Regenerate</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="close-drawer-btn"
+                            onClick={() => setShowAiModal(false)}
+                            title="Close Explanation"
+                          >
+                            ✕
+                          </button>
+                        </div>
                       </div>
 
                       {aiExplainLoading ? (
-                        <div className="ai-loading-box">
-                          <Loader2 size={24} className="animate-spin text-primary" />
-                          <p>Synthesizing structured breakdown, real-world scenario, and code blueprint with local AI...</p>
+                        <div className="ai-loading-box-stages" style={{ padding: '24px 16px' }}>
+                          <StageProgressList
+                            stages={AI_EXPLAIN_STAGES}
+                            currentStage={explainProgressStage}
+                            title="Synthesizing AI Technical Explanation..."
+                          />
                         </div>
                       ) : aiExplainResult ? (
                         <div className="ai-result-box">
@@ -1229,9 +1353,10 @@ export const InterviewPrepView: React.FC<InterviewPrepViewProps> = ({ onNavigate
                         type="button"
                         className="p-btn prev"
                         onClick={() => setActiveQuestionSlug(activeQuestion.previous_question!.slug)}
+                        title={`Previous: ${activeQuestion.previous_question.title}`}
                       >
                         <ChevronLeft size={16} />
-                        <div>
+                        <div className="p-text-col">
                           <span className="p-dir">Previous Question</span>
                           <span className="p-title">{activeQuestion.previous_question.title}</span>
                         </div>
@@ -1243,8 +1368,9 @@ export const InterviewPrepView: React.FC<InterviewPrepViewProps> = ({ onNavigate
                         type="button"
                         className="p-btn next"
                         onClick={() => setActiveQuestionSlug(activeQuestion.next_question!.slug)}
+                        title={`Next: ${activeQuestion.next_question.title}`}
                       >
-                        <div>
+                        <div className="p-text-col">
                           <span className="p-dir">Next Question</span>
                           <span className="p-title">{activeQuestion.next_question.title}</span>
                         </div>

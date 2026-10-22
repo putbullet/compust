@@ -116,3 +116,55 @@ def bulk_delete_jobs_safely(db: Session, job_ids: list[int], force: bool = False
     db.commit()
     return deleted_count, deactivated_count
 
+
+def delete_all_jobs_safely(
+    db: Session,
+    search: str | None = None,
+    force_tracked: bool = False,
+    batch_size: int = 100,
+) -> tuple[int, int, int]:
+    """
+    Safely delete all jobs in the database (or matching search filter).
+    Protects user-tracked jobs / applications by default unless force_tracked is explicitly True.
+    Returns (deleted_count, preserved_tracked_count, total_matched).
+    """
+    query = select(Job)
+    if search and search.strip():
+        term = f"%{search.strip()}%"
+        query = query.where(
+            (Job.title.ilike(term))
+            | (Job.description.ilike(term))
+            | (Job.location.ilike(term))
+            | (Job.department.ilike(term))
+        )
+
+    matched_jobs = db.scalars(query).all()
+    total_matched = len(matched_jobs)
+    if total_matched == 0:
+        return 0, 0, 0
+
+    deleted_count = 0
+    preserved_tracked_count = 0
+
+    for i, job in enumerate(matched_jobs):
+        has_apps = db.scalar(
+            select(UserApplication.id).where(UserApplication.job_id == job.id).limit(1)
+        )
+        if has_apps and not force_tracked:
+            # Preserve user application history
+            job.active = False
+            preserved_tracked_count += 1
+        else:
+            db.execute(delete(JobSkill).where(JobSkill.job_id == job.id))
+            db.execute(delete(JobTranslation).where(JobTranslation.job_id == job.id))
+            if force_tracked and has_apps:
+                db.execute(delete(UserApplication).where(UserApplication.job_id == job.id))
+            db.delete(job)
+            deleted_count += 1
+
+        if (i + 1) % batch_size == 0:
+            db.commit()
+
+    db.commit()
+    return deleted_count, preserved_tracked_count, total_matched
+

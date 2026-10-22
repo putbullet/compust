@@ -77,3 +77,141 @@ def test_category_normalization_and_no_html_in_categories():
             assert "</summary>" not in it.category
             assert "<br>" not in it.category
 
+
+def test_canonical_deduplication_and_repeated_sync_stability(tmp_path, monkeypatch):
+    """Proves repeated syncs of the same source listings do not continuously balloon the count."""
+    from src.app.schemas_github_internships import GitHubInternshipItem, GitHubInternshipsResponse
+    from src.app.services.github_internships_service import (
+        canonical_internship_key,
+        merge_internships,
+        get_internships_cache_file,
+    )
+
+    test_cache = tmp_path / "test_internships_cache.json"
+    monkeypatch.setattr(
+        "src.app.services.github_internships_service.get_internships_cache_file",
+        lambda: test_cache,
+    )
+    monkeypatch.setattr(
+        "src.app.services.github_internships_service.SEED_FILE",
+        tmp_path / "nonexistent_seed.json",
+    )
+
+    service = GitHubInternshipsService()
+
+    # Create dummy mock raw items that simulate duplicate listings across 3 repos
+    mock_items = [
+        GitHubInternshipItem(
+            id="sim_1",
+            company="Acme Corp",
+            role="Software Engineer Intern",
+            location="San Francisco, CA",
+            category="Software Engineering",
+            season="2027",
+            source_repo_id="simplify-2027",
+            source_repo_name="SimplifyJobs",
+            source_repo_url="https://github.com/...",
+            apply_url="https://acme.com/apply",
+            visa_status="sponsors_visa",
+            visa_text="Sponsors Visa",
+            is_closed=False,
+        ),
+        GitHubInternshipItem(
+            id="zap_1",
+            company="Acme Corp",
+            role="Software Engineer Intern",
+            location="San Francisco, CA",
+            category="Software Engineering",
+            season="2027",
+            source_repo_id="zapply-2027",
+            source_repo_name="Zapply",
+            source_repo_url="https://github.com/...",
+            apply_url="https://acme.com/apply",
+            visa_status="not_specified",
+            visa_text="Not Specified",
+            is_closed=False,
+        ),
+        GitHubInternshipItem(
+            id="van_1",
+            company="Acme Corp",
+            role="Software Engineer Intern",
+            location="San Francisco, CA",
+            category="Software Engineering",
+            season="2027",
+            source_repo_id="vansh-2027",
+            source_repo_name="Vansh",
+            source_repo_url="https://github.com/...",
+            apply_url="https://acme.com/apply",
+            visa_status="sponsors_visa",
+            visa_text="Sponsors Visa",
+            is_closed=False,
+        ),
+        GitHubInternshipItem(
+            id="zap_2",
+            company="Beta Dynamics",
+            role="Machine Learning Intern",
+            location="Remote",
+            category="Data Science, AI & ML",
+            season="2027",
+            source_repo_id="zapply-2027",
+            source_repo_name="Zapply",
+            source_repo_url="https://github.com/...",
+            apply_url="https://beta.ai/jobs",
+            visa_status="us_citizen_only",
+            visa_text="US Citizen Only",
+            is_closed=False,
+        ),
+    ]
+
+    # Mock fetch and parse to return our 4 raw items (representing 2 unique roles)
+    monkeypatch.setattr(service, "_fetch_repo_content", lambda cfg: "dummy")
+    monkeypatch.setattr(service, "_parse_repo", lambda cfg, content: mock_items if cfg["id"] == "simplify-2027" else [])
+
+    # First sync
+    res1 = service.sync_all_repos()
+    count_run_1 = len(res1.items)
+    active_run_1 = res1.stats.active_listings
+    assert count_run_1 == 2, f"Expected 2 canonical deduplicated items, got {count_run_1}"
+    assert active_run_1 == 2
+
+    # Second sync with exact same source data
+    res2 = service.sync_all_repos()
+    count_run_2 = len(res2.items)
+    active_run_2 = res2.stats.active_listings
+
+    # Verify count does NOT balloon on subsequent syncs
+    assert count_run_2 == count_run_1 == 2
+    assert active_run_2 == active_run_1 == 2
+
+
+def test_user_tracked_internship_protected_from_retirement(tmp_path, monkeypatch):
+    """Proves user-tracked internships are strictly preserved active even when removed from source."""
+    from src.app.schemas_github_internships import GitHubInternshipItem
+    from src.app.services.github_internships_service import (
+        is_internship_user_tracked,
+        get_user_tracked_internships,
+    )
+
+    tracked_item = GitHubInternshipItem(
+        id="tracked_1",
+        company="Special Saved Corp",
+        role="Security Engineer Intern",
+        location="Remote",
+        category="Cybersecurity",
+        season="2026",  # Past season would normally be archived!
+        source_repo_id="speedyapply-intl-2027",
+        source_repo_name="SpeedyApply",
+        source_repo_url="https://github.com/...",
+        apply_url="https://specialcorp.com/careers/internship",
+        visa_status="sponsors_visa",
+        visa_text="Sponsors Visa",
+        is_closed=False,
+    )
+
+    # Simulate user having tracked this via URL
+    tracked_urls = {"https://specialcorp.com/careers/internship"}
+    tracked_pairs = set()
+
+    assert is_internship_user_tracked(tracked_item, tracked_urls, tracked_pairs) is True
+
+

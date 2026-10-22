@@ -109,7 +109,7 @@ def test_guide_docs_redesign(browser_type):
 
         # Verify header title and version badge
         assert page.locator(".guide-docs-title:has-text('Documentation')").count() > 0
-        assert page.locator(".version-pill:has-text('v1.0.3')").count() > 0
+        assert page.locator(".version-pill:has-text('v1.0.4')").count() > 0
 
         # Verify keyboard '/' focuses search
         page.keyboard.press("/")

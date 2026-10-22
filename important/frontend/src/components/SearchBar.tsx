@@ -216,14 +216,14 @@ const StyledSearchWrapper = styled.div`
     display: flex;
     align-items: center;
     gap: 10px;
-    background: rgba(15, 23, 42, 0.6);
+    background: var(--bg-surface);
     padding: 6px 14px;
     border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--border-subtle);
   }
 
   .filter-icon {
-    color: #64748b;
+    color: var(--text-muted);
   }
 
   .pills {
@@ -238,14 +238,14 @@ const StyledSearchWrapper = styled.div`
     font-size: 0.8rem;
     font-weight: 500;
     border-radius: 14px;
-    color: #cbd5e1;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: var(--text-secondary);
+    background: var(--bg-surface-elevated);
+    border: 1px solid var(--border-subtle);
     transition: all 0.2s ease;
 
     &:hover {
-      color: #f8fafc;
-      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-primary);
+      background: var(--border-subtle);
     }
 
     &:focus-visible {
@@ -272,16 +272,16 @@ const StyledSearchWrapper = styled.div`
     font-size: 0.8rem;
     font-weight: 500;
     border-radius: 14px;
-    color: #cbd5e1;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-secondary);
+    background: var(--bg-surface-elevated);
+    border: 1px solid var(--border-subtle);
     outline: none;
     cursor: pointer;
     transition: all 0.2s;
 
     &:hover {
-      color: #ffffff;
-      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-primary);
+      border-color: var(--border-focus);
     }
 
     &:focus {
@@ -289,8 +289,8 @@ const StyledSearchWrapper = styled.div`
     }
 
     option {
-      background: #0f172a;
-      color: #f8fafc;
+      background: var(--bg-surface);
+      color: var(--text-primary);
     }
   }
 `;

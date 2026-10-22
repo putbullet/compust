@@ -343,9 +343,9 @@ def execute_sync_run(
     save_scheduler_state(state)
 
     try:
-        # 1. Scrape Companies Career Pages
         with SessionLocal() as db:
-            from ..repositories.companies import list_scrape_targets, get_company, get_scrape_target
+            from ..repositories.companies import get_company
+            from ..repositories.scrape_targets import list_scrape_targets, get_scrape_target
             from ..scraper.service import (
                 verify_target_robots_compliance,
                 is_in_cooldown,

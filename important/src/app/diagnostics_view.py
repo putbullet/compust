@@ -14,7 +14,7 @@ def render_missing_frontend_page(
     mode: str,
     logs_path: str,
     db_status: str,
-    version: str = "1.0.3",
+    version: str = "1.0.4",
 ) -> str:
     """Render friendly HTML diagnostic page when frontend dist is missing or stale."""
     safe_logs_path = html.escape(logs_path)

@@ -209,7 +209,7 @@ def test_explain_with_ai_offline_degradation():
     a fully-formed, schema-validated structured payload with no raw prose dumping.
     """
     import asyncio
-    with patch("src.app.services.ai_service.generate_completion", side_effect=Exception("Connection refused (Ollama offline)")), \
+    with patch("src.app.services.ai_gateway.generate_completion", side_effect=Exception("Connection refused (AI gateway offline)")), \
          patch("src.app.services.interview_prep.SessionLocal") as mock_session:
         mock_db = mock_session.return_value.__enter__.return_value
         mock_db.query.return_value.filter.return_value.first.return_value = None

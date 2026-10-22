@@ -14,8 +14,8 @@ import {
   RefreshCw,
   ExternalLink,
   ShieldAlert,
+  ShieldCheck,
   Check,
-  X,
   Sparkles,
   CheckCircle2,
   Layers,
@@ -29,6 +29,7 @@ import {
   type JobSupervisionUpdate,
 } from '../api/client';
 import { DataManagementView } from './DataManagementView';
+import { Modal } from './common/Modal';
 
 export const MyDataSupervisionView: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<'jobs' | 'runs' | 'test' | 'import-backup'>('jobs');
@@ -54,6 +55,13 @@ export const MyDataSupervisionView: React.FC = () => {
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [bulkForceDelete, setBulkForceDelete] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  // Delete all jobs bulk state
+  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
+  const [deleteAllConfirmText, setDeleteAllConfirmText] = useState('');
+  const [deleteAllForceTracked, setDeleteAllForceTracked] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
+  const [deleteAllFeedback, setDeleteAllFeedback] = useState<{ status: 'success' | 'error'; message: string } | null>(null);
 
   // Scraping runs state
   const [runs, setRuns] = useState<ScrapingRunItem[]>([]);
@@ -165,6 +173,38 @@ export const MyDataSupervisionView: React.FC = () => {
       console.error('Failed to bulk delete jobs:', err);
     } finally {
       setIsBulkDeleting(false);
+    }
+  };
+
+  const handleDeleteAllJobs = async () => {
+    if (deleteAllConfirmText.trim().toUpperCase() !== 'DELETE' || isDeletingAll) return;
+    try {
+      setIsDeletingAll(true);
+      setDeleteAllFeedback(null);
+      const res = await api.superviseDeleteAllJobs({
+        confirmation: 'DELETE',
+        search: searchQuery ? searchQuery.trim() : undefined,
+        force_tracked: deleteAllForceTracked,
+      });
+      setDeleteAllFeedback({
+        status: 'success',
+        message: res.message,
+      });
+      setSelectedJobIds(new Set());
+      await fetchJobs();
+      setTimeout(() => {
+        setShowDeleteAllModal(false);
+        setDeleteAllFeedback(null);
+        setDeleteAllConfirmText('');
+        setDeleteAllForceTracked(false);
+      }, 1600);
+    } catch (err: any) {
+      setDeleteAllFeedback({
+        status: 'error',
+        message: err.message || 'Failed to delete all jobs.',
+      });
+    } finally {
+      setIsDeletingAll(false);
     }
   };
 
@@ -328,6 +368,20 @@ export const MyDataSupervisionView: React.FC = () => {
             </button>
             <button className="refresh-btn" onClick={fetchJobs} title="Refresh">
               <RefreshCw size={16} className={loadingJobs ? 'spin' : ''} />
+            </button>
+            <button
+              type="button"
+              className="delete-all-btn"
+              onClick={() => {
+                setShowDeleteAllModal(true);
+                setDeleteAllConfirmText('');
+                setDeleteAllForceTracked(false);
+                setDeleteAllFeedback(null);
+              }}
+              title="Bulk delete all jobs in database or matching current filter"
+            >
+              <Trash2 size={15} />
+              <span>Delete All Jobs…</span>
             </button>
           </FilterBar>
 
@@ -887,158 +941,238 @@ export const MyDataSupervisionView: React.FC = () => {
       )}
 
       {/* Edit Job Modal */}
-      {editingJob && (
-        <ModalOverlay onClick={() => setEditingJob(null)}>
-          <ModalContent onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Edit Job Posting #{editingJob.id}</h3>
-              <button onClick={() => setEditingJob(null)} className="close-btn"><X size={18} /></button>
-            </div>
+      <Modal
+        isOpen={!!editingJob}
+        onClose={() => setEditingJob(null)}
+        title={editingJob ? `Edit Job Posting #${editingJob.id}` : ''}
+        maxWidth="600px"
+      >
+        <EditJobModalContent>
+          <div className="form-group">
+            <label>Title</label>
+            <input
+              type="text"
+              value={editFormData.title || ''}
+              onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
+            />
+          </div>
 
+          <div className="form-row">
             <div className="form-group">
-              <label>Title</label>
+              <label>Location</label>
               <input
                 type="text"
-                value={editFormData.title || ''}
-                onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
+                value={editFormData.location || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, location: e.target.value })}
               />
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label>Location</label>
-                <input
-                  type="text"
-                  value={editFormData.location || ''}
-                  onChange={(e) => setEditFormData({ ...editFormData, location: e.target.value })}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Department</label>
-                <input
-                  type="text"
-                  value={editFormData.department || ''}
-                  onChange={(e) => setEditFormData({ ...editFormData, department: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label>Employment Type</label>
-                <input
-                  type="text"
-                  value={editFormData.employment_type || ''}
-                  onChange={(e) => setEditFormData({ ...editFormData, employment_type: e.target.value })}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Remote / Work Mode</label>
-                <input
-                  type="text"
-                  value={editFormData.remote_type || ''}
-                  onChange={(e) => setEditFormData({ ...editFormData, remote_type: e.target.value })}
-                />
-              </div>
             </div>
 
             <div className="form-group">
-              <label>Description (Sanitized HTML)</label>
-              <textarea
-                rows={5}
-                value={editFormData.description || ''}
-                onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+              <label>Department</label>
+              <input
+                type="text"
+                value={editFormData.department || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, department: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label>Employment Type</label>
+              <input
+                type="text"
+                value={editFormData.employment_type || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, employment_type: e.target.value })}
               />
             </div>
 
-            <div className="modal-actions">
-              <button className="cancel-btn" onClick={() => setEditingJob(null)}>Cancel</button>
-              <button className="save-btn" onClick={handleSaveEdit} disabled={savingEdit}>
-                {savingEdit ? <Loader2 size={15} className="spin" /> : <Check size={15} />}
-                <span>Save Corrections</span>
-              </button>
+            <div className="form-group">
+              <label>Remote / Work Mode</label>
+              <input
+                type="text"
+                value={editFormData.remote_type || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, remote_type: e.target.value })}
+              />
             </div>
-          </ModalContent>
-        </ModalOverlay>
-      )}
+          </div>
+
+          <div className="form-group">
+            <label>Description (Sanitized HTML)</label>
+            <textarea
+              rows={5}
+              value={editFormData.description || ''}
+              onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+            />
+          </div>
+
+          <div className="modal-actions">
+            <button className="cancel-btn" onClick={() => setEditingJob(null)}>Cancel</button>
+            <button className="save-btn" onClick={handleSaveEdit} disabled={savingEdit}>
+              {savingEdit ? <Loader2 size={15} className="spin" /> : <Check size={15} />}
+              <span>Save Corrections</span>
+            </button>
+          </div>
+        </EditJobModalContent>
+      </Modal>
 
       {/* Delete Job Confirmation Modal */}
-      {deletingJobId && (
-        <ModalOverlay onClick={() => setDeletingJobId(null)}>
-          <ModalContent onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <ShieldAlert className="warning-icon" size={24} />
-              <h3>Confirm Opportunity Removal</h3>
-            </div>
+      <Modal
+        isOpen={!!deletingJobId}
+        onClose={() => setDeletingJobId(null)}
+        title="Confirm Opportunity Removal"
+        icon={<ShieldAlert className="warning-icon" size={20} />}
+        maxWidth="480px"
+      >
+        <DeleteJobModalContent>
+          <p className="confirm-p">
+            Are you sure you want to remove Job #{deletingJobId}? By default, if user applications exist, it will be soft-deactivated to preserve your history.
+          </p>
 
-            <p className="confirm-p">
-              Are you sure you want to remove Job #{deletingJobId}? By default, if user applications exist, it will be soft-deactivated to preserve your history.
-            </p>
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={forceDelete}
+              onChange={(e) => setForceDelete(e.target.checked)}
+            />
+            <span>Force hard deletion (also removes related applications)</span>
+          </label>
 
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={forceDelete}
-                onChange={(e) => setForceDelete(e.target.checked)}
-              />
-              <span>Force hard deletion (also removes related applications)</span>
-            </label>
-
-            <div className="modal-actions">
-              <button className="cancel-btn" onClick={() => setDeletingJobId(null)}>Cancel</button>
-              <button className="danger-btn" onClick={handleDeleteJob}>
-                <span>Confirm Delete</span>
-              </button>
-            </div>
-          </ModalContent>
-        </ModalOverlay>
-      )}
+          <div className="modal-actions">
+            <button className="cancel-btn" onClick={() => setDeletingJobId(null)}>Cancel</button>
+            <button className="danger-btn" onClick={handleDeleteJob}>
+              <span>Confirm Delete</span>
+            </button>
+          </div>
+        </DeleteJobModalContent>
+      </Modal>
 
       {/* Bulk Delete Job Confirmation Modal */}
-      {showBulkDeleteModal && (
-        <ModalOverlay onClick={() => !isBulkDeleting && setShowBulkDeleteModal(false)}>
-          <ModalContent onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <ShieldAlert className="warning-icon" size={24} />
-              <h3>Confirm Bulk Opportunity Removal</h3>
+      <Modal
+        isOpen={showBulkDeleteModal}
+        onClose={() => !isBulkDeleting && setShowBulkDeleteModal(false)}
+        title="Confirm Bulk Opportunity Removal"
+        icon={<ShieldAlert className="warning-icon" size={20} />}
+        maxWidth="500px"
+      >
+        <DeleteJobModalContent>
+          <p className="confirm-p">
+            Are you sure you want to remove <strong>{selectedJobIds.size}</strong> selected job{selectedJobIds.size > 1 ? 's' : ''}? By default, if user applications exist, they will be soft-deactivated to preserve your history.
+          </p>
+
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={bulkForceDelete}
+              onChange={(e) => setBulkForceDelete(e.target.checked)}
+              disabled={isBulkDeleting}
+            />
+            <span>Force hard deletion (also removes related applications)</span>
+          </label>
+
+          <div className="modal-actions">
+            <button
+              className="cancel-btn"
+              onClick={() => setShowBulkDeleteModal(false)}
+              disabled={isBulkDeleting}
+            >
+              Cancel
+            </button>
+            <button
+              className="danger-btn"
+              onClick={handleBulkDelete}
+              disabled={isBulkDeleting}
+            >
+              {isBulkDeleting ? <Loader2 size={15} className="spin" /> : <Trash2 size={15} />}
+              <span>Confirm Delete ({selectedJobIds.size})</span>
+            </button>
+          </div>
+        </DeleteJobModalContent>
+      </Modal>
+
+      {/* Delete All Jobs Bulk Modal */}
+      <Modal
+        isOpen={showDeleteAllModal}
+        onClose={() => !isDeletingAll && setShowDeleteAllModal(false)}
+        title="Delete All Opportunities"
+        icon={<AlertTriangle size={20} color="#ef4444" />}
+        maxWidth="540px"
+      >
+        <DeleteAllModalContent>
+          <div className="scope-banner">
+            <span className="scope-label">Target Scope:</span>
+            <span className="scope-val">
+              {searchQuery.trim()
+                ? `All ${totalJobs} jobs matching filter "${searchQuery.trim()}"`
+                : `Entire database (${totalJobs} total vacancies)`}
+            </span>
+          </div>
+
+          <p className="warning-text">
+            This destructive action will permanently remove matching scraped job postings from your local Compust database.
+          </p>
+
+          <div className="protection-card">
+            <ShieldCheck size={18} className="prot-icon" />
+            <div>
+              <strong>Data Protection Active</strong>
+              <p>Jobs linked to your saved applications or interview prep materials will be safely preserved by default.</p>
             </div>
+          </div>
 
-            <p className="confirm-p">
-              Are you sure you want to remove <strong>{selectedJobIds.size}</strong> selected job{selectedJobIds.size > 1 ? 's' : ''}? By default, if user applications exist, they will be soft-deactivated to preserve your history.
-            </p>
+          <label className="force-checkbox-label">
+            <input
+              type="checkbox"
+              checked={deleteAllForceTracked}
+              onChange={(e) => setDeleteAllForceTracked(e.target.checked)}
+              disabled={isDeletingAll}
+            />
+            <span>Also hard-delete tracked jobs with active applications (Not recommended)</span>
+          </label>
 
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={bulkForceDelete}
-                onChange={(e) => setBulkForceDelete(e.target.checked)}
-                disabled={isBulkDeleting}
-              />
-              <span>Force hard deletion (also removes related applications)</span>
+          <div className="confirm-input-block">
+            <label htmlFor="confirm-delete-input">
+              Type <strong>DELETE</strong> below to confirm:
             </label>
+            <input
+              id="confirm-delete-input"
+              type="text"
+              placeholder="DELETE"
+              value={deleteAllConfirmText}
+              onChange={(e) => setDeleteAllConfirmText(e.target.value)}
+              disabled={isDeletingAll}
+              autoComplete="off"
+            />
+          </div>
 
-            <div className="modal-actions">
-              <button
-                className="cancel-btn"
-                onClick={() => setShowBulkDeleteModal(false)}
-                disabled={isBulkDeleting}
-              >
-                Cancel
-              </button>
-              <button
-                className="danger-btn"
-                onClick={handleBulkDelete}
-                disabled={isBulkDeleting}
-              >
-                {isBulkDeleting ? <Loader2 size={15} className="spin" /> : <Trash2 size={15} />}
-                <span>Confirm Delete ({selectedJobIds.size})</span>
-              </button>
+          {deleteAllFeedback && (
+            <div className={`feedback-banner ${deleteAllFeedback.status}`}>
+              {deleteAllFeedback.status === 'success' ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
+              <span>{deleteAllFeedback.message}</span>
             </div>
-          </ModalContent>
-        </ModalOverlay>
-      )}
+          )}
+
+          <div className="modal-actions-row">
+            <button
+              type="button"
+              className="cancel-btn"
+              onClick={() => setShowDeleteAllModal(false)}
+              disabled={isDeletingAll}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="danger-btn"
+              onClick={handleDeleteAllJobs}
+              disabled={deleteAllConfirmText.trim().toUpperCase() !== 'DELETE' || isDeletingAll}
+            >
+              {isDeletingAll ? <Loader2 size={15} className="spin" /> : <Trash2 size={15} />}
+              <span>{isDeletingAll ? 'Deleting Jobs…' : `Delete All (${totalJobs})`}</span>
+            </button>
+          </div>
+        </DeleteAllModalContent>
+      </Modal>
     </Container>
   );
 };
@@ -1170,6 +1304,28 @@ const FilterBar = styled.div`
     color: #94a3b8;
     cursor: pointer;
     &:hover { color: #ffffff; background: rgba(255, 255, 255, 0.1); }
+  }
+
+  .delete-all-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 14px;
+    border-radius: 10px;
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    color: #fca5a5;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+
+    &:hover {
+      background: rgba(239, 68, 68, 0.25);
+      color: #ffffff;
+      border-color: #ef4444;
+    }
   }
 `;
 
@@ -1950,43 +2106,16 @@ const DiagnosticReportCard = styled.div`
   }
 `;
 
-const ModalOverlay = styled.div`
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(8px);
+const EditJobModalContent = styled.div`
   display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 20px;
-`;
-
-const ModalContent = styled.div`
-  background: #0f172a;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 16px;
-  width: 100%;
-  max-width: 560px;
-  padding: 24px;
-  color: #f8fafc;
-
-  .modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-
-    h3 { font-size: 1.15rem; margin: 0; }
-    .close-btn { background: none; border: none; color: #94a3b8; cursor: pointer; }
-    .warning-icon { color: #f59e0b; margin-right: 8px; }
-  }
+  flex-direction: column;
+  gap: 14px;
+  color: var(--text-primary);
 
   .form-group {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    margin-bottom: 14px;
 
     label { font-size: 0.8rem; font-weight: 600; color: #cbd5e1; }
     input, textarea {
@@ -1996,6 +2125,8 @@ const ModalContent = styled.div`
       border-radius: 8px;
       color: #ffffff;
       font-size: 0.85rem;
+      outline: none;
+      &:focus { border-color: #3b82f6; }
     }
   }
 
@@ -2005,28 +2136,11 @@ const ModalContent = styled.div`
     gap: 12px;
   }
 
-  .confirm-p {
-    font-size: 0.88rem;
-    color: #cbd5e1;
-    line-height: 1.5;
-    margin-bottom: 16px;
-  }
-
-  .checkbox-label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.82rem;
-    color: #f87171;
-    margin-bottom: 20px;
-    cursor: pointer;
-  }
-
   .modal-actions {
     display: flex;
     justify-content: flex-end;
     gap: 10px;
-    margin-top: 20px;
+    margin-top: 10px;
 
     .cancel-btn {
       padding: 8px 16px;
@@ -2048,9 +2162,52 @@ const ModalContent = styled.div`
       border: none;
       font-weight: 600;
       cursor: pointer;
+      &:hover { background: #1d4ed8; }
+    }
+  }
+`;
+
+const DeleteJobModalContent = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  color: var(--text-primary);
+
+  .confirm-p {
+    font-size: 0.88rem;
+    color: #cbd5e1;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.82rem;
+    color: #f87171;
+    cursor: pointer;
+  }
+
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 10px;
+
+    .cancel-btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #cbd5e1;
+      cursor: pointer;
     }
 
     .danger-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
       padding: 8px 16px;
       border-radius: 8px;
       background: #ef4444;
@@ -2058,6 +2215,164 @@ const ModalContent = styled.div`
       border: none;
       font-weight: 600;
       cursor: pointer;
+      &:hover { background: #dc2626; }
+    }
+  }
+`;
+
+const DeleteAllModalContent = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  color: var(--text-primary);
+
+  .scope-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: rgba(59, 130, 246, 0.12);
+    border: 1px solid rgba(59, 130, 246, 0.25);
+    border-radius: 8px;
+    font-size: 0.85rem;
+
+    .scope-label {
+      color: #93c5fd;
+      font-weight: 600;
+    }
+    .scope-val {
+      color: #f8fafc;
+      font-weight: 700;
+    }
+  }
+
+  .warning-text {
+    font-size: 0.86rem;
+    color: #cbd5e1;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  .protection-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    border-radius: 8px;
+    font-size: 0.8rem;
+
+    .prot-icon {
+      color: #34d399;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    strong {
+      color: #34d399;
+      display: block;
+      margin-bottom: 2px;
+    }
+    p {
+      color: #a7f3d0;
+      margin: 0;
+      line-height: 1.4;
+    }
+  }
+
+  .force-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: #fca5a5;
+    cursor: pointer;
+  }
+
+  .confirm-input-block {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+
+    label {
+      font-size: 0.82rem;
+      color: #cbd5e1;
+      strong { color: #f87171; }
+    }
+
+    input {
+      padding: 10px 12px;
+      background: rgba(10, 15, 26, 0.9);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      border-radius: 8px;
+      color: #ffffff;
+      font-size: 0.9rem;
+      font-family: monospace;
+      letter-spacing: 0.05em;
+      outline: none;
+      &:focus { border-color: #ef4444; box-shadow: 0 0 10px rgba(239, 68, 68, 0.3); }
+    }
+  }
+
+  .feedback-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+
+    &.success {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #34d399;
+    }
+    &.error {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #fca5a5;
+    }
+  }
+
+  .modal-actions-row {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 10px;
+
+    .cancel-btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #cbd5e1;
+      cursor: pointer;
+      &:hover { background: rgba(255, 255, 255, 0.1); }
+    }
+
+    .danger-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 18px;
+      border-radius: 8px;
+      background: #ef4444;
+      color: #ffffff;
+      border: none;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+
+      &:hover:not(:disabled) {
+        background: #dc2626;
+        box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4);
+      }
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
     }
   }
 `;

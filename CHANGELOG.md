@@ -4,6 +4,32 @@ All notable changes to the **Compust** platform are documented in this file.
 
 ---
 
+## [1.0.4] - 2026-10-23
+
+### Added
+- **Functional "Explain with AI" with Safe SVG Diagrams (`InterviewPrepView.tsx`, `VisualAIExplanation.tsx`, `interview_prep.py`)**:
+  - Deep concept breakdown and real-world narrative case scenarios powered by the unified AI Gateway (`ai_gateway.py`), supporting Google Gemini 3.8 Flash and local Ollama, with smart deterministic fallback.
+  - Safe, server-side validated and sanitized SVG architecture and concept flow diagrams (ElementTree and Bleach sanitized, enforcing `0 0 640 200` viewBox, stripping all `<script>`, `on*` event handlers, `<foreignObject>`, and external URI references).
+  - Multi-stage visual generation progress list (`StageProgressList`) providing real-time feedback during AI reasoning and diagram generation.
+  - SQLite/MySQL database explanation caching keyed by question, domain, and model, ensuring instant (<370ms) reloads.
+  - Interactive "Regenerate" button with cache-bypassing parameter (`bypass_cache=true`).
+
+- **Opportunities Stat-Card Pill Redesign (`App.tsx`, `InternshipScraperView.css`)**:
+  - Redesigned 4 opportunity metrics cards into sleek horizontal pill containers matching modern dark/light mode aesthetic.
+  - Purpose-specific SVG icons (Total Active Opportunities, Verified Portals, Countries Represented, Auto-Sync Status) with prominent high-contrast metrics and muted uppercase metadata labels.
+  - Responsive flexbox wrapping ensuring optimal layout across 1440px desktop, 1200px laptop, 1024px, and 800px tablet displays.
+
+### Fixed
+- **Sync Now Button Spacing & Text Collision (`SyncStatusBanner.tsx`, `InternshipScraperView.css`)**:
+  - Resolved visual overlap between the "Sync Now" action button and last sync timestamp text.
+  - Enforced structured flex-row layout with `gap: 0.75rem`, `white-space: nowrap`, and responsive wrapping under narrow viewports (800px).
+- **Extension Quick Add Download Manifest Validation (`test_extension_quick_add.py`)**:
+  - Updated extension manifest version assertion to `1.0.3` for Chrome and Firefox download archives.
+- **In-Place Upgrade Test Suite (`test_inplace_upgrade.py`)**:
+  - Updated test target to `Compust-Setup-v1.0.4.exe` and verified 100% data preservation across 484 jobs, 58 applications, and user settings.
+
+---
+
 ## [Unreleased] - 2026-09-11
 
 ### Added

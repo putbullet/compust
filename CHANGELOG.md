@@ -2,85 +2,125 @@
 
 All notable changes to the **Compust** platform are documented in this file.
 
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+---
+
+## [Unreleased]
+
+### Fixed
+- **MySQL Foreign Key Schema Parity**: Fixed unsigned integer mismatch across `User.id`, `Company.id`, `Country.id`, `Job.id`, and `Resume.id` foreign keys in SQLAlchemy models, resolving MySQL `errno 150` on table creation and eliminating 500 Internal Server Errors on user sign-up/sign-in.
+- **Database Startup Migrations**: Automated database migrations on whichever engine is active at startup (MySQL or SQLite), failing fast with actionable diagnostics rather than returning a bare 500 later.
+- **HTTP Status Codes on Auth Endpoints**: Updated authentication responses to return standard semantic HTTP status codes with translated error messages: 409 Conflict for duplicate emails, 401 Unauthorized for invalid credentials, and 503 Service Unavailable when the database is unreachable.
+- **Opportunities Stat Pills Hover Elimination**: Removed unrequested hover transforms, shadows, and cursor effects on Opportunities stat pills while maintaining exact visual fidelity.
+- **Internships Stat Pills Structure**: Consolidated stat elements into a shared `StatPill` component (`hero` and `metric` variants), eliminating squeezed text, border overflow, and poor padding with responsive `flex-wrap` and gap spacing.
+
+### Changed
+- **Navbar AI Panel Performance**: Re-architected AI panel opening to load instantaneously (<150ms) from local cache; status probes run in the background with non-blocking progressive chips, 1.0s timeout for Ollama, and zero outbound network calls to cloud providers (Gemini/OpenAI) for status rendering.
+- **Documentation Diagram Viewer**: Replaced static, shrunken Mermaid diagrams with a responsive, zoomable, and pannable `DiagramViewer` featuring inline `Ctrl+wheel` zoom, reset, fit-to-width, keyboard shortcuts, and portal-based modal expansion.
+
 ---
 
 ## [1.0.4] - 2026-10-23
 
 ### Added
-- **Functional "Explain with AI" with Safe SVG Diagrams (`InterviewPrepView.tsx`, `VisualAIExplanation.tsx`, `interview_prep.py`)**:
+- **Functional "Explain with AI" with Safe SVG Diagrams**:
   - Deep concept breakdown and real-world narrative case scenarios powered by the unified AI Gateway (`ai_gateway.py`), supporting Google Gemini 3.8 Flash and local Ollama, with smart deterministic fallback.
   - Safe, server-side validated and sanitized SVG architecture and concept flow diagrams (ElementTree and Bleach sanitized, enforcing `0 0 640 200` viewBox, stripping all `<script>`, `on*` event handlers, `<foreignObject>`, and external URI references).
   - Multi-stage visual generation progress list (`StageProgressList`) providing real-time feedback during AI reasoning and diagram generation.
   - SQLite/MySQL database explanation caching keyed by question, domain, and model, ensuring instant (<370ms) reloads.
   - Interactive "Regenerate" button with cache-bypassing parameter (`bypass_cache=true`).
-
-- **Opportunities Stat-Card Pill Redesign (`App.tsx`, `InternshipScraperView.css`)**:
+- **Opportunities Stat-Card Pill Redesign**:
   - Redesigned 4 opportunity metrics cards into sleek horizontal pill containers matching modern dark/light mode aesthetic.
   - Purpose-specific SVG icons (Total Active Opportunities, Verified Portals, Countries Represented, Auto-Sync Status) with prominent high-contrast metrics and muted uppercase metadata labels.
   - Responsive flexbox wrapping ensuring optimal layout across 1440px desktop, 1200px laptop, 1024px, and 800px tablet displays.
 
+### Changed
+- **Extension Package Updates (v1.0.3)**:
+  - Bumped Chrome and Firefox extension manifests to `1.0.3`.
+  - Packaged official Mozilla Add-ons (AMO) source archive with build instructions.
+
 ### Fixed
-- **Sync Now Button Spacing & Text Collision (`SyncStatusBanner.tsx`, `InternshipScraperView.css`)**:
+- **Sync Now Button Spacing & Text Collision**:
   - Resolved visual overlap between the "Sync Now" action button and last sync timestamp text.
-  - Enforced structured flex-row layout with `gap: 0.75rem`, `white-space: nowrap`, and responsive wrapping under narrow viewports (800px).
-- **Extension Quick Add Download Manifest Validation (`test_extension_quick_add.py`)**:
-  - Updated extension manifest version assertion to `1.0.3` for Chrome and Firefox download archives.
-- **In-Place Upgrade Test Suite (`test_inplace_upgrade.py`)**:
-  - Updated test target to `Compust-Setup-v1.0.4.exe` and verified 100% data preservation across 484 jobs, 58 applications, and user settings.
+  - Enforced structured flex-row layout with `gap: 0.75rem`, `white-space: nowrap`, and responsive wrapping under narrow viewports.
 
 ---
 
-## [Unreleased] - 2026-09-11
+## [1.0.3] - 2026-10-20
 
 ### Added
-- **Phase 13: Decoupled Job Translation Architecture & Semantic Enrichment Adapter**:
-  - Migration 008 (`008_create_job_translations.sql` & Alembic `b8c9d0e1f2a3`): decoupled `job_translations` table with `uq_job_translation_lang` unique constraint and cascade deletion.
-  - Source text invariance: original employer postings in `jobs.title` and `jobs.description` are preserved unmodified.
-  - Zero-AI, offline deterministic translation provider (`DeterministicTranslationProvider` in `src/app/services/translation.py`) translating French/English titles and description sections.
-  - Translation endpoints: `GET /api/v1/jobs/{job_id}/translations` and `POST /api/v1/jobs/{job_id}/translations`.
-  - Pluggable `SemanticEnrichmentAdapter` protocol with `RuleBasedSemanticFallback` layered on top of the deterministic rule-based matcher with fault-tolerant error recovery.
-  - Frontend vacancy language toggle bar (`JobDetailModal.tsx`) with dynamic translation and ground truth reassurance badge.
+- **Compust Capture Extension v1.0.2**:
+  - Enhanced job extraction heuristics for modern LinkedIn, Indeed, Glassdoor, and Welcome to the Jungle DOM layouts.
+  - Added background token sync and instant match score badges.
 
-- **Phase 12: Declarative Sources, Country Preferences, Application Pipeline & Scraper Analytics**:
-  - Migration 007 (`007_create_user_applications.sql` & Alembic `a7b8c9d0e1f2`): `user_applications` table with `uq_user_job` constraint.
-  - Candidate country preferences: `PUT /api/v1/profile/countries` and interactive multi-country selector.
-  - Multilingual query expander (`src/app/scraper/search.py`) mapping English and French technical job terms and workplace vocabulary.
-  - Application Pipeline Kanban view (`ApplicationsView.tsx`) with 5 lifecycle stages, notes, and direct vacancy modals.
-  - Declarative source registry (`config/sources.json` & `source_config.py`).
-  - Scraper telemetry and analytics: `GET /api/v1/admin/metrics` and top metrics summary bar in `ScraperDashboard.tsx`.
+### Changed
+- **Gemini AI Quota & Rate-Limit Handling**:
+  - Added exponential backoff and retry discipline for HTTP 429 quota exhaustion.
+  - Optimized prompt token lengths to reduce API usage.
 
-- **Phase 11: Candidate Multi-Dimensional Profile**:
-  - Migration 006 (`006_create_user_profile_tables.sql` & Alembic `f6a1b2c3d4e5`): `user_experience`, `user_education`, `user_languages`.
-  - Profile CRUD endpoints for career history, degrees, and language proficiencies.
-  - Role-type matching distinction (professional, internship, project, transferable).
-  - Profile management UI cards with experience-type badges in `ProfileView.tsx`.
+### Fixed
+- **Resume Customization Contrast**: Resolved low-contrast text on dark backgrounds in the Suggest Resume Customization view.
+- **Modal Stacking Context**: Fixed z-index layering issue where schedule settings modals appeared behind main content.
 
-- **Phase 10: Persistence Provenance, Stale Lifecycle & Vocabulary Normalization**:
-  - Migration 005 (`005_add_scrape_target_provenance_and_indexes.sql` & Alembic `e5efb7c8a123`): Added `jobs.scrape_target_id` and composite indexes (`company_id + external_job_id`, `company_id + job_url`, `scrape_target_id + last_seen_at`, `active`).
-  - Cautious stale-job lifecycle service (`evaluate_target_stale_jobs`).
-  - Standardized vocabulary normalizers (`src/app/scraper/vocabulary.py`) for employment types, remote modes, locations, and technical skills.
-  - Comprehensive documentation suite: `DEVELOPMENT.md`, `CONFIGURATION.md`, and `TESTING.md`.
+---
 
-- **Master Build Prompt Addendum v1**:
-  - Session continuity protocol and `PROGRESS.md` audit.
-  - Automated `robots.txt` compliance checking and `SOURCE_DISALLOWED` enforcement.
-  - Ingestion HTML sanitization using `bleach` and `BeautifulSoup` to prevent stored XSS attacks.
-  - Data model gaps closed: salary columns, `scrape_targets.robots_txt_*`, and user lifecycle fields.
-  - Company onboarding pipeline with heuristic portal classification and CLI tool.
-  - Tooling & CI: `.python-version`, Node engines, GitHub Actions workflow, and pre-commit configuration.
-  - Observability: enhanced `/health` with database query latency, and structured JSON logging.
-  - UI Chrome internationalization: decoupled English and French switcher in React frontend.
+## [1.0.2] - 2026-10-18
 
-- **Phase 9: Frontend React Web Application**:
-  - Modern glassmorphic web application built with React 19, TypeScript, and Vite.
-  - Floating dock navbar, search bar with quick-filters, opportunity cards, detail modal, auth modal, profile preferences view, and Scraper Hub monitor dashboard.
+### Added
+- **Windows DPAPI Key Encryption**:
+  - Added secure encryption at rest for Google Gemini API keys using Windows Data Protection API (`CryptProtectData`), eliminating plaintext credential storage.
+- **Stepped Gemini Setup Wizard**:
+  - Guided 4-stage configuration wizard (`gemini-3.8-flash` default) with live latency connectivity testing and privacy consent verification.
+- **Guided Data Migration & Portable Backup**:
+  - Auto-discovery of existing MySQL instances (`127.0.0.1:3306`) and development SQLite databases.
+  - Conflict-free import and deduplication into `%LOCALAPPDATA%\Compust\data\compust.db`.
+  - One-click portable `.zip` backup and restore preserving 100% data fidelity.
+- **Hardened Offline Internships Dataset**:
+  - Bundled `github_internships_seed.json` with 4,283 pre-indexed positions (4,021 active) for resilient offline operation.
 
-- **Phase 8: Authentication, Profile & Matching Engine APIs**:
-  - Stateless JWT issuance, bcrypt password hashing, and user registration/login.
-  - Deterministic rule-based matching engine calculating match percentages and explanation breakdowns.
+### Changed
+- **Bootstrap Technical Documentation Redesign**:
+  - Clean 3-column layout replacing neon styling with professional Bootstrap-style technical documentation.
+  - Added collapsible sidebar, sticky table of contents, and quick `/` keyboard search.
+  - Monochrome dark-mode compatible Mermaid architecture and data model diagrams.
 
-- **Phases 0-4: Foundation, Cooldowns, Source Parsers, Persistence & APIs**:
-  - FastAPI application with MySQL connection pool.
-  - Three verified career portals integrated: Orange Maroc, Capgemini Morocco, and Inwi.
-  - URL canonicalization, tracking parameter stripping, and idempotent candidate upsert.
-  - Job directory search and filter endpoints with pagination.
+### Fixed
+- **Relative API Paths**: Converted frontend client API calls to relative paths (`/api/v1`), eliminating port mismatches between development servers and installed ports.
+- **Loopback CORS Middleware**: Hardened CORS policy for browser extensions and external origins.
+
+---
+
+## [1.0.1] - 2026-10-14
+
+### Added
+- **Compust Capture Browser Extension**:
+  - Manifest V3 browser extension for LinkedIn, Indeed, Glassdoor, and Welcome to the Jungle.
+  - Floating overlay with automatic job analysis, match scoring, and quick actions (Add, Applied, Save, Skip).
+- **RenderCV Typst Resume Studio**:
+  - Integrated Typst-based resume compiler with deterministic A4 live preview.
+  - 6-pillar ATS audit engine evaluating structure, keywords, typography, and length.
+- **Playwright Headless Browser Fallback**:
+  - Headless Chromium rendering fallback for dynamic Single Page Application (SPA) career portals.
+- **Job Title Intelligence**:
+  - Context-aware DOM clustering against a local 73,380-title dictionary for fallback job detection.
+
+### Fixed
+- **Application Funnel Progression**: Fixed application pipeline progression logic in Kanban view.
+- **Sankey Ribbon Collisions**: Adjusted canvas height and node positions to prevent visual collision between funnel ribbons.
+
+---
+
+## [1.0.0] - 2026-10-10
+
+### Added
+- **Initial Public Standalone Release**:
+  - Inno Setup Windows installer (`Compust-Setup-v1.0.0.exe`) and zero-install portable zip edition.
+  - Dual-mode database engine: automated TCP probe selects MySQL on port 3306 when reachable, with seamless fallback to SQLite.
+  - 7-layer universal scraper pipeline with adapter auto-detection (Workable, Greenhouse, Lever, SmartRecruiters, Ashby).
+  - Career opportunities directory with multi-country preferences, search, and remote-work filters.
+  - 5-stage Kanban application tracker with notes, interview logging, and conversion analytics.
+  - AI interview preparation center with role-specific questions and STAR method evaluation.
+  - Contacts directory for recruiter and hiring manager relationship tracking.
+  - In-app interactive guide and technical documentation center.

@@ -1,0 +1,341 @@
+/* =========================================================================
+   DiagramViewer — Interactive Pan & Zoom Diagram Container
+   Dark & Light mode tokenized, keyboard accessible, reduced-motion friendly
+   ========================================================================= */
+
+.diagram-viewer-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card, #0f172a);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-md, 8px);
+  margin: 1.25rem 0;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  transition: border-color 0.2s ease;
+}
+
+.diagram-viewer-card:focus-within {
+  border-color: var(--primary, #6366f1);
+}
+
+/* ── Toolbar Header ─────────────────────────────────────────────── */
+.diagram-viewer-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.625rem 0.875rem;
+  background: var(--bg-surface, rgba(255, 255, 255, 0.03));
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+}
+
+.diagram-viewer-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-primary, #f8fafc);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.diagram-viewer-title-icon {
+  color: var(--primary, #6366f1);
+  display: flex;
+  align-items: center;
+}
+
+.diagram-viewer-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.diagram-viewer-btn-group {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-sm, 6px);
+  padding: 2px;
+}
+
+.diagram-viewer-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  background: transparent;
+  color: var(--text-secondary, #94a3b8);
+  border: none;
+  border-radius: 4px;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  user-select: none;
+}
+
+.diagram-viewer-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary, #ffffff);
+}
+
+.diagram-viewer-btn:focus-visible {
+  outline: 2px solid var(--primary, #6366f1);
+  outline-offset: 1px;
+}
+
+.diagram-viewer-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.diagram-viewer-zoom-indicator {
+  display: inline-block;
+  min-width: 44px;
+  text-align: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-primary, #f8fafc);
+  padding: 0 4px;
+  cursor: pointer;
+}
+
+.diagram-viewer-zoom-indicator:hover {
+  color: var(--primary, #818cf8);
+}
+
+.diagram-viewer-expand-btn {
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--primary-light, #a5b4fc);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: var(--radius-sm, 6px);
+  padding: 0.35rem 0.65rem;
+  font-weight: 500;
+}
+
+.diagram-viewer-expand-btn:hover {
+  background: rgba(99, 102, 241, 0.22);
+  color: #ffffff;
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+/* ── Interactive Viewport ───────────────────────────────────────── */
+.diagram-viewer-viewport {
+  position: relative;
+  width: 100%;
+  min-height: 280px;
+  max-height: 520px;
+  overflow: hidden;
+  background: var(--bg-card-inner, #090d16);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.diagram-viewer-viewport.dragging {
+  cursor: grabbing;
+}
+
+.diagram-viewer-canvas {
+  width: 100%;
+  height: 100%;
+  min-height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center center;
+  transition: transform 0.08s ease-out;
+}
+
+.diagram-viewer-canvas.no-transition {
+  transition: none;
+}
+
+.diagram-viewer-canvas svg {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: auto;
+  pointer-events: none;
+}
+
+/* ── Hint Footer ────────────────────────────────────────────────── */
+.diagram-viewer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.45rem 0.875rem;
+  background: var(--bg-surface, rgba(255, 255, 255, 0.02));
+  border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.05));
+  font-size: 0.72rem;
+  color: var(--text-muted, #64748b);
+}
+
+.diagram-viewer-hint-text {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.diagram-viewer-kbd {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-family: inherit;
+  font-size: 0.7rem;
+  color: var(--text-secondary, #94a3b8);
+}
+
+/* ── Expanded Modal View ────────────────────────────────────────── */
+.diagram-viewer-modal-container {
+  display: flex;
+  flex-direction: column;
+  height: calc(85vh - 100px);
+  min-height: 460px;
+  background: var(--bg-card-inner, #090d16);
+  border-radius: var(--radius-sm, 6px);
+  overflow: hidden;
+}
+
+.diagram-viewer-modal-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  background: var(--bg-surface, rgba(255, 255, 255, 0.03));
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+}
+
+.diagram-viewer-modal-viewport {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.diagram-viewer-modal-viewport.dragging {
+  cursor: grabbing;
+}
+
+.diagram-viewer-modal-viewport .diagram-viewer-canvas svg {
+  max-width: none;
+  min-width: 900px;
+  width: auto;
+  height: auto;
+}
+
+/* ── Loading and Error States ───────────────────────────────────── */
+.diagram-viewer-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  min-height: 260px;
+  color: var(--text-secondary, #94a3b8);
+  font-size: 0.85rem;
+}
+
+.diagram-viewer-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-top-color: var(--primary, #6366f1);
+  border-radius: 50%;
+  animation: diagram-spin 0.8s linear infinite;
+}
+
+@keyframes diagram-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.diagram-viewer-error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 1.25rem;
+  background: rgba(244, 63, 94, 0.08);
+  border: 1px solid rgba(244, 63, 94, 0.25);
+  border-radius: var(--radius-sm, 6px);
+  color: #fb7185;
+  font-size: 0.875rem;
+  margin: 1rem 0;
+}
+
+/* ── Light Mode Support ─────────────────────────────────────────── */
+@media (prefers-color-scheme: light) {
+  .diagram-viewer-card {
+    background: #ffffff;
+    border-color: #e2e8f0;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  }
+  .diagram-viewer-toolbar {
+    background: #f8fafc;
+    border-bottom-color: #e2e8f0;
+  }
+  .diagram-viewer-title-group {
+    color: #0f172a;
+  }
+  .diagram-viewer-btn-group {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+  }
+  .diagram-viewer-btn {
+    color: #475569;
+  }
+  .diagram-viewer-btn:hover:not(:disabled) {
+    background: #e2e8f0;
+    color: #0f172a;
+  }
+  .diagram-viewer-zoom-indicator {
+    color: #0f172a;
+  }
+  .diagram-viewer-viewport {
+    background: #f8fafc;
+  }
+  .diagram-viewer-footer {
+    background: #f8fafc;
+    border-top-color: #e2e8f0;
+    color: #64748b;
+  }
+  .diagram-viewer-kbd {
+    background: #e2e8f0;
+    border-color: #cbd5e1;
+    color: #334155;
+  }
+  .diagram-viewer-modal-container {
+    background: #ffffff;
+  }
+  .diagram-viewer-modal-toolbar {
+    background: #f8fafc;
+    border-bottom-color: #e2e8f0;
+  }
+}
+
+/* ── Reduced Motion Preference ──────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .diagram-viewer-canvas,
+  .diagram-viewer-card,
+  .diagram-viewer-btn {
+    transition: none !important;
+  }
+  .diagram-viewer-spinner {
+    animation-duration: 2s;
+  }
+}

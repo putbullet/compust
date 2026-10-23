@@ -66,6 +66,14 @@ export const GUIDE_SECTIONS: GuideSectionMeta[] = [
     keywords: ['overview', 'platform', 'career intelligence', 'local first'],
   },
   {
+    id: 'whats-new',
+    title: "What's New",
+    badge: 'v1.0.4',
+    description: 'Release history, changelog, and latest platform updates.',
+    group: 'getting-started',
+    keywords: ['changelog', 'releases', 'version', 'updates', 'history', 'whats new'],
+  },
+  {
     id: 'important-notice',
     title: 'Please Read Before Using',
     badge: 'Critical',

@@ -39,6 +39,11 @@ import {
   GUIDE_SECTION_GROUPS,
 } from '../../config/guideConfig';
 import type { GuideSectionGroup } from '../../config/guideConfig';
+import {
+  CHANGELOG_RELEASES,
+  GITHUB_RELEASES_URL,
+  CURRENT_INSTALLED_VERSION,
+} from '../../config/changelogData';
 import { useTranslation } from '../../i18n';
 import { GuideDiagram } from './GuideDiagram';
 
@@ -111,7 +116,7 @@ flowchart LR
 
 const GUIDE_TITLE_TRANSLATIONS: Record<string, Record<string, string>> = {
   fr: {
-    welcome: 'Bienvenue dans Compust', 'important-notice': 'A lire avant utilisation', 'demo-video': 'Voir Compust en action',
+    welcome: 'Bienvenue dans Compust', 'whats-new': 'Nouveautés', 'important-notice': 'A lire avant utilisation', 'demo-video': 'Voir Compust en action',
     'how-it-works': 'Fonctionnement de Compust', 'getting-started': 'Configuration de A a Z', 'resume-studio': 'Vue d\u2019ensemble de Resume Studio',
     'deep-analysis': 'Ciblage de poste et analyse approfondie', 'ats-checker': 'Verificateur ATS', 'extension-install': 'Installation et configuration',
     'extension-sites': 'Sites detectes automatiquement', 'extension-capture-flow': 'Flux de capture : Ajouter / Candidature / Enregistrer / Ignorer',
@@ -121,7 +126,7 @@ const GUIDE_TITLE_TRANSLATIONS: Record<string, Record<string, string>> = {
     'scraper-diagnostics-ai': 'Assistant IA de diagnostic du scraper', 'contributor-guide': 'Guide developpeur et contributeur', faq: 'Questions frequentes',
   },
   nl: {
-    welcome: 'Welkom bij Compust', 'important-notice': 'Lees dit voor gebruik', 'demo-video': 'Compust in actie',
+    welcome: 'Welkom bij Compust', 'whats-new': 'Wat is er nieuw', 'important-notice': 'Lees dit voor gebruik', 'demo-video': 'Compust in actie',
     'how-it-works': 'Hoe Compust werkt', 'getting-started': 'Installatie van A tot Z', 'resume-studio': 'Overzicht van Resume Studio',
     'deep-analysis': 'Jobtargeting en diepgaande analyse', 'ats-checker': 'ATS-checker', 'extension-install': 'Installatie en configuratie',
     'extension-sites': 'Automatisch gedetecteerde sites', 'extension-capture-flow': 'Captureflow: Toevoegen / Toegepast / Opslaan / Overslaan',
@@ -136,6 +141,13 @@ const ON_THIS_PAGE_MAP: Record<string, { id: string; label: string }[]> = {
   welcome: [
     { id: 'welcome', label: 'Platform Overview' },
     { id: 'welcome-stats', label: 'Core Metrics' },
+  ],
+  'whats-new': [
+    { id: 'whats-new', label: 'Release Notes' },
+    { id: 'release-unreleased', label: 'In Development' },
+    { id: 'release-1-0-4', label: 'Version 1.0.4' },
+    { id: 'release-1-0-3', label: 'Version 1.0.3' },
+    { id: 'release-1-0-2', label: 'Version 1.0.2' },
   ],
   'important-notice': [
     { id: 'important-notice', label: 'What Compust IS / IS NOT' },
@@ -478,6 +490,90 @@ export const GuideView: React.FC = () => {
             </div>
           </section>
 
+          {/* ── What's New / Changelog ────────────────────────────────────── */}
+          <section id="whats-new" className="guide-section">
+            <div className="guide-section-header">
+              <h2 className="guide-section-title">
+                <Sparkles size={24} aria-hidden="true" className="icon-purple" />
+                What&apos;s New
+              </h2>
+              <p className="guide-section-subtitle">
+                Release history, latest features, performance improvements, and fixes across versions.
+              </p>
+            </div>
+
+            <div className="guide-changelog-container">
+              <div className="guide-changelog-top-bar">
+                <div className="guide-changelog-meta">
+                  <span className="current-version-chip">
+                    Current Installed: <strong>v{CURRENT_INSTALLED_VERSION}</strong>
+                  </span>
+                  <span className="guide-changelog-note">
+                    Adheres to Keep a Changelog and Semantic Versioning.
+                  </span>
+                </div>
+                <a
+                  href={GITHUB_RELEASES_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="guide-changelog-gh-link"
+                >
+                  <span>View on GitHub Releases</span>
+                  <ExternalLink size={14} aria-hidden="true" />
+                </a>
+              </div>
+
+              <div className="guide-changelog-releases">
+                {CHANGELOG_RELEASES.map((rel) => (
+                  <article
+                    key={rel.version}
+                    id={rel.isUnreleased ? 'release-unreleased' : `release-${rel.version.replace(/\./g, '-')}`}
+                    className={`guide-release-card ${rel.isCurrent ? 'current-release' : ''} ${rel.isUnreleased ? 'unreleased-release' : ''}`}
+                  >
+                    <header className="guide-release-header">
+                      <div className="guide-release-title-row">
+                        <h3 className="guide-release-version">
+                          {rel.isUnreleased ? 'In Development (Unreleased)' : `v${rel.version}`}
+                        </h3>
+                        {rel.isCurrent && (
+                          <span className="guide-release-badge current">Current Active</span>
+                        )}
+                        {rel.isUnreleased && (
+                          <span className="guide-release-badge unreleased">Work in Progress</span>
+                        )}
+                        <span className="guide-release-date">{rel.date}</span>
+                      </div>
+                    </header>
+
+                    <div className="guide-release-body">
+                      {rel.groups.map((grp) => (
+                        <div key={grp.type} className="guide-changelog-group">
+                          <div className={`guide-group-tag tag-${grp.type.toLowerCase()}`}>
+                            {grp.type}
+                          </div>
+                          <ul className="guide-group-list">
+                            {grp.items.map((item, itemIdx) => (
+                              <li key={itemIdx} className="guide-changelog-item">
+                                <div className="guide-item-title">{item.title}</div>
+                                {item.details && item.details.length > 0 && (
+                                  <ul className="guide-item-subdetails">
+                                    {item.details.map((detail, dIdx) => (
+                                      <li key={dIdx}>{detail}</li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </section>
+
           {/* ── 2. Critical Pre-Use Notice ─────────────────────────────────── */}
           <section id="important-notice" className="guide-section">
             <div className="guide-notice-card">
@@ -663,6 +759,7 @@ export const GuideView: React.FC = () => {
 
               <GuideDiagram
                 definition={SYSTEM_OVERVIEW_DIAGRAM}
+                title="Compust Platform Ecosystem & Architecture"
                 ariaLabel="Compust System Overview: Career sources feed the scraper pipeline into the database and match engine, which flows into the kanban tracker. Resume Studio connects to ATS Checker and Job Target Panel, which also feeds the kanban."
               />
 
@@ -782,6 +879,7 @@ export const GuideView: React.FC = () => {
             <div className="guide-architecture-board">
               <GuideDiagram
                 definition={RESUME_STUDIO_DIAGRAM}
+                title="Resume Studio Lifecycle & Tooling"
                 ariaLabel="Resume Studio workflow: Upload PDF or start fresh, deterministic extraction, structured editor, A4 live preview, then export or run ATS Checker or Job Target Deep Analysis."
               />
 
@@ -1054,6 +1152,7 @@ export const GuideView: React.FC = () => {
             <div className="guide-architecture-board">
               <GuideDiagram
                 definition={EXTENSION_FLOW_DIAGRAM}
+                title="Compust Capture Browser Extension Workflow"
                 ariaLabel="Extension capture flow: browse site, extension detects job page and overlay appears, quickAddAndAnalyze API call runs, match score and skills shown, user chooses Add (Opportunities), Applied (Kanban), Save (Interested), or Skip."
               />
 

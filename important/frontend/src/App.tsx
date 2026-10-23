@@ -30,6 +30,7 @@ import { FloatingHelpControls } from './components/Guide/FloatingHelpControls';
 import { AISettingsModal } from './components/AISettingsModal';
 import { AIAssistantWidget } from './components/AIAssistantWidget';
 import { SyncStatusBanner } from './components/common/SyncStatusBanner';
+import { StatPill } from './components/common/StatPill';
 import { Loader } from './components/Loader';
 import { Sparkles, Layers, ShieldCheck, ChevronLeft, ChevronRight, Bookmark, Briefcase, Building2, Globe2 } from 'lucide-react';
 import { useTranslation } from './i18n';
@@ -273,42 +274,34 @@ export const App: React.FC = () => {
 
               {/* Stats Ribbon */}
               <div className="stats-ribbon" role="region" aria-label="Directory statistics">
-                <div className="stat-card stat-vacancies">
-                  <div className="stat-icon-wrap icon-blue">
-                    <Briefcase size={20} />
-                  </div>
-                  <div className="stat-text-col">
-                    <span className="stat-val">{totalJobs}</span>
-                    <span className="stat-lbl">Active Vacancies</span>
-                  </div>
-                </div>
-                <div className="stat-card stat-sources">
-                  <div className="stat-icon-wrap icon-purple">
-                    <Building2 size={20} />
-                  </div>
-                  <div className="stat-text-col">
-                    <span className="stat-val">{companies.length || 3}</span>
-                    <span className="stat-lbl">Direct Sources</span>
-                  </div>
-                </div>
-                <div className="stat-card stat-countries">
-                  <div className="stat-icon-wrap icon-cyan">
-                    <Globe2 size={20} />
-                  </div>
-                  <div className="stat-text-col">
-                    <span className="stat-val">{countries.length || 2}</span>
-                    <span className="stat-lbl">Countries</span>
-                  </div>
-                </div>
-                <div className="stat-card stat-sanitized">
-                  <div className="stat-icon-wrap icon-emerald">
-                    <ShieldCheck size={20} />
-                  </div>
-                  <div className="stat-text-col">
-                    <span className="stat-val">100%</span>
-                    <span className="stat-lbl">Access Sanitized</span>
-                  </div>
-                </div>
+                <StatPill
+                  variant="hero"
+                  icon={<Briefcase size={20} />}
+                  iconColor="blue"
+                  value={totalJobs}
+                  label="Active Vacancies"
+                />
+                <StatPill
+                  variant="hero"
+                  icon={<Building2 size={20} />}
+                  iconColor="purple"
+                  value={companies.length || 3}
+                  label="Direct Sources"
+                />
+                <StatPill
+                  variant="hero"
+                  icon={<Globe2 size={20} />}
+                  iconColor="cyan"
+                  value={countries.length || 2}
+                  label="Countries"
+                />
+                <StatPill
+                  variant="hero"
+                  icon={<ShieldCheck size={20} />}
+                  iconColor="emerald"
+                  value="100%"
+                  label="Access Sanitized"
+                />
               </div>
 
               {/* Search & Filter Bar */}
@@ -670,26 +663,19 @@ const StyledApp = styled.div`
     width: 100%;
     max-width: 980px;
     margin: 12px auto 26px;
-  }
 
-  .stat-card {
-    display: inline-flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 12px;
-    padding: 6px 20px 6px 8px;
-    background: rgba(15, 23, 42, 0.65);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.09);
-    border-radius: 9999px;
-    box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.35);
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-
-    &:hover {
-      transform: translateY(-2px);
-      border-color: rgba(255, 255, 255, 0.2);
-      box-shadow: 0 6px 22px -2px rgba(0, 0, 0, 0.5);
+    .stat-card {
+      display: inline-flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 12px;
+      padding: 6px 20px 6px 8px;
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      border-radius: 9999px;
+      box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.35);
     }
   }
 
@@ -759,15 +745,10 @@ const StyledApp = styled.div`
   [data-theme='light'] &,
   :root[data-theme='light'] &,
   .light & {
-    .stat-card {
+    .stats-ribbon .stat-card {
       background: rgba(255, 255, 255, 0.95);
       border: 1px solid rgba(0, 0, 0, 0.08);
       box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.06);
-
-      &:hover {
-        border-color: rgba(0, 0, 0, 0.16);
-        box-shadow: 0 6px 20px -2px rgba(0, 0, 0, 0.1);
-      }
     }
 
     .stat-val {

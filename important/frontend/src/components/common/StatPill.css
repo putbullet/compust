@@ -1,0 +1,275 @@
+/* ==========================================================================
+   Shared Stat Pill Component (Opportunities & Internships)
+   Strict Change Control: Static pills without hover animations.
+   ========================================================================== */
+
+.compust-stat-pill {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 9999px;
+  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.35);
+  box-sizing: border-box;
+  user-select: none;
+  cursor: default;
+}
+
+/* Light Theme overrides */
+[data-theme='light'] .compust-stat-pill,
+:root[data-theme='light'] .compust-stat-pill,
+.light .compust-stat-pill {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.06);
+}
+
+/* --------------------------------------------------------------------------
+   Variant: hero (Opportunities Page)
+   Pixel-identical to owner-approved design, hover effects removed.
+   -------------------------------------------------------------------------- */
+.compust-stat-pill--hero {
+  gap: 12px;
+  padding: 6px 20px 6px 8px;
+}
+
+.compust-stat-pill--hero .pill-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.compust-stat-pill--hero .pill-icon-wrap.icon-blue {
+  background: rgba(30, 58, 138, 0.28);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.38);
+}
+.compust-stat-pill--hero .pill-icon-wrap.icon-purple {
+  background: rgba(88, 28, 135, 0.28);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.38);
+}
+.compust-stat-pill--hero .pill-icon-wrap.icon-cyan {
+  background: rgba(19, 78, 74, 0.32);
+  color: #2dd4bf;
+  border: 1px solid rgba(20, 184, 166, 0.38);
+}
+.compust-stat-pill--hero .pill-icon-wrap.icon-emerald {
+  background: rgba(6, 78, 59, 0.32);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.38);
+}
+
+/* Light Theme Icon Styles */
+[data-theme='light'] .compust-stat-pill--hero .pill-icon-wrap.icon-blue,
+:root[data-theme='light'] .compust-stat-pill--hero .pill-icon-wrap.icon-blue,
+.light .compust-stat-pill--hero .pill-icon-wrap.icon-blue {
+  background: #dbeafe;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+[data-theme='light'] .compust-stat-pill--hero .pill-icon-wrap.icon-purple,
+:root[data-theme='light'] .compust-stat-pill--hero .pill-icon-wrap.icon-purple,
+.light .compust-stat-pill--hero .pill-icon-wrap.icon-purple {
+  background: #f3e8ff;
+  color: #7e22ce;
+  border-color: #e9d5ff;
+}
+[data-theme='light'] .compust-stat-pill--hero .pill-icon-wrap.icon-cyan,
+:root[data-theme='light'] .compust-stat-pill--hero .pill-icon-wrap.icon-cyan,
+.light .compust-stat-pill--hero .pill-icon-wrap.icon-cyan {
+  background: #ccfbf1;
+  color: #0f766e;
+  border-color: #99f6e4;
+}
+[data-theme='light'] .compust-stat-pill--hero .pill-icon-wrap.icon-emerald,
+:root[data-theme='light'] .compust-stat-pill--hero .pill-icon-wrap.icon-emerald,
+.light .compust-stat-pill--hero .pill-icon-wrap.icon-emerald {
+  background: #d1fae5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+
+.compust-stat-pill--hero .pill-text-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-width: 0;
+}
+
+.compust-stat-pill--hero .pill-value {
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1.1;
+  color: #ffffff;
+  font-family: var(--font-heading, inherit);
+  letter-spacing: -0.01em;
+}
+
+[data-theme='light'] .compust-stat-pill--hero .pill-value,
+:root[data-theme='light'] .compust-stat-pill--hero .pill-value,
+.light .compust-stat-pill--hero .pill-value {
+  color: #0f172a;
+}
+
+.compust-stat-pill--hero .pill-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+[data-theme='light'] .compust-stat-pill--hero .pill-label,
+:root[data-theme='light'] .compust-stat-pill--hero .pill-label,
+.light .compust-stat-pill--hero .pill-label {
+  color: #64748b;
+}
+
+/* --------------------------------------------------------------------------
+   Variant: metric (Internships Page)
+   Pill look matching Opportunities visual design, built properly:
+   - 3-part layout (Label, Value, Subtext)
+   - Generous padding ensuring no text ever touches or overflows rounded borders
+   - Consistent height across all pills
+   - Graceful wrapping / truncation with tooltip
+   -------------------------------------------------------------------------- */
+.compust-stat-pill--metric {
+  padding: 8px 18px;
+  gap: 12px;
+  min-height: 58px;
+  min-width: 210px;
+  max-width: 290px;
+  flex: 1 1 210px;
+  justify-content: space-between;
+}
+
+.compust-stat-pill--metric.tone-green {
+  border-color: rgba(16, 185, 129, 0.25);
+}
+.compust-stat-pill--metric.tone-amber {
+  border-color: rgba(245, 158, 11, 0.25);
+}
+.compust-stat-pill--metric.tone-blue {
+  border-color: rgba(2, 132, 199, 0.25);
+}
+.compust-stat-pill--metric.tone-red {
+  border-color: rgba(225, 29, 72, 0.25);
+}
+
+.compust-stat-pill--metric .pill-label-side {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #cbd5e1;
+  line-height: 1.2;
+  max-width: 100px;
+  min-width: 0;
+  word-break: break-word;
+}
+
+[data-theme='light'] .compust-stat-pill--metric .pill-label-side,
+:root[data-theme='light'] .compust-stat-pill--metric .pill-label-side,
+.light .compust-stat-pill--metric .pill-label-side {
+  color: #334155;
+}
+
+.compust-stat-pill--metric .pill-label-side .inline-icon {
+  flex-shrink: 0;
+}
+
+.compust-stat-pill--metric .pill-metric-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1;
+  font-family: var(--font-heading, inherit);
+  color: #ffffff;
+  letter-spacing: -0.01em;
+  flex-shrink: 0;
+  padding: 0 4px;
+}
+
+[data-theme='light'] .compust-stat-pill--metric .pill-metric-value,
+:root[data-theme='light'] .compust-stat-pill--metric .pill-metric-value,
+.light .compust-stat-pill--metric .pill-metric-value {
+  color: #0f172a;
+}
+
+.compust-stat-pill--metric .pill-metric-value.tone-green {
+  color: #34d399;
+}
+.compust-stat-pill--metric .pill-metric-value.tone-amber {
+  color: #fbbf24;
+}
+.compust-stat-pill--metric .pill-metric-value.tone-blue {
+  color: #38bdf8;
+}
+.compust-stat-pill--metric .pill-metric-value.tone-red {
+  color: #fb7185;
+}
+
+[data-theme='light'] .compust-stat-pill--metric .pill-metric-value.tone-green,
+:root[data-theme='light'] .compust-stat-pill--metric .pill-metric-value.tone-green,
+.light .compust-stat-pill--metric .pill-metric-value.tone-green {
+  color: #059669;
+}
+[data-theme='light'] .compust-stat-pill--metric .pill-metric-value.tone-amber,
+:root[data-theme='light'] .compust-stat-pill--metric .pill-metric-value.tone-amber,
+.light .compust-stat-pill--metric .pill-metric-value.tone-amber {
+  color: #d97706;
+}
+[data-theme='light'] .compust-stat-pill--metric .pill-metric-value.tone-blue,
+:root[data-theme='light'] .compust-stat-pill--metric .pill-metric-value.tone-blue,
+.light .compust-stat-pill--metric .pill-metric-value.tone-blue {
+  color: #0284c7;
+}
+[data-theme='light'] .compust-stat-pill--metric .pill-metric-value.tone-red,
+:root[data-theme='light'] .compust-stat-pill--metric .pill-metric-value.tone-red,
+.light .compust-stat-pill--metric .pill-metric-value.tone-red {
+  color: #e11d48;
+}
+
+.compust-stat-pill--metric .pill-sub-side {
+  font-size: 0.68rem;
+  font-weight: 500;
+  line-height: 1.25;
+  color: #94a3b8;
+  max-width: 105px;
+  min-width: 0;
+  text-align: right;
+  word-break: break-word;
+}
+
+[data-theme='light'] .compust-stat-pill--metric .pill-sub-side,
+:root[data-theme='light'] .compust-stat-pill--metric .pill-sub-side,
+.light .compust-stat-pill--metric .pill-sub-side {
+  color: #64748b;
+}
+
+/* --------------------------------------------------------------------------
+   Container Ribbons
+   -------------------------------------------------------------------------- */
+.compust-stat-ribbon {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  width: 100%;
+  margin: 12px auto 26px;
+}

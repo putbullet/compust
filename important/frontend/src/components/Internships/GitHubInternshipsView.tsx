@@ -27,6 +27,7 @@ import { api } from '../../api/client';
 import { CompanyLogo } from './CompanyLogo';
 import { VisaBadge } from './VisaBadge';
 import { SyncStatusBanner } from '../common/SyncStatusBanner';
+import { StatPill } from '../common/StatPill';
 import { useTranslation } from '../../i18n';
 import './InternshipScraperView.css';
 
@@ -215,58 +216,45 @@ export const GitHubInternshipsView: React.FC = () => {
 
       {/* Metrics Row */}
       {data && (
-        <div className="stats-cards-grid">
-          <div className="stat-card">
-            <div className="stat-card-label">{t.internships.totalListings}</div>
-            <div className="stat-card-value">{data.stats.total_listings.toLocaleString()}</div>
-            <div className="stat-card-sub">{data.stats.active_listings.toLocaleString()} {t.internships.activeOpenings}</div>
-          </div>
-
-          <div className="stat-card stat-card-green">
-            <div className="stat-card-label">
-              <CheckCircle2 size={13} className="inline-icon text-emerald-400" />
-              <span>{t.internships.sponsorsVisa}</span>
-            </div>
-            <div className="stat-card-value text-emerald-400">
-              {data.stats.visa_sponsored_count.toLocaleString()}
-            </div>
-            <div className="stat-card-sub">
-              {Math.round((data.stats.visa_sponsored_count / (data.stats.total_listings || 1)) * 100)}% of tracked listings
-            </div>
-          </div>
-
-          <div className="stat-card stat-card-amber">
-            <div className="stat-card-label">
-              <XCircle size={13} className="inline-icon text-amber-400" />
-              <span>{t.internships.noSponsorship} (🛂)</span>
-            </div>
-            <div className="stat-card-value text-amber-400">
-              {data.stats.no_sponsorship_count.toLocaleString()}
-            </div>
-            <div className="stat-card-sub">Requires pre-existing work auth</div>
-          </div>
-
-          <div className="stat-card stat-card-blue">
-            <div className="stat-card-label">
-              <Flag size={13} className="inline-icon text-sky-400" />
-              <span>{t.internships.usCitizenOnly} (🇺🇸)</span>
-            </div>
-            <div className="stat-card-value text-sky-400">
-              {data.stats.us_citizens_count.toLocaleString()}
-            </div>
-            <div className="stat-card-sub">Clearance / US Citizens</div>
-          </div>
-
-          <div className="stat-card stat-card-red">
-            <div className="stat-card-label">
-              <Shield size={13} className="inline-icon text-rose-400" />
-              <span>{t.internships.canadaEligible} (🇨🇦)</span>
-            </div>
-            <div className="stat-card-value text-rose-400">
-              {data.stats.canada_authorized_count.toLocaleString()}
-            </div>
-            <div className="stat-card-sub">Canadian universities / students</div>
-          </div>
+        <div className="compust-stat-ribbon" role="region" aria-label="Internship statistics">
+          <StatPill
+            variant="metric"
+            label={t.internships.totalListings}
+            value={data.stats.total_listings.toLocaleString()}
+            subtext={`${data.stats.active_listings.toLocaleString()} ${t.internships.activeOpenings}`}
+          />
+          <StatPill
+            variant="metric"
+            tone="green"
+            icon={<CheckCircle2 size={13} className="text-emerald-400" />}
+            label={t.internships.sponsorsVisa}
+            value={data.stats.visa_sponsored_count.toLocaleString()}
+            subtext={`${Math.round((data.stats.visa_sponsored_count / (data.stats.total_listings || 1)) * 100)}% of tracked listings`}
+          />
+          <StatPill
+            variant="metric"
+            tone="amber"
+            icon={<XCircle size={13} className="text-amber-400" />}
+            label={`${t.internships.noSponsorship} (🛂)`}
+            value={data.stats.no_sponsorship_count.toLocaleString()}
+            subtext="Requires pre-existing work auth"
+          />
+          <StatPill
+            variant="metric"
+            tone="blue"
+            icon={<Flag size={13} className="text-sky-400" />}
+            label={`${t.internships.usCitizenOnly} (🇺🇸)`}
+            value={data.stats.us_citizens_count.toLocaleString()}
+            subtext="Clearance / US Citizens"
+          />
+          <StatPill
+            variant="metric"
+            tone="red"
+            icon={<Shield size={13} className="text-rose-400" />}
+            label={`${t.internships.canadaEligible} (🇨🇦)`}
+            value={data.stats.canada_authorized_count.toLocaleString()}
+            subtext="Canadian universities / students"
+          />
         </div>
       )}
 

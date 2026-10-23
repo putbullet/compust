@@ -530,6 +530,14 @@ def set_openai_api_key(key: str | None, db: Session | None = None, user_id: int 
 
 # ─── Provider Implementations ──────────────────────────────────────────────────
 
+_ollama_health_cache: dict[str, Any] = {
+    "timestamp": 0.0,
+    "status": "unavailable",
+    "models": [],
+    "error": None,
+}
+
+
 class OllamaProvider:
     """Local, offline Ollama provider."""
 
@@ -542,9 +550,29 @@ class OllamaProvider:
         return settings.ollama_url.rstrip("/")
 
     @classmethod
-    def check_health(cls, url: str | None = None, db: Session | None = None, user_id: int | None = None) -> dict[str, Any]:
+    def check_health(cls, url: str | None = None, db: Session | None = None, user_id: int | None = None, force_refresh: bool = False) -> dict[str, Any]:
         target_url = (url or cls.get_url()).rstrip("/")
+        if "://localhost" in target_url:
+            target_url = target_url.replace("://localhost", "://127.0.0.1")
         selected_ollama = get_selected_model(AIProviderType.OLLAMA, db=db, user_id=user_id)
+
+        now = time.monotonic()
+        if not url and not force_refresh and (now - _ollama_health_cache["timestamp"] < 30.0):
+            cached_models = _ollama_health_cache["models"]
+            installed_names = [m["name"] for m in cached_models]
+            current_selected = selected_ollama or (installed_names[0] if installed_names else None)
+            return {
+                "provider": "ollama",
+                "name": "Ollama (Local)",
+                "url": target_url,
+                "status": _ollama_health_cache["status"],
+                "models": cached_models,
+                "selected_model": current_selected,
+                "selected_model_available": (current_selected in installed_names if current_selected else False),
+                "error": _ollama_health_cache["error"],
+                "is_local": True,
+            }
+
         status_data: dict[str, Any] = {
             "provider": "ollama",
             "name": "Ollama (Local)",
@@ -557,7 +585,7 @@ class OllamaProvider:
             "is_local": True,
         }
         try:
-            with httpx.Client(timeout=2.0) as client:
+            with httpx.Client(timeout=httpx.Timeout(1.0, connect=0.8)) as client:
                 resp = client.get(f"{target_url}/api/tags")
                 if resp.status_code == 200:
                     raw_models = resp.json().get("models", [])
@@ -585,7 +613,7 @@ class OllamaProvider:
                 else:
                     status_data["status"] = "unavailable"
                     status_data["error"] = f"HTTP {resp.status_code}: {resp.text}"
-        except httpx.ConnectError:
+        except (httpx.ConnectError, httpx.ConnectTimeout):
             status_data["status"] = "not_running"
             status_data["error"] = f"Could not connect to Ollama at {target_url}. Is Ollama running?"
         except httpx.TimeoutException:
@@ -594,6 +622,12 @@ class OllamaProvider:
         except Exception as exc:
             status_data["status"] = "unavailable"
             status_data["error"] = str(exc)
+
+        if not url:
+            _ollama_health_cache["timestamp"] = time.monotonic()
+            _ollama_health_cache["status"] = status_data["status"]
+            _ollama_health_cache["models"] = status_data["models"]
+            _ollama_health_cache["error"] = status_data["error"]
 
         return status_data
 
@@ -875,53 +909,19 @@ class GeminiProvider:
         cfg = load_ai_config()
         gemini_model = (row.gemini_model if row and row.gemini_model else None) or cfg.get("gemini_model", "gemini-2.5-flash")
         file_consent = bool(cfg.get("gemini_consent_given", cfg.get("consent_granted", False)))
-        consent_given = (bool(row.consent_granted) if row else True) and file_consent
+        consent_given = (bool(row.consent_granted) if row else False) or file_consent
 
-        status_data: dict[str, Any] = {
+        return {
             "provider": "gemini",
             "name": "Google Gemini (Cloud)",
-            "status": "not_configured" if not key else "configured",
-            "models": cls.get_available_models(key),
+            "status": "connected" if (key and consent_given) else ("configured" if key else "not_configured"),
+            "models": cls.FALLBACK_MODELS,
             "selected_model": gemini_model,
             "key_hint": mask_api_key(key),
             "consent_given": consent_given,
-            "error": None,
+            "error": None if key else "No Gemini API key configured. Enter an API key in Settings.",
             "is_local": False,
         }
-
-        if not key:
-            status_data["status"] = "not_configured"
-            status_data["error"] = "No Gemini API key configured. Enter an API key in Settings."
-            return status_data
-
-        try:
-            with httpx.Client(timeout=8.0) as client:
-                resp = client.get(
-                    f"{cls.get_base_url()}/models",
-                    headers={"x-goog-api-key": key},
-                )
-                if resp.status_code == 200:
-                    status_data["status"] = "connected"
-                elif resp.status_code in (401, 403):
-                    status_data["status"] = "invalid_key"
-                    status_data["error"] = "Invalid Google Gemini API key. Please check your credentials."
-                elif resp.status_code == 429:
-                    status_data["status"] = "rate_limited"
-                    status_data["error"] = "Gemini API rate limit or quota exceeded."
-                else:
-                    status_data["status"] = "error"
-                    status_data["error"] = f"HTTP {resp.status_code}: {resp.text}"
-        except httpx.ConnectError:
-            status_data["status"] = "network_error"
-            status_data["error"] = "Cannot reach Google Gemini API. Check your internet connection."
-        except httpx.TimeoutException:
-            status_data["status"] = "timeout"
-            status_data["error"] = "Connection to Google Gemini API timed out."
-        except Exception as exc:
-            status_data["status"] = "error"
-            status_data["error"] = str(exc)
-
-        return status_data
 
     @classmethod
     def generate(
@@ -955,7 +955,7 @@ class GeminiProvider:
 
         cfg = load_ai_config()
         file_consent = bool(cfg.get("gemini_consent_given", cfg.get("consent_granted", False)))
-        consent_given = (bool(row.consent_granted) if row else True) and file_consent
+        consent_given = (bool(row.consent_granted) if row else False) or file_consent
         if not consent_given:
             raise AIConsentRequiredError(
                 "Cloud processing consent required before sending queries to Google Gemini. "
@@ -1309,50 +1309,16 @@ class OpenAIProvider:
         cfg = load_ai_config()
         openai_model = (row.openai_model if row and row.openai_model else None) or cfg.get("openai_model", "gpt-4o-mini")
 
-        status_data: dict[str, Any] = {
+        return {
             "provider": "openai",
             "name": "OpenAI (Cloud)",
-            "status": "not_configured" if not key else "configured",
-            "models": cls.get_available_models(key),
+            "status": "connected" if key else "not_configured",
+            "models": cls.FALLBACK_MODELS,
             "selected_model": openai_model,
             "key_hint": mask_api_key(key),
-            "error": None,
+            "error": None if key else "No OpenAI API key configured. Enter an API key in Settings.",
             "is_local": False,
         }
-
-        if not key:
-            status_data["status"] = "not_configured"
-            status_data["error"] = "No OpenAI API key configured. Enter an API key in Settings."
-            return status_data
-
-        try:
-            with httpx.Client(timeout=8.0) as client:
-                resp = client.get(
-                    f"{cls.get_base_url()}/models",
-                    headers={"Authorization": f"Bearer {key}"},
-                )
-                if resp.status_code == 200:
-                    status_data["status"] = "connected"
-                elif resp.status_code in (401, 403):
-                    status_data["status"] = "invalid_key"
-                    status_data["error"] = "Invalid OpenAI API key. Please check your credentials."
-                elif resp.status_code == 429:
-                    status_data["status"] = "rate_limited"
-                    status_data["error"] = "OpenAI API rate limit or quota exceeded."
-                else:
-                    status_data["status"] = "error"
-                    status_data["error"] = f"HTTP {resp.status_code}: {resp.text}"
-        except httpx.ConnectError:
-            status_data["status"] = "network_error"
-            status_data["error"] = "Cannot reach OpenAI API. Check your internet connection."
-        except httpx.TimeoutException:
-            status_data["status"] = "timeout"
-            status_data["error"] = "Connection to OpenAI API timed out."
-        except Exception as exc:
-            status_data["status"] = "error"
-            status_data["error"] = str(exc)
-
-        return status_data
 
     @classmethod
     def generate(
@@ -1644,7 +1610,7 @@ def get_ai_status(db: Session | None = None, user_id: int | None = None) -> dict
     gemini_key = get_gemini_api_key(db=db, user_id=user_id)
     openai_key = get_openai_api_key(db=db, user_id=user_id)
     file_consent = bool(cfg.get("gemini_consent_given", cfg.get("consent_granted", False)))
-    consent = (bool(row.consent_granted) if row else True) and file_consent
+    consent = (bool(row.consent_granted) if row else False) or file_consent
     fallback_policy = row.fallback_policy if row else cfg.get("fallback_policy", "deterministic")
     gemini_model = (row.gemini_model if row and row.gemini_model else None) or cfg.get("gemini_model", "gemini-2.5-flash")
     openai_model = (row.openai_model if row and row.openai_model else None) or cfg.get("openai_model", "gpt-4o-mini")

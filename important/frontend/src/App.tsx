@@ -151,6 +151,26 @@ export const App: React.FC = () => {
             setStoredToken(null);
           }
         }
+        // Warm AI status cache in background
+        api.getAIStatus().then((statusRes) => {
+          try {
+            localStorage.setItem('compust_ai_config_cache', JSON.stringify({
+              active_provider: statusRes.active_provider || 'ollama',
+              gemini_model: statusRes.gemini_model,
+              openai_model: statusRes.openai_model,
+              selected_model: statusRes.selected_model,
+              consent_granted: statusRes.consent_granted,
+              gemini_key_configured: statusRes.gemini_key_configured,
+              gemini_key_masked: statusRes.gemini_key_masked,
+              openai_key_configured: statusRes.openai_key_configured,
+              openai_key_masked: statusRes.openai_key_masked,
+              fallback_policy: statusRes.fallback_policy,
+              is_ollama_connected: statusRes.ollama?.status === 'connected' || (statusRes.active_provider === 'ollama' && statusRes.status === 'connected'),
+              models: statusRes.models,
+              timestamp: Date.now(),
+            }));
+          } catch {}
+        }).catch(() => {});
       } catch (err) {
         console.error('Initialization error:', err);
       }

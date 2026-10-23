@@ -52,37 +52,99 @@ const OPENAI_MODELS = [
   { id: 'o3-mini', name: 'o3-mini', desc: 'Reasoning model · Deep analytical problem solving' },
 ];
 
+const AI_CONFIG_CACHE_KEY = 'compust_ai_config_cache';
+
+interface CachedAIConfig {
+  active_provider: 'ollama' | 'gemini' | 'openai';
+  gemini_model?: string;
+  openai_model?: string;
+  selected_model?: string;
+  consent_granted?: boolean;
+  gemini_key_configured?: boolean;
+  gemini_key_masked?: string;
+  openai_key_configured?: boolean;
+  openai_key_masked?: string;
+  fallback_policy?: string;
+  is_ollama_connected?: boolean;
+  models?: any[];
+  timestamp?: number;
+}
+
+const getStoredAIConfig = (): CachedAIConfig => {
+  try {
+    const raw = localStorage.getItem(AI_CONFIG_CACHE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {
+    // ignore
+  }
+  return {
+    active_provider: 'ollama',
+    gemini_model: 'gemini-2.5-flash',
+    openai_model: 'gpt-4o-mini',
+    selected_model: 'qwen3.5:0.8b',
+    consent_granted: false,
+    gemini_key_configured: false,
+    openai_key_configured: false,
+    fallback_policy: 'deterministic',
+  };
+};
+
 export const AISettingsModal: React.FC<AISettingsModalProps> = ({
   isOpen,
   onClose,
   onSettingsSaved,
 }) => {
-  const [aiStatus, setAIStatus] = useState<AIStatus | null>(null);
+  const cached = React.useMemo(() => getStoredAIConfig(), []);
+  const [activeProvider, setActiveProvider] = useState<'ollama' | 'gemini' | 'openai'>(cached.active_provider || 'ollama');
+  const [selectedGeminiModel, setSelectedGeminiModel] = useState<string>(cached.gemini_model || 'gemini-2.5-flash');
+  const [selectedOpenAIModel, setSelectedOpenAIModel] = useState<string>(cached.openai_model || 'gpt-4o-mini');
+  const [selectedOllamaModel, setSelectedOllamaModel] = useState<string>(cached.selected_model || 'qwen3.5:0.8b');
+  const [fallbackPolicy, setFallbackPolicy] = useState<string>(cached.fallback_policy || 'deterministic');
+  const [isOllamaChecking, setIsOllamaChecking] = useState<boolean>(false);
+
+  const [aiStatus, setAIStatus] = useState<AIStatus | null>(() => ({
+    provider: cached.active_provider || 'ollama',
+    url: 'http://127.0.0.1:11434',
+    status: cached.is_ollama_connected ? 'connected' : 'not_running',
+    models: cached.models || [],
+    selected_model: cached.selected_model,
+    selected_model_available: true,
+    active_provider: cached.active_provider || 'ollama',
+    gemini_configured: !!cached.gemini_key_configured,
+    gemini_key_configured: !!cached.gemini_key_configured,
+    gemini_key_masked: cached.gemini_key_masked,
+    gemini_model: cached.gemini_model || 'gemini-2.5-flash',
+    consent_granted: !!cached.consent_granted,
+    gemini_consent_given: !!cached.consent_granted,
+    openai_configured: !!cached.openai_key_configured,
+    openai_key_configured: !!cached.openai_key_configured,
+    openai_key_masked: cached.openai_key_masked,
+    openai_model: cached.openai_model || 'gpt-4o-mini',
+    fallback_policy: cached.fallback_policy || 'deterministic',
+    error: null,
+  } as AIStatus));
+
   const [, setProviders] = useState<AIProvider[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [activeProvider, setActiveProvider] = useState<'ollama' | 'gemini' | 'openai'>('ollama');
 
   // Gemini 4-step wizard state: 1: Consent, 2: Key & Model, 3: Test, 4: Apply
-  const [wizardStep, setWizardStep] = useState<1 | 2 | 3 | 4>(1);
-
-  // Ollama state
-  const [selectedOllamaModel, setSelectedOllamaModel] = useState<string>('qwen3.5:0.8b');
+  const [wizardStep, setWizardStep] = useState<1 | 2 | 3 | 4>(() => {
+    if (cached.consent_granted) {
+      return cached.gemini_key_configured ? 4 : 2;
+    }
+    return 1;
+  });
 
   // Gemini state
-  const [selectedGeminiModel, setSelectedGeminiModel] = useState<string>('gemini-2.5-flash');
   const [geminiKeyInput, setGeminiKeyInput] = useState<string>('');
   const [showGeminiKey, setShowGeminiKey] = useState<boolean>(false);
   const [savingKey, setSavingKey] = useState<boolean>(false);
   const [keySavedMessage, setKeySavedMessage] = useState<string | null>(null);
 
   // OpenAI state
-  const [selectedOpenAIModel, setSelectedOpenAIModel] = useState<string>('gpt-4o-mini');
   const [openAIKeyInput, setOpenAIKeyInput] = useState<string>('');
   const [showOpenAIKey, setShowOpenAIKey] = useState<boolean>(false);
   const [savingOpenAIKey, setSavingOpenAIKey] = useState<boolean>(false);
   const [openAIKeySavedMessage, setOpenAIKeySavedMessage] = useState<string | null>(null);
-
-  const [fallbackPolicy, setFallbackPolicy] = useState<string>('deterministic');
 
   // Consent & testing
   const [testingConnection, setTestingConnection] = useState<boolean>(false);
@@ -96,6 +158,7 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
 
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const isMountedRef = React.useRef(false);
 
   // Dynamic models discovered from live endpoints
   const availableGeminiModels = React.useMemo(() => {
@@ -132,11 +195,11 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
 
   const fetchAIInfo = async () => {
     try {
-      setLoading(true);
       const [statusRes, provList] = await Promise.all([
         api.getAIStatus(),
         api.getAIProviders(),
       ]);
+      if (!isMountedRef.current) return;
       setAIStatus(statusRes);
       setProviders(provList);
 
@@ -176,15 +239,39 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
       if (statusRes.fallback_policy) {
         setFallbackPolicy(statusRes.fallback_policy);
       }
+
+      try {
+        localStorage.setItem(AI_CONFIG_CACHE_KEY, JSON.stringify({
+          active_provider: prov,
+          gemini_model: statusRes.gemini_model || selectedGeminiModel,
+          openai_model: statusRes.openai_model || selectedOpenAIModel,
+          selected_model: statusRes.selected_model || selectedOllamaModel,
+          consent_granted: statusRes.consent_granted,
+          gemini_key_configured: statusRes.gemini_key_configured,
+          gemini_key_masked: statusRes.gemini_key_masked,
+          openai_key_configured: statusRes.openai_key_configured,
+          openai_key_masked: statusRes.openai_key_masked,
+          fallback_policy: statusRes.fallback_policy,
+          is_ollama_connected: statusRes.ollama?.status === 'connected' || (statusRes.active_provider === 'ollama' && statusRes.status === 'connected'),
+          models: statusRes.models,
+          timestamp: Date.now(),
+        }));
+      } catch {
+        // ignore
+      }
     } catch (err) {
       console.error('Failed to load AI runtime status:', err);
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setIsOllamaChecking(false);
+      }
     }
   };
 
   useEffect(() => {
+    isMountedRef.current = isOpen;
     if (isOpen) {
+      setIsOllamaChecking(true);
       fetchAIInfo();
       setSavedSuccess(false);
       setTestResult(null);
@@ -192,6 +279,8 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
       setGeminiKeyInput('');
       setOpenAIKeyInput('');
       setOpenAIKeySavedMessage(null);
+    } else {
+      setIsOllamaChecking(false);
     }
   }, [isOpen]);
 
@@ -400,7 +489,7 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
 
   if (!isOpen) return null;
 
-  const isOllamaConnected = aiStatus?.provider === 'ollama' && aiStatus?.status === 'connected';
+  const isOllamaConnected = (aiStatus?.ollama?.status === 'connected') || (aiStatus?.provider === 'ollama' && aiStatus?.status === 'connected');
   const isGeminiReady = Boolean(aiStatus?.gemini_key_configured || geminiKeyInput.trim());
 
   return (
@@ -419,42 +508,38 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
           </button>
         </div>
 
-        {loading ? (
-          <LoadingArea>
-            <RefreshCw size={24} className="spin" />
-            <span>Detecting AI providers and runtimes...</span>
-          </LoadingArea>
-        ) : (
-          <div className="modal-body">
-            {/* Provider Selector Cards */}
-            <div className="config-section">
-              <div className="section-title">Select Active AI Provider</div>
-              <div className="providers-grid">
-                {/* Ollama Card */}
-                <ProviderCard
-                  $selected={activeProvider === 'ollama'}
-                  onClick={() => handleSelectProvider('ollama')}
-                  role="button"
-                  tabIndex={0}
-                >
-                  <div className="provider-top">
-                    <div className="provider-name-row">
-                      <Cpu size={18} className="icon-ollama" />
-                      <span className="provider-title">Ollama</span>
-                    </div>
-                    <span
-                      className={`provider-badge ${isOllamaConnected ? 'connected' : 'offline'}`}
-                    >
-                      {isOllamaConnected ? 'Connected' : 'Offline'}
-                    </span>
+        <div className="modal-body">
+          {/* Provider Selector Cards */}
+          <div className="config-section">
+            <div className="section-title">Select Active AI Provider</div>
+            <div className="providers-grid">
+              {/* Ollama Card */}
+              <ProviderCard
+                $selected={activeProvider === 'ollama'}
+                onClick={() => handleSelectProvider('ollama')}
+                role="button"
+                tabIndex={0}
+              >
+                <div className="provider-top">
+                  <div className="provider-name-row">
+                    <Cpu size={18} className="icon-ollama" />
+                    <span className="provider-title">Ollama</span>
                   </div>
-                  <div className="provider-desc">
-                    Local & 100% offline. Zero data leaves your computer. Runs on your CPU/GPU.
-                  </div>
-                  <div className="provider-meta">
-                    {isOllamaConnected
-                      ? `${aiStatus?.models?.length || 0} local models available`
-                      : 'Not running on 127.0.0.1:11434'}
+                  <span
+                    className={`provider-badge ${isOllamaConnected ? 'connected' : isOllamaChecking ? 'checking' : 'offline'}`}
+                  >
+                    {isOllamaConnected ? 'Connected' : isOllamaChecking ? 'Checking...' : 'Offline'}
+                  </span>
+                </div>
+                <div className="provider-desc">
+                  Local & 100% offline. Zero data leaves your computer. Runs on your CPU/GPU.
+                </div>
+                <div className="provider-meta">
+                  {isOllamaConnected
+                    ? `${aiStatus?.models?.length || 0} local models available`
+                    : isOllamaChecking
+                    ? 'Probing 127.0.0.1:11434...'
+                    : 'Not running on 127.0.0.1:11434'}
                     {isOllamaConnected && activeProvider !== 'ollama' && (
                       <div style={{ marginTop: 6 }}>
                         <button
@@ -1301,7 +1386,6 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
               </TestResultCard>
             )}
           </div>
-        )}
 
         <div className="modal-actions">
           <button className="cancel-btn" onClick={onClose}>
@@ -1644,6 +1728,12 @@ const ProviderCard = styled.div<{ $selected: boolean }>`
       background: rgba(56, 189, 248, 0.15);
       color: #38bdf8;
       border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+
+    &.checking {
+      background: rgba(234, 179, 8, 0.15);
+      color: #eab308;
+      border: 1px solid rgba(234, 179, 8, 0.3);
     }
 
     &.offline {
@@ -2143,21 +2233,6 @@ const TestResultCard = styled.div<{ $success: boolean }>`
         color: #ffffff;
       }
     }
-  }
-`;
-
-const LoadingArea = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px;
-  gap: 12px;
-  color: #94a3b8;
-  font-size: 0.85rem;
-
-  .spin {
-    animation: spin 1.2s linear infinite;
   }
 `;
 

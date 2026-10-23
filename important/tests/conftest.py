@@ -1,3 +1,14 @@
+import sys
+from pathlib import Path
+
+# Ensure the active workspace 'important' directory is first in sys.path
+_important_dir = str(Path(__file__).resolve().parent.parent)
+if _important_dir not in sys.path:
+    sys.path.insert(0, _important_dir)
+elif sys.path[0] != _important_dir:
+    sys.path.remove(_important_dir)
+    sys.path.insert(0, _important_dir)
+
 from fastapi.testclient import TestClient
 import pytest
 from sqlalchemy import create_engine

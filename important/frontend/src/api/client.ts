@@ -818,8 +818,10 @@ export const setStoredToken = (token: string | null) => {
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = getStoredToken();
+  const lang = typeof localStorage !== 'undefined' ? (localStorage.getItem('compust_lang') || 'en') : 'en';
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    'Accept-Language': lang,
     ...(options.headers as Record<string, string> || {}),
   };
   if (token) {

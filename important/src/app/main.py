@@ -11,6 +11,7 @@ from fastapi import BackgroundTasks, Body, Depends, FastAPI, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from sqlalchemy import select, text
+from sqlalchemy.exc import DatabaseError, IntegrityError, OperationalError
 from sqlalchemy.orm import Session
 
 from .config import get_settings
@@ -1372,42 +1373,128 @@ def create_job_translation(
 
 # --- Auth & Profile Endpoints ---
 
+AUTH_ERROR_MESSAGES = {
+    "duplicate_email": {
+        "en": "Email already registered",
+        "fr": "Cet e-mail est déjà enregistré",
+        "nl": "Dit e-mailadres is al geregistreerd",
+    },
+    "invalid_credentials": {
+        "en": "Invalid email or password",
+        "fr": "E-mail ou mot de passe incorrect",
+        "nl": "Ongeldig e-mailadres of wachtwoord",
+    },
+    "db_unavailable": {
+        "en": "Database service temporarily unavailable. Please try again shortly.",
+        "fr": "Service de base de données temporairement indisponible. Veuillez réessayer sous peu.",
+        "nl": "Databaseservice tijdelijk niet beschikbaar. Probeer het over enkele ogenblikken opnieuw.",
+    },
+    "account_not_found": {
+        "en": "No account found with this email address",
+        "fr": "Aucun compte trouvé avec cette adresse e-mail",
+        "nl": "Geen account gevonden met dit e-mailadres",
+    },
+}
+
+
+def _get_client_lang(request: Request) -> str:
+    accept = request.headers.get("accept-language", "").lower()
+    if "fr" in accept:
+        return "fr"
+    if "nl" in accept:
+        return "nl"
+    return "en"
+
 
 @app.post("/api/v1/auth/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED, tags=["auth"])
 def register_user(
     req: UserRegisterRequest,
+    request: Request,
     db: Session = Depends(get_db),
 ) -> TokenResponse:
-    existing = get_user_by_email(db, req.email)
-    if existing:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
-    user = create_user(db, req)
-    token = create_access_token({"sub": str(user.id), "email": user.email})
-    return TokenResponse(access_token=token, user=build_user_profile(user))
+    lang = _get_client_lang(request)
+    req_id = getattr(request.state, "request_id", None) or f"req_{uuid.uuid4().hex[:12]}"
+    try:
+        existing = get_user_by_email(db, req.email)
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=AUTH_ERROR_MESSAGES["duplicate_email"].get(lang, AUTH_ERROR_MESSAGES["duplicate_email"]["en"]),
+            )
+        user = create_user(db, req)
+        token = create_access_token({"sub": str(user.id), "email": user.email})
+        return TokenResponse(access_token=token, user=build_user_profile(user))
+    except HTTPException:
+        raise
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=AUTH_ERROR_MESSAGES["duplicate_email"].get(lang, AUTH_ERROR_MESSAGES["duplicate_email"]["en"]),
+        )
+    except (OperationalError, DatabaseError) as db_err:
+        db.rollback()
+        base_msg = AUTH_ERROR_MESSAGES["db_unavailable"].get(lang, AUTH_ERROR_MESSAGES["db_unavailable"]["en"])
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"{base_msg} [{req_id}]",
+        )
 
 
 @app.post("/api/v1/auth/login", response_model=TokenResponse, tags=["auth"])
 def login_user(
     req: UserLoginRequest,
+    request: Request,
     db: Session = Depends(get_db),
 ) -> TokenResponse:
-    user = authenticate_user(db, req.email, req.password)
-    if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
-    token = create_access_token({"sub": str(user.id), "email": user.email})
-    return TokenResponse(access_token=token, user=build_user_profile(user))
+    lang = _get_client_lang(request)
+    req_id = getattr(request.state, "request_id", None) or f"req_{uuid.uuid4().hex[:12]}"
+    try:
+        user = authenticate_user(db, req.email, req.password)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=AUTH_ERROR_MESSAGES["invalid_credentials"].get(lang, AUTH_ERROR_MESSAGES["invalid_credentials"]["en"]),
+            )
+        token = create_access_token({"sub": str(user.id), "email": user.email})
+        return TokenResponse(access_token=token, user=build_user_profile(user))
+    except HTTPException:
+        raise
+    except (OperationalError, DatabaseError) as db_err:
+        db.rollback()
+        base_msg = AUTH_ERROR_MESSAGES["db_unavailable"].get(lang, AUTH_ERROR_MESSAGES["db_unavailable"]["en"])
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"{base_msg} [{req_id}]",
+        )
 
 
 @app.post("/api/v1/auth/reset-password", response_model=TokenResponse, tags=["auth"])
 def reset_password(
     req: UserResetPasswordRequest,
+    request: Request,
     db: Session = Depends(get_db),
 ) -> TokenResponse:
-    user = reset_user_password(db, req.email, req.new_password)
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No account found with this email address")
-    token = create_access_token({"sub": str(user.id), "email": user.email})
-    return TokenResponse(access_token=token, user=build_user_profile(user))
+    lang = _get_client_lang(request)
+    req_id = getattr(request.state, "request_id", None) or f"req_{uuid.uuid4().hex[:12]}"
+    try:
+        user = reset_user_password(db, req.email, req.new_password)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=AUTH_ERROR_MESSAGES["account_not_found"].get(lang, AUTH_ERROR_MESSAGES["account_not_found"]["en"]),
+            )
+        token = create_access_token({"sub": str(user.id), "email": user.email})
+        return TokenResponse(access_token=token, user=build_user_profile(user))
+    except HTTPException:
+        raise
+    except (OperationalError, DatabaseError) as db_err:
+        db.rollback()
+        base_msg = AUTH_ERROR_MESSAGES["db_unavailable"].get(lang, AUTH_ERROR_MESSAGES["db_unavailable"]["en"])
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"{base_msg} [{req_id}]",
+        )
 
 
 @app.get("/api/v1/auth/me", response_model=UserProfileResponse, tags=["auth"])
@@ -4209,7 +4296,7 @@ async def serve_spa_frontend(request: Request, full_path: str):
 
 
 def make_error_response(request: Request, exc: Exception) -> Response:
-    request_id = f"req_{uuid.uuid4().hex[:12]}"
+    request_id = getattr(request.state, "request_id", None) or f"req_{uuid.uuid4().hex[:12]}"
     logger = get_logger("compust.server")
     logger.error(
         f"Unhandled exception [Request ID: {request_id}] on {request.method} {request.url.path}: {exc}",
@@ -4250,8 +4337,12 @@ def make_error_response(request: Request, exc: Exception) -> Response:
 
 @app.middleware("http")
 async def error_handling_middleware(request: Request, call_next):
+    request_id = request.headers.get("X-Request-ID") or f"req_{uuid.uuid4().hex[:12]}"
+    request.state.request_id = request_id
     try:
-        return await call_next(request)
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
+        return response
     except Exception as exc:
         return make_error_response(request, exc)
 

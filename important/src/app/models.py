@@ -1,7 +1,12 @@
 from datetime import datetime
 
 from sqlalchemy import Boolean, CHAR, Date, DateTime, ForeignKey, Integer, JSON, Numeric, String, Table, Column, Text, UniqueConstraint
+from sqlalchemy.dialects import mysql
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+# MySQL requires INT UNSIGNED for primary keys and foreign keys referencing
+# users.id, companies.id, countries.id, jobs.id (created as INT UNSIGNED in migrations).
+UnsignedInt = Integer().with_variant(mysql.INTEGER(unsigned=True), "mysql")
 
 
 class Base(DeclarativeBase):
@@ -11,15 +16,15 @@ class Base(DeclarativeBase):
 company_countries = Table(
     "company_countries",
     Base.metadata,
-    Column("company_id", ForeignKey("companies.id"), primary_key=True),
-    Column("country_id", ForeignKey("countries.id"), primary_key=True),
+    Column("company_id", UnsignedInt, ForeignKey("companies.id"), primary_key=True),
+    Column("country_id", UnsignedInt, ForeignKey("countries.id"), primary_key=True),
 )
 
 
 class Country(Base):
     __tablename__ = "countries"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(UnsignedInt, primary_key=True)
     name: Mapped[str] = mapped_column(String(100))
     code: Mapped[str] = mapped_column(CHAR(2), unique=True)
 
@@ -27,7 +32,7 @@ class Country(Base):
 class Company(Base):
     __tablename__ = "companies"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(UnsignedInt, primary_key=True)
     name: Mapped[str] = mapped_column(String(255))
     website_url: Mapped[str] = mapped_column(String(500))
     careers_url: Mapped[str | None] = mapped_column(String(500))
@@ -50,8 +55,8 @@ class Company(Base):
 class ScrapeTarget(Base):
     __tablename__ = "scrape_targets"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
+    id: Mapped[int] = mapped_column(UnsignedInt, primary_key=True)
+    company_id: Mapped[int] = mapped_column(UnsignedInt, ForeignKey("companies.id"))
     url: Mapped[str] = mapped_column(String(1000))
     type: Mapped[str | None] = mapped_column(String(50))
     active: Mapped[bool] = mapped_column(Boolean)
@@ -66,8 +71,8 @@ class ScrapeTarget(Base):
 class ScrapingRun(Base):
     __tablename__ = "scraping_runs"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
+    id: Mapped[int] = mapped_column(UnsignedInt, primary_key=True)
+    company_id: Mapped[int] = mapped_column(UnsignedInt, ForeignKey("companies.id"))
     status: Mapped[str] = mapped_column(String(50), default="pending")  # pending, running, success, failed, partial
     started_at: Mapped[datetime] = mapped_column(DateTime)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -81,9 +86,9 @@ class ScrapingRun(Base):
 class Job(Base):
     __tablename__ = "jobs"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"))
-    country_id: Mapped[int] = mapped_column(ForeignKey("countries.id"))
+    id: Mapped[int] = mapped_column(UnsignedInt, primary_key=True)
+    company_id: Mapped[int] = mapped_column(UnsignedInt, ForeignKey("companies.id"))
+    country_id: Mapped[int] = mapped_column(UnsignedInt, ForeignKey("countries.id"))
     title: Mapped[str] = mapped_column(String(500))
     location: Mapped[str | None] = mapped_column(String(255))
     job_url: Mapped[str] = mapped_column(String(1000))
@@ -104,7 +109,7 @@ class Job(Base):
     salary_currency: Mapped[str | None] = mapped_column(CHAR(3), nullable=True)
     salary_period: Mapped[str | None] = mapped_column(String(20), nullable=True)
     resume_suggestions: Mapped[dict | list | None] = mapped_column(JSON, nullable=True)
-    scrape_target_id: Mapped[int | None] = mapped_column(ForeignKey("scrape_targets.id"), nullable=True)
+    scrape_target_id: Mapped[int | None] = mapped_column(UnsignedInt, ForeignKey("scrape_targets.id"), nullable=True)
     scrape_target: Mapped["ScrapeTarget | None"] = relationship(foreign_keys=[scrape_target_id])
     company: Mapped["Company | None"] = relationship(foreign_keys=[company_id], lazy="selectin")
     country: Mapped["Country | None"] = relationship(foreign_keys=[country_id], lazy="selectin")
@@ -126,8 +131,8 @@ class Job(Base):
 class JobTranslation(Base):
     __tablename__ = "job_translations"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id"))
+    id: Mapped[int] = mapped_column(UnsignedInt, primary_key=True)
+    job_id: Mapped[int] = mapped_column(UnsignedInt, ForeignKey("jobs.id"))
     language: Mapped[str] = mapped_column(String(10))
     title: Mapped[str] = mapped_column(String(500))
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -141,23 +146,23 @@ class JobTranslation(Base):
 class JobSkill(Base):
     __tablename__ = "job_skills"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id"))
+    id: Mapped[int] = mapped_column(UnsignedInt, primary_key=True)
+    job_id: Mapped[int] = mapped_column(UnsignedInt, ForeignKey("jobs.id"))
     skill: Mapped[str] = mapped_column(String(150))
 
 
 user_country_preferences = Table(
     "user_country_preferences",
     Base.metadata,
-    Column("user_id", ForeignKey("users.id"), primary_key=True),
-    Column("country_id", ForeignKey("countries.id"), primary_key=True),
+    Column("user_id", UnsignedInt, ForeignKey("users.id"), primary_key=True),
+    Column("country_id", UnsignedInt, ForeignKey("countries.id"), primary_key=True),
 )
 
 
 class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(UnsignedInt, primary_key=True)
     email: Mapped[str] = mapped_column(String(255), unique=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     first_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
@@ -238,8 +243,8 @@ class User(Base):
 class Contact(Base):
     __tablename__ = "contacts"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    id: Mapped[int] = mapped_column(UnsignedInt, primary_key=True)
+    user_id: Mapped[int] = mapped_column(UnsignedInt, ForeignKey("users.id", ondelete="CASCADE"), index=True)
     first_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     last_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     name: Mapped[str] = mapped_column(String(255))
@@ -270,12 +275,12 @@ class Contact(Base):
 class ContactInteraction(Base):
     __tablename__ = "contact_interactions"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    contact_id: Mapped[int] = mapped_column(ForeignKey("contacts.id", ondelete="CASCADE"), index=True)
+    id: Mapped[int] = mapped_column(UnsignedInt, primary_key=True)
+    contact_id: Mapped[int] = mapped_column(UnsignedInt, ForeignKey("contacts.id", ondelete="CASCADE"), index=True)
     application_id: Mapped[int | None] = mapped_column(
-        ForeignKey("user_applications.id", ondelete="SET NULL"), nullable=True, index=True
+        UnsignedInt, ForeignKey("user_applications.id", ondelete="SET NULL"), nullable=True, index=True
     )
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[int] = mapped_column(UnsignedInt, ForeignKey("users.id", ondelete="CASCADE"), index=True)
     type: Mapped[str] = mapped_column(String(50))  # email_sent, email_received, linkedin_message, phone_call, meeting, interview, follow_up, note, other
     interaction_date: Mapped[datetime] = mapped_column(DateTime)
     summary: Mapped[str] = mapped_column(String(255))
@@ -290,8 +295,8 @@ class ContactInteraction(Base):
 class UserPreference(Base):
     __tablename__ = "user_preferences"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    id: Mapped[int] = mapped_column(UnsignedInt, primary_key=True)
+    user_id: Mapped[int] = mapped_column(UnsignedInt, ForeignKey("users.id"))
     preferred_job_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
     preferred_work_mode: Mapped[str | None] = mapped_column(String(100), nullable=True)
     preferred_location: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -304,8 +309,8 @@ class UserPreference(Base):
 class UserAIConfig(Base):
     __tablename__ = "user_ai_configs"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True)
+    id: Mapped[int] = mapped_column(UnsignedInt, primary_key=True)
+    user_id: Mapped[int] = mapped_column(UnsignedInt, ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True)
     active_provider: Mapped[str] = mapped_column(String(50), default="ollama")
     selected_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
     gemini_model: Mapped[str | None] = mapped_column(String(100), default="gemini-2.5-flash", nullable=True)
@@ -323,8 +328,8 @@ class UserAIConfig(Base):
 class UserSkill(Base):
     __tablename__ = "user_skills"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    id: Mapped[int] = mapped_column(UnsignedInt, primary_key=True)
+    user_id: Mapped[int] = mapped_column(UnsignedInt, ForeignKey("users.id"))
     skill: Mapped[str] = mapped_column(String(150))
     proficiency: Mapped[str | None] = mapped_column(String(50), nullable=True)
     user: Mapped[User] = relationship(back_populates="skills")
@@ -333,8 +338,8 @@ class UserSkill(Base):
 class UserEducation(Base):
     __tablename__ = "user_education"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    id: Mapped[int] = mapped_column(UnsignedInt, primary_key=True)
+    user_id: Mapped[int] = mapped_column(UnsignedInt, ForeignKey("users.id"))
     institution: Mapped[str] = mapped_column(String(255))
     degree: Mapped[str | None] = mapped_column(String(255), nullable=True)
     field_of_study: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -347,8 +352,8 @@ class UserEducation(Base):
 class UserExperience(Base):
     __tablename__ = "user_experience"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    id: Mapped[int] = mapped_column(UnsignedInt, primary_key=True)
+    user_id: Mapped[int] = mapped_column(UnsignedInt, ForeignKey("users.id"))
     title: Mapped[str] = mapped_column(String(255))
     company_name: Mapped[str] = mapped_column(String(255))
     experience_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
@@ -361,8 +366,8 @@ class UserExperience(Base):
 class UserLanguage(Base):
     __tablename__ = "user_languages"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    id: Mapped[int] = mapped_column(UnsignedInt, primary_key=True)
+    user_id: Mapped[int] = mapped_column(UnsignedInt, ForeignKey("users.id"))
     language: Mapped[str] = mapped_column(String(100))
     proficiency: Mapped[str | None] = mapped_column(String(50), nullable=True)
     user: Mapped[User] = relationship(back_populates="languages")
@@ -371,9 +376,9 @@ class UserLanguage(Base):
 class UserApplication(Base):
     __tablename__ = "user_applications"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    job_id: Mapped[int | None] = mapped_column(ForeignKey("jobs.id"), nullable=True)
+    id: Mapped[int] = mapped_column(UnsignedInt, primary_key=True)
+    user_id: Mapped[int] = mapped_column(UnsignedInt, ForeignKey("users.id"))
+    job_id: Mapped[int | None] = mapped_column(UnsignedInt, ForeignKey("jobs.id"), nullable=True)
     status: Mapped[str] = mapped_column(String(50), default="saved")
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     applied_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -387,7 +392,7 @@ class UserApplication(Base):
     source: Mapped[str] = mapped_column(String(100), default="Compust")
     salary: Mapped[str | None] = mapped_column(String(100), nullable=True)
     employment_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    contact_id: Mapped[int | None] = mapped_column(ForeignKey("contacts.id", ondelete="SET NULL"), nullable=True)
+    contact_id: Mapped[int | None] = mapped_column(UnsignedInt, ForeignKey("contacts.id", ondelete="SET NULL"), nullable=True)
     contact_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     contact_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     contact_phone: Mapped[str | None] = mapped_column(String(100), nullable=True)
@@ -431,8 +436,8 @@ class UserApplication(Base):
 class UserApplicationHistory(Base):
     __tablename__ = "user_application_history"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    application_id: Mapped[int] = mapped_column(ForeignKey("user_applications.id", ondelete="CASCADE"))
+    id: Mapped[int] = mapped_column(UnsignedInt, primary_key=True)
+    application_id: Mapped[int] = mapped_column(UnsignedInt, ForeignKey("user_applications.id", ondelete="CASCADE"))
     from_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
     to_status: Mapped[str] = mapped_column(String(50))
     changed_at: Mapped[datetime] = mapped_column(DateTime)
@@ -446,8 +451,8 @@ class UserApplicationHistory(Base):
 class Resume(Base):
     __tablename__ = "resumes"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    id: Mapped[int] = mapped_column(UnsignedInt, primary_key=True)
+    user_id: Mapped[int] = mapped_column(UnsignedInt, ForeignKey("users.id"))
     title: Mapped[str] = mapped_column(String(255), default="My Resume")
     filename: Mapped[str] = mapped_column(String(255), default="")
     raw_text: Mapped[str] = mapped_column(Text, default="")
@@ -457,8 +462,8 @@ class Resume(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)
     is_original_upload: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
-    target_job_id: Mapped[int | None] = mapped_column(ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True)
-    source_resume_id: Mapped[int | None] = mapped_column(ForeignKey("resumes.id", ondelete="SET NULL"), nullable=True)
+    target_job_id: Mapped[int | None] = mapped_column(UnsignedInt, ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True)
+    source_resume_id: Mapped[int | None] = mapped_column(UnsignedInt, ForeignKey("resumes.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime)
     updated_at: Mapped[datetime] = mapped_column(DateTime)
 
@@ -470,10 +475,10 @@ class Resume(Base):
 class CustomizedResume(Base):
     __tablename__ = "customized_resumes"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    base_resume_id: Mapped[int] = mapped_column(ForeignKey("resumes.id"))
-    job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id"))
+    id: Mapped[int] = mapped_column(UnsignedInt, primary_key=True)
+    user_id: Mapped[int] = mapped_column(UnsignedInt, ForeignKey("users.id"))
+    base_resume_id: Mapped[int] = mapped_column(UnsignedInt, ForeignKey("resumes.id"))
+    job_id: Mapped[int] = mapped_column(UnsignedInt, ForeignKey("jobs.id"))
     version: Mapped[int] = mapped_column(Integer, default=1)
     pdf_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
     docx_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -521,8 +526,8 @@ class InterviewExplanation(Base):
 class UserLinkedInProfile(Base):
     __tablename__ = "user_linkedin_profiles"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
+    id: Mapped[int] = mapped_column(UnsignedInt, primary_key=True)
+    user_id: Mapped[int] = mapped_column(UnsignedInt, ForeignKey("users.id", ondelete="CASCADE"), unique=True)
     linkedin_url: Mapped[str] = mapped_column(String(500))
     handle: Mapped[str] = mapped_column(String(100))
     import_source: Mapped[str] = mapped_column(String(50), default="manual")
@@ -535,8 +540,8 @@ class UserLinkedInProfile(Base):
 class UserUnifiedProfile(Base):
     __tablename__ = "user_unified_profiles"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
+    id: Mapped[int] = mapped_column(UnsignedInt, primary_key=True)
+    user_id: Mapped[int] = mapped_column(UnsignedInt, ForeignKey("users.id", ondelete="CASCADE"), unique=True)
     version_hash: Mapped[str] = mapped_column(String(64), default="")
     use_linkedin_in_matching: Mapped[bool] = mapped_column(Boolean, default=True)
     unified_data: Mapped[dict] = mapped_column(JSON, default=dict)

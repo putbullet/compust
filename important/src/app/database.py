@@ -75,7 +75,7 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 
 def init_database_schema():
-    """Initializes all database tables from declarative models if they do not exist."""
+    """Initializes all database tables from migrations and declarative models."""
     try:
         from sqlalchemy import text
         from .models import Base
@@ -86,6 +86,24 @@ def init_database_schema():
             MockInterviewAssessment,
             MockQuestionRubric,
         )
+
+        # 1. Run versioned migrations first on whichever engine is active (MySQL or SQLite)
+        try:
+            from migrations.runner import apply_migrations
+            applied = apply_migrations(engine=engine)
+            if applied:
+                logger.info(f"Applied {len(applied)} database migration(s): {', '.join(applied)}")
+        except Exception as mig_err:
+            logger.error(
+                f"Database migration failure on {engine.dialect.name}: {mig_err}. "
+                f"Please verify database service connectivity and schema permissions."
+            )
+            raise RuntimeError(
+                f"Database migration failed on {engine.dialect.name}: {mig_err}. "
+                f"Ensure database is running and schema permissions are valid."
+            ) from mig_err
+
+        # 2. Ensure all declarative model tables exist
         Base.metadata.create_all(bind=engine)
 
         with engine.begin() as conn:
@@ -105,26 +123,6 @@ def init_database_schema():
                 conn.execute(text("ALTER TABLE mock_answer_evaluations ADD COLUMN star_breakdown JSON NULL"))
             except Exception:
                 pass
-            try:
-                conn.execute(text("""
-                    CREATE TABLE IF NOT EXISTS user_ai_configs (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        user_id INTEGER NOT NULL UNIQUE,
-                        active_provider VARCHAR(50) DEFAULT 'ollama',
-                        selected_model VARCHAR(100),
-                        gemini_model VARCHAR(100) DEFAULT 'gemini-2.5-flash',
-                        openai_model VARCHAR(100) DEFAULT 'gpt-4o-mini',
-                        consent_granted BOOLEAN DEFAULT 0,
-                        gemini_api_key_encrypted TEXT,
-                        openai_api_key_encrypted TEXT,
-                        fallback_policy VARCHAR(50) DEFAULT 'deterministic',
-                        created_at DATETIME,
-                        updated_at DATETIME,
-                        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-                    )
-                """))
-            except Exception:
-                pass
 
         try:
             from .services.ai_gateway import sync_user_ai_config_on_startup
@@ -132,15 +130,10 @@ def init_database_schema():
         except Exception as seed_err:
             logger.debug(f"Initial AI config sync note: {seed_err}")
 
-        try:
-            from migrations.runner import apply_migrations
-            apply_migrations(engine=engine)
-        except Exception as mig_err:
-            logger.warning(f"Automatic migration check encountered non-fatal note: {mig_err}")
-
-        logger.info("Database schema verified and initialized.")
+        logger.info(f"Database schema verified and initialized on {engine.dialect.name}.")
     except Exception as exc:
-        logger.error(f"Error initializing database schema: {exc}")
+        logger.error(f"Error initializing database schema on {engine.dialect.name}: {exc}")
+        raise
 
 
 def get_db() -> Generator[Session, None, None]:

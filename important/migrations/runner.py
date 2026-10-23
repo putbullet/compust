@@ -28,6 +28,10 @@ def _clean_for_sqlite(sql: str) -> str:
     # Convert INT UNSIGNED AUTO_INCREMENT to INTEGER PRIMARY KEY if needed, or remove AUTO_INCREMENT
     sql = re.sub(r"\bAUTO_INCREMENT\b", "", sql, flags=re.IGNORECASE)
     sql = re.sub(r"\bINT\s+UNSIGNED\b", "INTEGER", sql, flags=re.IGNORECASE)
+    # Strip MySQL-specific ON UPDATE CURRENT_TIMESTAMP clause not supported in SQLite
+    sql = re.sub(r"\s+ON\s+UPDATE\s+CURRENT_TIMESTAMP\b", "", sql, flags=re.IGNORECASE)
+    # Strip IF NOT EXISTS in ALTER TABLE ADD COLUMN for SQLite compatibility
+    sql = re.sub(r"\bADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\b", "ADD COLUMN", sql, flags=re.IGNORECASE)
     # Remove index prefix lengths like job_url(255)
     sql = re.sub(r"\((\d+)\)", "", sql)
     # Remove inline MySQL INDEX lines inside CREATE TABLE or ADD CONSTRAINT or CREATE INDEX for SQLite compatibility
@@ -132,8 +136,8 @@ def apply_migrations(engine=None) -> list[str]:
                     for statement in sql_content.split(";"):
                         stmt = statement.strip()
                         if stmt:
+                            import re
                             if is_sqlite:
-                                import re
                                 match = re.match(r"^ALTER\s+TABLE\s+(\w+)", stmt, re.IGNORECASE)
                                 if match:
                                     table_name = match.group(1)
@@ -151,6 +155,21 @@ def apply_migrations(engine=None) -> list[str]:
                                         existing_cols = {c[1].lower() for c in col_info}
                                         if col_name.lower() in existing_cols:
                                             continue
+                            else:
+                                add_col = re.match(r"^ALTER\s+TABLE\s+(\w+)\s+ADD\s+COLUMN\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)", stmt, re.IGNORECASE)
+                                if add_col:
+                                    table_name = add_col.group(1)
+                                    col_name = add_col.group(2)
+                                    try:
+                                        col_info = connection.execute(
+                                            text("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :tbl"),
+                                            {"tbl": table_name}
+                                        ).fetchall()
+                                        existing_cols = {c[0].lower() for c in col_info}
+                                        if col_name.lower() in existing_cols:
+                                            continue
+                                    except Exception:
+                                        pass
                             try:
                                 connection.execute(text(stmt))
                             except Exception as exc:

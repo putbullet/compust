@@ -1,0 +1,337 @@
+{
+  "version": 3,
+  "domain_id": "ai_tech_interview",
+  "total_packs": 20,
+  "packs": {
+    "ai-what-is-the-transformer-architecture-and-how-does-self-attention-work": {
+      "key_concepts": [
+        "the Transformer Architecture and Ho",
+        "self-attention",
+        "Transformer Foundations"
+      ],
+      "common_misconceptions": [
+        "Thinking the Transformer Architecture and Ho can be scaled indefinitely without observing quadratic memory overhead.",
+        "Treating the Transformer Architecture and Ho as a black box without configuring grounding constraints or validation checks."
+      ],
+      "analogy_seed": "Like a research librarian scanning an encyclopedia index (the Transformer Architecture and Ho) to retrieve the exact three citations needed. Leveraging the Transformer Architecture and Ho enables self-attention to maintain high relevance.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (the Transformer Architecture and Ho) -> Execution Cluster (self-attention) -> Distributed Storage Tier (Transformer Foundations)",
+      "summary_seed": "Overview of Transformer Architecture\nIntroduced in Attention Is All You Need (Vaswani et al."
+    },
+    "ai-what-is-tokenization-and-how-does-byte-pair-encoding-bpe-work-in-llms": {
+      "key_concepts": [
+        "Tokenization and How Does Byte Pair",
+        "token IDs",
+        "Initialization",
+        "Frequency Counting",
+        "Merge",
+        "Repeat"
+      ],
+      "common_misconceptions": [
+        "Thinking Tokenization and How Does Byte Pair can be scaled indefinitely without observing quadratic memory overhead.",
+        "Treating Tokenization and How Does Byte Pair as a black box without configuring grounding constraints or validation checks."
+      ],
+      "analogy_seed": "Like an orchestra conductor cueing the brass section (Tokenization and How Does Byte Pair) to harmonize with strings at precise tempos. Leveraging Tokenization and How Does Byte Pair enables token IDs to maintain high relevance.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (Tokenization and How Does Byte Pair) -> Execution Cluster (token IDs) -> Distributed Storage Tier (Initialization)",
+      "summary_seed": "The Role of Tokenization\nLLMs cannot directly process text strings; tokenizers convert text into discrete numerical integers (token IDs) from a fixed vocabul...."
+    },
+    "ai-what-is-the-kv-cache-and-why-is-it-critical-for-fast-llm-inference": {
+      "key_concepts": [
+        "the KV Cache and Why is It Critical",
+        "only for the single new token",
+        "and",
+        "Inference Optimization"
+      ],
+      "common_misconceptions": [
+        "Thinking the KV Cache and Why is It Critical can be scaled indefinitely without observing quadratic memory overhead.",
+        "Treating the KV Cache and Why is It Critical as a black box without configuring grounding constraints or validation checks."
+      ],
+      "analogy_seed": "Like a conference translator distilling technical jargon (the KV Cache and Why is It Critical) into natural native idioms in real time. Leveraging the KV Cache and Why is It Critical enables only for the single new token to maintain high relevance.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (the KV Cache and Why is It Critical) -> Execution Cluster (only for the single new token) -> Distributed Storage Tier (and)",
+      "summary_seed": "The Autoregressive Generation Bottleneck\nDuring text generation, an LLM generates tokens sequentially one by one ($t_{n+1}$ depends on $t_1, \\dots, t_n$)."
+    },
+    "ai-what-is-mixture-of-experts-moe-and-how-does-it-compare-to-dense-models": {
+      "key_concepts": [
+        "Mixture of Experts (MoE) and How Do",
+        "High Model Capacity with Low FLOPs",
+        "VRAM Constraint",
+        "Sparse Architectures"
+      ],
+      "common_misconceptions": [
+        "Thinking Mixture of Experts (MoE) and How Do can be scaled indefinitely without observing quadratic memory overhead.",
+        "Treating Mixture of Experts (MoE) and How Do as a black box without configuring grounding constraints or validation checks."
+      ],
+      "analogy_seed": "Like a theater lighting designer directing focus with spotlights (Mixture of Experts (MoE) and How Do) onto key actors during critical scenes. Leveraging Mixture of Experts (MoE) and How Do enables High Model Capacity with Low FLOPs to maintain high relevance.",
+      "diagram_type": "comparison",
+      "diagram_brief": "Comparison Matrix: Mode A (Mixture of Experts (MoE) and How Do) vs Mode B (High Model Capacity with Low FLOPs) evaluated on Latency, Overhead, and Scalability",
+      "summary_seed": "Dense vs Sparse Architectures\n\n- Dense Models (e."
+    },
+    "ai-explain-zero-shot-few-shot-and-chain-of-thought-cot-prompting-with-real-world-engineeri": {
+      "key_concepts": [
+        "Zero-Shot, Few-Shot, and Chain-of-T",
+        "Zero-Shot Prompting",
+        "Prompting Techniques"
+      ],
+      "common_misconceptions": [
+        "Thinking Zero-Shot, Few-Shot, and Chain-of-T can be scaled indefinitely without observing quadratic memory overhead.",
+        "Treating Zero-Shot, Few-Shot, and Chain-of-T as a black box without configuring grounding constraints or validation checks."
+      ],
+      "analogy_seed": "Like a master editor selecting the most impactful paragraphs (Zero-Shot, Few-Shot, and Chain-of-T) to summarize a 500-page manuscript. Leveraging Zero-Shot, Few-Shot, and Chain-of-T enables Zero-Shot Prompting to maintain high relevance.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (Zero-Shot, Few-Shot, and Chain-of-T) -> Execution Cluster (Zero-Shot Prompting) -> Distributed Storage Tier (Prompting Techniques)",
+      "summary_seed": "Progressive Prompt Engineering Paradigms\n\n1."
+    },
+    "ai-how-do-you-defend-llm-applications-against-direct-and-indirect-prompt-injection-attacks": {
+      "key_concepts": [
+        "Defend LLM Applications Against Dir",
+        "Indirect Prompt Injection",
+        "Guardrail Ensembles",
+        "Security & Guardrails"
+      ],
+      "common_misconceptions": [
+        "Thinking Defend LLM Applications Against Dir can be scaled indefinitely without observing quadratic memory overhead.",
+        "Treating Defend LLM Applications Against Dir as a black box without configuring grounding constraints or validation checks."
+      ],
+      "analogy_seed": "Like an architectural draftsman overlaying blueprint transparencies (Defend LLM Applications Against Dir) to align plumbing with structural beams. Leveraging Defend LLM Applications Against Dir enables Indirect Prompt Injection to maintain high relevance.",
+      "diagram_type": "comparison",
+      "diagram_brief": "Comparison Matrix: Mode A (Defend LLM Applications Against Dir) vs Mode B (Indirect Prompt Injection) evaluated on Latency, Overhead, and Scalability",
+      "summary_seed": "Threat Landscape: Direct vs Indirect Injection\n- Direct Prompt Injection (Jailbreaking): The user directly enters adversarial inputs into the chat box ('Igno...."
+    },
+    "ai-how-do-you-enforce-guaranteed-structured-json-outputs-from-llms-in-production": {
+      "key_concepts": [
+        "Enforce Guaranteed Structured JSON ",
+        "at the token generation level",
+        "Structured Generation"
+      ],
+      "common_misconceptions": [
+        "Thinking Enforce Guaranteed Structured JSON  can be scaled indefinitely without observing quadratic memory overhead.",
+        "Treating Enforce Guaranteed Structured JSON  as a black box without configuring grounding constraints or validation checks."
+      ],
+      "analogy_seed": "Like an expert sommelier matching subtle aroma profiles (Enforce Guaranteed Structured JSON ) across multi-course dining menus. Leveraging Enforce Guaranteed Structured JSON  enables at the token generation level to maintain high relevance.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (Enforce Guaranteed Structured JSON ) -> Execution Cluster (at the token generation level) -> Distributed Storage Tier (Structured Generation)",
+      "summary_seed": "The Problem with Prompted JSON\nSimply telling an LLM 'Return valid JSON with keys name and email' frequently fails in production: models include conversation...."
+    },
+    "ai-explain-the-end-to-end-architecture-of-an-advanced-rag-pipeline": {
+      "key_concepts": [
+        "the End-to-End Architecture of an A",
+        "Advanced RAG Pipeline",
+        "Dense Vector Embeddings",
+        "Sparse Lexical Search",
+        "Cross-Encoder Re-Ranking",
+        "Cross-Encoder Re-Ranker"
+      ],
+      "common_misconceptions": [
+        "Thinking the End-to-End Architecture of an A can be scaled indefinitely without observing quadratic memory overhead.",
+        "Treating the End-to-End Architecture of an A as a black box without configuring grounding constraints or validation checks."
+      ],
+      "analogy_seed": "Like a flight navigator cross-referencing radar readings (the End-to-End Architecture of an A) to steer around sudden weather cells. Leveraging the End-to-End Architecture of an A enables Advanced RAG Pipeline to maintain high relevance.",
+      "diagram_type": "flow",
+      "diagram_brief": "the End-to-End Architecture of an A Ingest -> Advanced RAG Pipeline Transformation -> Dense Vector Embeddings State Buffer -> Sparse Lexical Search Downstream Target",
+      "summary_seed": "Architecture of Modern Advanced RAG\n\nStandard naive RAG (chunk -> embed -> vector search -> generate) struggles with accuracy, hallucinations, and context di...."
+    },
+    "ai-what-are-the-major-chunking-strategies-in-rag-and-how-do-you-choose-optimal-chunk-sizes": {
+      "key_concepts": [
+        "the Major Chunking Strategies in RA",
+        "Fixed-Size Chunking with Overlap",
+        "Recursive Character Chunking",
+        "Semantic Chunking",
+        "Document Ingestion & Chunking"
+      ],
+      "common_misconceptions": [
+        "Thinking the Major Chunking Strategies in RA can be scaled indefinitely without observing quadratic memory overhead.",
+        "Treating the Major Chunking Strategies in RA as a black box without configuring grounding constraints or validation checks."
+      ],
+      "analogy_seed": "Like a research librarian scanning an encyclopedia index (the Major Chunking Strategies in RA) to retrieve the exact three citations needed. Leveraging the Major Chunking Strategies in RA enables Fixed-Size Chunking with Overlap to maintain high relevance.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (the Major Chunking Strategies in RA) -> Execution Cluster (Fixed-Size Chunking with Overlap) -> Distributed Storage Tier (Recursive Character Chunking)",
+      "summary_seed": "Chunking Strategies Breakdown\n\n- Fixed-Size Chunking with Overlap: Slices text into uniform character or token counts (e."
+    },
+    "ai-explain-hybrid-search-and-why-combining-bm25-with-vector-search-outperforms-pure-vector": {
+      "key_concepts": [
+        "Hybrid Search and Why Combining BM2",
+        "SKU-7821-X",
+        "PKCE",
+        "Kafka-2.8",
+        "Search & Retrieval Mechanics"
+      ],
+      "common_misconceptions": [
+        "Thinking Hybrid Search and Why Combining BM2 can be scaled indefinitely without observing quadratic memory overhead.",
+        "Treating Hybrid Search and Why Combining BM2 as a black box without configuring grounding constraints or validation checks."
+      ],
+      "analogy_seed": "Like an orchestra conductor cueing the brass section (Hybrid Search and Why Combining BM2) to harmonize with strings at precise tempos. Leveraging Hybrid Search and Why Combining BM2 enables SKU-7821-X to maintain high relevance.",
+      "diagram_type": "sequence",
+      "diagram_brief": "Initiator (Hybrid Search and Why Combining BM2) -> Handshake Payload -> Validator (SKU-7821-X) -> Verified Response (PKCE)",
+      "summary_seed": "Why Pure Vector Search Fails in Enterprise Applications\nDense embeddings capture broad semantic relationships (e."
+    },
+    "ai-what-is-agentic-rag-and-graphrag-and-when-should-you-use-them-over-traditional-rag": {
+      "key_concepts": [
+        "Agentic RAG and GraphRAG, and When ",
+        "Agentic RAG",
+        "Query Decomposition",
+        "GraphRAG",
+        "Entities and Relationships",
+        "Advanced Retrieval Paradigms"
+      ],
+      "common_misconceptions": [
+        "Thinking Agentic RAG and GraphRAG, and When  can be scaled indefinitely without observing quadratic memory overhead.",
+        "Treating Agentic RAG and GraphRAG, and When  as a black box without configuring grounding constraints or validation checks."
+      ],
+      "analogy_seed": "Like a conference translator distilling technical jargon (Agentic RAG and GraphRAG, and When ) into natural native idioms in real time. Leveraging Agentic RAG and GraphRAG, and When  enables Agentic RAG to maintain high relevance.",
+      "diagram_type": "comparison",
+      "diagram_brief": "Comparison Matrix: Mode A (Agentic RAG and GraphRAG, and When ) vs Mode B (Agentic RAG) evaluated on Latency, Overhead, and Scalability",
+      "summary_seed": "Agentic RAG\nStandard RAG is static: one query -> one retrieval -> one answer."
+    },
+    "ai-what-is-an-ai-agent-and-how-does-the-react-reasoning-acting-loop-work": {
+      "key_concepts": [
+        "an AI Agent and How Does the ReAct ",
+        "AI Agent",
+        "Thought",
+        "Action",
+        "Observation",
+        "Repeat"
+      ],
+      "common_misconceptions": [
+        "Thinking an AI Agent and How Does the ReAct  can be scaled indefinitely without observing quadratic memory overhead.",
+        "Treating an AI Agent and How Does the ReAct  as a black box without configuring grounding constraints or validation checks."
+      ],
+      "analogy_seed": "Like a theater lighting designer directing focus with spotlights (an AI Agent and How Does the ReAct ) onto key actors during critical scenes. Leveraging an AI Agent and How Does the ReAct  enables AI Agent to maintain high relevance.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (an AI Agent and How Does the ReAct ) -> Execution Cluster (AI Agent) -> Distributed Storage Tier (Thought)",
+      "summary_seed": "AI Agent Definition\nAn AI Agent is an autonomous software system that pairs a Large Language Model (as the reasoning brain) with external tools, memory, and ...."
+    },
+    "ai-what-is-the-model-context-protocol-mcp-and-how-does-it-standardize-ai-tool-integration": {
+      "key_concepts": [
+        "the Model Context Protocol (MCP) an",
+        "MCP",
+        "MCP Host",
+        "MCP Client",
+        "MCP Server",
+        "Resources"
+      ],
+      "common_misconceptions": [
+        "Thinking the Model Context Protocol (MCP) an can be scaled indefinitely without observing quadratic memory overhead.",
+        "Treating the Model Context Protocol (MCP) an as a black box without configuring grounding constraints or validation checks."
+      ],
+      "analogy_seed": "Like a master editor selecting the most impactful paragraphs (the Model Context Protocol (MCP) an) to summarize a 500-page manuscript. Leveraging the Model Context Protocol (MCP) an enables MCP to maintain high relevance.",
+      "diagram_type": "sequence",
+      "diagram_brief": "Initiator (the Model Context Protocol (MCP) an) -> Handshake Payload -> Validator (MCP) -> Verified Response (MCP Host)",
+      "summary_seed": "What is MCP (Model Context Protocol)?\nDeveloped by Anthropic and adopted as an open industry standard, MCP is an open protocol that standardizes how AI appli...."
+    },
+    "ai-how-do-you-design-short-term-and-long-term-memory-architectures-for-ai-agents": {
+      "key_concepts": [
+        "Design Short-Term and Long-Term Mem",
+        "Long-Term Episodic Memory",
+        "Agent Memory Architectures"
+      ],
+      "common_misconceptions": [
+        "Thinking Design Short-Term and Long-Term Mem can be scaled indefinitely without observing quadratic memory overhead.",
+        "Treating Design Short-Term and Long-Term Mem as a black box without configuring grounding constraints or validation checks."
+      ],
+      "analogy_seed": "Like an architectural draftsman overlaying blueprint transparencies (Design Short-Term and Long-Term Mem) to align plumbing with structural beams. Leveraging Design Short-Term and Long-Term Mem enables Long-Term Episodic Memory to maintain high relevance.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (Design Short-Term and Long-Term Mem) -> Execution Cluster (Long-Term Episodic Memory) -> Distributed Storage Tier (Agent Memory Architectures)",
+      "summary_seed": "Memory Taxonomy in Autonomous AI Agents\n\n1."
+    },
+    "ai-what-is-parameter-efficient-fine-tuning-peft-and-how-does-lora-work-mathematically": {
+      "key_concepts": [
+        "Parameter-Efficient Fine-Tuning (PE",
+        "Zero Additional Inference Latency",
+        "Parameter-Efficient Fine-Tuning"
+      ],
+      "common_misconceptions": [
+        "Thinking Parameter-Efficient Fine-Tuning (PE can be scaled indefinitely without observing quadratic memory overhead.",
+        "Treating Parameter-Efficient Fine-Tuning (PE as a black box without configuring grounding constraints or validation checks."
+      ],
+      "analogy_seed": "Like an expert sommelier matching subtle aroma profiles (Parameter-Efficient Fine-Tuning (PE) across multi-course dining menus. Leveraging Parameter-Efficient Fine-Tuning (PE enables Zero Additional Inference Latency to maintain high relevance.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (Parameter-Efficient Fine-Tuning (PE) -> Execution Cluster (Zero Additional Inference Latency) -> Distributed Storage Tier (Parameter-Efficient Fine-Tuning)",
+      "summary_seed": "The Challenge of Full Fine-Tuning\nFull fine-tuning of a 70-billion-parameter model requires updating all 70B weights, necessitating hundreds of gigabytes of ...."
+    },
+    "ai-compare-model-alignment-techniques-rlhf-vs-direct-preference-optimization-dpo": {
+      "key_concepts": [
+        "Compare Model Alignment Techniques:",
+        "Reward Model",
+        "Model Alignment & Preference Tuning"
+      ],
+      "common_misconceptions": [
+        "Thinking Compare Model Alignment Techniques: can be scaled indefinitely without observing quadratic memory overhead.",
+        "Treating Compare Model Alignment Techniques: as a black box without configuring grounding constraints or validation checks."
+      ],
+      "analogy_seed": "Like a flight navigator cross-referencing radar readings (Compare Model Alignment Techniques:) to steer around sudden weather cells. Leveraging Compare Model Alignment Techniques: enables Reward Model to maintain high relevance.",
+      "diagram_type": "comparison",
+      "diagram_brief": "Comparison Matrix: Mode A (Compare Model Alignment Techniques:) vs Mode B (Reward Model) evaluated on Latency, Overhead, and Scalability",
+      "summary_seed": "The Goal of Alignment\nPre-trained LLMs predict next tokens from raw web scrapes, which can include toxic, unhelpful, or hallucinated text."
+    },
+    "ai-what-is-quantization-and-how-do-gguf-awq-and-gptq-differ": {
+      "key_concepts": [
+        "Quantization and How Do GGUF, AWQ, ",
+        "CPU and edge inference",
+        "GPU-only batched inference",
+        "Q4_K_M",
+        "Q5_K_S",
+        "Model Quantization"
+      ],
+      "common_misconceptions": [
+        "Thinking Quantization and How Do GGUF, AWQ,  can be scaled indefinitely without observing quadratic memory overhead.",
+        "Treating Quantization and How Do GGUF, AWQ,  as a black box without configuring grounding constraints or validation checks."
+      ],
+      "analogy_seed": "Like a research librarian scanning an encyclopedia index (Quantization and How Do GGUF, AWQ, ) to retrieve the exact three citations needed. Leveraging Quantization and How Do GGUF, AWQ,  enables CPU and edge inference to maintain high relevance.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (Quantization and How Do GGUF, AWQ, ) -> Execution Cluster (CPU and edge inference) -> Distributed Storage Tier (GPU-only batched inference)",
+      "summary_seed": "Quantization Concepts\nQuantization compresses neural network weights from 16-bit floating point (FP16/BF16 - 2 bytes per param) to 8-bit, 4-bit, or even 2-bi...."
+    },
+    "ai-how-do-you-optimize-first-token-latency-ttft-and-inter-token-latency-itl-in-production-": {
+      "key_concepts": [
+        "Optimize First-Token Latency (TTFT)",
+        "Speculative Decoding",
+        "Chunked Prefill",
+        "Production Latency Optimization"
+      ],
+      "common_misconceptions": [
+        "Thinking Optimize First-Token Latency (TTFT) can be scaled indefinitely without observing quadratic memory overhead.",
+        "Treating Optimize First-Token Latency (TTFT) as a black box without configuring grounding constraints or validation checks."
+      ],
+      "analogy_seed": "Like an orchestra conductor cueing the brass section (Optimize First-Token Latency (TTFT)) to harmonize with strings at precise tempos. Leveraging Optimize First-Token Latency (TTFT) enables Speculative Decoding to maintain high relevance.",
+      "diagram_type": "flow",
+      "diagram_brief": "Optimize First-Token Latency (TTFT) Ingest -> Speculative Decoding Transformation -> Chunked Prefill State Buffer -> Production Latency Optimization Downstream Target",
+      "summary_seed": "The Two Critical Metrics of LLM Latency\n1."
+    },
+    "ai-what-is-semantic-caching-and-how-does-it-reduce-ai-operating-costs": {
+      "key_concepts": [
+        "Semantic Caching and How Does It Re",
+        "Vector Embedding",
+        "Vector Index Lookup",
+        "Cache Hit",
+        "Cache Miss",
+        "Caching Architectures"
+      ],
+      "common_misconceptions": [
+        "Thinking Semantic Caching and How Does It Re can be scaled indefinitely without observing quadratic memory overhead.",
+        "Treating Semantic Caching and How Does It Re as a black box without configuring grounding constraints or validation checks."
+      ],
+      "analogy_seed": "Like a conference translator distilling technical jargon (Semantic Caching and How Does It Re) into natural native idioms in real time. Leveraging Semantic Caching and How Does It Re enables Vector Embedding to maintain high relevance.",
+      "diagram_type": "comparison",
+      "diagram_brief": "Comparison Matrix: Mode A (Semantic Caching and How Does It Re) vs Mode B (Vector Embedding) evaluated on Latency, Overhead, and Scalability",
+      "summary_seed": "Exact Match vs Semantic Caching\nTraditional Redis caching requires an exact string match (`hash(prompt) == cached_hash`)."
+    },
+    "ai-how-do-you-systematically-evaluate-an-llm-application-in-production-llm-as-a-judge-and-": {
+      "key_concepts": [
+        "Systematically Evaluate an LLM Appl",
+        "Faithfulness",
+        "Answer Relevance",
+        "Evaluation & Quality Assurance"
+      ],
+      "common_misconceptions": [
+        "Thinking Systematically Evaluate an LLM Appl can be scaled indefinitely without observing quadratic memory overhead.",
+        "Treating Systematically Evaluate an LLM Appl as a black box without configuring grounding constraints or validation checks."
+      ],
+      "analogy_seed": "Like a theater lighting designer directing focus with spotlights (Systematically Evaluate an LLM Appl) onto key actors during critical scenes. Leveraging Systematically Evaluate an LLM Appl enables Faithfulness to maintain high relevance.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (Systematically Evaluate an LLM Appl) -> Execution Cluster (Faithfulness) -> Distributed Storage Tier (Answer Relevance)",
+      "summary_seed": "The Evaluation Challenge\nBecause generative AI outputs are unstructured and non-deterministic, traditional unit tests (`assert response == expected`) cannot ...."
+    }
+  }
+}

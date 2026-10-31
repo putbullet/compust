@@ -1,0 +1,1144 @@
+{
+  "version": 3,
+  "domain_id": "security_engineering",
+  "total_packs": 67,
+  "packs": {
+    "how-to-classify-cyber-security-roles-and-job-functions": {
+      "key_concepts": [
+        "How Can You Classify the Roles in C",
+        "Threat Intelligence Analyst",
+        "Penetration Tester",
+        "Cloud Security Engineer",
+        "Network Security Engineer",
+        "Security Compliance Auditor"
+      ],
+      "common_misconceptions": [
+        "Relying solely on How Can You Classify the Roles in C at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming How Can You Classify the Roles in C configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like an embassy security checkpoint inspecting digital passports (How Can You Classify the Roles in C) before granting consular access. Enforcing How Can You Classify the Roles in C protects Threat Intelligence Analyst from unauthorized access.",
+      "diagram_type": "none",
+      "diagram_brief": null,
+      "summary_seed": "Overview of Cyber Security Job Roles\nCyber Security is a vast discipline with distinct specialized tracks."
+    },
+    "sec-what-are-the-common-cyberattacks": {
+      "key_concepts": [
+        "the Common Cyberattacks",
+        "Phishing",
+        "Social Engineering Attacks",
+        "Ransomware",
+        "Botnet Attacks",
+        "Core Attack Vectors"
+      ],
+      "common_misconceptions": [
+        "Relying solely on the Common Cyberattacks at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming the Common Cyberattacks configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a tamper-evident bank deposit bag with unique serial numbers (the Common Cyberattacks) verifying chain-of-custody. Enforcing the Common Cyberattacks protects Phishing from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (the Common Cyberattacks) -> Execution Cluster (Phishing) -> Distributed Storage Tier (Social Engineering Attacks)",
+      "summary_seed": "Primary Cyber Attack Vectors\n\nCyberattacks threaten confidentiality, integrity, and availability across computing infrastructure:\n\n- Phishing: Fraudulent com...."
+    },
+    "sec-what-are-the-elements-of-cybersecurity": {
+      "key_concepts": [
+        "the Elements of Cybersecurity",
+        "Network Security",
+        "Security Domains & Elements"
+      ],
+      "common_misconceptions": [
+        "Relying solely on the Elements of Cybersecurity at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming the Elements of Cybersecurity configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a two-key safety deposit box (the Elements of Cybersecurity) requiring both the vault manager and box owner to turn keys simultaneously. Enforcing the Elements of Cybersecurity protects Network Security from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (the Elements of Cybersecurity) -> Execution Cluster (Network Security) -> Distributed Storage Tier (Security Domains & Elements)",
+      "summary_seed": "The Foundational Elements of Modern Cybersecurity\n\nDefense-in-depth requires coordinated technical and administrative controls across multiple layers:\n\n1."
+    },
+    "sec-define-dns-and-explain-its-security-implications": {
+      "key_concepts": [
+        "Define DNS and Explain Its Security",
+        "DNS Tunneling",
+        "DNSSEC",
+        "DoH",
+        "DoT",
+        "company.com"
+      ],
+      "common_misconceptions": [
+        "Relying solely on Define DNS and Explain Its Security at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming Define DNS and Explain Its Security configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a secure airport boarding gate verifying boarding passes and photo IDs (Define DNS and Explain Its Security) before passengers reach jet bridges. Enforcing Define DNS and Explain Its Security protects DNS Tunneling from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (Define DNS and Explain Its Security) -> Execution Cluster (DNS Tunneling) -> Distributed Storage Tier (DNSSEC)",
+      "summary_seed": "What is DNS?\nThe Domain Name System (DNS) is the hierarchical, decentralized naming system that translates human-readable domain names (e."
+    },
+    "sec-what-is-a-firewall-and-how-does-it-operate": {
+      "key_concepts": [
+        "a Firewall and How Does It Operate",
+        "firewall",
+        "Stateful Inspection Firewalls",
+        "Perimeter Controls"
+      ],
+      "common_misconceptions": [
+        "Relying solely on a Firewall and How Does It Operate at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming a Firewall and How Does It Operate configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a corporate badge reader logging authorized door entries (a Firewall and How Does It Operate) and flagging unauthorized tailgaters. Enforcing a Firewall and How Does It Operate protects firewall from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (a Firewall and How Does It Operate) -> Execution Cluster (firewall) -> Distributed Storage Tier (Stateful Inspection Firewalls)",
+      "summary_seed": "Definition & Core Functionality\nA firewall is a network security device or software module that inspects incoming and outgoing packet traffic, making determi...."
+    },
+    "sec-what-is-a-vpn-and-how-does-it-protect-traffic": {
+      "key_concepts": [
+        "a VPN and How Does It Protect Traff",
+        "VPN",
+        "Tunneling Protocols",
+        "Endpoint Authentication",
+        "Encrypted Tunnels"
+      ],
+      "common_misconceptions": [
+        "Relying solely on a VPN and How Does It Protect Traff at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming a VPN and How Does It Protect Traff configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like an embassy security checkpoint inspecting digital passports (a VPN and How Does It Protect Traff) before granting consular access. Enforcing a VPN and How Does It Protect Traff protects VPN from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (a VPN and How Does It Protect Traff) -> Execution Cluster (VPN) -> Distributed Storage Tier (Tunneling Protocols)",
+      "summary_seed": "What is a Virtual Private Network (VPN)?\nA VPN establishes an encrypted, authenticated point-to-point tunnel over an untrusted public network (such as the In...."
+    },
+    "sec-what-are-the-different-sources-and-types-of-malware": {
+      "key_concepts": [
+        "the Different Sources and Types of ",
+        "Worms",
+        "Viruses",
+        "Trojans",
+        "Ransomware",
+        "Adware"
+      ],
+      "common_misconceptions": [
+        "Relying solely on the Different Sources and Types of  at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming the Different Sources and Types of  configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a tamper-evident bank deposit bag with unique serial numbers (the Different Sources and Types of ) verifying chain-of-custody. Enforcing the Different Sources and Types of  protects Worms from unauthorized access.",
+      "diagram_type": "hierarchy",
+      "diagram_brief": "Root Engine (the Different Sources and Types of ) -> Branch Coordinators (Worms) -> Leaf Partitions (Viruses)",
+      "summary_seed": "Malware Classification & Propagation Vectors\n\nMalicious software ('malware') is classified based on its execution mechanics and operational intent:\n\n- Worms:...."
+    },
+    "sec-how-does-email-work-and-what-are-its-key-security-protocols": {
+      "key_concepts": [
+        "How Does Email Work and What are It",
+        "Dispatched via SMTP",
+        "DNS MX Lookup",
+        "Client Retrieval",
+        "IMAP",
+        "POP3"
+      ],
+      "common_misconceptions": [
+        "Relying solely on How Does Email Work and What are It at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming How Does Email Work and What are It configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a two-key safety deposit box (How Does Email Work and What are It) requiring both the vault manager and box owner to turn keys simultaneously. Enforcing How Does Email Work and What are It protects Dispatched via SMTP from unauthorized access.",
+      "diagram_type": "sequence",
+      "diagram_brief": "Initiator (How Does Email Work and What are It) -> Handshake Payload -> Validator (Dispatched via SMTP) -> Verified Response (DNS MX Lookup)",
+      "summary_seed": "Email Routing Architecture\nWhen an email is dispatched:\n1."
+    },
+    "sec-what-is-the-difference-between-active-and-passive-cyber-attacks": {
+      "key_concepts": [
+        "the Difference Between Active and P",
+        "Action",
+        "Impacted Goal",
+        "Integrity",
+        "Availability",
+        "Confidentiality"
+      ],
+      "common_misconceptions": [
+        "Relying solely on the Difference Between Active and P at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming the Difference Between Active and P configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a secure airport boarding gate verifying boarding passes and photo IDs (the Difference Between Active and P) before passengers reach jet bridges. Enforcing the Difference Between Active and P protects Action from unauthorized access.",
+      "diagram_type": "comparison",
+      "diagram_brief": "Comparison Matrix: Mode A (the Difference Between Active and P) vs Mode B (Action) evaluated on Latency, Overhead, and Scalability",
+      "summary_seed": "Active vs Passive Attacks Comparison\n\n| Attribute | Active Attack | Passive Attack |\n| :--- | :--- | :--- |\n| Action | Modifies message contents, deletes dat...."
+    },
+    "sec-what-is-a-social-engineering-attack-and-how-can-organizations-defend-against-it": {
+      "key_concepts": [
+        "a Social Engineering Attack and How",
+        "Social Engineering Attack",
+        "Pretexting",
+        "Baiting",
+        "Watering Hole Attack",
+        "Human Risk & Social Engineering"
+      ],
+      "common_misconceptions": [
+        "Relying solely on a Social Engineering Attack and How at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming a Social Engineering Attack and How configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a corporate badge reader logging authorized door entries (a Social Engineering Attack and How) and flagging unauthorized tailgaters. Enforcing a Social Engineering Attack and How protects Social Engineering Attack from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (a Social Engineering Attack and How) -> Execution Cluster (Social Engineering Attack) -> Distributed Storage Tier (Pretexting)",
+      "summary_seed": "Definition\nA Social Engineering Attack is the psychological manipulation of individuals into divulging confidential information, relinquishing access credent...."
+    },
+    "sec-who-are-black-hat-white-hat-and-grey-hat-hackers": {
+      "key_concepts": [
+        "Who Are Black Hat, White Hat, and G",
+        "Grey Hat Hackers",
+        "Hacking Terminology"
+      ],
+      "common_misconceptions": [
+        "Relying solely on Who Are Black Hat, White Hat, and G at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming Who Are Black Hat, White Hat, and G configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like an embassy security checkpoint inspecting digital passports (Who Are Black Hat, White Hat, and G) before granting consular access. Enforcing Who Are Black Hat, White Hat, and G protects Grey Hat Hackers from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (Who Are Black Hat, White Hat, and G) -> Execution Cluster (Grey Hat Hackers) -> Distributed Storage Tier (Hacking Terminology)",
+      "summary_seed": "Ethical Hacker Spectrum\n\n- White Hat Hackers (Ethical Hackers): Certified security researchers and penetration testers who operate under explicit, legally bi...."
+    },
+    "sec-define-encryption-and-decryption": {
+      "key_concepts": [
+        "Define Encryption and Decryption",
+        "Encryption",
+        "plaintext",
+        "ciphertext",
+        "confidentiality",
+        "Decryption"
+      ],
+      "common_misconceptions": [
+        "Relying solely on Define Encryption and Decryption at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming Define Encryption and Decryption configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a tamper-evident bank deposit bag with unique serial numbers (Define Encryption and Decryption) verifying chain-of-custody. Enforcing Define Encryption and Decryption protects Encryption from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (Define Encryption and Decryption) -> Execution Cluster (Encryption) -> Distributed Storage Tier (plaintext)",
+      "summary_seed": "Encryption and Decryption Fundamentals\n\n- Encryption: The mathematical transformation of unencrypted, human-readable data (plaintext) into an unreadable, pse...."
+    },
+    "sec-what-is-the-difference-between-plaintext-and-cleartext": {
+      "key_concepts": [
+        "the Difference Between Plaintext an",
+        "Plaintext",
+        "Cleartext",
+        "Cryptographic Foundations"
+      ],
+      "common_misconceptions": [
+        "Relying solely on the Difference Between Plaintext an at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming the Difference Between Plaintext an configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a two-key safety deposit box (the Difference Between Plaintext an) requiring both the vault manager and box owner to turn keys simultaneously. Enforcing the Difference Between Plaintext an protects Plaintext from unauthorized access.",
+      "diagram_type": "comparison",
+      "diagram_brief": "Comparison Matrix: Mode A (the Difference Between Plaintext an) vs Mode B (Plaintext) evaluated on Latency, Overhead, and Scalability",
+      "summary_seed": "Plaintext vs Cleartext Nuances\n\nWhile frequently used interchangeably, they hold precise technical distinctions:\n\n- Plaintext: Data formatted as the direct i...."
+    },
+    "sec-what-is-a-block-cipher-and-what-are-common-cipher-modes": {
+      "key_concepts": [
+        "a Block Cipher and What are Common ",
+        "block cipher",
+        "Insecure",
+        "Must Never Be Used",
+        "confidentiality",
+        "Symmetric Ciphers"
+      ],
+      "common_misconceptions": [
+        "Relying solely on a Block Cipher and What are Common  at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming a Block Cipher and What are Common  configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a secure airport boarding gate verifying boarding passes and photo IDs (a Block Cipher and What are Common ) before passengers reach jet bridges. Enforcing a Block Cipher and What are Common  protects block cipher from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (a Block Cipher and What are Common ) -> Execution Cluster (block cipher) -> Distributed Storage Tier (Insecure)",
+      "summary_seed": "Block Cipher Architecture\nA block cipher is a deterministic symmetric algorithm that encrypts fixed-size blocks of plaintext (typically 128 bits in modern ci...."
+    },
+    "sec-what-is-the-cia-triad": {
+      "key_concepts": [
+        "the CIA Triad",
+        "CIA Triad",
+        "Confidentiality",
+        "Integrity",
+        "Availability",
+        "Security Principles"
+      ],
+      "common_misconceptions": [
+        "Relying solely on the CIA Triad at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming the CIA Triad configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a corporate badge reader logging authorized door entries (the CIA Triad) and flagging unauthorized tailgaters. Enforcing the CIA Triad protects CIA Triad from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (the CIA Triad) -> Execution Cluster (CIA Triad) -> Distributed Storage Tier (Confidentiality)",
+      "summary_seed": "The CIA Triad: Core Pillars of Information Security\n\nThe CIA Triad provides the foundational benchmark for assessing, implementing, and auditing information ...."
+    },
+    "sec-what-is-the-tcp-three-way-handshake-and-what-anomaly-patterns-threaten-it": {
+      "key_concepts": [
+        "the TCP Three-Way Handshake and Wha",
+        "SYN Cookies",
+        "ESTABLISHED",
+        "Transport Protocols"
+      ],
+      "common_misconceptions": [
+        "Relying solely on the TCP Three-Way Handshake and Wha at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming the TCP Three-Way Handshake and Wha configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like an embassy security checkpoint inspecting digital passports (the TCP Three-Way Handshake and Wha) before granting consular access. Enforcing the TCP Three-Way Handshake and Wha protects SYN Cookies from unauthorized access.",
+      "diagram_type": "sequence",
+      "diagram_brief": "Initiator (the TCP Three-Way Handshake and Wha) -> Handshake Payload -> Validator (SYN Cookies) -> Verified Response (ESTABLISHED)",
+      "summary_seed": "The TCP 3-Way Handshake\nTransmission Control Protocol (TCP) establishes reliable full-duplex streams via a three-packet sequence:\n\n1."
+    },
+    "sec-how-can-identity-theft-be-prevented": {
+      "key_concepts": [
+        "How Can Identity Theft Be Prevented",
+        "Phishing-Resistant MFA",
+        "Password Manager Adoption",
+        "Egress Threat Detection",
+        "Identity & Credential Defense"
+      ],
+      "common_misconceptions": [
+        "Relying solely on How Can Identity Theft Be Prevented at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming How Can Identity Theft Be Prevented configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a tamper-evident bank deposit bag with unique serial numbers (How Can Identity Theft Be Prevented) verifying chain-of-custody. Enforcing How Can Identity Theft Be Prevented protects Phishing-Resistant MFA from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (How Can Identity Theft Be Prevented) -> Execution Cluster (Phishing-Resistant MFA) -> Distributed Storage Tier (Password Manager Adoption)",
+      "summary_seed": "Best Practices for Preventing Identity Theft\n\nDefending personal and corporate digital identities requires rigorous technical and behavioral hygiene:\n\n1."
+    },
+    "sec-what-are-common-hashing-functions-and-how-do-cryptographic-hashes-differ-from-index-ha": {
+      "key_concepts": [
+        "Common Hashing Functions and How Do",
+        "Deterministic",
+        "Second Pre-image Resistance",
+        "Collision Resistance",
+        "Secure General-Purpose",
+        "Argon2id"
+      ],
+      "common_misconceptions": [
+        "Relying solely on Common Hashing Functions and How Do at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming Common Hashing Functions and How Do configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a two-key safety deposit box (Common Hashing Functions and How Do) requiring both the vault manager and box owner to turn keys simultaneously. Enforcing Common Hashing Functions and How Do protects Deterministic from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (Common Hashing Functions and How Do) -> Execution Cluster (Deterministic) -> Distributed Storage Tier (Second Pre-image Resistance)",
+      "summary_seed": "Cryptographic Hash Function Properties\nA cryptographic hash function maps arbitrary-length binary input into a fixed-size digest, satisfying four strict math...."
+    },
+    "sec-what-is-two-factor-authentication-2fa-and-what-factors-compose-it": {
+      "key_concepts": [
+        "Two-Factor Authentication (2FA) and",
+        "not",
+        "Authentication & IAM"
+      ],
+      "common_misconceptions": [
+        "Relying solely on Two-Factor Authentication (2FA) and at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming Two-Factor Authentication (2FA) and configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a secure airport boarding gate verifying boarding passes and photo IDs (Two-Factor Authentication (2FA) and) before passengers reach jet bridges. Enforcing Two-Factor Authentication (2FA) and protects not from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (Two-Factor Authentication (2FA) and) -> Execution Cluster (not) -> Distributed Storage Tier (Authentication & IAM)",
+      "summary_seed": "Core Concepts of Multi-Factor Authentication\n2FA requires users to validate identity by presenting two independent evidence elements across three primary aut...."
+    },
+    "sec-what-does-xss-stand-for-and-how-can-it-be-prevented": {
+      "key_concepts": [
+        "What Does XSS Stand For and How Can",
+        "XSS",
+        "Reflected XSS",
+        "DOM-based XSS",
+        "Context-Aware Output Encoding",
+        "HttpOnly Cookies"
+      ],
+      "common_misconceptions": [
+        "Relying solely on What Does XSS Stand For and How Can at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming What Does XSS Stand For and How Can configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a corporate badge reader logging authorized door entries (What Does XSS Stand For and How Can) and flagging unauthorized tailgaters. Enforcing What Does XSS Stand For and How Can protects XSS from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (What Does XSS Stand For and How Can) -> Execution Cluster (XSS) -> Distributed Storage Tier (Reflected XSS)",
+      "summary_seed": "What is Cross-Site Scripting (XSS)?\nXSS occurs when a web application takes untrusted user input and incorporates it into dynamic HTML responses without prop...."
+    },
+    "sec-what-do-you-mean-by-shoulder-surfing": {
+      "key_concepts": [
+        "What Do You Mean by Shoulder Surfin",
+        "Shoulder Surfing",
+        "Physical Security"
+      ],
+      "common_misconceptions": [
+        "Relying solely on What Do You Mean by Shoulder Surfin at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming What Do You Mean by Shoulder Surfin configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like an embassy security checkpoint inspecting digital passports (What Do You Mean by Shoulder Surfin) before granting consular access. Enforcing What Do You Mean by Shoulder Surfin protects Shoulder Surfing from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (What Do You Mean by Shoulder Surfin) -> Execution Cluster (Shoulder Surfing) -> Distributed Storage Tier (Physical Security)",
+      "summary_seed": "Definition & Attack Scenarios\nShoulder Surfing is a direct observation technique where an attacker physically peers over a victim's shoulder or uses binocula...."
+    },
+    "sec-what-is-the-difference-between-hashing-and-encryption": {
+      "key_concepts": [
+        "the Difference Between Hashing and ",
+        "Directionality",
+        "One-Way Function",
+        "Two-Way Function",
+        "Output Size",
+        "Fixed Length"
+      ],
+      "common_misconceptions": [
+        "Relying solely on the Difference Between Hashing and  at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming the Difference Between Hashing and  configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a tamper-evident bank deposit bag with unique serial numbers (the Difference Between Hashing and ) verifying chain-of-custody. Enforcing the Difference Between Hashing and  protects Directionality from unauthorized access.",
+      "diagram_type": "comparison",
+      "diagram_brief": "Comparison Matrix: Mode A (the Difference Between Hashing and ) vs Mode B (Directionality) evaluated on Latency, Overhead, and Scalability",
+      "summary_seed": "Hashing vs Encryption Comparison Matrix\n\n| Property | Hashing | Encryption |\n| :--- | :--- | :--- |\n| Directionality | One-Way Function: Cannot mathematicall...."
+    },
+    "sec-differentiate-between-information-security-and-information-assurance": {
+      "key_concepts": [
+        "Differentiate Between Information S",
+        "Governance & Assurance",
+        "Differentiate",
+        "Between",
+        "Information",
+        "Security"
+      ],
+      "common_misconceptions": [
+        "Relying solely on Differentiate Between Information S at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming Differentiate Between Information S configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a two-key safety deposit box (Differentiate Between Information S) requiring both the vault manager and box owner to turn keys simultaneously. Enforcing Differentiate Between Information S protects Governance & Assurance from unauthorized access.",
+      "diagram_type": "comparison",
+      "diagram_brief": "Comparison Matrix: Mode A (Differentiate Between Information S) vs Mode B (Governance & Assurance) evaluated on Latency, Overhead, and Scalability",
+      "summary_seed": "InfoSec vs Information Assurance (IA)\n\n- Information Security (InfoSec): The practice and technical tooling focused on defending information and computing as...."
+    },
+    "sec-write-the-difference-between-https-and-ssl": {
+      "key_concepts": [
+        "Write the Difference Between HTTPS ",
+        "deprecated",
+        "Transport Security"
+      ],
+      "common_misconceptions": [
+        "Relying solely on Write the Difference Between HTTPS  at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming Write the Difference Between HTTPS  configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a secure airport boarding gate verifying boarding passes and photo IDs (Write the Difference Between HTTPS ) before passengers reach jet bridges. Enforcing Write the Difference Between HTTPS  protects deprecated from unauthorized access.",
+      "diagram_type": "comparison",
+      "diagram_brief": "Comparison Matrix: Mode A (Write the Difference Between HTTPS ) vs Mode B (deprecated) evaluated on Latency, Overhead, and Scalability",
+      "summary_seed": "HTTPS vs SSL Relationship\n\n- SSL (Secure Sockets Layer): The legacy cryptographic transport protocol introduced by Netscape in the 1990s."
+    },
+    "sec-what-do-you-mean-by-system-hardening": {
+      "key_concepts": [
+        "What Do You Mean by System Hardenin",
+        "System Hardening",
+        "Close Unnecessary Network Ports",
+        "Change Default Credentials",
+        "Enforce Kernel Security Modules",
+        "admin"
+      ],
+      "common_misconceptions": [
+        "Relying solely on What Do You Mean by System Hardenin at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming What Do You Mean by System Hardenin configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a corporate badge reader logging authorized door entries (What Do You Mean by System Hardenin) and flagging unauthorized tailgaters. Enforcing What Do You Mean by System Hardenin protects System Hardening from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (What Do You Mean by System Hardenin) -> Execution Cluster (System Hardening) -> Distributed Storage Tier (Close Unnecessary Network Ports)",
+      "summary_seed": "The Engineering Process of System Hardening\nSystem Hardening is the systematic reduction of a system's attack surface by eliminating unnecessary software, di...."
+    },
+    "sec-differentiate-between-spear-phishing-and-phishing": {
+      "key_concepts": [
+        "Differentiate Between Spear Phishin",
+        "Phishing",
+        "Spear Phishing",
+        "Social Engineering"
+      ],
+      "common_misconceptions": [
+        "Relying solely on Differentiate Between Spear Phishin at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming Differentiate Between Spear Phishin configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like an embassy security checkpoint inspecting digital passports (Differentiate Between Spear Phishin) before granting consular access. Enforcing Differentiate Between Spear Phishin protects Phishing from unauthorized access.",
+      "diagram_type": "comparison",
+      "diagram_brief": "Comparison Matrix: Mode A (Differentiate Between Spear Phishin) vs Mode B (Phishing) evaluated on Latency, Overhead, and Scalability",
+      "summary_seed": "Phishing vs Spear Phishing\n\n- Phishing: Mass email campaigns distributed indiscriminately to thousands of recipients using generic templates ('Your Bank Acco...."
+    },
+    "sec-what-do-you-mean-by-perfect-forward-secrecy-pfs": {
+      "key_concepts": [
+        "What Do You Mean by Perfect Forward",
+        "Perfect Forward Secrecy",
+        "cannot",
+        "ECDHE",
+        "ephemeral key pairs",
+        "Key Agreement Protocols"
+      ],
+      "common_misconceptions": [
+        "Relying solely on What Do You Mean by Perfect Forward at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming What Do You Mean by Perfect Forward configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a tamper-evident bank deposit bag with unique serial numbers (What Do You Mean by Perfect Forward) verifying chain-of-custody. Enforcing What Do You Mean by Perfect Forward protects Perfect Forward Secrecy from unauthorized access.",
+      "diagram_type": "sequence",
+      "diagram_brief": "Initiator (What Do You Mean by Perfect Forward) -> Handshake Payload -> Validator (Perfect Forward Secrecy) -> Verified Response (cannot)",
+      "summary_seed": "What is Perfect Forward Secrecy (PFS)?\nPerfect Forward Secrecy is a feature of secure key agreement protocols ensuring that if a server's long-term private k...."
+    },
+    "sec-how-can-man-in-the-middle-mitm-attacks-be-prevented": {
+      "key_concepts": [
+        "How Can Man-in-the-Middle (MITM) At",
+        "Strict End-to-End Encryption",
+        "Certificate Pinning",
+        "sslstrip",
+        "Network Attack Prevention"
+      ],
+      "common_misconceptions": [
+        "Relying solely on How Can Man-in-the-Middle (MITM) At at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming How Can Man-in-the-Middle (MITM) At configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a two-key safety deposit box (How Can Man-in-the-Middle (MITM) At) requiring both the vault manager and box owner to turn keys simultaneously. Enforcing How Can Man-in-the-Middle (MITM) At protects Strict End-to-End Encryption from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (How Can Man-in-the-Middle (MITM) At) -> Execution Cluster (Strict End-to-End Encryption) -> Distributed Storage Tier (Certificate Pinning)",
+      "summary_seed": "Mitigations Against MITM Attacks\n\n1."
+    },
+    "sec-what-is-ransomware-and-what-is-the-best-defense-strategy": {
+      "key_concepts": [
+        "Ransomware and What is the Best Def",
+        "double extortion",
+        "EDR with Behavioral Containment",
+        "Network Segmentation",
+        "Ransomware Defense"
+      ],
+      "common_misconceptions": [
+        "Relying solely on Ransomware and What is the Best Def at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming Ransomware and What is the Best Def configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a secure airport boarding gate verifying boarding passes and photo IDs (Ransomware and What is the Best Def) before passengers reach jet bridges. Enforcing Ransomware and What is the Best Def protects double extortion from unauthorized access.",
+      "diagram_type": "sequence",
+      "diagram_brief": "Initiator (Ransomware and What is the Best Def) -> Handshake Payload -> Validator (double extortion) -> Verified Response (EDR with Behavioral Containment)",
+      "summary_seed": "What is Ransomware?\nRansomware is malicious software that exfiltrates, encrypts, or locks a victim's data assets, demanding cryptocurrency extortion payments...."
+    },
+    "sec-what-is-public-key-infrastructure-pki": {
+      "key_concepts": [
+        "Public Key Infrastructure (PKI)",
+        "PKI",
+        "Certificate Revocation Mechanisms",
+        "PKI Architecture"
+      ],
+      "common_misconceptions": [
+        "Relying solely on Public Key Infrastructure (PKI) at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming Public Key Infrastructure (PKI) configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a corporate badge reader logging authorized door entries (Public Key Infrastructure (PKI)) and flagging unauthorized tailgaters. Enforcing Public Key Infrastructure (PKI) protects PKI from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (Public Key Infrastructure (PKI)) -> Execution Cluster (PKI) -> Distributed Storage Tier (Certificate Revocation Mechanisms)",
+      "summary_seed": "Core Components of a Public Key Infrastructure\nA PKI is the integrated system of hardware, software, policies, and standards that manages the generation, dis...."
+    },
+    "sec-what-is-spoofing-and-what-are-the-main-types": {
+      "key_concepts": [
+        "Spoofing and What are the Main Type",
+        "Spoofing",
+        "IP Spoofing",
+        "Email Spoofing",
+        "DNS Spoofing",
+        "Spoofing Vectors"
+      ],
+      "common_misconceptions": [
+        "Relying solely on Spoofing and What are the Main Type at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming Spoofing and What are the Main Type configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like an embassy security checkpoint inspecting digital passports (Spoofing and What are the Main Type) before granting consular access. Enforcing Spoofing and What are the Main Type protects Spoofing from unauthorized access.",
+      "diagram_type": "sequence",
+      "diagram_brief": "Initiator (Spoofing and What are the Main Type) -> Handshake Payload -> Validator (Spoofing) -> Verified Response (IP Spoofing)",
+      "summary_seed": "Spoofing Concepts\nSpoofing occurs when an adversary impersonates an authorized identity, device, or protocol address to deceive systems or users into grantin...."
+    },
+    "sec-what-do-you-mean-by-a-null-session-in-windows-networking": {
+      "key_concepts": [
+        "What Do You Mean by a Null Session ",
+        "null session",
+        "RestrictAnonymous",
+        "Windows Security"
+      ],
+      "common_misconceptions": [
+        "Relying solely on What Do You Mean by a Null Session  at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming What Do You Mean by a Null Session  configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a tamper-evident bank deposit bag with unique serial numbers (What Do You Mean by a Null Session ) verifying chain-of-custody. Enforcing What Do You Mean by a Null Session  protects null session from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (What Do You Mean by a Null Session ) -> Execution Cluster (null session) -> Distributed Storage Tier (RestrictAnonymous)",
+      "summary_seed": "Null Session Mechanism & Risks\nA null session is an anonymous connection established over SMB / NetBIOS (ports 139 / 445) without providing a valid username ...."
+    },
+    "sec-differentiate-between-threat-vulnerability-and-risk": {
+      "key_concepts": [
+        "Differentiate Between Threat, Vulne",
+        "Threat",
+        "Vulnerability",
+        "Risk",
+        "Risk Management"
+      ],
+      "common_misconceptions": [
+        "Relying solely on Differentiate Between Threat, Vulne at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming Differentiate Between Threat, Vulne configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a two-key safety deposit box (Differentiate Between Threat, Vulne) requiring both the vault manager and box owner to turn keys simultaneously. Enforcing Differentiate Between Threat, Vulne protects Threat from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (Differentiate Between Threat, Vulne) -> Execution Cluster (Threat) -> Distributed Storage Tier (Vulnerability)",
+      "summary_seed": "Threat, Vulnerability, and Risk: The Fundamental Security Equation\n\n$$\\text{Risk} = \\text{Threat} \\times \\text{Vulnerability} \\times \\text{Impact}$$\n\n1."
+    },
+    "sec-how-can-content-security-policy-csp-neutralize-xss-attacks": {
+      "key_concepts": [
+        "How Can Content Security Policy (CS",
+        "CSP",
+        "nonce",
+        "Browser Security Controls"
+      ],
+      "common_misconceptions": [
+        "Relying solely on How Can Content Security Policy (CS at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming How Can Content Security Policy (CS configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a secure airport boarding gate verifying boarding passes and photo IDs (How Can Content Security Policy (CS) before passengers reach jet bridges. Enforcing How Can Content Security Policy (CS protects CSP from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (How Can Content Security Policy (CS) -> Execution Cluster (CSP) -> Distributed Storage Tier (nonce)",
+      "summary_seed": "Content Security Policy (CSP) as a Last Line of Defense\nEven if an application mistakenly renders unsanitized attacker input, CSP instructs modern browsers t...."
+    },
+    "sec-what-are-the-core-sub-domains-and-specializations-of-cybersecurity": {
+      "key_concepts": [
+        "the Core Sub-Domains and Specializa",
+        "Network Security",
+        "Cloud Security",
+        "Domain Taxonomies"
+      ],
+      "common_misconceptions": [
+        "Relying solely on the Core Sub-Domains and Specializa at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming the Core Sub-Domains and Specializa configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a corporate badge reader logging authorized door entries (the Core Sub-Domains and Specializa) and flagging unauthorized tailgaters. Enforcing the Core Sub-Domains and Specializa protects Network Security from unauthorized access.",
+      "diagram_type": "flow",
+      "diagram_brief": "the Core Sub-Domains and Specializa Ingest -> Network Security Transformation -> Cloud Security State Buffer -> Domain Taxonomies Downstream Target",
+      "summary_seed": "Major Technical Sub-Domains of Cybersecurity\n\n1."
+    },
+    "sec-what-are-honeypots-and-how-do-deception-systems-benefit-defenders": {
+      "key_concepts": [
+        "Honeypots and How Do Deception Syst",
+        "honeypot",
+        "Low-Interaction Honeypots",
+        "High-Interaction Honeypots",
+        "Deception Technology"
+      ],
+      "common_misconceptions": [
+        "Relying solely on Honeypots and How Do Deception Syst at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming Honeypots and How Do Deception Syst configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like an embassy security checkpoint inspecting digital passports (Honeypots and How Do Deception Syst) before granting consular access. Enforcing Honeypots and How Do Deception Syst protects honeypot from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (Honeypots and How Do Deception Syst) -> Execution Cluster (honeypot) -> Distributed Storage Tier (Low-Interaction Honeypots)",
+      "summary_seed": "What is a Honeypot?\nA honeypot is an isolated, deliberately vulnerable decoy system deployed within a network to attract, detect, and analyze unauthorized at...."
+    },
+    "sec-differentiate-between-vulnerability-assessment-va-and-penetration-testing-pt": {
+      "key_concepts": [
+        "Differentiate Between Vulnerability",
+        "Objective",
+        "Methodology",
+        "Scope",
+        "Output",
+        "Security Testing Methodologies"
+      ],
+      "common_misconceptions": [
+        "Relying solely on Differentiate Between Vulnerability at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming Differentiate Between Vulnerability configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a tamper-evident bank deposit bag with unique serial numbers (Differentiate Between Vulnerability) verifying chain-of-custody. Enforcing Differentiate Between Vulnerability protects Objective from unauthorized access.",
+      "diagram_type": "comparison",
+      "diagram_brief": "Comparison Matrix: Mode A (Differentiate Between Vulnerability) vs Mode B (Objective) evaluated on Latency, Overhead, and Scalability",
+      "summary_seed": "Vulnerability Assessment vs Penetration Testing\n\n| Feature | Vulnerability Assessment (VA) | Penetration Testing (PT) |\n| :--- | :--- | :--- |\n| Objective | ...."
+    },
+    "sec-what-is-a-brute-force-attack-and-how-can-it-be-effectively-prevented": {
+      "key_concepts": [
+        "a Brute Force Attack and How Can It",
+        "brute force attack",
+        "Mandatory MFA",
+        "CAPTCHA Integration",
+        "Credential Stuffing Defenses",
+        "Authentication Attacks"
+      ],
+      "common_misconceptions": [
+        "Relying solely on a Brute Force Attack and How Can It at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming a Brute Force Attack and How Can It configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a two-key safety deposit box (a Brute Force Attack and How Can It) requiring both the vault manager and box owner to turn keys simultaneously. Enforcing a Brute Force Attack and How Can It protects brute force attack from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (a Brute Force Attack and How Can It) -> Execution Cluster (brute force attack) -> Distributed Storage Tier (Mandatory MFA)",
+      "summary_seed": "Brute Force Mechanics\nA brute force attack is an automated trial-and-error approach where an adversary cycles through thousands or millions of password, encr...."
+    },
+    "sec-what-is-a-man-in-the-middle-mitm-attack": {
+      "key_concepts": [
+        "a Man-in-the-Middle (MITM) Attack",
+        "Man-in-the-Middle attack",
+        "ARP Poisoning on Local LANs",
+        "DNS Spoofing",
+        "Network Attacks"
+      ],
+      "common_misconceptions": [
+        "Relying solely on a Man-in-the-Middle (MITM) Attack at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming a Man-in-the-Middle (MITM) Attack configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a secure airport boarding gate verifying boarding passes and photo IDs (a Man-in-the-Middle (MITM) Attack) before passengers reach jet bridges. Enforcing a Man-in-the-Middle (MITM) Attack protects Man-in-the-Middle attack from unauthorized access.",
+      "diagram_type": "flow",
+      "diagram_brief": "a Man-in-the-Middle (MITM) Attack Ingest -> Man-in-the-Middle attack Transformation -> ARP Poisoning on Local LANs State Buffer -> DNS Spoofing Downstream Target",
+      "summary_seed": "MITM Attack Overview\nA Man-in-the-Middle attack occurs when an adversary positions themselves within the communication path between two independent endpoints (e."
+    },
+    "oauth2-pkce-architecture": {
+      "key_concepts": [
+        "OAuth 2.0 PKCE Architecture and Why",
+        "public clients",
+        "Client Generation",
+        "Authorization Request",
+        "Authorization Server Storage",
+        "Token Exchange"
+      ],
+      "common_misconceptions": [
+        "Relying solely on OAuth 2.0 PKCE Architecture and Why at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming OAuth 2.0 PKCE Architecture and Why configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a corporate badge reader logging authorized door entries (OAuth 2.0 PKCE Architecture and Why) and flagging unauthorized tailgaters. Enforcing OAuth 2.0 PKCE Architecture and Why protects public clients from unauthorized access.",
+      "diagram_type": "sequence",
+      "diagram_brief": "Initiator (OAuth 2.0 PKCE Architecture and Why) -> Handshake Payload -> Validator (public clients) -> Verified Response (Client Generation)",
+      "summary_seed": "Why PKCE was Introduced (RFC 7636)\nIn traditional OAuth 2."
+    },
+    "sec-what-are-the-steps-involved-in-hacking-a-server-or-network-and-how-defenders-counter-t": {
+      "key_concepts": [
+        "the Steps Involved in Hacking a Ser",
+        "Reconnaissance",
+        "Exploitation",
+        "Lateral Movement",
+        "Data Exfiltration",
+        "Adversary Lifecycle (Cyber Kill Chain)"
+      ],
+      "common_misconceptions": [
+        "Relying solely on the Steps Involved in Hacking a Ser at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming the Steps Involved in Hacking a Ser configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like an embassy security checkpoint inspecting digital passports (the Steps Involved in Hacking a Ser) before granting consular access. Enforcing the Steps Involved in Hacking a Ser protects Reconnaissance from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (the Steps Involved in Hacking a Ser) -> Execution Cluster (Reconnaissance) -> Distributed Storage Tier (Exploitation)",
+      "summary_seed": "The Cyber Kill Chain: Attack Phases and Defensive Controls\n\n1."
+    },
+    "sec-what-are-the-various-packet-sniffing-and-flow-analysis-tools": {
+      "key_concepts": [
+        "the Various Packet Sniffing and Flo",
+        "Wireshark",
+        "tcpdump",
+        "NetworkMiner",
+        "Packet Capture & Analysis"
+      ],
+      "common_misconceptions": [
+        "Relying solely on the Various Packet Sniffing and Flo at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming the Various Packet Sniffing and Flo configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a tamper-evident bank deposit bag with unique serial numbers (the Various Packet Sniffing and Flo) verifying chain-of-custody. Enforcing the Various Packet Sniffing and Flo protects Wireshark from unauthorized access.",
+      "diagram_type": "sequence",
+      "diagram_brief": "Initiator (the Various Packet Sniffing and Flo) -> Handshake Payload -> Validator (Wireshark) -> Verified Response (tcpdump)",
+      "summary_seed": "Network Analysis & Packet Capture Toolbox\n\n- Wireshark: The industry-standard graphical packet analyzer for deep protocol dissection, stream reconstruction, ...."
+    },
+    "sec-what-is-sql-injection-sqli-and-how-can-it-be-prevented": {
+      "key_concepts": [
+        "SQL Injection (SQLi) and How Can It",
+        "Blind SQLi",
+        "Out-of-band",
+        "Web Application Security"
+      ],
+      "common_misconceptions": [
+        "Relying solely on SQL Injection (SQLi) and How Can It at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming SQL Injection (SQLi) and How Can It configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a two-key safety deposit box (SQL Injection (SQLi) and How Can It) requiring both the vault manager and box owner to turn keys simultaneously. Enforcing SQL Injection (SQLi) and How Can It protects Blind SQLi from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (SQL Injection (SQLi) and How Can It) -> Execution Cluster (Blind SQLi) -> Distributed Storage Tier (Out-of-band)",
+      "summary_seed": "SQL Injection Mechanisms\nSQL Injection occurs when untrusted user input is directly concatenated into dynamic SQL query strings, allowing attackers to manipu...."
+    },
+    "sec-what-is-a-distributed-denial-of-service-ddos-attack-and-mitigation-options": {
+      "key_concepts": [
+        "a Distributed Denial of Service (DD",
+        "Availability & DDoS",
+        "What",
+        "Distributed",
+        "Denial",
+        "Service"
+      ],
+      "common_misconceptions": [
+        "Relying solely on a Distributed Denial of Service (DD at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming a Distributed Denial of Service (DD configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a secure airport boarding gate verifying boarding passes and photo IDs (a Distributed Denial of Service (DD) before passengers reach jet bridges. Enforcing a Distributed Denial of Service (DD protects Availability & DDoS from unauthorized access.",
+      "diagram_type": "sequence",
+      "diagram_brief": "Initiator (a Distributed Denial of Service (DD) -> Handshake Payload -> Validator (Availability & DDoS) -> Verified Response (What)",
+      "summary_seed": "Volumetric Attacks (Layer 3/4): Flooding network bandwidth using NTP/DNS amplification or UDP floods measured in Gbps/Tbps."
+    },
+    "sec-how-to-avoid-arp-poisoning-on-enterprise-local-networks": {
+      "key_concepts": [
+        "Avoid ARP Poisoning on Enterprise L",
+        "DHCP Snooping",
+        "Static ARP Tables",
+        "Layer 2 Security"
+      ],
+      "common_misconceptions": [
+        "Relying solely on Avoid ARP Poisoning on Enterprise L at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming Avoid ARP Poisoning on Enterprise L configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a corporate badge reader logging authorized door entries (Avoid ARP Poisoning on Enterprise L) and flagging unauthorized tailgaters. Enforcing Avoid ARP Poisoning on Enterprise L protects DHCP Snooping from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (Avoid ARP Poisoning on Enterprise L) -> Execution Cluster (DHCP Snooping) -> Distributed Storage Tier (Static ARP Tables)",
+      "summary_seed": "Layer 2 Defenses Against ARP Poisoning\n\n1."
+    },
+    "sec-what-is-a-proxy-firewall-and-how-does-it-compare-to-stateful-firewalls": {
+      "key_concepts": [
+        "a Proxy Firewall and How Does It Co",
+        "proxy firewall",
+        "Stateful Packet Inspection",
+        "Firewall Architectures"
+      ],
+      "common_misconceptions": [
+        "Relying solely on a Proxy Firewall and How Does It Co at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming a Proxy Firewall and How Does It Co configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like an embassy security checkpoint inspecting digital passports (a Proxy Firewall and How Does It Co) before granting consular access. Enforcing a Proxy Firewall and How Does It Co protects proxy firewall from unauthorized access.",
+      "diagram_type": "comparison",
+      "diagram_brief": "Comparison Matrix: Mode A (a Proxy Firewall and How Does It Co) vs Mode B (proxy firewall) evaluated on Latency, Overhead, and Scalability",
+      "summary_seed": "Proxy (Application Layer) Firewall Architecture\nA proxy firewall (Layer 7) acts as an intermediary by terminating client TCP connections, performing deep ins...."
+    },
+    "sec-explain-ssltls-encryption-how-it-secures-web-traffic-and-configuration-best-practices": {
+      "key_concepts": [
+        "SSL/TLS Encryption: How It Secures ",
+        "Authentication",
+        "TLS 1.3",
+        "HSTS",
+        "TLS_AES_256_GCM_SHA384",
+        "TLS_CHACHA20_POLY1305_SHA256"
+      ],
+      "common_misconceptions": [
+        "Relying solely on SSL/TLS Encryption: How It Secures  at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming SSL/TLS Encryption: How It Secures  configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a tamper-evident bank deposit bag with unique serial numbers (SSL/TLS Encryption: How It Secures ) verifying chain-of-custody. Enforcing SSL/TLS Encryption: How It Secures  protects Authentication from unauthorized access.",
+      "diagram_type": "sequence",
+      "diagram_brief": "Initiator (SSL/TLS Encryption: How It Secures ) -> Handshake Payload -> Validator (Authentication) -> Verified Response (TLS 1.3)",
+      "summary_seed": "TLS Operational Architecture\nTLS secures HTTP by orchestrating three phases:\n1."
+    },
+    "sec-what-do-you-mean-by-penetration-testing-and-rules-of-engagement": {
+      "key_concepts": [
+        "What Do You Mean by Penetration Tes",
+        "Defined Scope",
+        "Testing Windows",
+        "Emergency Stop Procedures",
+        "Offensive Security & Pentesting"
+      ],
+      "common_misconceptions": [
+        "Relying solely on What Do You Mean by Penetration Tes at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming What Do You Mean by Penetration Tes configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a two-key safety deposit box (What Do You Mean by Penetration Tes) requiring both the vault manager and box owner to turn keys simultaneously. Enforcing What Do You Mean by Penetration Tes protects Defined Scope from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (What Do You Mean by Penetration Tes) -> Execution Cluster (Defined Scope) -> Distributed Storage Tier (Testing Windows)",
+      "summary_seed": "Penetration Testing Execution\nA penetration test is an authorized simulated attack designed to discover, exploit, and chain vulnerabilities to validate the o...."
+    },
+    "sec-what-are-the-risks-associated-with-public-wi-fi": {
+      "key_concepts": [
+        "the Risks Associated with Public Wi",
+        "Evil Twin Access Points",
+        "Packet Sniffing",
+        "Starbucks_Guest",
+        "Wireless Security"
+      ],
+      "common_misconceptions": [
+        "Relying solely on the Risks Associated with Public Wi at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming the Risks Associated with Public Wi configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a secure airport boarding gate verifying boarding passes and photo IDs (the Risks Associated with Public Wi) before passengers reach jet bridges. Enforcing the Risks Associated with Public Wi protects Evil Twin Access Points from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (the Risks Associated with Public Wi) -> Execution Cluster (Evil Twin Access Points) -> Distributed Storage Tier (Packet Sniffing)",
+      "summary_seed": "Threats on Untrusted Wireless Networks\n1."
+    },
+    "sec-explain-the-difference-between-diffie-hellman-and-rsa-cryptography": {
+      "key_concepts": [
+        "the Difference Between Diffie-Hellm",
+        "key agreement protocol",
+        "RSA",
+        "asymmetric cryptosystem",
+        "encryption",
+        "digital signatures"
+      ],
+      "common_misconceptions": [
+        "Relying solely on the Difference Between Diffie-Hellm at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming the Difference Between Diffie-Hellm configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a corporate badge reader logging authorized door entries (the Difference Between Diffie-Hellm) and flagging unauthorized tailgaters. Enforcing the Difference Between Diffie-Hellm protects key agreement protocol from unauthorized access.",
+      "diagram_type": "comparison",
+      "diagram_brief": "Comparison Matrix: Mode A (the Difference Between Diffie-Hellm) vs Mode B (key agreement protocol) evaluated on Latency, Overhead, and Scalability",
+      "summary_seed": "Diffie-Hellman vs RSA Comparison\n\n- Diffie-Hellman (DH / ECDH):\n  - Specifically a key agreement protocol."
+    },
+    "sec-explain-session-hijacking-mechanisms-and-countermeasures": {
+      "key_concepts": [
+        "Session Hijacking Mechanisms and Co",
+        "Web Session Security",
+        "Explain",
+        "Session",
+        "Hijacking",
+        "Mechanisms"
+      ],
+      "common_misconceptions": [
+        "Relying solely on Session Hijacking Mechanisms and Co at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming Session Hijacking Mechanisms and Co configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like an embassy security checkpoint inspecting digital passports (Session Hijacking Mechanisms and Co) before granting consular access. Enforcing Session Hijacking Mechanisms and Co protects Web Session Security from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (Session Hijacking Mechanisms and Co) -> Execution Cluster (Web Session Security) -> Distributed Storage Tier (Explain)",
+      "summary_seed": "How Attackers Hijack Active Sessions\nSession hijacking occurs when an attacker steals or predicts a legitimate user's session identifier (cookie / token), al...."
+    },
+    "sec-what-is-zero-trust-architecture-and-the-principle-of-least-privilege": {
+      "key_concepts": [
+        "Zero Trust Architecture and the Pri",
+        "Zero Trust",
+        "Continuous Verification",
+        "Assume Breach",
+        "Enterprise Architecture"
+      ],
+      "common_misconceptions": [
+        "Relying solely on Zero Trust Architecture and the Pri at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming Zero Trust Architecture and the Pri configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a tamper-evident bank deposit bag with unique serial numbers (Zero Trust Architecture and the Pri) verifying chain-of-custody. Enforcing Zero Trust Architecture and the Pri protects Zero Trust from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (Zero Trust Architecture and the Pri) -> Execution Cluster (Zero Trust) -> Distributed Storage Tier (Continuous Verification)",
+      "summary_seed": "Core Tenets of Zero Trust (NIST SP 800-207)\nTraditional perimeter security operated under the 'Castle and Moat' model (trust everything inside the corporate ...."
+    },
+    "sec-what-is-a-siem-security-information-and-event-management-system-and-what-role-does-it-": {
+      "key_concepts": [
+        "a SIEM (Security Information and Ev",
+        "SIEM",
+        "Security Operations & Triage"
+      ],
+      "common_misconceptions": [
+        "Relying solely on a SIEM (Security Information and Ev at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming a SIEM (Security Information and Ev configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a two-key safety deposit box (a SIEM (Security Information and Ev) requiring both the vault manager and box owner to turn keys simultaneously. Enforcing a SIEM (Security Information and Ev protects SIEM from unauthorized access.",
+      "diagram_type": "flow",
+      "diagram_brief": "a SIEM (Security Information and Ev Ingest -> SIEM Transformation -> Security Operations & Triage State Buffer -> Destination Downstream Target",
+      "summary_seed": ", Splunk, Microsoft Sentinel, Elastic Security) acts as the centralized nerve center for a Security Operations Center (SOC)."
+    },
+    "sec-how-does-a-rootkit-function-and-what-are-detection-techniques": {
+      "key_concepts": [
+        "How Does a Rootkit Function and Wha",
+        "rootkit",
+        "User-Mode Rootkits",
+        "Kernel-Mode Rootkits",
+        "UEFI Secure Boot",
+        "EPROCESS"
+      ],
+      "common_misconceptions": [
+        "Relying solely on How Does a Rootkit Function and Wha at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming How Does a Rootkit Function and Wha configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a secure airport boarding gate verifying boarding passes and photo IDs (How Does a Rootkit Function and Wha) before passengers reach jet bridges. Enforcing How Does a Rootkit Function and Wha protects rootkit from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (How Does a Rootkit Function and Wha) -> Execution Cluster (rootkit) -> Distributed Storage Tier (User-Mode Rootkits)",
+      "summary_seed": "Rootkit Architecture\nA rootkit is a sophisticated stealth malware suite designed to maintain privileged persistent access while concealing its presence from ...."
+    },
+    "sec-what-is-a-zero-day-vulnerability-and-how-should-organizations-formulate-a-response": {
+      "key_concepts": [
+        "a Zero-Day Vulnerability and How Sh",
+        "Zero-Day Vulnerability",
+        "Threat Hunting",
+        "Virtual Patching",
+        "Network Isolation",
+        "Disable Vulnerable Services"
+      ],
+      "common_misconceptions": [
+        "Relying solely on a Zero-Day Vulnerability and How Sh at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming a Zero-Day Vulnerability and How Sh configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a corporate badge reader logging authorized door entries (a Zero-Day Vulnerability and How Sh) and flagging unauthorized tailgaters. Enforcing a Zero-Day Vulnerability and How Sh protects Zero-Day Vulnerability from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (a Zero-Day Vulnerability and How Sh) -> Execution Cluster (Zero-Day Vulnerability) -> Distributed Storage Tier (Threat Hunting)",
+      "summary_seed": "Zero-Day Defined\nA Zero-Day Vulnerability is a security flaw in software or hardware that is unknown to the vendor, or known but without an available vendor ...."
+    },
+    "sec-advanced-man-in-the-middle-attacks-tls-interception-rogue-certificates-and-protocol-do": {
+      "key_concepts": [
+        "Advanced Man-in-the-Middle Attacks:",
+        "TLS Downgrade Attacks",
+        "OAuth Token Interception",
+        "Advanced Attack Techniques"
+      ],
+      "common_misconceptions": [
+        "Relying solely on Advanced Man-in-the-Middle Attacks: at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming Advanced Man-in-the-Middle Attacks: configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like an embassy security checkpoint inspecting digital passports (Advanced Man-in-the-Middle Attacks:) before granting consular access. Enforcing Advanced Man-in-the-Middle Attacks: protects TLS Downgrade Attacks from unauthorized access.",
+      "diagram_type": "sequence",
+      "diagram_brief": "Initiator (Advanced Man-in-the-Middle Attacks:) -> Handshake Payload -> Validator (TLS Downgrade Attacks) -> Verified Response (OAuth Token Interception)",
+      "summary_seed": "Advanced MITM Exploitation Vectors\n\n1."
+    },
+    "sec-what-is-traceroute-how-does-it-function-under-the-hood-and-how-is-it-used-in-threat-hu": {
+      "key_concepts": [
+        "Traceroute, How Does It Function Un",
+        "TTL Increment",
+        "BGP Route Hijacking Detection",
+        "Egress Firewall Validation",
+        "Network Forensics"
+      ],
+      "common_misconceptions": [
+        "Relying solely on Traceroute, How Does It Function Un at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming Traceroute, How Does It Function Un configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a tamper-evident bank deposit bag with unique serial numbers (Traceroute, How Does It Function Un) verifying chain-of-custody. Enforcing Traceroute, How Does It Function Un protects TTL Increment from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (Traceroute, How Does It Function Un) -> Execution Cluster (TTL Increment) -> Distributed Storage Tier (BGP Route Hijacking Detection)",
+      "summary_seed": "Traceroute Operational Mechanics\nTraceroute maps the network hop path between source and destination by manipulating the Time-To-Live (TTL) field in packet I...."
+    },
+    "sec-what-is-the-difference-between-hids-host-based-and-nids-network-based": {
+      "key_concepts": [
+        "the Difference Between HIDS (Host-B",
+        "Placement",
+        "Visibility",
+        "Encryption Blindspot",
+        "Resource Overhead",
+        "Intrusion Detection Architecture"
+      ],
+      "common_misconceptions": [
+        "Relying solely on the Difference Between HIDS (Host-B at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming the Difference Between HIDS (Host-B configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a two-key safety deposit box (the Difference Between HIDS (Host-B) requiring both the vault manager and box owner to turn keys simultaneously. Enforcing the Difference Between HIDS (Host-B protects Placement from unauthorized access.",
+      "diagram_type": "comparison",
+      "diagram_brief": "Comparison Matrix: Mode A (the Difference Between HIDS (Host-B) vs Mode B (Placement) evaluated on Latency, Overhead, and Scalability",
+      "summary_seed": "HIDS vs NIDS Architecture Comparison\n\n| Feature | Host-based IDS (HIDS) | Network-based IDS (NIDS) |\n| :--- | :--- | :--- |\n| Placement | Installed as a loca...."
+    },
+    "sec-explain-advanced-persistent-threats-apt-and-defense-in-depth-strategies": {
+      "key_concepts": [
+        "Advanced Persistent Threats (APT) a",
+        "Long Dwell Times",
+        ".\n- Proactive hypothesis-driven",
+        "powershell.exe",
+        "wmic.exe",
+        "certutil.exe"
+      ],
+      "common_misconceptions": [
+        "Relying solely on Advanced Persistent Threats (APT) a at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming Advanced Persistent Threats (APT) a configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a secure airport boarding gate verifying boarding passes and photo IDs (Advanced Persistent Threats (APT) a) before passengers reach jet bridges. Enforcing Advanced Persistent Threats (APT) a protects Long Dwell Times from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (Advanced Persistent Threats (APT) a) -> Execution Cluster (Long Dwell Times) -> Distributed Storage Tier (.\n- Proactive hypothesis-driven)",
+      "summary_seed": "What Distinguishes an APT?\nAn Advanced Persistent Threat (APT) is a prolonged, stealthy, and targeted computer network attack conducted by highly skilled adv...."
+    },
+    "sec-explain-micro-segmentation-in-cloud-modern-enterprise-networks": {
+      "key_concepts": [
+        "Micro-Segmentation in Cloud & Moder",
+        "Micro-segmentation",
+        "Zero Trust Architecture"
+      ],
+      "common_misconceptions": [
+        "Relying solely on Micro-Segmentation in Cloud & Moder at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming Micro-Segmentation in Cloud & Moder configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a corporate badge reader logging authorized door entries (Micro-Segmentation in Cloud & Moder) and flagging unauthorized tailgaters. Enforcing Micro-Segmentation in Cloud & Moder protects Micro-segmentation from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (Micro-Segmentation in Cloud & Moder) -> Execution Cluster (Micro-segmentation) -> Distributed Storage Tier (Zero Trust Architecture)",
+      "summary_seed": "Micro-Segmentation Principles\nTraditional perimeter security leaves internal network subnets flat, allowing an attacker who breaches one workstation to pivot...."
+    },
+    "sec-what-is-post-quantum-cryptography-pqc-and-why-must-organizations-prepare": {
+      "key_concepts": [
+        "Post-Quantum Cryptography (PQC) and",
+        "and",
+        "Cryptographic Agility",
+        "Post-Quantum Cryptography"
+      ],
+      "common_misconceptions": [
+        "Relying solely on Post-Quantum Cryptography (PQC) and at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming Post-Quantum Cryptography (PQC) and configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like an embassy security checkpoint inspecting digital passports (Post-Quantum Cryptography (PQC) and) before granting consular access. Enforcing Post-Quantum Cryptography (PQC) and protects and from unauthorized access.",
+      "diagram_type": "sequence",
+      "diagram_brief": "Initiator (Post-Quantum Cryptography (PQC) and) -> Handshake Payload -> Validator (and) -> Verified Response (Cryptographic Agility)",
+      "summary_seed": "The Quantum Threat to Modern Cryptography\nSufficiently powerful quantum computers running Shor's Algorithm will be capable of breaking modern asymmetric publ...."
+    },
+    "sec-explain-federated-identity-management-saml-20-vs-oidc-oauth-20": {
+      "key_concepts": [
+        "Federated Identity Management (SAML",
+        "OAuth 2.0",
+        "Identity Federation"
+      ],
+      "common_misconceptions": [
+        "Relying solely on Federated Identity Management (SAML at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming Federated Identity Management (SAML configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a tamper-evident bank deposit bag with unique serial numbers (Federated Identity Management (SAML) verifying chain-of-custody. Enforcing Federated Identity Management (SAML protects OAuth 2.0 from unauthorized access.",
+      "diagram_type": "comparison",
+      "diagram_brief": "Comparison Matrix: Mode A (Federated Identity Management (SAML) vs Mode B (OAuth 2.0) evaluated on Latency, Overhead, and Scalability",
+      "summary_seed": "Federated Identity Architecture\nFederated identity enables cross-domain Single Sign-On (SSO), allowing users to authenticate with a central Identity Provider...."
+    },
+    "sec-how-do-you-manage-cryptographic-keys-securely-across-their-full-lifecycle": {
+      "key_concepts": [
+        "Manage Cryptographic Keys Securely ",
+        "Generation",
+        "Storage",
+        "Rotation",
+        "Key Management & HSMs"
+      ],
+      "common_misconceptions": [
+        "Relying solely on Manage Cryptographic Keys Securely  at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming Manage Cryptographic Keys Securely  configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a two-key safety deposit box (Manage Cryptographic Keys Securely ) requiring both the vault manager and box owner to turn keys simultaneously. Enforcing Manage Cryptographic Keys Securely  protects Generation from unauthorized access.",
+      "diagram_type": "flow",
+      "diagram_brief": "Manage Cryptographic Keys Securely  Ingest -> Generation Transformation -> Storage State Buffer -> Rotation Downstream Target",
+      "summary_seed": "The Cryptographic Key Lifecycle (NIST SP 800-57)\n\n1."
+    },
+    "sec-what-are-the-standard-methods-for-secure-data-disposal-on-storage-media": {
+      "key_concepts": [
+        "the Standard Methods for Secure Dat",
+        "Clear",
+        "Purge",
+        "Destroy",
+        "Data Sanitization Standards"
+      ],
+      "common_misconceptions": [
+        "Relying solely on the Standard Methods for Secure Dat at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming the Standard Methods for Secure Dat configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a secure airport boarding gate verifying boarding passes and photo IDs (the Standard Methods for Secure Dat) before passengers reach jet bridges. Enforcing the Standard Methods for Secure Dat protects Clear from unauthorized access.",
+      "diagram_type": "architecture",
+      "diagram_brief": "Client Tier (the Standard Methods for Secure Dat) -> Execution Cluster (Clear) -> Distributed Storage Tier (Purge)",
+      "summary_seed": "Sanitization Methods (NIST SP 800-88 Rev."
+    },
+    "sec-explain-what-is-active-reconnaissance-vs-passive-reconnaissance-in-threat-operations": {
+      "key_concepts": [
+        "What is Active Reconnaissance vs Pa",
+        "Passive Reconnaissance",
+        "Active Reconnaissance",
+        "Reconnaissance Methodologies"
+      ],
+      "common_misconceptions": [
+        "Relying solely on What is Active Reconnaissance vs Pa at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming What is Active Reconnaissance vs Pa configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a corporate badge reader logging authorized door entries (What is Active Reconnaissance vs Pa) and flagging unauthorized tailgaters. Enforcing What is Active Reconnaissance vs Pa protects Passive Reconnaissance from unauthorized access.",
+      "diagram_type": "comparison",
+      "diagram_brief": "Comparison Matrix: Mode A (What is Active Reconnaissance vs Pa) vs Mode B (Passive Reconnaissance) evaluated on Latency, Overhead, and Scalability",
+      "summary_seed": "Active vs Passive Reconnaissance\n\n- Passive Reconnaissance:\n  - Gathering intelligence without sending packets directly to the target systems."
+    },
+    "sec-what-is-the-difference-between-authentication-and-authorization": {
+      "key_concepts": [
+        "the difference between authenticati",
+        "Authentication & IAM",
+        "What"
+      ],
+      "common_misconceptions": [
+        "Relying solely on the difference between authenticati at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming the difference between authenticati configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like an embassy security checkpoint inspecting digital passports (the difference between authenticati) before granting consular access. Enforcing the difference between authenticati protects Authentication & IAM from unauthorized access.",
+      "diagram_type": "comparison",
+      "diagram_brief": "Comparison Matrix: Mode A (the difference between authenticati) vs Mode B (Authentication & IAM) evaluated on Latency, Overhead, and Scalability",
+      "summary_seed": "Authentication vs Authorization\n\n- Authentication (AuthN): Verifying the identity of a subject (user, service, device)."
+    },
+    "sec-incident-response-ransomware-triage-scenario": {
+      "key_concepts": [
+        "Walk me through an incident respons",
+        "Preparation",
+        "Containment",
+        "Eradication",
+        "Recovery",
+        "Lessons Learned"
+      ],
+      "common_misconceptions": [
+        "Relying solely on Walk me through an incident respons at the perimeter while ignoring defense-in-depth within internal networks.",
+        "Assuming Walk me through an incident respons configuration defaults provide comprehensive protection without policy auditing."
+      ],
+      "analogy_seed": "Like a tamper-evident bank deposit bag with unique serial numbers (Walk me through an incident respons) verifying chain-of-custody. Enforcing Walk me through an incident respons protects Preparation from unauthorized access.",
+      "diagram_type": "flow",
+      "diagram_brief": "Walk me through an incident respons Ingest -> Preparation Transformation -> Containment State Buffer -> Eradication Downstream Target",
+      "summary_seed": "Incident Response Lifecycle (NIST SP 800-61 / SANS)\n\n1."
+    }
+  }
+}

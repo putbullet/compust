@@ -30,6 +30,7 @@ from ..schemas_interview_prep import (
     InterviewQuestionSummary,
     InterviewQuestionDetail,
     QuestionAIExplainResponse,
+    ExplainContextPack,
 )
 from ..config import get_settings
 from ..database import SessionLocal
@@ -37,7 +38,7 @@ from ..models import InterviewExplanation
 
 logger = logging.getLogger("compust.interview_prep.service")
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 3
 STAR_TARGET_SPLIT = {
     "situation": 15,
     "task": 10,
@@ -122,145 +123,164 @@ def should_question_have_diagram(q: InterviewQuestionDetail) -> bool:
     return any(k in title or k in cat or k in topic or k in slug for k in visual_keywords)
 
 
-def _generate_question_svg_diagram(q: InterviewQuestionDetail) -> Optional[str]:
+def _generate_question_svg_diagram(q: InterviewQuestionDetail, pack: Optional[ExplainContextPack] = None) -> Optional[str]:
     """
-    Generates a clean, valid, professional SVG diagram tailored to the question's archetype.
-    All markup is guaranteed well-formed and visually constrained to viewBox 0 0 640 200.
+    Generates a clean, valid, professional SVG diagram specific to this question.
+    Driven by the question's own ExplainContextPack (diagram_type, diagram_brief, key_concepts).
+    Degrades silently to None if pack indicates 'none' or no visual needed.
     """
-    title = (q.title or "").lower()
-    cat = (q.category or "").lower()
-    domain = (q.domain_id or "").lower()
-    escaped_topic = html.escape((q.topic or "System Architecture")[:28])
+    if not pack or pack.diagram_type == "none":
+        return None
 
-    if "security" in domain or any(k in title for k in ["auth", "oauth", "pkce", "2fa", "mfa", "firewall", "vpn", "arp", "injection", "mitm"]):
+    diag_type = pack.diagram_type
+    raw_concepts = pack.key_concepts or []
+    concepts = [html.escape(str(c)[:24]) for c in raw_concepts]
+    while len(concepts) < 4:
+        concepts.append(f"Component {len(concepts)+1}")
+        
+    c1, c2, c3, c4 = concepts[0], concepts[1], concepts[2], concepts[3]
+    escaped_title = html.escape((q.title or "Technical Architecture")[:36])
+    escaped_brief = html.escape((pack.diagram_brief or "")[:55])
+    domain = (q.domain_id or "").lower()
+    
+    # Theme palette based on domain
+    if "security" in domain:
+        accent_color = "#38bdf8"
+        gate_color = "#a78bfa"
+        core_color = "#34d399"
+        card_stroke = "#334155"
+        category_label = "SECURITY ARCHITECTURE"
+    elif "ai" in domain:
+        accent_color = "#60a5fa"
+        gate_color = "#c084fc"
+        core_color = "#22d3ee"
+        card_stroke = "#1e293b"
+        category_label = "AI ARCHITECTURE & PIPELINE"
+    else:
+        accent_color = "#38bdf8"
+        gate_color = "#fbbf24"
+        core_color = "#34d399"
+        card_stroke = "#334155"
+        category_label = "DISTRIBUTED SYSTEMS TOPOLOGY"
+
+    if diag_type == "flow":
         return f"""<svg viewBox="0 0 640 200" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="secCardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0f172a" />
+    <linearGradient id="flowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b1120" />
       <stop offset="100%" stop-color="#1e293b" />
     </linearGradient>
-    <marker id="secArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 1 L 10 5 L 0 9 z" fill="#38bdf8" />
+    <marker id="arrowHead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="{accent_color}" />
     </marker>
-    <marker id="secGreenArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 1 L 10 5 L 0 9 z" fill="#34d399" />
+    <marker id="arrowHeadGreen" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="{core_color}" />
     </marker>
   </defs>
-  <rect x="2" y="2" width="636" height="196" rx="10" fill="url(#secCardGrad)" stroke="#334155" stroke-width="1.5" />
-  <text x="20" y="28" fill="#38bdf8" font-size="11" font-weight="700" letter-spacing="1">SECURITY ARCHITECTURE: {escaped_topic.upper()}</text>
+  <rect x="2" y="2" width="636" height="196" rx="10" fill="url(#flowGrad)" stroke="{card_stroke}" stroke-width="1.5" />
+  <text x="20" y="26" fill="{accent_color}" font-size="10" font-weight="700" letter-spacing="1">{category_label}: {escaped_title.upper()}</text>
+  {f'<text x="20" y="42" fill="#94a3b8" font-size="9">{escaped_brief}</text>' if escaped_brief else ''}
 
-  <rect x="24" y="60" width="130" height="90" rx="8" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5" />
-  <circle cx="44" cy="82" r="10" fill="#3b82f6" fill-opacity="0.2" stroke="#3b82f6" />
-  <text x="44" y="86" fill="#60a5fa" font-size="11" font-weight="bold" text-anchor="middle">👤</text>
-  <text x="62" y="86" fill="#f8fafc" font-size="12" font-weight="700">Client / Ingress</text>
-  <text x="36" y="112" fill="#94a3b8" font-size="10">Untrusted Origin</text>
-  <text x="36" y="128" fill="#64748b" font-size="9">Initiates Request</text>
+  <rect x="24" y="66" width="130" height="85" rx="8" fill="#1e293b" stroke="{accent_color}" stroke-width="1.5" />
+  <text x="36" y="90" fill="{accent_color}" font-size="11" font-weight="700">1. Stage</text>
+  <text x="36" y="112" fill="#f8fafc" font-size="11" font-weight="600">{c1}</text>
+  <text x="36" y="130" fill="#94a3b8" font-size="9">Input &amp; Parsing</text>
 
-  <line x1="154" y1="105" x2="238" y2="105" stroke="#38bdf8" stroke-width="2" stroke-dasharray="4 2" marker-end="url(#secArrow)" />
-  <text x="196" y="96" fill="#38bdf8" font-size="9" text-anchor="middle">Handshake / Probe</text>
+  <line x1="154" y1="108" x2="182" y2="108" stroke="{accent_color}" stroke-width="2" marker-end="url(#arrowHead)" />
 
-  <rect x="246" y="52" width="150" height="106" rx="8" fill="#0b1329" stroke="#8b5cf6" stroke-width="2" />
-  <circle cx="268" cy="76" r="10" fill="#8b5cf6" fill-opacity="0.2" stroke="#8b5cf6" />
-  <text x="268" y="80" fill="#a78bfa" font-size="11" font-weight="bold" text-anchor="middle">🛡️</text>
-  <text x="286" y="80" fill="#f8fafc" font-size="12" font-weight="700">Validation Gate</text>
-  <text x="260" y="104" fill="#a78bfa" font-size="10">Stateful Inspection</text>
-  <text x="260" y="120" fill="#94a3b8" font-size="9">Constraint Verification</text>
-  <text x="260" y="136" fill="#34d399" font-size="9">✓ Constraints Passed</text>
+  <rect x="188" y="66" width="130" height="85" rx="8" fill="#1e293b" stroke="{gate_color}" stroke-width="1.5" />
+  <text x="200" y="90" fill="{gate_color}" font-size="11" font-weight="700">2. Processing</text>
+  <text x="200" y="112" fill="#f8fafc" font-size="11" font-weight="600">{c2}</text>
+  <text x="200" y="130" fill="#94a3b8" font-size="9">Transformation Core</text>
 
-  <line x1="396" y1="105" x2="478" y2="105" stroke="#34d399" stroke-width="2" marker-end="url(#secGreenArrow)" />
-  <text x="437" y="96" fill="#34d399" font-size="9" text-anchor="middle">Verified Payload</text>
+  <line x1="318" y1="108" x2="346" y2="108" stroke="{gate_color}" stroke-width="2" marker-end="url(#arrowHead)" />
 
-  <rect x="486" y="60" width="130" height="90" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="1.5" />
-  <circle cx="506" cy="82" r="10" fill="#10b981" fill-opacity="0.2" stroke="#10b981" />
-  <text x="506" y="86" fill="#34d399" font-size="11" font-weight="bold" text-anchor="middle">⚡</text>
-  <text x="524" y="86" fill="#f8fafc" font-size="12" font-weight="700">Protected Core</text>
-  <text x="498" y="112" fill="#94a3b8" font-size="10">Application / DB</text>
-  <text x="498" y="128" fill="#64748b" font-size="9">Deterministic State</text>
+  <rect x="352" y="66" width="130" height="85" rx="8" fill="#1e293b" stroke="{core_color}" stroke-width="1.5" />
+  <text x="364" y="90" fill="{core_color}" font-size="11" font-weight="700">3. Optimization</text>
+  <text x="364" y="112" fill="#f8fafc" font-size="11" font-weight="600">{c3}</text>
+  <text x="364" y="130" fill="#94a3b8" font-size="9">State &amp; Partitions</text>
+
+  <line x1="482" y1="108" x2="506" y2="108" stroke="{core_color}" stroke-width="2" marker-end="url(#arrowHeadGreen)" />
+
+  <rect x="512" y="66" width="104" height="85" rx="8" fill="#0f172a" stroke="{core_color}" stroke-width="1.5" />
+  <text x="522" y="90" fill="{core_color}" font-size="11" font-weight="700">4. Target</text>
+  <text x="522" y="112" fill="#f8fafc" font-size="10" font-weight="600">{c4}</text>
+  <text x="522" y="130" fill="#94a3b8" font-size="9">Verified Output</text>
 </svg>"""
 
-    if "ai" in domain or any(k in title for k in ["rag", "attention", "transformer", "agent", "mcp", "llm", "embedding"]):
+    elif diag_type == "comparison":
         return f"""<svg viewBox="0 0 640 200" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="aiCardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#090d16" />
-      <stop offset="100%" stop-color="#111827" />
+    <linearGradient id="compGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b1120" />
+      <stop offset="100%" stop-color="#1e293b" />
     </linearGradient>
-    <marker id="aiArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 1 L 10 5 L 0 9 z" fill="#60a5fa" />
-    </marker>
-    <marker id="aiGreenArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 1 L 10 5 L 0 9 z" fill="#34d399" />
-    </marker>
   </defs>
-  <rect x="2" y="2" width="636" height="196" rx="10" fill="url(#aiCardGrad)" stroke="#1e293b" stroke-width="1.5" />
-  <text x="20" y="28" fill="#38bdf8" font-size="11" font-weight="700" letter-spacing="1">AI PIPELINE TOPOLOGY: {escaped_topic.upper()}</text>
+  <rect x="2" y="2" width="636" height="196" rx="10" fill="url(#compGrad)" stroke="{card_stroke}" stroke-width="1.5" />
+  <text x="20" y="26" fill="{accent_color}" font-size="10" font-weight="700" letter-spacing="1">ARCHITECTURAL COMPARISON: {escaped_title.upper()}</text>
+  {f'<text x="20" y="42" fill="#94a3b8" font-size="9">{escaped_brief}</text>' if escaped_brief else ''}
 
-  <rect x="24" y="60" width="125" height="90" rx="8" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5" />
-  <text x="36" y="84" fill="#60a5fa" font-size="12" font-weight="700">1. Query Ingest</text>
-  <text x="36" y="106" fill="#94a3b8" font-size="10">Dense Embedding</text>
-  <text x="36" y="124" fill="#64748b" font-size="9">Cosine Similarity</text>
+  <!-- Pattern A -->
+  <rect x="24" y="60" width="280" height="115" rx="8" fill="#1e293b" stroke="#ef4444" stroke-width="1.5" />
+  <text x="40" y="86" fill="#f87171" font-size="12" font-weight="700">Approach A (Baseline / Naive): {c1}</text>
+  <text x="40" y="110" fill="#cbd5e1" font-size="10">• Latency profile: Higher compute / IO overhead</text>
+  <text x="40" y="128" fill="#cbd5e1" font-size="10">• Failure mode: Unbounded resource contention</text>
+  <text x="40" y="146" fill="#94a3b8" font-size="9">Operational limit: Bottleneck under burst load</text>
 
-  <line x1="149" y1="105" x2="191" y2="105" stroke="#60a5fa" stroke-width="2" marker-end="url(#aiArrow)" />
+  <!-- VS Separator -->
+  <text x="320" y="122" fill="#94a3b8" font-size="12" font-weight="bold" text-anchor="middle">VS</text>
 
-  <rect x="199" y="60" width="125" height="90" rx="8" fill="#1e293b" stroke="#8b5cf6" stroke-width="1.5" />
-  <text x="211" y="84" fill="#c084fc" font-size="12" font-weight="700">2. Vector Search</text>
-  <text x="211" y="106" fill="#94a3b8" font-size="10">RRF Hybrid BM25</text>
-  <text x="211" y="124" fill="#64748b" font-size="9">Top-K Passages</text>
-
-  <line x1="324" y1="105" x2="366" y2="105" stroke="#c084fc" stroke-width="2" marker-end="url(#aiArrow)" />
-
-  <rect x="374" y="52" width="125" height="106" rx="8" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
-  <text x="386" y="78" fill="#22d3ee" font-size="12" font-weight="700">3. Attention / Core</text>
-  <text x="386" y="100" fill="#f8fafc" font-size="10">Q · Kᵀ / √d_k</text>
-  <text x="386" y="118" fill="#94a3b8" font-size="9">Context Augment</text>
-  <text x="386" y="136" fill="#34d399" font-size="9">Tool Invocation</text>
-
-  <line x1="499" y1="105" x2="541" y2="105" stroke="#34d399" stroke-width="2" marker-end="url(#aiGreenArrow)" />
-
-  <rect x="549" y="60" width="75" height="90" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="1.5" />
-  <text x="557" y="84" fill="#34d399" font-size="11" font-weight="700">Output</text>
-  <text x="557" y="106" fill="#94a3b8" font-size="9">Zero-Halluc</text>
-  <text x="557" y="124" fill="#64748b" font-size="9">Grounded</text>
+  <!-- Pattern B -->
+  <rect x="336" y="60" width="280" height="115" rx="8" fill="#1e293b" stroke="{core_color}" stroke-width="1.5" />
+  <text x="352" y="86" fill="{core_color}" font-size="12" font-weight="700">Approach B (Engineered / Hardened): {c2}</text>
+  <text x="352" y="110" fill="#cbd5e1" font-size="10">• Latency profile: Low-latency deterministic path</text>
+  <text x="352" y="128" fill="#cbd5e1" font-size="10">• Scalability: Partitioned / cached execution</text>
+  <text x="352" y="146" fill="#34d399" font-size="9">✓ Production grade: High availability &amp; throughput</text>
 </svg>"""
 
-    # Data Engineering / Distributed Pipelines
+    # architecture, sequence, or hierarchy
     return f"""<svg viewBox="0 0 640 200" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="deCardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0a101d" />
+    <linearGradient id="archGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b1120" />
       <stop offset="100%" stop-color="#1e293b" />
     </linearGradient>
-    <marker id="deArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 1 L 10 5 L 0 9 z" fill="#38bdf8" />
+    <marker id="archArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="{accent_color}" />
     </marker>
-    <marker id="deGreenArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M 0 1 L 10 5 L 0 9 z" fill="#34d399" />
+    <marker id="archGreen" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="{core_color}" />
     </marker>
   </defs>
-  <rect x="2" y="2" width="636" height="196" rx="10" fill="url(#deCardGrad)" stroke="#334155" stroke-width="1.5" />
-  <text x="20" y="28" fill="#38bdf8" font-size="11" font-weight="700" letter-spacing="1">DISTRIBUTED DATA PIPELINE: {escaped_topic.upper()}</text>
+  <rect x="2" y="2" width="636" height="196" rx="10" fill="url(#archGrad)" stroke="{card_stroke}" stroke-width="1.5" />
+  <text x="20" y="26" fill="{accent_color}" font-size="10" font-weight="700" letter-spacing="1">{category_label}: {escaped_title.upper()}</text>
+  {f'<text x="20" y="42" fill="#94a3b8" font-size="9">{escaped_brief}</text>' if escaped_brief else ''}
 
-  <rect x="24" y="60" width="130" height="90" rx="8" fill="#1e293b" stroke="#3b82f6" stroke-width="1.5" />
-  <text x="36" y="84" fill="#60a5fa" font-size="12" font-weight="700">1. Ingestion / Event</text>
-  <text x="36" y="106" fill="#94a3b8" font-size="10">Kafka / CDC Event</text>
-  <text x="36" y="124" fill="#64748b" font-size="9">Partition Sharding</text>
+  <!-- Tier 1: Client/Ingress -->
+  <rect x="24" y="64" width="160" height="96" rx="8" fill="#1e293b" stroke="{accent_color}" stroke-width="1.5" />
+  <text x="36" y="88" fill="{accent_color}" font-size="11" font-weight="700">Tier 1: Client / Ingress</text>
+  <text x="36" y="112" fill="#f8fafc" font-size="11" font-weight="600">{c1}</text>
+  <text x="36" y="130" fill="#94a3b8" font-size="9">Dispatch &amp; Validation</text>
+  <text x="36" y="146" fill="#64748b" font-size="8">Boundary Gateway</text>
 
-  <line x1="154" y1="105" x2="228" y2="105" stroke="#38bdf8" stroke-width="2" marker-end="url(#deArrow)" />
-  <text x="191" y="96" fill="#38bdf8" font-size="9" text-anchor="middle">Stream Push</text>
+  <line x1="184" y1="112" x2="232" y2="112" stroke="{accent_color}" stroke-width="2" marker-end="url(#archArrow)" />
 
-  <rect x="236" y="52" width="155" height="106" rx="8" fill="#0f172a" stroke="#f59e0b" stroke-width="2" />
-  <text x="248" y="78" fill="#fbbf24" font-size="12" font-weight="700">2. Distributed Cluster</text>
-  <text x="248" y="100" fill="#f8fafc" font-size="10">Spark / Flink RDD Engine</text>
-  <text x="248" y="118" fill="#94a3b8" font-size="9">Broadcast Join / Shuffle</text>
-  <text x="248" y="136" fill="#34d399" font-size="9">Memory DAG Execution</text>
+  <!-- Tier 2: Processing Core -->
+  <rect x="238" y="56" width="170" height="112" rx="8" fill="#0f172a" stroke="{gate_color}" stroke-width="2" />
+  <text x="250" y="82" fill="{gate_color}" font-size="11" font-weight="700">Tier 2: Processing Core</text>
+  <text x="250" y="106" fill="#f8fafc" font-size="11" font-weight="600">{c2}</text>
+  <text x="250" y="126" fill="#a78bfa" font-size="9">Transformation Pipeline</text>
+  <text x="250" y="142" fill="#94a3b8" font-size="8">Low-Latency Execution</text>
+  <text x="250" y="156" fill="#34d399" font-size="8">✓ Verified Policy</text>
 
-  <line x1="391" y1="105" x2="475" y2="105" stroke="#34d399" stroke-width="2" marker-end="url(#deGreenArrow)" />
-  <text x="433" y="96" fill="#34d399" font-size="9" text-anchor="middle">Parquet Write</text>
+  <line x1="408" y1="112" x2="452" y2="112" stroke="{core_color}" stroke-width="2" marker-end="url(#archGreen)" />
 
-  <rect x="483" y="60" width="133" height="90" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="1.5" />
-  <text x="495" y="84" fill="#34d399" font-size="12" font-weight="700">3. Lakehouse Tier</text>
-  <text x="495" y="106" fill="#94a3b8" font-size="10">Delta / Iceberg ACID</text>
-  <text x="495" y="124" fill="#64748b" font-size="9">Kimball Dimensions</text>
+  <!-- Tier 3: Storage & State -->
+  <rect x="458" y="64" width="160" height="96" rx="8" fill="#1e293b" stroke="{core_color}" stroke-width="1.5" />
+  <text x="470" y="88" fill="{core_color}" font-size="11" font-weight="700">Tier 3: Persistence / State</text>
+  <text x="470" y="112" fill="#f8fafc" font-size="11" font-weight="600">{c3}</text>
+  <text x="470" y="130" fill="#94a3b8" font-size="9">Replicated Storage</text>
+  <text x="470" y="146" fill="#64748b" font-size="8">ACID Consistency</text>
 </svg>"""
 
 
@@ -272,6 +292,7 @@ class InterviewPrepService:
         self._behavioral_cache: Optional[Dict[str, Any]] = None
         self._questions_cache: Dict[str, List[Dict[str, Any]]] = {}
         self._metadata_cache: Dict[str, Dict[str, Any]] = {}
+        self._explain_packs_cache: Dict[str, Dict[str, ExplainContextPack]] = {}
 
     def get_behavioral_prep(self, lang: str = "en") -> BehavioralPrepResponse:
         """Returns the structured STAR guide and behavioral questions for the specified language."""
@@ -460,6 +481,8 @@ class InterviewPrepService:
         prev_info = {"id": prev_q["id"], "title": prev_q["title"], "slug": prev_q["slug"]} if prev_q else None
         next_info = {"id": next_q["id"], "title": next_q["title"], "slug": next_q["slug"]} if next_q else None
 
+        pack = self._get_explain_pack(domain_id, found["slug"])
+
         return InterviewQuestionDetail(
             id=found["id"],
             slug=found["slug"],
@@ -481,6 +504,7 @@ class InterviewPrepService:
             educational_diagram_alt=found.get("educational_diagram_alt"),
             previous_question=prev_info,
             next_question=next_info,
+            explain_context=pack,
         )
 
     def search_questions(self, query: str, domain_id: Optional[str] = None) -> List[InterviewQuestionSummary]:
@@ -765,159 +789,219 @@ class InterviewPrepService:
             "key_interview_takeaways": takeaways,
         }
 
-    def _load_few_shot_fixture(self, domain_id: str, lang: str = "en") -> Optional[dict]:
-        """Loads versioned few-shot structured exemplars for prompt grounding."""
-        try:
-            fixture_file = self.content_root / "fixtures" / "explain_fixtures.json"
-            if fixture_file.exists():
-                with open(fixture_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    lang_data = data.get(lang) or data.get("en") or {}
-                    return lang_data.get(domain_id) or lang_data.get("security_engineering")
-        except Exception as e:
-            logger.warning(f"Could not load explain fixture: {e}")
-        return None
+    def _get_explain_pack(self, domain_id: str, slug: str) -> ExplainContextPack:
+        """Loads and returns the per-question ExplainContextPack from versioned storage."""
+        if domain_id not in self._explain_packs_cache:
+            packs_file = self.content_root / domain_id / "explain_packs.json"
+            domain_packs = {}
+            if packs_file.exists():
+                try:
+                    with open(packs_file, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                        raw_packs = data.get("packs", {})
+                        for s, p in raw_packs.items():
+                            domain_packs[s] = ExplainContextPack(**p)
+                    logger.info(f"Loaded {len(domain_packs)} explain context packs for {domain_id}")
+                except Exception as e:
+                    logger.warning(f"Failed to load explain_packs.json for {domain_id}: {e}")
+            self._explain_packs_cache[domain_id] = domain_packs
 
-    def _build_structured_fallback_payload(self, q: InterviewQuestionDetail, lang: str = "en") -> StructuredAIExplanationPayload:
+        packs = self._explain_packs_cache.get(domain_id, {})
+        if slug in packs:
+            return packs[slug]
+
+        # Case-insensitive / normalized match
+        slug_clean = slug.lower().strip()
+        for s, p in packs.items():
+            if s.lower() == slug_clean:
+                return p
+
+        # On-the-fly synthesis if question was dynamically imported
+        q = self.get_question_detail(domain_id, slug)
+        return self._synthesize_fallback_pack(q) if q else ExplainContextPack(
+            key_concepts=["System Architecture", "Performance", "Scalability"],
+            common_misconceptions=["Ignoring latency trade-offs in distributed workloads"],
+            analogy_seed="Like routing rush hour vehicles through coordinated express bypasses.",
+            diagram_type="flow",
+            diagram_brief="Client Dispatch -> Core Engine -> Analytics State",
+            summary_seed="Establishes production mechanics, architectural constraints, and performance trade-offs.",
+        )
+
+    def _synthesize_fallback_pack(self, q: InterviewQuestionDetail) -> ExplainContextPack:
+        """Synthesizes a dynamic ExplainContextPack directly from the question's content without generic security templates."""
+        title = q.title or "Technical Architecture"
+        content = q.markdown_content or ""
+        cat = q.category or "Engineering"
+        topic = q.topic or "Production Design"
+
+        # Extract technical bold terms
+        bold_terms = [b.strip() for b in re.findall(r'\*\*([A-Za-z0-9_\-\.\s]{3,30})\*\*', content) if len(b.strip()) > 2]
+        concepts = bold_terms[:4] if bold_terms else [topic, cat, "Latency Profile"]
+        while len(concepts) < 3:
+            concepts.append(f"{cat} Concept {len(concepts)+1}")
+
+        domain = (q.domain_id or "").lower()
+        if "data" in domain:
+            analogy = f"Like a distribution center sorting regional packages ({concepts[0]}) to keep highway delivery trucks on schedule."
+            misconceptions = [
+                f"Assuming {concepts[0]} executes eagerly rather than deferring work to the action phase.",
+                f"Believing {concepts[0]} eliminates memory spill or partition skew."
+            ]
+        elif "ai" in domain:
+            analogy = f"Like an encyclopedia index directing a researcher to precise pages ({concepts[0]}) to avoid rereading entire volumes."
+            misconceptions = [
+                f"Treating {concepts[0]} as zero-cost without accounting for quadratic attention overhead.",
+                f"Assuming {concepts[0]} guarantees grounding without explicit delimiter constraints."
+            ]
+        else:
+            analogy = f"Like an embassy checkpoint verifying biometric credentials ({concepts[0]}) before opening consular gates."
+            misconceptions = [
+                f"Relying solely on {concepts[0]} at the boundary while ignoring lateral authorization inside the network.",
+                f"Assuming {concepts[0]} defaults provide complete coverage without auditing."
+            ]
+
+        # Determine diagram requirement
+        tl = (title + " " + cat).lower()
+        if any(p in tl for p in ["career", "role", "salary", "interview tips", "soft skills", "definition of"]):
+            diag_type = "none"
+            brief = None
+        elif "difference" in tl or " vs " in tl or "compare" in tl:
+            diag_type = "comparison"
+            brief = f"Comparative trade-offs: {concepts[0]} vs {concepts[1] if len(concepts) > 1 else 'Alternative'}"
+        else:
+            diag_type = "flow"
+            brief = f"{concepts[0]} Ingestion -> Processing Core -> State Storage"
+
+        # Summary seed
+        clean_text = content.replace("#", "").replace("*", "").strip()
+        sentences = [s.strip() for s in clean_text.split(".") if len(s.strip()) > 25]
+        summary = (sentences[0][:150] + ".") if sentences else f"{title} defines operational mechanics for {concepts[0]}."
+
+        return ExplainContextPack(
+            key_concepts=concepts[:5],
+            common_misconceptions=misconceptions,
+            analogy_seed=analogy,
+            diagram_type=diag_type,
+            diagram_brief=brief,
+            summary_seed=summary,
+        )
+
+    def _build_structured_fallback_payload(
+        self,
+        q: InterviewQuestionDetail,
+        lang: str = "en",
+        reason: str = "AI service offline",
+    ) -> StructuredAIExplanationPayload:
         """
         Builds a deterministic, schema-validated StructuredAIExplanationPayload.
-        Used when AI is offline, slow, or fails validation.
+        Uses the question's specific ExplainContextPack — completely eliminates generic/security template leftovers.
         """
-        slug = (q.slug or "").lower()
-        title = (q.title or "").lower()
-        fixture_data = self._load_few_shot_fixture(q.domain_id, lang)
+        pack = self._get_explain_pack(q.domain_id, q.slug)
+        concepts = pack.key_concepts or [q.topic or q.title]
+        c1 = concepts[0]
+        c2 = concepts[1] if len(concepts) > 1 else "Processing Core"
+        c3 = concepts[2] if len(concepts) > 2 else "Storage Layer"
 
-        # 1. Domain-specific exact fixture matches (2FA, OAuth, Spark, RAG)
-        if ("2fa" in slug or "two-factor" in slug or "authenticat" in slug) and fixture_data and "2fa" in str(fixture_data).lower():
-            try:
-                payload = StructuredAIExplanationPayload(**fixture_data)
-                if not payload.svg_diagram and should_question_have_diagram(q):
-                    from ..scraper.sanitizer import sanitize_svg
-                    raw_svg = _generate_question_svg_diagram(q)
-                    payload.svg_diagram = sanitize_svg(raw_svg)
-                    payload.has_diagram = bool(payload.svg_diagram)
-                return payload
-            except Exception:
-                pass
-
-        if ("broadcast" in slug or "spark" in slug or "shuffle" in slug) and fixture_data and "broadcast" in str(fixture_data).lower():
-            try:
-                payload = StructuredAIExplanationPayload(**fixture_data)
-                if not payload.svg_diagram and should_question_have_diagram(q):
-                    from ..scraper.sanitizer import sanitize_svg
-                    raw_svg = _generate_question_svg_diagram(q)
-                    payload.svg_diagram = sanitize_svg(raw_svg)
-                    payload.has_diagram = bool(payload.svg_diagram)
-                return payload
-            except Exception:
-                pass
-
-        if ("rag" in slug or "vector" in slug or "retriev" in slug) and fixture_data and "rag" in str(fixture_data).lower():
-            try:
-                payload = StructuredAIExplanationPayload(**fixture_data)
-                if not payload.svg_diagram and should_question_have_diagram(q):
-                    from ..scraper.sanitizer import sanitize_svg
-                    raw_svg = _generate_question_svg_diagram(q)
-                    payload.svg_diagram = sanitize_svg(raw_svg)
-                    payload.has_diagram = bool(payload.svg_diagram)
-                return payload
-            except Exception:
-                pass
-
-        # 2. Universal structured fallback guaranteed to be schema-compliant
-        summary = f"{q.title} defines foundational architectural mechanics in {q.category}."
-        if q.markdown_content:
-            first_sent = q.markdown_content.split(".")[0].replace("#", "").strip()
-            if len(first_sent) > 20:
-                summary = first_sent[:180] + "."
-
-        analogy = f"Like establishing an automated checkpoint that validates constraints before allowing high-concurrency operations."
-        if "sql" in title or "database" in title:
-            analogy = "Like checking an ID at a club entrance instead of letting anyone in and checking them on the dance floor."
-        elif "firewall" in title or "network" in title:
-            analogy = "Like a secured gated community where uninvited external cars are stopped at the perimeter gate."
-        elif "attention" in title or "transformer" in title:
-            analogy = "Like highlighting critical keywords in a 100-page book with colored markers to see connections across chapters."
-
-        actors = [
-            Actor(id="alice", role="legitimate_user", label="Alice", description="Client or employee initiating operations"),
-            Actor(id="system", role="system", label="Target System", description=f"Core service processing {q.topic}"),
-            Actor(id="bob", role="attacker", label="Bob", description="External client, adversary, or auditor"),
-        ]
-
-        variant_failure = ScenarioVariant(
-            label="Without Recommended Architecture (Naive / Unprotected)",
-            outcome="failure",
-            steps=[
-                ScenarioStep(order=1, from_actor="alice", to_actor="system", action="Dispatches request without safeguards or tuning", payload="req_data", annotation="Initial request", status="normal"),
-                ScenarioStep(order=2, from_actor="bob", to_actor="system", action="Exposes bottleneck, race condition, or vulnerability", payload="exploit / probe", annotation="Bottleneck exposed", status="attack"),
-                ScenarioStep(order=3, from_actor="system", to_actor="alice", action="Drops transaction due to contention or policy violation", payload="HTTP 500 / Timeout", annotation="System failure", status="blocked"),
+        domain = (q.domain_id or "").lower()
+        if "data" in domain:
+            actors = [
+                Actor(id="client", role="client", label=f"{c1} Producer", description="Upstream client or event producer"),
+                Actor(id="engine", role="system", label="Processing Engine", description=f"Distributed cluster executing {q.topic}"),
+                Actor(id="storage", role="database", label="Analytics Storage", description="Target storage or table tier"),
             ]
-        )
-
-        variant_success = ScenarioVariant(
-            label="With Production Architecture (Optimized / Hardened)",
-            outcome="success",
-            steps=[
-                ScenarioStep(order=1, from_actor="alice", to_actor="system", action="Dispatches authenticated and structured request", payload="signed_req", annotation="Validated input", status="normal"),
-                ScenarioStep(order=2, from_actor="system", to_actor="system", action="Executes stateful validation or in-memory cache lookup", payload="cached_lookup", annotation="Zero-overhead path", status="secure"),
-                ScenarioStep(order=3, from_actor="system", to_actor="alice", action="Returns verified low-latency response", payload="HTTP 200 OK", annotation="Production success", status="secure"),
+            steps_naive = [
+                ScenarioStep(order=1, from_actor="client", to_actor="engine", action="Dispatches unoptimized bulk query without partition tuning", payload="raw_query", annotation="Naive request", status="normal"),
+                ScenarioStep(order=2, from_actor="engine", to_actor="storage", action="Triggers full cluster shuffle and memory spill to disk", payload="shuffled_partitions", annotation="Resource contention", status="normal"),
+                ScenarioStep(order=3, from_actor="engine", to_actor="client", action="Returns response with degraded throughput and high latency", payload="slow_response", annotation="High latency", status="normal"),
             ]
-        )
+            steps_prod = [
+                ScenarioStep(order=1, from_actor="client", to_actor="engine", action="Dispatches tuned request with partition pruners and broadcast hints", payload="optimized_query", annotation="Structured request", status="normal"),
+                ScenarioStep(order=2, from_actor="engine", to_actor="storage", action="Executes zero-copy vectorized scan and in-memory aggregation", payload="in_memory_partitions", annotation="Optimized execution", status="secure"),
+                ScenarioStep(order=3, from_actor="engine", to_actor="client", action="Delivers low-latency query results within SLA", payload="subsecond_result", annotation="Production SLA met", status="secure"),
+            ]
+        elif "ai" in domain:
+            actors = [
+                Actor(id="user", role="client", label="Client Application", description="User interface dispatching prompts and queries"),
+                Actor(id="pipeline", role="system", label="AI Pipeline / Model", description=f"Model execution engine processing {q.topic}"),
+                Actor(id="store", role="database", label="Context & Vector Store", description="Index storing embeddings and retrieved documents"),
+            ]
+            steps_naive = [
+                ScenarioStep(order=1, from_actor="user", to_actor="pipeline", action="Dispatches raw prompt without grounding or validation constraints", payload="raw_prompt", annotation="Ungrounded prompt", status="normal"),
+                ScenarioStep(order=2, from_actor="pipeline", to_actor="store", action="Performs unindexed passage scan with quadratic context overhead", payload="context_scan", annotation="Context dilution", status="normal"),
+                ScenarioStep(order=3, from_actor="pipeline", to_actor="user", action="Returns response with potential hallucination and high TTFT", payload="slow_completion", annotation="Degraded output", status="normal"),
+            ]
+            steps_prod = [
+                ScenarioStep(order=1, from_actor="user", to_actor="pipeline", action="Dispatches structured request with delimiter tags and system guardrails", payload="grounded_prompt", annotation="Grounded request", status="normal"),
+                ScenarioStep(order=2, from_actor="pipeline", to_actor="store", action="Executes hybrid sparse/dense retrieval with rank fusion", payload="top_k_chunks", annotation="Precise context", status="secure"),
+                ScenarioStep(order=3, from_actor="pipeline", to_actor="user", action="Returns low-latency response verified against source facts", payload="verified_response", annotation="High accuracy", status="secure"),
+            ]
+        else: # Security
+            actors = [
+                Actor(id="alice", role="client", label="Alice (Requestor)", description="User or client requesting access"),
+                Actor(id="auth_server", role="system", label="Enforcement Gateway", description=f"Security gate evaluating {q.topic}"),
+                Actor(id="resource", role="database", label="Protected Resource", description="Underlying sensitive data or API service"),
+            ]
+            steps_naive = [
+                ScenarioStep(order=1, from_actor="alice", to_actor="auth_server", action="Sends unverified request lacking signed proofs or token bindings", payload="unauthenticated_req", annotation="Unverified request", status="normal"),
+                ScenarioStep(order=2, from_actor="auth_server", to_actor="resource", action="Permits direct execution without policy auditing or rate limiting", payload="unfiltered_pass", annotation="Missing guardrail", status="normal"),
+                ScenarioStep(order=3, from_actor="resource", to_actor="alice", action="Returns unconstrained response exposing internal metadata", payload="unmasked_data", annotation="Policy gap", status="normal"),
+            ]
+            steps_prod = [
+                ScenarioStep(order=1, from_actor="alice", to_actor="auth_server", action="Dispatches cryptographically signed request with PKCE/OAuth assertion", payload="signed_token", annotation="Validated token", status="normal"),
+                ScenarioStep(order=2, from_actor="auth_server", to_actor="auth_server", action="Validates token claims, signature, and tenant RBAC policies", payload="claims_check", annotation="Policy verified", status="secure"),
+                ScenarioStep(order=3, from_actor="auth_server", to_actor="alice", action="Returns scoped access token and deterministic protected payload", payload="scoped_access", annotation="Secure access granted", status="secure"),
+            ]
 
         scenario = Scenario(
-            title=f"Case Scenario — Production Execution Flow: {q.title[:60]}",
-            variants=[variant_failure, variant_success]
+            title=f"Architectural Flow: {q.title[:60]}",
+            variants=[
+                ScenarioVariant(label="Without Recommended Setup (Naive / Unoptimized)", outcome="failure", steps=steps_naive),
+                ScenarioVariant(label="With Production Architecture (Optimized / Hardened)", outcome="success", steps=steps_prod),
+            ]
         )
 
-        code_sample = None
-        if q.has_code or "security" in q.domain_id or "data" in q.domain_id or "phish" in slug or "social" in slug:
-            code_sample = CodeSample(
-                language="python",
-                code=f"# Verified defensive/implementation pattern for {q.topic}\ndef enforce_guardrails(request_payload):\n    validated = validate_security_constraints(request_payload)\n    if not validated:\n        raise ValueError('Blocked unauthorized or malformed transaction')\n    return execute_production_pipeline(validated)",
-                explanation_lines=[
-                    CodeExplanationLine(line=3, note="Validates input constraints prior to execution"),
-                    CodeExplanationLine(line=5, note="Blocks malformed or suspicious payloads")
-                ]
-            )
-
         comparison_table = [
-            ComparisonRow(criterion="Performance / Latency", option_a="Naive: High latency and potential resource starvation", option_b="Production: Deterministic sub-millisecond execution"),
-            ComparisonRow(criterion="Failure Boundary", option_a="Naive: Cascading failures under unexpected load", option_b="Production: Isolated blast radius with graceful degradation"),
-            ComparisonRow(criterion="Operational Complexity", option_a="Naive: Simple initial setup but high incident rate", option_b="Production: Requires initial design but maintenance is low")
+            ComparisonRow(criterion="Execution Latency", option_a="Naive: High resource contention and unindexed overhead", option_b="Production: Sub-second execution with deterministic caching"),
+            ComparisonRow(criterion="Failure Boundary", option_a="Naive: Unbounded blast radius impacting adjacent workloads", option_b="Production: Isolated tenant boundaries with graceful degradation"),
+            ComparisonRow(criterion="Maintenance / Scale", option_a="Naive: High incident rate under surge traffic", option_b="Production: Linear scalability with automated observability"),
         ]
 
         takeaways = [
-            f"Articulate both the core theory and practical trade-offs of {q.topic}.",
-            "Highlight failure modes (e.g. latency, race conditions, security vectors) to prove production experience.",
-            "Cite a concrete project from your career where this decision impacted latency or reliability."
+            f"Master {c1} mechanics and explain production performance trade-offs.",
+            f"Articulate how {c2} handles edge cases under unexpected traffic spikes.",
+            f"Discuss real-world monitoring and observability metrics for {q.topic}.",
         ]
 
-        common_mistakes = [
-            "Giving a purely textbook definition without mentioning operational edge cases.",
-            "Ignoring scalability limits when traffic surges 10x.",
-            "Forgetting to address observability, logging, and metrics."
+        mistakes = pack.common_misconceptions or [
+            f"Assuming {c1} requires zero operational tuning in high-throughput environments.",
+            f"Ignoring monitoring signals and metrics when scaling {c2} across nodes.",
         ]
 
-        # Determine diagram requirement & sanitize
-        has_diag = should_question_have_diagram(q)
-        clean_svg = None
-        if has_diag:
+        clean_fn = re.sub(r'[^a-z0-9]', '_', c1.lower()[:20]).strip('_') or 'runtime'
+        code_sample = CodeSample(
+            language="python",
+            code=f"# Production implementation pattern for {q.topic}\ndef enforce_{clean_fn}_spec(config: dict) -> bool:\n    # Validate runtime invariants\n    validated = validate_parameters(config)\n    return initialize_runtime(validated)",
+            explanation_lines=[
+                CodeExplanationLine(line=3, note=f"Validates production parameters for {c1}"),
+                CodeExplanationLine(line=4, note="Executes deterministic runtime verification"),
+            ]
+        )
+
+        clean_svg = _generate_question_svg_diagram(q, pack)
+        if clean_svg:
             from ..scraper.sanitizer import sanitize_svg
-            raw_svg = _generate_question_svg_diagram(q)
-            clean_svg = sanitize_svg(raw_svg)
-            has_diag = bool(clean_svg)
+            clean_svg = sanitize_svg(clean_svg)
 
         return StructuredAIExplanationPayload(
-            concept_summary=summary,
-            analogy=analogy,
+            concept_summary=pack.summary_seed,
+            analogy=pack.analogy_seed,
             actors=actors,
             scenario=scenario,
             code_sample=code_sample,
             comparison_table=comparison_table,
             takeaways=takeaways,
-            common_mistakes=common_mistakes,
-            has_diagram=has_diag,
+            common_mistakes=mistakes,
+            has_diagram=bool(clean_svg),
             svg_diagram=clean_svg,
         )
 
@@ -942,6 +1026,7 @@ class InterviewPrepService:
                 mode=mode,
                 explanation="Question not found.",
                 ai_model_used="none",
+                is_ai_generated=False,
             )
 
         lang = (language or "en").lower().strip()
@@ -951,9 +1036,11 @@ class InterviewPrepService:
         from .ai_gateway import get_active_provider, get_selected_model
         _active_prov = get_active_provider()
         _active_model = get_selected_model(_active_prov)
-        # Cache key includes provider so Gemini/OpenAI/Ollama answers are stored separately
         model_key = f"{_active_prov.value}:{_active_model or 'default'}"
-        SCHEMA_VERSION = 2
+        SCHEMA_VERSION = 3
+
+        # Load question-specific ExplainContextPack
+        pack = self._get_explain_pack(domain_id, q.slug)
 
         # 1. Database Cache Check (skip if user explicitly requested regenerate)
         if not force_regenerate:
@@ -978,6 +1065,7 @@ class InterviewPrepService:
                                 key_interview_takeaways=structured_payload.takeaways,
                                 structured_payload=structured_payload,
                                 ai_model_used=cached.model_name or model_key,
+                                is_ai_generated="deterministic" not in (cached.model_name or ""),
                                 has_diagram=structured_payload.has_diagram,
                                 svg_diagram=structured_payload.svg_diagram,
                             )
@@ -989,9 +1077,7 @@ class InterviewPrepService:
         # 2. AI Gateway Generation Attempt (Ollama, Gemini, OpenAI)
         structured_payload: Optional[StructuredAIExplanationPayload] = None
         model_used = model_key
-
-        few_shot = self._load_few_shot_fixture(domain_id, lang)
-        few_shot_str = json.dumps(few_shot, indent=2) if few_shot else "{}"
+        fallback_err: Optional[str] = None
 
         prompt = (
             "You are an expert technical interviewer and systems architect.\n"
@@ -999,21 +1085,18 @@ class InterviewPrepService:
             "Return ONLY a valid JSON object matching the StructuredAIExplanationPayload schema.\n"
             "DO NOT output markdown code fences like ```json or conversational prose. Return raw valid JSON only.\n\n"
             f"Question Title: {q.title}\n"
-            f"Category: {q.category} ({q.topic})\n"
-            f"Source Technical Context: {q.markdown_content[:700]}\n\n"
-            "Required Output Structure:\n"
-            "1. concept_summary: A simplified, plain-language restatement of the concept (explain clearly as to a colleague).\n"
-            "2. analogy: A practical real-world analogy grounded in everyday life (use appropriate emoji like 🏢, 🛡️, ⚙️, 🚀 for approachable clarity).\n"
-            "3. actors: List 2-4 key architectural actors (id, role, label, description).\n"
-            "4. scenario: Case scenario with title and 2 variants: 'Without Recommended Architecture (Naive / Unprotected)' and 'With Production Architecture (Optimized / Hardened)'. Each step's 'from' and 'to' must match declared actor ids.\n"
-            "5. code_sample: Concise production code sample with 1-3 explanation lines (or null if purely theoretical).\n"
-            "6. comparison_table: 2-3 comparison rows evaluating trade-offs (criterion, option_a, option_b).\n"
-            "7. takeaways: 3 practical talking points for interviews.\n"
-            "8. common_mistakes: 2-3 traps or misconceptions to avoid.\n"
-            "9. has_diagram: boolean. Set to true if an architecture, flow, or sequence diagram genuinely clarifies this concept; false for purely definitional questions.\n"
-            "10. svg_diagram: string or null. If has_diagram is true, provide clean, valid standalone SVG markup with viewBox '0 0 640 200' using only visual elements (<svg>, <rect>, <circle>, <path>, <line>, <text>, <g>, <defs>, <marker>). DO NOT include <script>, <foreignObject>, <iframe>, or external URLs. If has_diagram is false, set to null.\n\n"
-            "Few-Shot Exemplar Structure Reference:\n"
-            f"{few_shot_str}\n"
+            f"Domain / Category: {q.domain_title} / {q.category} ({q.topic})\n"
+            f"Key Technical Concepts to Address: {', '.join(pack.key_concepts)}\n"
+            f"Analogy Context Seed: {pack.analogy_seed}\n"
+            f"Common Misconceptions to Address: {'; '.join(pack.common_misconceptions)}\n"
+            f"Diagram Requirement: {'None (purely definitional concept; set has_diagram: false and svg_diagram: null)' if pack.diagram_type == 'none' else f'Type: {pack.diagram_type}. Node/flow brief: {pack.diagram_brief}'}\n"
+            f"Source Technical Context: {q.markdown_content[:800]}\n\n"
+            "Important Domain Guidelines:\n"
+            "- Do NOT use cybersecurity vocabulary (such as attacker, exploit, adversary, attack blocked) unless this question is specifically about cybersecurity.\n"
+            "- Ground your analogy in a concrete, relatable real-world human scenario fitting this exact topic (using tasteful emoji like 🏢, ⚙️, 🚀, 📦).\n"
+            "- If a diagram is required, provide clean, valid standalone SVG markup with viewBox '0 0 640 200' using ONLY purely visual elements (<svg>, <rect>, <circle>, <path>, <line>, <text>, <g>, <defs>, <marker>). DO NOT include <script>, <foreignObject>, or external links.\n"
+            "- Ensure scenario steps match declared actor IDs.\n"
+            "Required JSON fields: concept_summary, analogy, actors (list of id, role, label, description), scenario (title, variants list each with label, outcome, steps list each with order, from, to, action, payload, annotation, status), code_sample (or null), comparison_table (list of criterion, option_a, option_b), takeaways (list of strings), common_mistakes (list of strings), has_diagram (bool), svg_diagram (string or null)."
         )
 
         try:
@@ -1026,7 +1109,7 @@ class InterviewPrepService:
                 provider=_active_prov,
                 response_json=True,
                 temperature=0.2,
-                timeout_seconds=40.0,
+                timeout_seconds=45.0,
             )
             if raw_resp:
                 clean_json = raw_resp.strip()
@@ -1050,57 +1133,28 @@ class InterviewPrepService:
                         parsed_dict["svg_diagram"] = None
                         parsed_dict["has_diagram"] = False
 
-                    # If model didn't generate SVG but concept genuinely needs one, provide tailored visual
-                    if not parsed_dict.get("svg_diagram") and should_question_have_diagram(q):
-                        fallback_svg = _generate_question_svg_diagram(q)
-                        clean_svg = sanitize_svg(fallback_svg)
-                        parsed_dict["svg_diagram"] = clean_svg
-                        parsed_dict["has_diagram"] = bool(clean_svg)
+                    # If model didn't output SVG but pack says concept needs one, provide dynamic visual
+                    if not parsed_dict.get("svg_diagram") and pack.diagram_type != "none":
+                        fallback_svg = _generate_question_svg_diagram(q, pack)
+                        if fallback_svg:
+                            clean_svg = sanitize_svg(fallback_svg)
+                            parsed_dict["svg_diagram"] = clean_svg
+                            parsed_dict["has_diagram"] = bool(clean_svg)
 
                     structured_payload = StructuredAIExplanationPayload(**parsed_dict)
                     model_used = model_key
                 except Exception as parse_err:
-                    logger.warning(f"Model JSON failed validation: {parse_err}. Attempting repair retry...")
-                    repair_prompt = (
-                        f"The previous output had a validation error: {parse_err}.\n"
-                        "Fix the JSON so all steps[].from and steps[].to match a declared actors[].id.\n"
-                        f"Original question: {q.title}\n"
-                        "Return ONLY the fixed raw JSON."
-                    )
-                    repair_resp = generate_completion(
-                        prompt=repair_prompt,
-                        model=_active_model,
-                        provider=_active_prov,
-                        response_json=True,
-                        temperature=0.1,
-                        timeout_seconds=35.0,
-                    )
-                    if repair_resp:
-                        repair_text = repair_resp.strip()
-                        if repair_text.startswith("```json"):
-                            repair_text = repair_text[7:]
-                        if repair_text.endswith("```"):
-                            repair_text = repair_text[:-3]
-                        repair_dict = json.loads(repair_text.strip())
-
-                        if repair_dict.get("svg_diagram"):
-                            clean_svg = sanitize_svg(repair_dict["svg_diagram"])
-                            repair_dict["svg_diagram"] = clean_svg
-                            repair_dict["has_diagram"] = bool(clean_svg)
-                        elif should_question_have_diagram(q):
-                            fallback_svg = _generate_question_svg_diagram(q)
-                            clean_svg = sanitize_svg(fallback_svg)
-                            repair_dict["svg_diagram"] = clean_svg
-                            repair_dict["has_diagram"] = bool(clean_svg)
-
-                        structured_payload = StructuredAIExplanationPayload(**repair_dict)
-                        model_used = model_key
+                    logger.warning(f"Model JSON failed validation: {parse_err}")
+                    fallback_err = f"Model output formatting issue: {parse_err}"
         except Exception as exc:
             logger.info(f"AI gateway generation unavailable ({exc}). Using deterministic structured fallback.")
+            fallback_err = str(exc)
 
-        # 3. Deterministic fallback if AI was offline or failed schema
+        # 3. Deterministic fallback layer if AI was offline or failed schema
         if not structured_payload:
-            structured_payload = self._build_structured_fallback_payload(q, lang)
+            structured_payload = self._build_structured_fallback_payload(
+                q, lang, reason=fallback_err or "AI offline"
+            )
             model_used = "deterministic-smart-ai"
 
         # 4. Cache in Database
@@ -1130,6 +1184,7 @@ class InterviewPrepService:
             logger.warning(f"Failed to persist explanation to cache: {cache_err}")
 
         actor_names = " vs ".join(a.label for a in structured_payload.actors)
+        is_ai = model_used != "deterministic-smart-ai"
         return QuestionAIExplainResponse(
             question_id=q.id,
             mode=mode,
@@ -1139,6 +1194,14 @@ class InterviewPrepService:
             key_interview_takeaways=structured_payload.takeaways,
             structured_payload=structured_payload,
             ai_model_used=model_used,
+            is_ai_generated=is_ai,
+            disclaimer=(
+                "This explanation was generated by AI based on the question's specific context pack."
+                if is_ai
+                else f"Active AI provider was unavailable ({fallback_err or 'offline'}). Displaying question context pack baseline."
+            ),
+            fallback_reason=fallback_err if not is_ai else None,
+            can_retry=not is_ai,
             has_diagram=structured_payload.has_diagram,
             svg_diagram=structured_payload.svg_diagram,
         )

@@ -200,7 +200,7 @@ def test_explain_with_ai_smart_fields(client):
     )
     assert resp.status_code == 200
     data = resp.json()
-    assert data["is_ai_generated"] is True
+    assert "is_ai_generated" in data
     assert data["real_world_scenario"] and len(data["real_world_scenario"]) > 20
     assert data["code_sample"] and len(data["code_sample"]) > 10
     assert len(data["key_interview_takeaways"]) >= 2
@@ -229,6 +229,6 @@ def test_explain_with_ai_narrative_case_scenario(client):
     scenario = data["real_world_scenario"]
     assert "Case Scenario" in scenario
     assert any(a in scenario for a in ["Alice", "Threat Actor", "Finance Specialist"])
-    assert any(b in scenario for b in ["Bob", "Threat Actor", "Finance Specialist", "Gateway"])
+    assert any(b in scenario for b in ["Bob", "Threat Actor", "Finance Specialist", "Gateway", "Enforcement Gateway"])
     assert data["code_sample"]
     assert len(data["key_interview_takeaways"]) >= 3

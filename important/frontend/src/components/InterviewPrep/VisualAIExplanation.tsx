@@ -161,6 +161,31 @@ export const VisualAIExplanation: React.FC<VisualAIExplanationProps> = ({
 
   return (
     <div className="visual-ai-explanation-root">
+      {(!result.is_ai_generated || result.fallback_reason) && (
+        <div
+          className="ai-fallback-badge"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 12px',
+            borderRadius: '8px',
+            fontSize: '0.82rem',
+            backgroundColor: 'rgba(234, 179, 8, 0.1)',
+            color: '#eab308',
+            border: '1px solid rgba(234, 179, 8, 0.25)',
+            marginBottom: '16px',
+          }}
+        >
+          <AlertTriangle size={15} style={{ flexShrink: 0 }} />
+          <span>
+            {result.fallback_reason
+              ? `AI service offline (${result.fallback_reason}) — displaying curated question context baseline.`
+              : 'Active AI provider offline — displaying curated question context baseline.'}
+          </span>
+        </div>
+      )}
+
       {/* 1. CONCEPT SUMMARY & ANALOGY BANNER */}
       <div className="ai-concept-analogy-banner glass-panel">
         <div className="concept-block">

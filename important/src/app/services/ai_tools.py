@@ -285,12 +285,13 @@ def answer_user_query(
     tool_data, deterministic_fallback = match_and_execute_tool(query, db, user_id=user_id)
 
     # Phase 2: Check provider availability
-    active_prov = get_active_provider()
-    provider_inst = get_provider(active_prov)
-    ai_available = provider_inst.is_available()
-    selected_model = model or provider_inst.get_active_model()
+    active_prov = get_active_provider(db=db, user_id=user_id)
+    provider_inst = get_provider(active_prov, db=db, user_id=user_id)
+    ai_available = provider_inst.is_available(db=db, user_id=user_id)
+    selected_model = model or provider_inst.get_active_model(db=db, user_id=user_id)
 
     if not ai_available:
+        logger.info(f"AI Provider '{active_prov.value}' is unavailable. Serving deterministic tool response.")
         return {
             "answer": deterministic_fallback,
             "facts": tool_data,
@@ -303,12 +304,15 @@ def answer_user_query(
     prompt = f"User question: {query}\nVerified database facts: {tool_data}\nConcise answer:"
 
     try:
+        # Generous timeout for local models (45s) to avoid premature fallbacks
         llm_response = generate_completion(
             prompt=prompt,
             system_prompt=COMPUST_ASSISTANT_SYSTEM_PROMPT,
             model=selected_model,
             temperature=0.1,
-            timeout_seconds=15.0,
+            timeout_seconds=45.0,
+            db=db,
+            user_id=user_id,
         )
         final_answer = llm_response if llm_response else deterministic_fallback
         return {
@@ -318,8 +322,8 @@ def answer_user_query(
             "model": selected_model,
             "ollama_available": active_prov == AIProviderType.OLLAMA,
         }
-    except Exception:
-        # Graceful fallback to deterministic response if LLM times out or errors
+    except Exception as exc:
+        logger.warning(f"AI chat completion via {active_prov.value} ({selected_model}) failed: {exc}. Falling back to deterministic answer.")
         return {
             "answer": deterministic_fallback,
             "facts": tool_data,

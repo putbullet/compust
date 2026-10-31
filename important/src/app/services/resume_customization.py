@@ -245,7 +245,7 @@ def get_ai_resume_customization(
             system_prompt=CUSTOMIZATION_SYSTEM_PROMPT,
             model=model_name,
             temperature=0.2,
-            timeout_seconds=20.0,
+            timeout_seconds=60.0,
             db=db,
             user_id=uid,
         )

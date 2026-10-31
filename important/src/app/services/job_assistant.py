@@ -147,8 +147,12 @@ def normalize_skill(skill: str) -> str:
 
 
 def _try_extract_json(text: str) -> dict | list | None:
+    if not text:
+        return None
+    # Strip reasoning tags emitted by reasoning models (e.g. DeepSeek-R1, Qwen 3.5 thinking blocks)
+    cleaned = re.sub(r"<think>[\s\S]*?</think>", "", text, flags=re.IGNORECASE).strip()
     try:
-        return json.loads(text.strip())
+        return json.loads(cleaned)
     except json.JSONDecodeError:
         pass
     for pattern in [
@@ -550,7 +554,7 @@ STAGE1_TEMPLATE = (
 )
 
 
-def _stage1_extract_requirements(job_input: ExternalJobInput, model: str | None = None) -> list[JobRequirement]:
+def _stage1_extract_requirements(job_input: ExternalJobInput, model: str | None = None, db: Session | None = None, user_id: int | None = None) -> list[JobRequirement]:
     lang = job_input.language.value
     additional = f"ADDITIONAL INFORMATION:\n{job_input.additional_information}" if job_input.additional_information else ""
     prompt = STAGE1_TEMPLATE.format(
@@ -559,7 +563,7 @@ def _stage1_extract_requirements(job_input: ExternalJobInput, model: str | None 
         additional=additional,
         lang_instruction=LANG_INSTRUCTION.get(lang, LANG_INSTRUCTION["en"]),
     )
-    raw = generate_completion(prompt, system_prompt=STAGE1_SYSTEM, model=model, temperature=0.05, timeout_seconds=30.0)
+    raw = generate_completion(prompt, system_prompt=STAGE1_SYSTEM, model=model, temperature=0.05, timeout_seconds=60.0, db=db, user_id=user_id)
     data = _try_extract_json(raw)
     requirements: list[JobRequirement] = []
     if isinstance(data, dict) and "requirements" in data:
@@ -616,6 +620,8 @@ def _stage2_match_candidate(
     ctx: CandidateContext,
     lang: str,
     model: str | None = None,
+    db: Session | None = None,
+    user_id: int | None = None,
 ) -> MatchAnalysis:
     if not requirements:
         return deterministic_match(ctx, ExternalJobInput(target_role="", job_description="x" * 50))
@@ -633,7 +639,7 @@ def _stage2_match_candidate(
         certifications=sections["certifications"][:200],
         lang_instruction=LANG_INSTRUCTION.get(lang, LANG_INSTRUCTION["en"]),
     )
-    raw = generate_completion(prompt, system_prompt=STAGE2_SYSTEM, model=model, temperature=0.05, timeout_seconds=35.0)
+    raw = generate_completion(prompt, system_prompt=STAGE2_SYSTEM, model=model, temperature=0.05, timeout_seconds=60.0, db=db, user_id=user_id)
     data = _try_extract_json(raw)
     analysis = MatchAnalysis()
     candidate_corpus = _extract_corpus_tokens(ctx)
@@ -714,6 +720,8 @@ def _stage3_recommendations(
     ctx: CandidateContext,
     job_input: ExternalJobInput,
     model: str | None = None,
+    db: Session | None = None,
+    user_id: int | None = None,
 ) -> list[ResumeRecommendation]:
     lang = job_input.language.value
     sections = _build_candidate_text_sections(ctx)
@@ -730,7 +738,7 @@ def _stage3_recommendations(
         experience=exp_detail[:800], projects=proj_detail[:600], education=edu_detail[:300],
         lang_instruction=LANG_INSTRUCTION.get(lang, LANG_INSTRUCTION["en"]),
     )
-    raw = generate_completion(prompt, system_prompt=STAGE3_SYSTEM, model=model, temperature=0.1, timeout_seconds=40.0)
+    raw = generate_completion(prompt, system_prompt=STAGE3_SYSTEM, model=model, temperature=0.1, timeout_seconds=60.0, db=db, user_id=user_id)
     data = _try_extract_json(raw)
     recommendations: list[ResumeRecommendation] = []
     candidate_corpus = _extract_corpus_tokens(ctx)
@@ -776,6 +784,26 @@ def _stage3_recommendations(
             reason=f"Not found in your current Compust data. Only add if you genuinely have experience with {match.requirement}.",
         ))
     return recommendations[:25]
+
+
+def _format_fallback_reason(exc: Exception, provider_name: str, model_name: str | None = None) -> str:
+    err = str(exc)
+    err_lower = err.lower()
+    if isinstance(exc, json.JSONDecodeError) or "json" in err_lower or "expecting value" in err_lower:
+        return f"Invalid JSON response returned by {provider_name}"
+    if "connect" in err_lower or "unreachable" in err_lower or "refused" in err_lower:
+        return f"{provider_name} unreachable: connection refused (is {provider_name} running?)"
+    if "not found" in err_lower or "404" in err:
+        return f"Model '{model_name or 'selected'}' not found in {provider_name}"
+    if "time" in err_lower or "timeout" in err_lower:
+        return f"{provider_name} timed out after waiting for model response"
+    if "rate" in err_lower or "quota" in err_lower:
+        return f"{provider_name} rate limit or quota exceeded"
+    if "consent" in err_lower:
+        return f"{provider_name} cloud consent required in Settings"
+    if "key" in err_lower or "auth" in err_lower:
+        return f"{provider_name} API key invalid or missing"
+    return f"{provider_name} error: {err[:80]}"
 
 
 def _fallback_recommendations(match_analysis: MatchAnalysis, ctx: CandidateContext, job_input: ExternalJobInput) -> list[ResumeRecommendation]:
@@ -1082,14 +1110,22 @@ STAGE4_SINGLE_TEMPLATES = {
 }
 
 
-def is_ai_available() -> bool:
+def is_ai_available(
+    provider_type: AIProviderType | str | None = None,
+    db: Session | None = None,
+    user_id: int | None = None,
+) -> bool:
     """Helper to check AI availability honoring check_ollama_runtime mocks."""
-    active_prov = get_active_provider()
+    active_prov = (
+        AIProviderType(provider_type)
+        if provider_type
+        else get_active_provider(db=db, user_id=user_id)
+    )
     if active_prov == AIProviderType.OLLAMA:
         status = check_ollama_runtime()
         return status.get("status") == "connected"
-    provider_inst = get_provider(active_prov)
-    return provider_inst.is_available()
+    provider_inst = get_provider(active_prov, db=db, user_id=user_id)
+    return provider_inst.is_available(db=db, user_id=user_id)
 
 
 def regenerate_single_material(
@@ -1107,10 +1143,10 @@ def regenerate_single_material(
       - Clear countdown-aware AIRateLimitError handling
     """
     lang = request.language.value
-    active_prov = get_active_provider()
-    provider_inst = get_provider(active_prov)
-    ai_available = is_ai_available()
-    model = provider_inst.get_active_model()
+    active_prov = get_active_provider(db=db, user_id=user_id)
+    provider_inst = get_provider(active_prov, db=db, user_id=user_id)
+    ai_available = is_ai_available(active_prov, db=db, user_id=user_id)
+    model = provider_inst.get_active_model(db=db, user_id=user_id)
 
     if not ai_available:
         prov_label = active_prov.value.title()
@@ -1169,39 +1205,64 @@ def regenerate_single_material(
         )
 
         try:
-            raw = generate_completion(prompt, system_prompt=STAGE4_SYSTEM, model=model, temperature=0.25, timeout_seconds=45.0)
+            raw = generate_completion(prompt, system_prompt=STAGE4_SYSTEM, model=model, temperature=0.25, timeout_seconds=60.0, db=db, user_id=user_id)
             data = _try_extract_json(raw)
             m_data = None
             if isinstance(data, dict):
                 m_data = data.get(request.material_type.value) or data.get("material") or data
 
+            body = ""
+            subject = ""
+            phs = []
             if isinstance(m_data, dict):
-                body = _safe_str(m_data.get("body", ""))
-                subject = _safe_str(m_data.get("subject", ""))
+                body = _safe_str(m_data.get("body") or m_data.get("content") or m_data.get("text") or m_data.get("message") or m_data.get("letter") or "")
+                subject = _safe_str(m_data.get("subject") or m_data.get("title") or "")
                 phs = m_data.get("placeholders") or []
-                if isinstance(phs, str):
-                    phs = [phs]
-                auto_phs = re.findall(r"\[[A-Z ]{3,}\]", body)
-                all_phs = list(dict.fromkeys([str(p) for p in phs] + auto_phs))
-                mat = ApplicationMaterial(
-                    material_type=request.material_type,
-                    subject=subject,
-                    body=body,
-                    placeholders=all_phs,
-                    language=lang,
-                    generated=bool(body),
-                    error="" if body else "No content generated",
-                )
-                if mat.generated:
-                    with _CACHE_LOCK:
-                        _MATERIAL_CACHE[cache_key] = (time.time(), mat)
-                return mat
-            return ApplicationMaterial(
+                if not body and subject and len(subject) > 80:
+                    lines = [ln.strip() for ln in subject.splitlines() if ln.strip()]
+                    if len(lines) > 1:
+                        subject = lines[0]
+                        body = "\n\n".join(lines[1:])
+                    else:
+                        body = subject
+                        subject = ""
+
+            if not body and raw:
+                cleaned_raw = re.sub(r"<think>[\s\S]*?</think>", "", raw).strip()
+                cleaned_raw = re.sub(r"^```(?:json)?\s*", "", cleaned_raw, flags=re.MULTILINE)
+                cleaned_raw = re.sub(r"```$", "", cleaned_raw, flags=re.MULTILINE).strip()
+                subj_match = re.search(r"^(?:Subject|Objet):\s*(.+)$", cleaned_raw, re.MULTILINE | re.IGNORECASE)
+                if subj_match:
+                    if not subject:
+                        subject = subj_match.group(1).strip()
+                    body = re.sub(r"^(?:Subject|Objet):\s*.+$", "", cleaned_raw, count=1, flags=re.MULTILINE | re.IGNORECASE).strip()
+                elif not subject and "\n" in cleaned_raw:
+                    lines = [ln.strip() for ln in cleaned_raw.splitlines() if ln.strip()]
+                    if lines and len(lines[0]) < 100:
+                        subject = lines[0]
+                        body = "\n\n".join(lines[1:]).strip()
+                    else:
+                        body = cleaned_raw
+                else:
+                    body = cleaned_raw
+
+            if isinstance(phs, str):
+                phs = [phs]
+            auto_phs = re.findall(r"\[[A-Z ]{3,}\]", body)
+            all_phs = list(dict.fromkeys([str(p) for p in phs] + auto_phs))
+            mat = ApplicationMaterial(
                 material_type=request.material_type,
+                subject=subject,
+                body=body,
+                placeholders=all_phs,
                 language=lang,
-                generated=False,
-                error="LLM returned invalid output format",
+                generated=bool(body),
+                error="" if body else "No content generated",
             )
+            if mat.generated:
+                with _CACHE_LOCK:
+                    _MATERIAL_CACHE[cache_key] = (time.time(), mat)
+            return mat
         except AIRateLimitError as exc:
             logger.warning(f"Rate limit hit during {request.material_type.value} generation: {exc}")
             return ApplicationMaterial(
@@ -1434,12 +1495,23 @@ def run_job_target_analysis(
     ctx = build_candidate_context(db, user_id, resume)
     det_score = deterministic_score(ctx, job_input)
 
-    active_prov = get_active_provider()
-    provider_inst = get_provider(active_prov)
-    ai_available = is_ai_available()
-    model = provider_inst.get_active_model()
+    active_prov = get_active_provider(db=db, user_id=user_id)
+    provider_inst = get_provider(active_prov, db=db, user_id=user_id)
+    ai_available = is_ai_available(active_prov, db=db, user_id=user_id)
+    model = provider_inst.get_active_model(db=db, user_id=user_id)
     is_ollama = active_prov == AIProviderType.OLLAMA
     is_cloud = active_prov in (AIProviderType.GEMINI, AIProviderType.OPENAI)
+
+    initial_fallback_reason: str | None = None
+    if not ai_available:
+        if is_ollama:
+            health = provider_inst.check_health(db=db, user_id=user_id)
+            err_msg = health.get("error") or "Ollama unreachable at 127.0.0.1:11434"
+            initial_fallback_reason = _format_fallback_reason(Exception(err_msg), "Ollama", model)
+        elif is_cloud:
+            initial_fallback_reason = f"{active_prov.value.title()} not configured or missing API key"
+        else:
+            initial_fallback_reason = "AI provider offline"
 
     add_info = getattr(job_input, "additional_information", "") or ""
     job_hash = hashlib.sha256(f"{job_input.target_role}|{add_info}|{job_input.job_description}|{lang}".encode()).hexdigest()[:16]
@@ -1473,6 +1545,8 @@ def run_job_target_analysis(
             ollama_model=model if (ai_available and is_ollama) else None,
             ai_provider=active_prov.value if ai_available else "deterministic",
             ai_model=model if ai_available else None,
+            fallback_reason=initial_fallback_reason if not ai_available else None,
+            can_retry=True,
         )
 
         single_pass_done = False
@@ -1495,21 +1569,23 @@ def run_job_target_analysis(
             # Stage 1
             try:
                 if ai_available:
-                    requirements = _stage1_extract_requirements(job_input, model=model)
+                    requirements = _stage1_extract_requirements(job_input, model=model, db=db, user_id=user_id)
                 else:
                     requirements = _fallback_extract_requirements(job_input)
                 result.job_requirements = requirements
             except (OllamaError, OllamaUnavailableError, AIGatewayError, Exception) as exc:
-                logger.warning(f"Stage 1 failed: {exc}")
+                fallback_reason = _format_fallback_reason(exc, active_prov.value.title(), model)
+                logger.warning(f"AI Stage 1 failed ({fallback_reason}): {exc}")
                 requirements = _fallback_extract_requirements(job_input)
                 result.job_requirements = requirements
                 result.ollama_used = False
                 result.ai_provider = "deterministic"
+                result.fallback_reason = fallback_reason
 
             # Stage 2
             try:
                 if ai_available and requirements:
-                    match_analysis = _stage2_match_candidate(requirements, ctx, lang, model=model)
+                    match_analysis = _stage2_match_candidate(requirements, ctx, lang, model=model, db=db, user_id=user_id)
                 else:
                     match_analysis = deterministic_match(ctx, job_input)
                 result.match_analysis = match_analysis
@@ -1522,7 +1598,7 @@ def run_job_target_analysis(
             # Stage 3
             try:
                 if ai_available:
-                    recs = _stage3_recommendations(requirements, match_analysis, ctx, job_input, model=model)
+                    recs = _stage3_recommendations(requirements, match_analysis, ctx, job_input, model=model, db=db, user_id=user_id)
                 else:
                     recs = _fallback_recommendations(match_analysis, ctx, job_input)
                 result.resume_recommendations = recs

@@ -557,10 +557,11 @@ class OllamaProvider:
         selected_ollama = get_selected_model(AIProviderType.OLLAMA, db=db, user_id=user_id)
 
         now = time.monotonic()
-        if not url and not force_refresh and (now - _ollama_health_cache["timestamp"] < 30.0):
+        # Keep health cache short (5s) so status changes are detected quickly without stalling UI
+        if not url and not force_refresh and (now - _ollama_health_cache["timestamp"] < 5.0):
             cached_models = _ollama_health_cache["models"]
             installed_names = [m["name"] for m in cached_models]
-            current_selected = selected_ollama or (installed_names[0] if installed_names else None)
+            current_selected = selected_ollama if (selected_ollama and selected_ollama in installed_names) else (installed_names[0] if installed_names else None)
             return {
                 "provider": "ollama",
                 "name": "Ollama (Local)",
@@ -568,7 +569,7 @@ class OllamaProvider:
                 "status": _ollama_health_cache["status"],
                 "models": cached_models,
                 "selected_model": current_selected,
-                "selected_model_available": (current_selected in installed_names if current_selected else False),
+                "selected_model_available": bool(current_selected and current_selected in installed_names),
                 "error": _ollama_health_cache["error"],
                 "is_local": True,
             }
@@ -585,7 +586,8 @@ class OllamaProvider:
             "is_local": True,
         }
         try:
-            with httpx.Client(timeout=httpx.Timeout(1.0, connect=0.8)) as client:
+            # Generous probe timeout (2s connect, 4s read) to avoid false offline triggers on busy machines
+            with httpx.Client(timeout=httpx.Timeout(4.0, connect=2.0)) as client:
                 resp = client.get(f"{target_url}/api/tags")
                 if resp.status_code == 200:
                     raw_models = resp.json().get("models", [])
@@ -604,12 +606,11 @@ class OllamaProvider:
                     status_data["models"] = models_list
 
                     installed_names = [m["name"] for m in models_list]
-                    current_selected = selected_ollama or (installed_names[0] if installed_names else None)
+                    # If configured model is installed, use it; otherwise auto-resolve to first installed model
+                    current_selected = selected_ollama if (selected_ollama and selected_ollama in installed_names) else (installed_names[0] if installed_names else None)
 
                     status_data["selected_model"] = current_selected
-                    status_data["selected_model_available"] = (
-                        current_selected in installed_names if current_selected else False
-                    )
+                    status_data["selected_model_available"] = bool(current_selected and current_selected in installed_names)
                 else:
                     status_data["status"] = "unavailable"
                     status_data["error"] = f"HTTP {resp.status_code}: {resp.text}"
@@ -645,7 +646,7 @@ class OllamaProvider:
                     model_names = [m.get("name") for m in models]
                     if target_model and target_model not in model_names:
                         return {
-                            "success": True,
+                            "success": False,
                             "provider": "ollama",
                             "model": target_model,
                             "message": f"Ollama is running ({latency}ms), but model '{target_model}' is not installed locally. Run: ollama pull {target_model}",
@@ -689,17 +690,26 @@ class OllamaProvider:
         system_prompt: str | None = None,
         model: str | None = None,
         temperature: float = 0.2,
-        timeout_seconds: float = 45.0,
+        timeout_seconds: float = 60.0,
         response_json: bool = False,
+        db: Session | None = None,
+        user_id: int | None = None,
     ) -> str:
         url = cls.get_url()
-        target_model = model or get_selected_model()
+        health = cls.check_health(url, db=db, user_id=user_id)
+        installed = [m["name"] for m in health.get("models", [])]
 
-        if not target_model:
-            health = cls.check_health(url)
-            if health["models"]:
-                target_model = health["models"][0]["name"]
-                set_selected_model(target_model)
+        target_model = model or get_selected_model(AIProviderType.OLLAMA, db=db, user_id=user_id)
+        if target_model and installed and target_model not in installed:
+            logger.warning(
+                f"Configured Ollama model '{target_model}' is not in installed models ({installed}). Auto-resolving to '{installed[0]}'."
+            )
+            target_model = installed[0]
+            set_selected_model(target_model, provider_type=AIProviderType.OLLAMA, db=db, user_id=user_id)
+        elif not target_model:
+            if installed:
+                target_model = installed[0]
+                set_selected_model(target_model, provider_type=AIProviderType.OLLAMA, db=db, user_id=user_id)
             else:
                 raise AIUnavailableError("No Ollama models installed or available. Run 'ollama pull qwen3.5:0.8b'.")
 
@@ -723,10 +733,17 @@ class OllamaProvider:
                 resp = client.post(f"{url}/api/generate", json=payload)
                 if resp.status_code == 200:
                     result = resp.json()
-                    return result.get("response", "").strip()
+                    raw_text = result.get("response", "").strip()
+                    # Strip reasoning tags emitted by reasoning models (e.g. <think>...</think>)
+                    clean_text = re.sub(r"<think>[\s\S]*?</think>", "", raw_text, flags=re.IGNORECASE).strip()
+                    return clean_text
+                if resp.status_code == 404:
+                    raise AIGatewayError(f"Model '{target_model}' not found in Ollama. Pull it with: ollama pull {target_model}")
                 raise AIGatewayError(f"Ollama returned HTTP {resp.status_code}: {resp.text}")
-        except (httpx.ConnectError, httpx.TimeoutException) as exc:
-            raise AIUnavailableError(f"Cannot reach Ollama at {url}: {exc}") from exc
+        except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
+            raise AIUnavailableError(f"Cannot reach Ollama at {url}. Ensure Ollama is running on port 11434.") from exc
+        except httpx.TimeoutException as exc:
+            raise AIGatewayError(f"Ollama generation timed out after {timeout_seconds}s for model '{target_model}'.") from exc
         except Exception as exc:
             raise AIGatewayError(f"Ollama generation failed: {exc}") from exc
 
@@ -737,7 +754,14 @@ class OllamaProvider:
 
     @classmethod
     def get_active_model(cls, db: Session | None = None, user_id: int | None = None) -> str:
-        return get_selected_model(AIProviderType.OLLAMA, db=db, user_id=user_id) or "qwen3.5:0.8b"
+        configured = get_selected_model(AIProviderType.OLLAMA, db=db, user_id=user_id)
+        health = cls.check_health(db=db, user_id=user_id)
+        installed = [m["name"] for m in health.get("models", [])]
+        if configured and configured in installed:
+            return configured
+        if installed:
+            return installed[0]
+        return configured or "qwen3.5:0.8b"
 
 
 class GeminiProvider:
@@ -1791,6 +1815,8 @@ def generate_completion(
         temperature=temperature,
         timeout_seconds=timeout_seconds,
         response_json=response_json,
+        db=db,
+        user_id=user_id,
     )
 
 
@@ -1822,17 +1848,31 @@ def generate_structured(
         user_id=user_id,
     )
 
+    clean_raw = re.sub(r"<think>[\s\S]*?</think>", "", raw, flags=re.IGNORECASE).strip()
     # Attempt direct JSON parsing
     try:
-        return json.loads(raw)
+        return json.loads(clean_raw)
     except json.JSONDecodeError:
         # Heuristic extraction of ```json ... ``` code fence if present
-        json_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", raw, re.DOTALL)
+        json_match = re.search(r"```(?:json)?\s*([\s\S]+?)\s*```", clean_raw)
         if json_match:
-            return json.loads(json_match.group(1))
-        # Find first { and last }
-        start = raw.find("{")
-        end = raw.rfind("}")
-        if start != -1 and end != -1 and end > start:
-            return json.loads(raw[start : end + 1])
-        raise AIGatewayError(f"Model did not return valid JSON output: {raw[:200]}")
+            try:
+                return json.loads(json_match.group(1).strip())
+            except json.JSONDecodeError:
+                pass
+        # Find outer object { ... } or array [ ... ]
+        obj_start = clean_raw.find("{")
+        obj_end = clean_raw.rfind("}")
+        if obj_start != -1 and obj_end != -1 and obj_end > obj_start:
+            try:
+                return json.loads(clean_raw[obj_start : obj_end + 1])
+            except json.JSONDecodeError:
+                pass
+        arr_start = clean_raw.find("[")
+        arr_end = clean_raw.rfind("]")
+        if arr_start != -1 and arr_end != -1 and arr_end > arr_start:
+            try:
+                return json.loads(clean_raw[arr_start : arr_end + 1])
+            except json.JSONDecodeError:
+                pass
+        raise AIGatewayError(f"Model did not return valid JSON output: {clean_raw[:200]}")

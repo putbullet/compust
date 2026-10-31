@@ -239,6 +239,8 @@ class JobTargetAnalysisResult(BaseModel):
     partial_failure: bool = False
     partial_failure_detail: str = ""
     data_conflicts: list[str] = Field(default_factory=list)
+    fallback_reason: str | None = None
+    can_retry: bool = True
 
 
 

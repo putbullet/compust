@@ -2522,6 +2522,8 @@ export interface JobTargetAnalysisResult {
   partial_failure: boolean;
   partial_failure_detail: string;
   data_conflicts: string[];
+  fallback_reason?: string | null;
+  can_retry?: boolean;
 }
 
 export interface SaveTailoredFromJobTargetRequest {

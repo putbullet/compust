@@ -20,6 +20,7 @@ import {
   BookmarkPlus,
   ExternalLink,
   HelpCircle,
+  RotateCcw,
 } from 'lucide-react';
 import type {
   ExternalJobInput,
@@ -807,7 +808,37 @@ export const JobTargetPanel: React.FC<JobTargetPanelProps> = ({
             ) : result.ollama_used ? (
               <span className="jtp-status-ai on"><Sparkles size={12} /> Ollama Local ({result.ollama_model || result.ai_model || 'active'})</span>
             ) : (
-              <span className="jtp-status-ai off"><AlertCircle size={12} /> AI Offline — deterministic analysis only</span>
+              <span className="jtp-status-ai off">
+                <AlertCircle size={12} />
+                {result.fallback_reason
+                  ? `AI Fallback: ${result.fallback_reason}`
+                  : 'AI Offline — deterministic analysis only'}
+              </span>
+            )}
+            {result.ai_provider === 'deterministic' && (
+              <button
+                type="button"
+                className="jtp-retry-ai-btn"
+                onClick={handleAnalyze}
+                disabled={step === 'analyzing'}
+                title="Retry AI Analysis"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '2px 8px',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  background: 'rgba(239, 68, 68, 0.12)',
+                  border: '1px solid rgba(239, 68, 68, 0.35)',
+                  color: '#f87171',
+                  cursor: 'pointer',
+                  fontWeight: 500,
+                }}
+              >
+                <RotateCcw size={11} />
+                <span>Retry AI</span>
+              </button>
             )}
             {result.data_conflicts.length > 0 && (
               <span className="jtp-status-conflicts">

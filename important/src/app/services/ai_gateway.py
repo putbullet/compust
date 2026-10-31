@@ -128,7 +128,7 @@ def load_ai_config() -> dict[str, Any]:
     default_cfg: dict[str, Any] = {
         "active_provider": AIProviderType.OLLAMA.value,
         "selected_model": "qwen3.5:0.8b",
-        "gemini_model": "gemini-2.5-flash",
+        "gemini_model": "gemini-3.5-flash",
         "gemini_consent_given": False,
         "openai_model": "gpt-4o-mini",
         "fallback_policy": "deterministic",  # 'deterministic' | 'error' | 'try_other'
@@ -253,7 +253,7 @@ def get_or_create_user_ai_config(db: Session, user_id: int | None = None) -> Any
         user_id=eff_user_id,
         active_provider=file_cfg.get("active_provider", AIProviderType.OLLAMA.value),
         selected_model=file_cfg.get("selected_model", "qwen3.5:0.8b"),
-        gemini_model=file_cfg.get("gemini_model", "gemini-2.5-flash"),
+        gemini_model=file_cfg.get("gemini_model", "gemini-3.5-flash"),
         openai_model=file_cfg.get("openai_model", "gpt-4o-mini"),
         consent_granted=file_cfg.get("gemini_consent_given", file_cfg.get("consent_granted", False)),
         gemini_api_key_encrypted=file_cfg.get("gemini_api_key_encrypted"),
@@ -764,6 +764,10 @@ class OllamaProvider:
         return configured or "qwen3.5:0.8b"
 
 
+# Global in-memory cache for dynamic cloud model catalogs: {cache_key: (timestamp, catalog_dict)}
+_MODELS_CATALOG_CACHE: dict[str, tuple[float, dict[str, Any]]] = {}
+
+
 class GeminiProvider:
     """Google Gemini Cloud AI Provider using direct HTTPS REST API."""
 
@@ -773,60 +777,143 @@ class GeminiProvider:
     def get_base_url(cls) -> str:
         return os.environ.get("GEMINI_BASE_URL", cls.BASE_URL).rstrip("/")
 
-    # Verified real Google Gemini API model IDs (as of Oct 2026).
-    # These are shown only when no API key is configured yet.
-    # When a key is present, the live /v1beta/models endpoint is queried instead.
+    # Verified real Google Gemini API model IDs (Oct 2026).
+    # Default fallback models when offline or no API key is set.
     FALLBACK_MODELS = [
-        {"id": "gemini-2.5-flash", "name": "Gemini 2.5 Flash (Recommended)", "recommended": True},
-        {"id": "gemini-2.5-flash-latest", "name": "Gemini 2.5 Flash Latest", "recommended": False},
-        {"id": "gemini-2.5-pro", "name": "Gemini 2.5 Pro (Deep Reasoning)", "recommended": False},
-        {"id": "gemini-2.0-flash", "name": "Gemini 2.0 Flash", "recommended": False},
-        {"id": "gemini-1.5-flash", "name": "Gemini 1.5 Flash", "recommended": False},
-        {"id": "gemini-1.5-pro", "name": "Gemini 1.5 Pro", "recommended": False},
+        {"id": "gemini-3.5-flash", "name": "Gemini 3.5 Flash (Recommended)", "recommended": True, "description": "High-capability multimodal flash model", "status": "unverified", "latency_ms": None},
+        {"id": "gemini-3.1-flash-lite", "name": "Gemini 3.1 Flash Lite", "recommended": False, "description": "Ultra-fast low-latency flash model", "status": "unverified", "latency_ms": None},
+        {"id": "gemini-flash-lite-latest", "name": "Gemini Flash Lite (Latest)", "recommended": False, "description": "Continuously updated fast flash model", "status": "unverified", "latency_ms": None},
+        {"id": "gemini-3.6-flash", "name": "Gemini 3.6 Flash", "recommended": False, "description": "High-throughput production flash model", "status": "unverified", "latency_ms": None},
+        {"id": "gemini-3-flash-preview", "name": "Gemini 3 Flash Preview", "recommended": False, "description": "Preview of next-gen flash capabilities", "status": "unverified", "latency_ms": None},
     ]
 
     @classmethod
-    def get_available_models(cls, api_key: str | None = None) -> list[dict[str, Any]]:
-        key = api_key or get_gemini_api_key()
+    def get_models_catalog(
+        cls,
+        api_key: str | None = None,
+        probe: bool = False,
+        force_refresh: bool = False,
+        db: Session | None = None,
+        user_id: int | None = None,
+    ) -> dict[str, Any]:
+        key = api_key or get_gemini_api_key(db=db, user_id=user_id)
+        selected = get_selected_model(AIProviderType.GEMINI, db=db, user_id=user_id) or "gemini-3.5-flash"
+        cache_key = f"gemini_{mask_api_key(key) or 'none'}"
+        now = time.time()
+
+        if not force_refresh and not probe and cache_key in _MODELS_CATALOG_CACHE:
+            ts, cached_entry = _MODELS_CATALOG_CACHE[cache_key]
+            if now - ts < 3600:
+                res = dict(cached_entry)
+                res["cached"] = True
+                res["selected_model"] = selected
+                return res
+
+        models_list: list[dict[str, Any]] = []
         if not key:
-            return cls.FALLBACK_MODELS
-        try:
-            with httpx.Client(timeout=6.0) as client:
-                resp = client.get(
-                    f"{cls.get_base_url()}/models",
-                    headers={"x-goog-api-key": key},
-                )
-                if resp.status_code == 200:
-                    raw_models = resp.json().get("models", [])
-                    models_list: list[dict[str, Any]] = []
-                    for m in raw_models:
-                        methods = m.get("supportedGenerationMethods", [])
-                        m_name = m.get("name", "")
-                        if "generateContent" in methods and (m_name.startswith("models/gemini") or m_name.startswith("models/gemma")):
-                            if any(x in m_name for x in ["tts", "image", "robotics", "computer-use", "clip"]):
+            models_list = [dict(m) for m in cls.FALLBACK_MODELS]
+        else:
+            try:
+                with httpx.Client(timeout=8.0) as client:
+                    resp = client.get(
+                        f"{cls.get_base_url()}/models",
+                        headers={"x-goog-api-key": key},
+                    )
+                    if resp.status_code == 200:
+                        raw_models = resp.json().get("models", [])
+                        for m in raw_models:
+                            methods = m.get("supportedGenerationMethods", [])
+                            m_name = m.get("name", "")
+                            if "generateContent" not in methods:
+                                continue
+                            if not (m_name.startswith("models/gemini") or m_name.startswith("models/gemma")):
                                 continue
                             model_id = m_name.removeprefix("models/")
+                            # Exclude specialized non-chat / internal preview models
+                            if any(x in model_id.lower() for x in [
+                                "tts", "image", "robotics", "transcribe", "computer-use",
+                                "customtools", "banana", "lyria", "antigravity", "deep-research",
+                                "aqa", "embedding"
+                            ]):
+                                continue
+                            # Exclude retired models per user specification
+                            if any(x in model_id.lower() for x in [
+                                "1.0", "1.5", "2.5-flash", "2.5-pro", "2.5-flash-lite", "text-bison", "chat-bison"
+                            ]):
+                                continue
                             display = m.get("displayName") or model_id
                             desc = m.get("description", "")
-                            is_rec = "2.5-flash" in model_id
+                            is_rec = "3.5-flash" in model_id
                             models_list.append({
                                 "id": model_id,
                                 "name": f"{display}{' (Recommended)' if is_rec else ''}",
-                                "description": desc[:100] if desc else None,
+                                "description": desc[:120] if desc else None,
                                 "recommended": is_rec,
+                                "status": "unverified",
+                                "latency_ms": None,
                             })
-                    if models_list:
-                        models_list.sort(key=lambda x: (not x.get("recommended", False), x["id"]))
-                        return models_list
-        except Exception as exc:
-            logger.debug(f"Could not dynamically query Gemini models: {exc}")
-        return cls.FALLBACK_MODELS
+            except Exception as exc:
+                logger.debug(f"Could not dynamically query Gemini models: {exc}")
+
+        if not models_list:
+            models_list = [dict(m) for m in cls.FALLBACK_MODELS]
+
+        # Sort so recommended is first, followed by id
+        models_list.sort(key=lambda x: (not x.get("recommended", False), x["id"]))
+
+        # Sequential availability probing if requested
+        if probe and key:
+            # Probe up to 6 candidate models sequentially with 250ms spacing
+            candidates_to_probe = models_list[:6]
+            with httpx.Client(timeout=6.0) as probe_client:
+                for candidate in candidates_to_probe:
+                    m_id = candidate["id"]
+                    t0 = time.perf_counter()
+                    try:
+                        url = f"{cls.get_base_url()}/models/{m_id}:generateContent"
+                        p_resp = probe_client.post(
+                            url,
+                            headers={"x-goog-api-key": key, "Content-Type": "application/json"},
+                            json={"contents": [{"role": "user", "parts": [{"text": "ping"}]}], "generationConfig": {"maxOutputTokens": 2}},
+                        )
+                        latency = int((time.perf_counter() - t0) * 1000)
+                        if p_resp.status_code == 200:
+                            candidate["status"] = "available"
+                            candidate["latency_ms"] = latency
+                        elif p_resp.status_code in (429, 403):
+                            candidate["status"] = "requires_paid"
+                        else:
+                            candidate["status"] = "unverified"
+                    except Exception:
+                        candidate["status"] = "unverified"
+                    time.sleep(0.25)
+
+        categories = {
+            "available": [m for m in models_list if m.get("status") == "available"],
+            "requires_paid": [m for m in models_list if m.get("status") == "requires_paid"],
+            "unverified": [m for m in models_list if m.get("status") not in ("available", "requires_paid")],
+        }
+
+        result = {
+            "provider": "gemini",
+            "categories": categories,
+            "models": models_list,
+            "cached": False,
+            "selected_model": selected,
+        }
+        _MODELS_CATALOG_CACHE[cache_key] = (now, result)
+        return result
+
+    @classmethod
+    def get_available_models(cls, api_key: str | None = None, db: Session | None = None, user_id: int | None = None) -> list[dict[str, Any]]:
+        catalog = cls.get_models_catalog(api_key=api_key, probe=False, db=db, user_id=user_id)
+        return catalog.get("models", cls.FALLBACK_MODELS)
 
     @classmethod
     def test_connection(cls, api_key: str | None = None, model: str | None = None, db: Session | None = None, user_id: int | None = None) -> dict[str, Any]:
         key = api_key or get_gemini_api_key(db=db, user_id=user_id)
         cfg = load_ai_config()
-        target_model = model or get_selected_model(AIProviderType.GEMINI, db=db, user_id=user_id) or cfg.get("gemini_model") or "gemini-2.5-flash"
+        target_model = model or get_selected_model(AIProviderType.GEMINI, db=db, user_id=user_id) or cfg.get("gemini_model") or "gemini-3.5-flash"
         if not key:
             return {
                 "success": False,
@@ -878,7 +965,7 @@ class GeminiProvider:
                         "success": False,
                         "provider": "gemini",
                         "model": target_model,
-                        "message": f"Model '{target_model}' not found or deprecated by Google. Try 'gemini-2.5-flash'.",
+                        "message": f"Model '{target_model}' not found or deprecated by Google. Try 'gemini-3.5-flash'.",
                         "latency_ms": latency,
                     }
                 return {
@@ -931,7 +1018,11 @@ class GeminiProvider:
                 pass
 
         cfg = load_ai_config()
-        gemini_model = (row.gemini_model if row and row.gemini_model else None) or cfg.get("gemini_model", "gemini-2.5-flash")
+        gemini_model = (row.gemini_model if row and row.gemini_model else None) or cfg.get("gemini_model", "gemini-3.5-flash")
+    if gemini_model and any(x in gemini_model.lower() for x in ["1.5", "2.5-flash", "text-bison"]):
+        gemini_model = "gemini-3.5-flash"
+        if gemini_model and any(x in gemini_model.lower() for x in ["1.5", "2.5-flash", "text-bison"]):
+            gemini_model = "gemini-3.5-flash"
         file_consent = bool(cfg.get("gemini_consent_given", cfg.get("consent_granted", False)))
         consent_given = (bool(row.consent_granted) if row else False) or file_consent
 
@@ -986,7 +1077,7 @@ class GeminiProvider:
                 "Enable consent in AI Settings."
             )
 
-        target_model = model or (row.gemini_model if row and row.gemini_model else None) or cfg.get("gemini_model") or "gemini-2.5-flash"
+        target_model = model or (row.gemini_model if row and row.gemini_model else None) or cfg.get("gemini_model") or "gemini-3.5-flash"
         url = f"{cls.get_base_url()}/models/{target_model}:generateContent"
 
         # Build payload with systemInstruction and contents
@@ -1164,7 +1255,7 @@ class GeminiProvider:
                     row = get_or_create_user_ai_config(session, user_id)
             except Exception:
                 pass
-        return (row.gemini_model if row and row.gemini_model else None) or load_ai_config().get("gemini_model") or "gemini-2.5-flash"
+        return (row.gemini_model if row and row.gemini_model else None) or load_ai_config().get("gemini_model") or "gemini-3.5-flash"
 
 
 class OpenAIProvider:
@@ -1176,50 +1267,119 @@ class OpenAIProvider:
     def get_base_url(cls) -> str:
         return os.environ.get("OPENAI_BASE_URL", cls.BASE_URL).rstrip("/")
 
-    # Verified OpenAI chat-completion models (as of Oct 2026).
-    # Shown only when no API key is configured; live list is fetched from /v1/models when key is set.
+    # Verified OpenAI chat-completion models (Oct 2026).
     FALLBACK_MODELS = [
-        {"id": "gpt-4o-mini", "name": "GPT-4o Mini (Recommended)", "recommended": True, "description": "Fast, highly capable, and cost-effective"},
-        {"id": "gpt-4o", "name": "GPT-4o", "recommended": False, "description": "Flagship high-intelligence multimodal model"},
-        {"id": "gpt-4.1", "name": "GPT-4.1", "recommended": False, "description": "Latest GPT-4 flagship with enhanced instruction following"},
-        {"id": "gpt-4.1-mini", "name": "GPT-4.1 Mini", "recommended": False, "description": "Smaller, faster GPT-4.1 for latency-sensitive tasks"},
-        {"id": "gpt-4-turbo", "name": "GPT-4 Turbo", "recommended": False, "description": "High capability with large context window"},
-        {"id": "o4-mini", "name": "o4-mini", "recommended": False, "description": "Fast reasoning model for complex logic and math"},
-        {"id": "o3-mini", "name": "o3-mini", "recommended": False, "description": "Reasoning model for complex logic and math"},
+        {"id": "gpt-4o-mini", "name": "GPT-4o Mini (Recommended)", "recommended": True, "description": "Fast, highly capable, and cost-effective", "status": "unverified", "latency_ms": None},
+        {"id": "gpt-4o", "name": "GPT-4o", "recommended": False, "description": "Flagship high-intelligence multimodal model", "status": "unverified", "latency_ms": None},
+        {"id": "gpt-4.5-preview", "name": "GPT-4.5 Preview", "recommended": False, "description": "Next-generation knowledge and reasoning", "status": "unverified", "latency_ms": None},
+        {"id": "o3-mini", "name": "o3-mini", "recommended": False, "description": "Fast reasoning model for complex STEM and logic", "status": "unverified", "latency_ms": None},
+        {"id": "o1", "name": "o1", "recommended": False, "description": "Deep reasoning model for complex multi-step reasoning", "status": "unverified", "latency_ms": None},
+        {"id": "o1-mini", "name": "o1-mini", "recommended": False, "description": "Lightweight reasoning model for code and math", "status": "unverified", "latency_ms": None},
+        {"id": "gpt-4-turbo", "name": "GPT-4 Turbo", "recommended": False, "description": "High capability with 128k context window", "status": "unverified", "latency_ms": None},
     ]
 
     @classmethod
-    def get_available_models(cls, api_key: str | None = None) -> list[dict[str, Any]]:
-        key = api_key or get_openai_api_key()
+    def get_models_catalog(
+        cls,
+        api_key: str | None = None,
+        probe: bool = False,
+        force_refresh: bool = False,
+        db: Session | None = None,
+        user_id: int | None = None,
+    ) -> dict[str, Any]:
+        key = api_key or get_openai_api_key(db=db, user_id=user_id)
+        selected = get_selected_model(AIProviderType.OPENAI, db=db, user_id=user_id) or "gpt-4o-mini"
+        cache_key = f"openai_{mask_api_key(key) or 'none'}"
+        now = time.time()
+
+        if not force_refresh and not probe and cache_key in _MODELS_CATALOG_CACHE:
+            ts, cached_entry = _MODELS_CATALOG_CACHE[cache_key]
+            if now - ts < 3600:
+                res = dict(cached_entry)
+                res["cached"] = True
+                res["selected_model"] = selected
+                return res
+
+        models_list: list[dict[str, Any]] = []
         if not key:
-            return cls.FALLBACK_MODELS
-        try:
-            with httpx.Client(timeout=6.0) as client:
-                resp = client.get(
-                    f"{cls.get_base_url()}/models",
-                    headers={"Authorization": f"Bearer {key}"},
-                )
-                if resp.status_code == 200:
-                    raw_models = resp.json().get("data", [])
-                    models_list: list[dict[str, Any]] = []
-                    allowed_prefixes = ("gpt-4", "gpt-3.5", "o1", "o3", "o4", "chatgpt")
-                    for m in raw_models:
-                        model_id = m.get("id", "")
-                        if any(model_id.startswith(p) for p in allowed_prefixes):
-                            if any(sub in model_id for sub in ["realtime", "audio", "transcription", "tts", "moderation", "embedding", "instruct", "vision", "preview"]):
-                                continue
-                            is_rec = model_id == "gpt-4o-mini"
-                            models_list.append({
-                                "id": model_id,
-                                "name": f"{model_id}{' (Recommended)' if is_rec else ''}",
-                                "recommended": is_rec,
-                            })
-                    if models_list:
-                        models_list.sort(key=lambda x: (not x.get("recommended", False), x["id"]))
-                        return models_list
-        except Exception as exc:
-            logger.debug(f"Could not dynamically query OpenAI models: {exc}")
-        return cls.FALLBACK_MODELS
+            models_list = [dict(m) for m in cls.FALLBACK_MODELS]
+        else:
+            try:
+                with httpx.Client(timeout=8.0) as client:
+                    resp = client.get(
+                        f"{cls.get_base_url()}/models",
+                        headers={"Authorization": f"Bearer {key}"},
+                    )
+                    if resp.status_code == 200:
+                        raw_models = resp.json().get("data", [])
+                        allowed_prefixes = ("gpt-4o", "gpt-4.5", "o1", "o3", "gpt-4-turbo")
+                        for m in raw_models:
+                            model_id = m.get("id", "")
+                            if any(model_id.startswith(p) for p in allowed_prefixes):
+                                if any(sub in model_id for sub in ["realtime", "audio", "transcription", "tts", "moderation", "embedding", "instruct", "dall-e", "whisper"]):
+                                    continue
+                                is_rec = model_id == "gpt-4o-mini"
+                                models_list.append({
+                                    "id": model_id,
+                                    "name": f"{model_id}{' (Recommended)' if is_rec else ''}",
+                                    "recommended": is_rec,
+                                    "description": "Standard OpenAI chat model",
+                                    "status": "unverified",
+                                    "latency_ms": None,
+                                })
+            except Exception as exc:
+                logger.debug(f"Could not dynamically query OpenAI models: {exc}")
+
+        if not models_list:
+            models_list = [dict(m) for m in cls.FALLBACK_MODELS]
+
+        models_list.sort(key=lambda x: (not x.get("recommended", False), x["id"]))
+
+        # Sequential availability probing if requested
+        if probe and key:
+            candidates_to_probe = models_list[:5]
+            with httpx.Client(timeout=6.0) as probe_client:
+                for candidate in candidates_to_probe:
+                    m_id = candidate["id"]
+                    t0 = time.perf_counter()
+                    try:
+                        p_resp = probe_client.post(
+                            f"{cls.get_base_url()}/chat/completions",
+                            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                            json={"model": m_id, "messages": [{"role": "user", "content": "ping"}], "max_tokens": 2},
+                        )
+                        latency = int((time.perf_counter() - t0) * 1000)
+                        if p_resp.status_code == 200:
+                            candidate["status"] = "available"
+                            candidate["latency_ms"] = latency
+                        elif p_resp.status_code in (429, 403):
+                            candidate["status"] = "requires_paid"
+                        else:
+                            candidate["status"] = "unverified"
+                    except Exception:
+                        candidate["status"] = "unverified"
+                    time.sleep(0.25)
+
+        categories = {
+            "available": [m for m in models_list if m.get("status") == "available"],
+            "requires_paid": [m for m in models_list if m.get("status") == "requires_paid"],
+            "unverified": [m for m in models_list if m.get("status") not in ("available", "requires_paid")],
+        }
+
+        result = {
+            "provider": "openai",
+            "categories": categories,
+            "models": models_list,
+            "cached": False,
+            "selected_model": selected,
+        }
+        _MODELS_CATALOG_CACHE[cache_key] = (now, result)
+        return result
+
+    @classmethod
+    def get_available_models(cls, api_key: str | None = None, db: Session | None = None, user_id: int | None = None) -> list[dict[str, Any]]:
+        catalog = cls.get_models_catalog(api_key=api_key, probe=False, db=db, user_id=user_id)
+        return catalog.get("models", cls.FALLBACK_MODELS)
 
     @classmethod
     def test_connection(cls, api_key: str | None = None, model: str | None = None) -> dict[str, Any]:
@@ -1520,7 +1680,7 @@ def get_selected_model(
     prov = AIProviderType(provider_type) if provider_type else get_active_provider(db=db, user_id=user_id)
     cfg = load_ai_config()
     if prov == AIProviderType.GEMINI:
-        return (row.gemini_model if row and row.gemini_model else None) or cfg.get("gemini_model") or "gemini-2.5-flash"
+        return (row.gemini_model if row and row.gemini_model else None) or cfg.get("gemini_model") or "gemini-3.5-flash"
     if prov == AIProviderType.OPENAI:
         return (row.openai_model if row and row.openai_model else None) or cfg.get("openai_model") or "gpt-4o-mini"
     return (row.selected_model if row and row.selected_model else None) or cfg.get("selected_model") or get_settings().default_ai_model
@@ -1636,7 +1796,9 @@ def get_ai_status(db: Session | None = None, user_id: int | None = None) -> dict
     file_consent = bool(cfg.get("gemini_consent_given", cfg.get("consent_granted", False)))
     consent = (bool(row.consent_granted) if row else False) or file_consent
     fallback_policy = row.fallback_policy if row else cfg.get("fallback_policy", "deterministic")
-    gemini_model = (row.gemini_model if row and row.gemini_model else None) or cfg.get("gemini_model", "gemini-2.5-flash")
+    gemini_model = (row.gemini_model if row and row.gemini_model else None) or cfg.get("gemini_model", "gemini-3.5-flash")
+    if gemini_model and any(x in gemini_model.lower() for x in ["1.5", "2.5-flash", "text-bison"]):
+        gemini_model = "gemini-3.5-flash"
     openai_model = (row.openai_model if row and row.openai_model else None) or cfg.get("openai_model", "gpt-4o-mini")
 
     return {

@@ -23,7 +23,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { api } from '../api/client';
-import type { AIStatus, AIProvider } from '../api/client';
+import type { AIStatus, AIProvider, AIProviderModelsResponse } from '../api/client';
 
 interface AISettingsModalProps {
   isOpen: boolean;
@@ -32,24 +32,23 @@ interface AISettingsModalProps {
 }
 
 // Verified real Google Gemini API model IDs (Oct 2026).
-// When a key is set, the live list is fetched from the backend which queries /v1beta/models.
+// Clean seed models (no retired 1.0/1.5/2.5-flash models).
 const GEMINI_MODELS = [
-  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', desc: 'Recommended · Fast, highly capable, cost-effective' },
-  { id: 'gemini-2.5-flash-latest', name: 'Gemini 2.5 Flash Latest', desc: 'Latest 2.5 Flash release' },
-  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', desc: 'Deep reasoning · Complex multi-step tasks' },
-  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', desc: 'Previous generation Flash · Stable production' },
-  { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', desc: 'Long context · Legacy stable' },
-  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', desc: 'High capability · Long context · Legacy stable' },
+  { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash', desc: 'Recommended · Fast multimodal reasoning' },
+  { id: 'gemini-3.1-flash-lite', name: 'Gemini 3.1 Flash Lite', desc: 'Ultra-fast low-latency flash model' },
+  { id: 'gemini-flash-lite-latest', name: 'Gemini Flash Lite Latest', desc: 'Continuously updated fast flash model' },
+  { id: 'gemini-3.6-flash', name: 'Gemini 3.6 Flash', desc: 'High-throughput production flash model' },
+  { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash Preview', desc: 'Next-generation preview model' },
 ];
 
 const OPENAI_MODELS = [
   { id: 'gpt-4o-mini', name: 'GPT-4o Mini', desc: 'Recommended · High speed, cost-effective & capable' },
   { id: 'gpt-4o', name: 'GPT-4o', desc: 'Flagship omni model · Superior complex reasoning' },
-  { id: 'gpt-4.1', name: 'GPT-4.1', desc: 'Latest GPT-4 flagship with enhanced instruction following' },
-  { id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini', desc: 'Smaller, faster GPT-4.1 for latency-sensitive tasks' },
-  { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', desc: 'High capability · Large context window' },
-  { id: 'o4-mini', name: 'o4-mini', desc: 'Fast reasoning model for complex logic and math' },
+  { id: 'gpt-4.5-preview', name: 'GPT-4.5 Preview', desc: 'Next-generation knowledge and reasoning' },
   { id: 'o3-mini', name: 'o3-mini', desc: 'Reasoning model · Deep analytical problem solving' },
+  { id: 'o1', name: 'o1', desc: 'Deep reasoning model for multi-step reasoning' },
+  { id: 'o1-mini', name: 'o1-mini', desc: 'Fast reasoning model for STEM and code' },
+  { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', desc: 'High capability · Large context window' },
 ];
 
 const AI_CONFIG_CACHE_KEY = 'compust_ai_config_cache';
@@ -79,7 +78,7 @@ const getStoredAIConfig = (): CachedAIConfig => {
   }
   return {
     active_provider: 'ollama',
-    gemini_model: 'gemini-2.5-flash',
+    gemini_model: 'gemini-3.5-flash',
     openai_model: 'gpt-4o-mini',
     selected_model: 'qwen3.5:0.8b',
     consent_granted: false,
@@ -96,7 +95,7 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
 }) => {
   const cached = React.useMemo(() => getStoredAIConfig(), []);
   const [activeProvider, setActiveProvider] = useState<'ollama' | 'gemini' | 'openai'>(cached.active_provider || 'ollama');
-  const [selectedGeminiModel, setSelectedGeminiModel] = useState<string>(cached.gemini_model || 'gemini-2.5-flash');
+  const [selectedGeminiModel, setSelectedGeminiModel] = useState<string>(cached.gemini_model || 'gemini-3.5-flash');
   const [selectedOpenAIModel, setSelectedOpenAIModel] = useState<string>(cached.openai_model || 'gpt-4o-mini');
   const [selectedOllamaModel, setSelectedOllamaModel] = useState<string>(cached.selected_model || 'qwen3.5:0.8b');
   const [fallbackPolicy, setFallbackPolicy] = useState<string>(cached.fallback_policy || 'deterministic');
@@ -113,7 +112,7 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
     gemini_configured: !!cached.gemini_key_configured,
     gemini_key_configured: !!cached.gemini_key_configured,
     gemini_key_masked: cached.gemini_key_masked,
-    gemini_model: cached.gemini_model || 'gemini-2.5-flash',
+    gemini_model: cached.gemini_model || 'gemini-3.5-flash',
     consent_granted: !!cached.consent_granted,
     gemini_consent_given: !!cached.consent_granted,
     openai_configured: !!cached.openai_key_configured,
@@ -158,21 +157,52 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
 
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [geminiCatalog, setGeminiCatalog] = useState<AIProviderModelsResponse | null>(null);
+  const [openaiCatalog, setOpenAICatalog] = useState<AIProviderModelsResponse | null>(null);
+  const [isProbingModels, setIsProbingModels] = useState<boolean>(false);
+  const [isRefreshingModels, setIsRefreshingModels] = useState<boolean>(false);
+
+  const loadProviderModels = async (provider: 'gemini' | 'openai', probe = false, forceRefresh = false) => {
+    try {
+      if (probe) setIsProbingModels(true);
+      if (forceRefresh) setIsRefreshingModels(true);
+      const catalog = await api.getAIProviderModels(provider, probe, forceRefresh);
+      if (provider === 'gemini') {
+        setGeminiCatalog(catalog);
+        if (catalog.selected_model) {
+          setSelectedGeminiModel(catalog.selected_model);
+        }
+      } else {
+        setOpenAICatalog(catalog);
+        if (catalog.selected_model) {
+          setSelectedOpenAIModel(catalog.selected_model);
+        }
+      }
+    } catch (err) {
+      console.error(`Failed to load ${provider} models:`, err);
+    } finally {
+      setIsProbingModels(false);
+      setIsRefreshingModels(false);
+    }
+  };
   const isMountedRef = React.useRef(false);
 
   // Dynamic models discovered from live endpoints
   const availableGeminiModels = React.useMemo(() => {
+    const isRetired = (id: string) => ['1.5', '2.5-flash', 'text-bison'].some((r) => id.includes(r));
     const live = aiStatus?.gemini?.models;
     if (Array.isArray(live) && live.length > 0) {
-      const modelNames = live.map((m: any) => (typeof m === 'string' ? m : m.id || m.name));
+      const modelNames = live
+        .map((m: any) => (typeof m === 'string' ? m : m.id || m.name))
+        .filter((id: string) => !isRetired(id));
       const items = modelNames.map((id: string) => {
         const found = GEMINI_MODELS.find((gm) => gm.id === id);
         return found || { id, name: id, desc: 'Live Google Gemini model' };
       });
-      if (selectedGeminiModel && !items.some((i) => i.id === selectedGeminiModel)) {
+      if (selectedGeminiModel && !isRetired(selectedGeminiModel) && !items.some((i) => i.id === selectedGeminiModel)) {
         items.unshift({ id: selectedGeminiModel, name: selectedGeminiModel, desc: 'Configured model' });
       }
-      return items;
+      return items.length > 0 ? items : GEMINI_MODELS;
     }
     return GEMINI_MODELS;
   }, [aiStatus?.gemini?.models, selectedGeminiModel]);
@@ -273,6 +303,8 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
     if (isOpen) {
       setIsOllamaChecking(true);
       fetchAIInfo();
+      loadProviderModels('gemini');
+      loadProviderModels('openai');
       setSavedSuccess(false);
       setTestResult(null);
       setKeySavedMessage(null);
@@ -956,18 +988,74 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
                         </div>
                       </div>
 
-                      {/* Cloud Model Selector */}
+                      {/* Cloud Model Selector with dynamic grouped categories & verify */}
                       <div className="field-group" style={{ marginTop: 14 }}>
-                        <label>Cloud Model</label>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                          <label style={{ margin: 0 }}>Cloud Model</label>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button
+                              type="button"
+                              className="btn-tiny-action"
+                              title="Sequentially probe candidate models on your API key"
+                              disabled={isProbingModels || isRefreshingModels}
+                              onClick={() => loadProviderModels('gemini', true, true)}
+                              style={{ fontSize: 11, padding: '3px 8px', borderRadius: 4, cursor: 'pointer', border: '1px solid var(--border-color, #444)', background: 'transparent', color: 'inherit' }}
+                            >
+                              {isProbingModels ? 'Verifying...' : 'Verify models'}
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-tiny-action"
+                              title="Fetch updated model catalog from Google API"
+                              disabled={isProbingModels || isRefreshingModels}
+                              onClick={() => loadProviderModels('gemini', false, true)}
+                              style={{ fontSize: 11, padding: '3px 8px', borderRadius: 4, cursor: 'pointer', border: '1px solid var(--border-color, #444)', background: 'transparent', color: 'inherit' }}
+                            >
+                              {isRefreshingModels ? 'Refreshing...' : 'Refresh list'}
+                            </button>
+                          </div>
+                        </div>
                         <select
                           value={selectedGeminiModel}
                           onChange={(e) => setSelectedGeminiModel(e.target.value)}
                         >
-                          {availableGeminiModels.map((m) => (
-                            <option key={m.id} value={m.id}>
-                              {m.name} — {m.desc}
-                            </option>
-                          ))}
+                          {geminiCatalog && (geminiCatalog.categories.available.length > 0 || geminiCatalog.categories.requires_paid.length > 0) ? (
+                            <>
+                              {geminiCatalog.categories.available.length > 0 && (
+                                <optgroup label="✓ Available (Verified)">
+                                  {geminiCatalog.categories.available.map((m) => (
+                                    <option key={m.id} value={m.id}>
+                                      {m.name} {m.latency_ms ? `(${m.latency_ms}ms)` : ''} {m.description ? `— ${m.description}` : ''}
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              )}
+                              {geminiCatalog.categories.requires_paid.length > 0 && (
+                                <optgroup label="⚠ May require paid plan (Quota limited)">
+                                  {geminiCatalog.categories.requires_paid.map((m) => (
+                                    <option key={m.id} value={m.id}>
+                                      {m.name} {m.description ? `— ${m.description}` : ''}
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              )}
+                              {geminiCatalog.categories.unverified.length > 0 && (
+                                <optgroup label="? Unverified">
+                                  {geminiCatalog.categories.unverified.map((m) => (
+                                    <option key={m.id} value={m.id}>
+                                      {m.name} {m.description ? `— ${m.description}` : ''}
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              )}
+                            </>
+                          ) : (
+                            availableGeminiModels.map((m) => (
+                              <option key={m.id} value={m.id}>
+                                {m.name} — {m.desc}
+                              </option>
+                            ))
+                          )}
                         </select>
                       </div>
 
@@ -1254,18 +1342,74 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
                     </div>
                   </div>
 
-                  {/* Model selector */}
+                  {/* Model selector with dynamic grouped categories & verify */}
                   <div className="field-group" style={{ marginTop: 14 }}>
-                    <label>Selected Model</label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <label style={{ margin: 0 }}>Selected Model</label>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button
+                          type="button"
+                          className="btn-tiny-action"
+                          title="Sequentially probe candidate models on your API key"
+                          disabled={isProbingModels || isRefreshingModels}
+                          onClick={() => loadProviderModels('openai', true, true)}
+                          style={{ fontSize: 11, padding: '3px 8px', borderRadius: 4, cursor: 'pointer', border: '1px solid var(--border-color, #444)', background: 'transparent', color: 'inherit' }}
+                        >
+                          {isProbingModels ? 'Verifying...' : 'Verify models'}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-tiny-action"
+                          title="Fetch updated model catalog from OpenAI API"
+                          disabled={isProbingModels || isRefreshingModels}
+                          onClick={() => loadProviderModels('openai', false, true)}
+                          style={{ fontSize: 11, padding: '3px 8px', borderRadius: 4, cursor: 'pointer', border: '1px solid var(--border-color, #444)', background: 'transparent', color: 'inherit' }}
+                        >
+                          {isRefreshingModels ? 'Refreshing...' : 'Refresh list'}
+                        </button>
+                      </div>
+                    </div>
                     <select
                       value={selectedOpenAIModel}
                       onChange={(e) => setSelectedOpenAIModel(e.target.value)}
                     >
-                      {availableOpenAIModels.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.name} — {m.desc}
-                        </option>
-                      ))}
+                      {openaiCatalog && (openaiCatalog.categories.available.length > 0 || openaiCatalog.categories.requires_paid.length > 0) ? (
+                        <>
+                          {openaiCatalog.categories.available.length > 0 && (
+                            <optgroup label="✓ Available (Verified)">
+                              {openaiCatalog.categories.available.map((m) => (
+                                <option key={m.id} value={m.id}>
+                                  {m.name} {m.latency_ms ? `(${m.latency_ms}ms)` : ''} {m.description ? `— ${m.description}` : ''}
+                                </option>
+                              ))}
+                            </optgroup>
+                          )}
+                          {openaiCatalog.categories.requires_paid.length > 0 && (
+                            <optgroup label="⚠ May require paid plan (Quota limited)">
+                              {openaiCatalog.categories.requires_paid.map((m) => (
+                                <option key={m.id} value={m.id}>
+                                  {m.name} {m.description ? `— ${m.description}` : ''}
+                                </option>
+                              ))}
+                            </optgroup>
+                          )}
+                          {openaiCatalog.categories.unverified.length > 0 && (
+                            <optgroup label="? Unverified">
+                              {openaiCatalog.categories.unverified.map((m) => (
+                                <option key={m.id} value={m.id}>
+                                  {m.name} {m.description ? `— ${m.description}` : ''}
+                                </option>
+                              ))}
+                            </optgroup>
+                          )}
+                        </>
+                      ) : (
+                        availableOpenAIModels.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.name} — {m.desc}
+                          </option>
+                        ))
+                      )}
                     </select>
                   </div>
 

@@ -42,3 +42,6 @@ release/
 .cache/
 important/.cache/
 Compust.exe
+
+baseline_screenshots/
+important/baseline_screenshots/

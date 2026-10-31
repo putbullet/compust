@@ -24,6 +24,29 @@ class AIModelRead(BaseModel):
     quantization_level: str | None = None
 
 
+class AIModelItem(BaseModel):
+    id: str
+    name: str
+    description: str | None = None
+    recommended: bool = False
+    status: str = "unverified"
+    latency_ms: int | None = None
+
+
+class AIModelCategories(BaseModel):
+    available: list[AIModelItem] = []
+    requires_paid: list[AIModelItem] = []
+    unverified: list[AIModelItem] = []
+
+
+class AIProviderModelsResponse(BaseModel):
+    provider: str
+    categories: AIModelCategories
+    models: list[AIModelItem] = []
+    cached: bool = False
+    selected_model: str | None = None
+
+
 class AIStatusResponse(BaseModel):
     provider: str
     url: str

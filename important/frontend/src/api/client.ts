@@ -1371,6 +1371,14 @@ export const api = {
       body: JSON.stringify({ query, model }),
     }),
 
+  getAIProviderModels: (provider: string, probe: boolean = false, forceRefresh: boolean = false) =>
+    request<AIProviderModelsResponse>(`/ai/models/${provider}?probe=${probe}&force_refresh=${forceRefresh}`),
+
+  probeAIProviderModels: (provider: string) =>
+    request<AIProviderModelsResponse>(`/ai/models/${provider}/probe`, {
+      method: 'POST',
+    }),
+
   // Phase 19 — Resume Upload & Structuring
   uploadResume: async (file: File): Promise<ResumeItem> => {
     const formData = new FormData();
@@ -2121,6 +2129,29 @@ export interface AIChatResponse {
   provider: string;
   model: string | null;
   ollama_available: boolean;
+}
+
+export interface AIModelItem {
+  id: string;
+  name: string;
+  description?: string | null;
+  recommended?: boolean;
+  status?: 'available' | 'requires_paid' | 'unverified';
+  latency_ms?: number | null;
+}
+
+export interface AIModelCategories {
+  available: AIModelItem[];
+  requires_paid: AIModelItem[];
+  unverified: AIModelItem[];
+}
+
+export interface AIProviderModelsResponse {
+  provider: string;
+  categories: AIModelCategories;
+  models: AIModelItem[];
+  cached: boolean;
+  selected_model?: string | null;
 }
 
 export interface ResumeSections {

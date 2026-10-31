@@ -129,6 +129,7 @@ from .schemas_ai_resume import (
     AIProviderRead,
     AISettingsUpdate,
     AIStatusResponse,
+    AIProviderModelsResponse,
     AITestConnectionRequest,
     AITestConnectionResponse,
     BulkJobDeleteRequest,
@@ -231,6 +232,11 @@ from .services.ai_service import (
     save_ai_config,
     save_user_ai_settings,
     test_provider_connection,
+    GeminiProvider,
+    OpenAIProvider,
+    OllamaProvider,
+    AIProviderType,
+    get_selected_model,
 )
 from .services.ai_tools import answer_user_query
 from .services.resume_parser import (
@@ -2088,6 +2094,68 @@ def clear_openai_key(
     uid = current_user.id if (current_user and hasattr(current_user, "id")) else None
     set_openai_api_key(None, db=db, user_id=uid)
     return AIStatusResponse.model_validate(get_ai_status(db=db, user_id=uid))
+
+
+@app.get("/api/v1/ai/models/{provider}", response_model=AIProviderModelsResponse, tags=["ai"])
+def get_ai_models(
+    provider: str,
+    probe: bool = False,
+    force_refresh: bool = False,
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_current_user),
+) -> AIProviderModelsResponse:
+    uid = current_user.id if (current_user and hasattr(current_user, "id")) else None
+    prov_clean = (provider or "").lower().strip()
+    if prov_clean == "gemini":
+        catalog = GeminiProvider.get_models_catalog(probe=probe, force_refresh=force_refresh, db=db, user_id=uid)
+    elif prov_clean == "openai":
+        catalog = OpenAIProvider.get_models_catalog(probe=probe, force_refresh=force_refresh, db=db, user_id=uid)
+    elif prov_clean == "ollama":
+        health = OllamaProvider.check_health(db=db, user_id=uid, force_refresh=force_refresh)
+        installed = health.get("models", [])
+        selected = get_selected_model(AIProviderType.OLLAMA, db=db, user_id=uid) or OllamaProvider.get_active_model(db=db, user_id=uid)
+        items = []
+        for m in installed:
+            m_name = m.get("name", "")
+            items.append({
+                "id": m_name,
+                "name": m_name,
+                "description": f"Local model ({m.get('parameter_size', 'unknown size')})",
+                "recommended": "qwen" in m_name or "llama" in m_name,
+                "status": "available",
+                "latency_ms": None,
+            })
+        catalog = {
+            "provider": "ollama",
+            "categories": {
+                "available": items,
+                "requires_paid": [],
+                "unverified": [],
+            },
+            "models": items,
+            "cached": False,
+            "selected_model": selected,
+        }
+    else:
+        raise HTTPException(status_code=400, detail=f"Unsupported provider: {provider}")
+    return AIProviderModelsResponse.model_validate(catalog)
+
+
+@app.post("/api/v1/ai/models/{provider}/probe", response_model=AIProviderModelsResponse, tags=["ai"])
+def probe_ai_models(
+    provider: str,
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_current_user),
+) -> AIProviderModelsResponse:
+    uid = current_user.id if (current_user and hasattr(current_user, "id")) else None
+    prov_clean = (provider or "").lower().strip()
+    if prov_clean == "gemini":
+        catalog = GeminiProvider.get_models_catalog(probe=True, force_refresh=True, db=db, user_id=uid)
+    elif prov_clean == "openai":
+        catalog = OpenAIProvider.get_models_catalog(probe=True, force_refresh=True, db=db, user_id=uid)
+    else:
+        return get_ai_models(provider=provider, probe=False, force_refresh=True, db=db, current_user=current_user)
+    return AIProviderModelsResponse.model_validate(catalog)
 
 
 @app.post("/api/v1/ai/test-connection", response_model=AITestConnectionResponse, tags=["ai"])

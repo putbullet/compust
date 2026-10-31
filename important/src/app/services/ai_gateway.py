@@ -1019,8 +1019,6 @@ class GeminiProvider:
 
         cfg = load_ai_config()
         gemini_model = (row.gemini_model if row and row.gemini_model else None) or cfg.get("gemini_model", "gemini-3.5-flash")
-    if gemini_model and any(x in gemini_model.lower() for x in ["1.5", "2.5-flash", "text-bison"]):
-        gemini_model = "gemini-3.5-flash"
         if gemini_model and any(x in gemini_model.lower() for x in ["1.5", "2.5-flash", "text-bison"]):
             gemini_model = "gemini-3.5-flash"
         file_consent = bool(cfg.get("gemini_consent_given", cfg.get("consent_granted", False)))

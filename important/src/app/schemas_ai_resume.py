@@ -199,6 +199,39 @@ class DeleteAllJobsResponse(BaseModel):
     scope: str
     message: str
 
+class CompanyScopeStatsRequest(BaseModel):
+    search: str | None = None
+    filter_active: str | None = None
+    company_ids: list[int] | None = None
+
+
+class CompanyScopeStatsResponse(BaseModel):
+    total_companies: int
+    total_jobs: int
+    untracked_jobs: int
+    protected_jobs: int
+    scrape_targets_count: int
+
+
+class DeleteAllCompaniesRequest(BaseModel):
+    confirmation: str
+    search: str | None = None
+    filter_active: str | None = None
+    company_ids: list[int] | None = None
+    delete_untracked_jobs: bool = False
+
+
+class DeleteAllCompaniesResponse(BaseModel):
+    status: str
+    deleted_companies_count: int
+    deleted_targets_count: int
+    deleted_jobs_count: int
+    preserved_jobs_count: int
+    total_companies_matched: int
+    backup_filename: str | None = None
+    scope: str
+    message: str
+
 
 class ScraperDiagnosticRequest(BaseModel):
     url: str

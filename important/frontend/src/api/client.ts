@@ -1689,6 +1689,44 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
+  getCompaniesScopeStats: (data: {
+    search?: string;
+    filter_active?: 'all' | 'active' | 'inactive';
+    company_ids?: number[];
+  }) =>
+    request<{
+      total_companies: number;
+      total_jobs: number;
+      untracked_jobs: number;
+      protected_jobs: number;
+      scrape_targets_count: number;
+    }>('/admin/companies/scope-stats', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  superviseDeleteAllCompanies: (data: {
+    confirmation: string;
+    search?: string;
+    filter_active?: 'all' | 'active' | 'inactive';
+    company_ids?: number[];
+    delete_untracked_jobs?: boolean;
+  }) =>
+    request<{
+      status: string;
+      deleted_companies_count: number;
+      deleted_targets_count: number;
+      deleted_jobs_count: number;
+      preserved_jobs_count: number;
+      total_companies_matched: number;
+      backup_filename: string | null;
+      scope: string;
+      message: string;
+    }>('/admin/companies/delete-all', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
   getAllScrapingRuns: (limit: number = 50) =>
     request<ScrapingRunItem[]>(`/admin/scraping-runs?limit=${limit}`),
 

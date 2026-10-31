@@ -820,7 +820,7 @@ export const JobTargetPanel: React.FC<JobTargetPanelProps> = ({
                 type="button"
                 className="jtp-retry-ai-btn"
                 onClick={handleAnalyze}
-                disabled={step === 'analyzing'}
+                disabled={(step as string) === 'analyzing'}
                 title="Retry AI Analysis"
                 style={{
                   display: 'inline-flex',

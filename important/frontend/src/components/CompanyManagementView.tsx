@@ -17,6 +17,8 @@ import {
   Search,
   Power,
   ShieldAlert,
+  ShieldCheck,
+  Loader2,
 } from 'lucide-react';
 import { api } from '../api/client';
 import type { Company, Country, ScrapeTarget, CompanyCreate } from '../api/client';
@@ -71,6 +73,24 @@ export const CompanyManagementView: React.FC<CompanyManagementViewProps> = ({
   // Hard Delete Confirmation Modal
   const [hardDeleteTarget, setHardDeleteTarget] = useState<{ id: number; name: string } | null>(null);
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+
+  // Bulk Delete All State
+  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
+  const [deleteAllConfirmText, setDeleteAllConfirmText] = useState('');
+  const [deleteUntrackedJobs, setDeleteUntrackedJobs] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
+  const [loadingScopeStats, setLoadingScopeStats] = useState(false);
+  const [scopeStats, setScopeStats] = useState<{
+    total_companies: number;
+    total_jobs: number;
+    untracked_jobs: number;
+    protected_jobs: number;
+    scrape_targets_count: number;
+  } | null>(null);
+  const [deleteAllFeedback, setDeleteAllFeedback] = useState<{
+    status: 'success' | 'error';
+    message: string;
+  } | null>(null);
 
   // Fetch Companies
   const loadCompanies = async () => {
@@ -193,6 +213,63 @@ export const CompanyManagementView: React.FC<CompanyManagementViewProps> = ({
     }
   };
 
+  const handleOpenDeleteAllModal = async () => {
+    setShowDeleteAllModal(true);
+    setDeleteAllConfirmText('');
+    setDeleteUntrackedJobs(false);
+    setDeleteAllFeedback(null);
+    setLoadingScopeStats(true);
+    try {
+      const stats = await api.getCompaniesScopeStats({
+        company_ids: filteredCompanies.map((c) => c.id),
+        search: search.trim() || undefined,
+        filter_active: filterActive,
+      });
+      setScopeStats(stats);
+    } catch (err) {
+      console.error('Failed to get scope stats:', err);
+      setScopeStats({
+        total_companies: filteredCompanies.length,
+        total_jobs: 0,
+        untracked_jobs: 0,
+        protected_jobs: 0,
+        scrape_targets_count: 0,
+      });
+    } finally {
+      setLoadingScopeStats(false);
+    }
+  };
+
+  const handleConfirmDeleteAll = async () => {
+    if (deleteAllConfirmText.trim().toUpperCase() !== 'DELETE') return;
+    try {
+      setIsDeletingAll(true);
+      setDeleteAllFeedback(null);
+      const res = await api.superviseDeleteAllCompanies({
+        confirmation: 'DELETE',
+        company_ids: filteredCompanies.map((c) => c.id),
+        search: search.trim() || undefined,
+        filter_active: filterActive,
+        delete_untracked_jobs: deleteUntrackedJobs,
+      });
+      setDeleteAllFeedback({
+        status: 'success',
+        message: res.message,
+      });
+      loadCompanies();
+      onRefreshCountries?.();
+      onCompanyUpdated?.();
+    } catch (err: any) {
+      console.error('Failed to delete companies:', err);
+      setDeleteAllFeedback({
+        status: 'error',
+        message: err.message || 'Bulk delete operation failed.',
+      });
+    } finally {
+      setIsDeletingAll(false);
+    }
+  };
+
   const handleConfirmHardDelete = async () => {
     if (!hardDeleteTarget) return;
     try {
@@ -289,6 +366,17 @@ export const CompanyManagementView: React.FC<CompanyManagementViewProps> = ({
           </p>
         </div>
         <div className="header-actions">
+          {filteredCompanies.length > 0 && (
+            <button
+              type="button"
+              className="danger-outline-btn"
+              onClick={handleOpenDeleteAllModal}
+              title={`Delete all ${filteredCompanies.length} companies currently in view`}
+            >
+              <Trash2 size={16} />
+              <span>Delete all {filteredCompanies.length} companies</span>
+            </button>
+          )}
           <button className="primary-btn" onClick={handleOpenAddCompany}>
             <Plus size={16} />
             <span>Add Company</span>
@@ -801,6 +889,169 @@ export const CompanyManagementView: React.FC<CompanyManagementViewProps> = ({
           </ModalCard>
         </ModalOverlay>
       )}
+
+      {/* Delete All Companies Modal */}
+      {showDeleteAllModal && (
+        <ModalOverlay onClick={() => !isDeletingAll && setShowDeleteAllModal(false)}>
+          <ModalCard onClick={(e) => e.stopPropagation()} className="danger-modal" style={{ maxWidth: '580px' }}>
+            <div className="modal-header danger">
+              <ShieldAlert size={24} className="danger-icon" />
+              <h3>Delete All {filteredCompanies.length} Companies</h3>
+            </div>
+            <div className="modal-body">
+              <div
+                className="scope-banner"
+                style={{
+                  background: 'rgba(239, 68, 68, 0.08)',
+                  border: '1px solid rgba(239, 68, 68, 0.25)',
+                  padding: '10px 14px',
+                  borderRadius: '10px',
+                  marginBottom: '14px',
+                  fontSize: '0.85rem',
+                  color: '#f8fafc',
+                }}
+              >
+                <strong style={{ color: '#f87171' }}>Target Scope: </strong>
+                <span>
+                  {filteredCompanies.length} companies
+                  {search.trim() ? ` matching "${search.trim()}"` : ''}
+                  {filterActive !== 'all' ? ` (${filterActive} only)` : ''}
+                </span>
+              </div>
+
+              <div className="warning-box">
+                <AlertTriangle size={18} style={{ flexShrink: 0 }} />
+                <span>
+                  This destructive operation will permanently remove matching companies, their scrape targets,
+                  and scraping runs. Compust will create an automatic database backup before deleting.
+                </span>
+              </div>
+
+              {loadingScopeStats ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 0', color: '#94a3b8', fontSize: '0.85rem' }}>
+                  <Loader2 size={16} className="spin" />
+                  <span>Calculating associated jobs and protection counts...</span>
+                </div>
+              ) : scopeStats && (
+                <div
+                  style={{
+                    background: 'rgba(15, 23, 42, 0.6)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '10px',
+                    padding: '12px 14px',
+                    margin: '12px 0',
+                    fontSize: '0.82rem',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#10b981', fontWeight: 600, marginBottom: '6px' }}>
+                    <ShieldCheck size={16} />
+                    <span>Job Protection Active</span>
+                  </div>
+                  <p style={{ margin: '0 0 8px', color: '#cbd5e1', lineHeight: '1.4' }}>
+                    Jobs linked to your applications, notes, contacts, or customized resumes are <strong>never deleted</strong> and will be safely archived under an Archived Employer record.
+                  </p>
+                  <div style={{ display: 'flex', gap: '16px', color: '#94a3b8', fontSize: '0.8rem' }}>
+                    <span>Total Jobs: <strong style={{ color: '#f8fafc' }}>{scopeStats.total_jobs}</strong></span>
+                    <span>Protected Jobs: <strong style={{ color: '#34d399' }}>{scopeStats.protected_jobs}</strong></span>
+                    <span>Untracked Jobs: <strong style={{ color: '#fca5a5' }}>{scopeStats.untracked_jobs}</strong></span>
+                  </div>
+                </div>
+              )}
+
+              <label className="checkbox-label" style={{ margin: '14px 0', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                <input
+                  type="checkbox"
+                  checked={deleteUntrackedJobs}
+                  onChange={(e) => setDeleteUntrackedJobs(e.target.checked)}
+                  disabled={isDeletingAll}
+                  style={{ marginTop: '2px' }}
+                />
+                <span style={{ fontSize: '0.82rem', color: '#cbd5e1', lineHeight: '1.4' }}>
+                  Also remove untracked jobs imported from these sources ({scopeStats?.untracked_jobs ?? 0} jobs).
+                  <br />
+                  <em style={{ color: '#94a3b8' }}>Default: keep untracked jobs and archive them safely.</em>
+                </span>
+              </label>
+
+              <div style={{ margin: '16px 0 8px' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', color: '#cbd5e1', marginBottom: '6px' }}>
+                  Type <strong>DELETE</strong> below to confirm:
+                </label>
+                <input
+                  type="text"
+                  placeholder="DELETE"
+                  value={deleteAllConfirmText}
+                  onChange={(e) => setDeleteAllConfirmText(e.target.value)}
+                  disabled={isDeletingAll}
+                  autoComplete="off"
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    background: 'rgba(15, 23, 42, 0.8)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    borderRadius: '10px',
+                    color: '#f8fafc',
+                    fontSize: '0.9rem',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              {deleteAllFeedback && (
+                <div
+                  style={{
+                    padding: '12px',
+                    borderRadius: '10px',
+                    fontSize: '0.82rem',
+                    lineHeight: '1.4',
+                    marginTop: '12px',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '8px',
+                    background: deleteAllFeedback.status === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                    border: `1px solid ${deleteAllFeedback.status === 'success' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                    color: deleteAllFeedback.status === 'success' ? '#6ee7b7' : '#fca5a5',
+                  }}
+                >
+                  {deleteAllFeedback.status === 'success' ? (
+                    <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
+                  ) : (
+                    <AlertTriangle size={16} style={{ flexShrink: 0 }} />
+                  )}
+                  <span>{deleteAllFeedback.message}</span>
+                </div>
+              )}
+            </div>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="cancel-btn"
+                onClick={() => setShowDeleteAllModal(false)}
+                disabled={isDeletingAll}
+              >
+                {deleteAllFeedback ? 'Close' : 'Cancel'}
+              </button>
+              {!deleteAllFeedback && (
+                <button
+                  type="button"
+                  className="danger-btn"
+                  onClick={handleConfirmDeleteAll}
+                  disabled={deleteAllConfirmText.trim().toUpperCase() !== 'DELETE' || isDeletingAll}
+                >
+                  {isDeletingAll ? (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <Loader2 size={15} className="spin" />
+                      Backing up & Deleting...
+                    </span>
+                  ) : (
+                    `Delete All (${filteredCompanies.length})`
+                  )}
+                </button>
+              )}
+            </div>
+          </ModalCard>
+        </ModalOverlay>
+      )}
     </Container>
   );
 };
@@ -832,6 +1083,47 @@ const HeaderSection = styled.div`
     font-size: 0.9rem;
     color: #94a3b8;
     margin: 0;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .danger-outline-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #ef4444;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: rgba(239, 68, 68, 0.6);
+      color: #fca5a5;
+    }
+  }
+
+  .spin {
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   .primary-btn {

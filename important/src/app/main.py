@@ -136,6 +136,10 @@ from .schemas_ai_resume import (
     BulkJobDeleteResponse,
     DeleteAllJobsRequest,
     DeleteAllJobsResponse,
+    DeleteAllCompaniesRequest,
+    DeleteAllCompaniesResponse,
+    CompanyScopeStatsRequest,
+    CompanyScopeStatsResponse,
     CustomizedResumeRead,
     GeminiKeyUpdate,
     OpenAIKeyUpdate,
@@ -2849,6 +2853,71 @@ def supervise_delete_all_jobs(
         deleted_count=deleted,
         preserved_tracked_count=preserved,
         total_matched=total_matched,
+        scope=scope_desc,
+        message=msg,
+    )
+
+
+@app.post("/api/v1/admin/companies/scope-stats", response_model=CompanyScopeStatsResponse, tags=["admin"])
+def get_admin_companies_scope_stats(
+    req: CompanyScopeStatsRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> CompanyScopeStatsResponse:
+    from .repositories.companies import get_companies_scope_stats
+    stats = get_companies_scope_stats(
+        db,
+        company_ids=req.company_ids,
+        search=req.search,
+        filter_active=req.filter_active,
+    )
+    return CompanyScopeStatsResponse(**stats)
+
+
+@app.post("/api/v1/admin/companies/delete-all", response_model=DeleteAllCompaniesResponse, tags=["admin"])
+def supervise_delete_all_companies(
+    req: DeleteAllCompaniesRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> DeleteAllCompaniesResponse:
+    if req.confirmation.strip().upper() != "DELETE":
+        raise HTTPException(
+            status_code=400,
+            detail="Confirmation token mismatch. You must type 'DELETE' to confirm deletion.",
+        )
+
+    from .repositories.companies import delete_all_companies_safely
+
+    deleted_comps, deleted_targets, deleted_jobs, preserved_jobs, total_matched, backup_file = delete_all_companies_safely(
+        db,
+        company_ids=req.company_ids,
+        search=req.search,
+        filter_active=req.filter_active,
+        delete_untracked_jobs=req.delete_untracked_jobs,
+    )
+
+    scope_parts = []
+    if req.search and req.search.strip():
+        scope_parts.append(f"matching '{req.search.strip()}'")
+    if req.filter_active in ("active", "inactive"):
+        scope_parts.append(f"{req.filter_active} only")
+    scope_desc = f"Companies ({', '.join(scope_parts)})" if scope_parts else "All database companies"
+
+    msg = (
+        f"Successfully deleted {deleted_comps} companies and {deleted_targets} scrape targets. "
+        f"{deleted_jobs} untracked jobs were deleted, {preserved_jobs} jobs were safely archived."
+    )
+    if backup_file:
+        msg += f" Pre-deletion safety backup created: {backup_file}."
+
+    return DeleteAllCompaniesResponse(
+        status="success",
+        deleted_companies_count=deleted_comps,
+        deleted_targets_count=deleted_targets,
+        deleted_jobs_count=deleted_jobs,
+        preserved_jobs_count=preserved_jobs,
+        total_companies_matched=total_matched,
+        backup_filename=backup_file,
         scope=scope_desc,
         message=msg,
     )

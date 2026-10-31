@@ -139,48 +139,61 @@
 
 /* --------------------------------------------------------------------------
    Variant: metric (Internships Page)
-   Pill look matching Opportunities visual design, built properly:
-   - 3-part layout (Label, Value, Subtext)
-   - Generous padding ensuring no text ever touches or overflows rounded borders
-   - Consistent height across all pills
-   - Graceful wrapping / truncation with tooltip
+   Pixel-aligned with Opportunities stats ribbon specification:
+   - Container: flex-wrap, 12px gap, clean row layout.
+   - Pills: min-height 64–72px, padding 14–18px.
+   - Typography:
+       * Count/value: 22–24px, semibold (600), clear number styling.
+       * Label/subtext: 12–13px, muted color, wrapping cleanly onto up to 2 lines
+         without clipping, ellipses, or overlapping numbers.
+   - No hover bounce/jump/scale effects: stable layout.
    -------------------------------------------------------------------------- */
 .compust-stat-pill--metric {
-  padding: 8px 18px;
+  padding: 14px 18px;
   gap: 12px;
-  min-height: 58px;
-  min-width: 210px;
-  max-width: 290px;
-  flex: 1 1 210px;
+  min-height: 68px;
+  min-width: 200px;
+  max-width: 310px;
+  flex: 1 1 200px;
   justify-content: space-between;
+  border-radius: 9999px;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transform: none !important;
+}
+
+.compust-stat-pill--metric:hover {
+  transform: none !important;
 }
 
 .compust-stat-pill--metric.tone-green {
-  border-color: rgba(16, 185, 129, 0.25);
+  border-color: rgba(16, 185, 129, 0.28);
 }
 .compust-stat-pill--metric.tone-amber {
-  border-color: rgba(245, 158, 11, 0.25);
+  border-color: rgba(245, 158, 11, 0.28);
 }
 .compust-stat-pill--metric.tone-blue {
-  border-color: rgba(2, 132, 199, 0.25);
+  border-color: rgba(2, 132, 199, 0.28);
 }
 .compust-stat-pill--metric.tone-red {
-  border-color: rgba(225, 29, 72, 0.25);
+  border-color: rgba(225, 29, 72, 0.28);
 }
 
 .compust-stat-pill--metric .pill-label-side {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-size: 13px;
+  font-weight: 600;
   color: #cbd5e1;
-  line-height: 1.2;
-  max-width: 100px;
+  line-height: 1.3;
+  max-width: 110px;
   min-width: 0;
-  word-break: break-word;
+  overflow-wrap: break-word;
+  word-break: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 [data-theme='light'] .compust-stat-pill--metric .pill-label-side,
@@ -194,9 +207,9 @@
 }
 
 .compust-stat-pill--metric .pill-metric-value {
-  font-size: 1.5rem;
-  font-weight: 800;
-  line-height: 1;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.1;
   font-family: var(--font-heading, inherit);
   color: #ffffff;
   letter-spacing: -0.01em;
@@ -245,14 +258,19 @@
 }
 
 .compust-stat-pill--metric .pill-sub-side {
-  font-size: 0.68rem;
+  font-size: 12px;
   font-weight: 500;
-  line-height: 1.25;
+  line-height: 1.3;
   color: #94a3b8;
-  max-width: 105px;
+  max-width: 110px;
   min-width: 0;
   text-align: right;
-  word-break: break-word;
+  overflow-wrap: break-word;
+  word-break: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 [data-theme='light'] .compust-stat-pill--metric .pill-sub-side,
@@ -267,9 +285,9 @@
 .compust-stat-ribbon {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
-  gap: 14px;
+  gap: 12px;
   width: 100%;
-  margin: 12px auto 26px;
+  margin: 12px auto 24px;
 }

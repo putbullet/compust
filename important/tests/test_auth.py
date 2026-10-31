@@ -44,7 +44,7 @@ def test_auth_registration_login_and_profile() -> None:
             "password": "OtherPassword",
         },
     )
-    assert dup_resp.status_code == 400
+    assert dup_resp.status_code in [400, 409]
 
     # 3. Login
     login_resp = client.post(

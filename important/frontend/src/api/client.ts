@@ -2812,8 +2812,6 @@ export interface StructuredAIExplanationPayload {
   common_mistakes: string[];
   has_diagram?: boolean;
   svg_diagram?: string | null;
-  fallback_reason?: string | null;
-  can_retry?: boolean;
 }
 
 export interface STAREvaluationRequest {
@@ -2855,6 +2853,8 @@ export interface QuestionAIExplainResponse {
   disclaimer: string;
   has_diagram?: boolean;
   svg_diagram?: string | null;
+  fallback_reason?: string | null;
+  can_retry?: boolean;
 }
 
 // ---------------------------------------------------------------------------

@@ -500,9 +500,10 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
               style={{ background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)', color: '#fff', cursor: 'pointer' }}
               onClick={() => {
                 if (job && onTargetJob) {
+                  const cleanDesc = currentTranslation?.description_text || currentTranslation?.description || job.description_text || job.description || '';
                   onTargetJob({
-                    role: job.title,
-                    description: job.description || '',
+                    role: currentTranslation?.title || job.title,
+                    description: cleanDesc,
                     companyName: companyName,
                   });
                 }

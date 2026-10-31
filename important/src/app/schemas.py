@@ -117,6 +117,7 @@ class JobRead(BaseModel):
 
 class JobDetailRead(JobRead):
     description: str | None = None
+    description_text: str | None = None
     skills: list[str] = []
     positive_factors: list[str] = []
     missing_factors: list[str] = []
@@ -131,6 +132,7 @@ class JobTranslationRead(BaseModel):
     language: str
     title: str
     description: str | None = None
+    description_text: str | None = None
     source_language: str
     created_at: datetime
     updated_at: datetime

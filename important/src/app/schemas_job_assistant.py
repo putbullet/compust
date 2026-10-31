@@ -34,10 +34,18 @@ class ExternalJobInput(BaseModel):
     additional_information: str = Field(default="", max_length=2000)
     language: SupportedLanguage = Field(default=SupportedLanguage.EN)
 
-    @field_validator("target_role", "job_description", mode="before")
+    @field_validator("target_role", mode="before")
     @classmethod
-    def _strip(cls, v: Any) -> str:
+    def _strip_role(cls, v: Any) -> str:
         return str(v).strip() if v is not None else ""
+
+    @field_validator("job_description", mode="before")
+    @classmethod
+    def _normalize_job_desc(cls, v: Any) -> str:
+        if v is None:
+            return ""
+        from .scraper.sanitizer import normalize_description
+        return normalize_description(str(v))
 
 
 # ---------------------------------------------------------------------------
@@ -273,10 +281,18 @@ class RegenerateMaterialRequest(BaseModel):
     additional_information: str = Field(default="", max_length=2000)
     language: SupportedLanguage = Field(default=SupportedLanguage.EN)
 
-    @field_validator("target_role", "job_description", mode="before")
+    @field_validator("target_role", mode="before")
     @classmethod
-    def _strip(cls, v: Any) -> str:
+    def _strip_role(cls, v: Any) -> str:
         return str(v).strip() if v is not None else ""
+
+    @field_validator("job_description", mode="before")
+    @classmethod
+    def _normalize_job_desc(cls, v: Any) -> str:
+        if v is None:
+            return ""
+        from .scraper.sanitizer import normalize_description
+        return normalize_description(str(v))
 
 
 

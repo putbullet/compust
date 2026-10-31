@@ -127,6 +127,13 @@ class Job(Base):
     def country_name(self) -> str | None:
         return self.country.name if self.country else None
 
+    @property
+    def description_text(self) -> str | None:
+        if not self.description:
+            return None
+        from .scraper.sanitizer import normalize_description
+        return normalize_description(self.description)
+
 
 class JobTranslation(Base):
     __tablename__ = "job_translations"
@@ -141,6 +148,13 @@ class JobTranslation(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime)
 
     job: Mapped["Job"] = relationship(back_populates="translations")
+
+    @property
+    def description_text(self) -> str | None:
+        if not self.description:
+            return None
+        from .scraper.sanitizer import normalize_description
+        return normalize_description(self.description)
 
 
 class JobSkill(Base):

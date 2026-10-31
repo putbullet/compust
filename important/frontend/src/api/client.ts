@@ -63,6 +63,7 @@ export interface Job {
   salary_currency: string | null;
   salary_period: string | null;
   description?: string | null;
+  description_text?: string | null;
   match_score?: number | null;
   company_name?: string | null;
   country_name?: string | null;
@@ -71,6 +72,7 @@ export interface Job {
 
 export interface JobDetail extends Job {
   description: string | null;
+  description_text?: string | null;
   skills: string[];
   positive_factors: string[];
   missing_factors: string[];
@@ -83,6 +85,7 @@ export interface JobTranslationItem {
   language: string;
   title: string;
   description: string | null;
+  description_text?: string | null;
   source_language: string;
   created_at: string;
   updated_at: string;

@@ -123,6 +123,9 @@ def calculate_deterministic_ats_score(
     job_description: str | None = None,
 ) -> ATSCheckResult:
     """Calculates a deterministic ATS evaluation grounded in real text analysis."""
+    if job_description:
+        from ..scraper.sanitizer import normalize_description
+        job_description = normalize_description(job_description)
     feedback: list[ATSFeedbackItem] = []
     text_lower = resume_text.lower()
     raw_lines = [l.strip() for l in resume_text.splitlines() if l.strip()]
@@ -619,6 +622,9 @@ def evaluate_resume_ats(
     job_description: str | None = None,
     use_llm: bool = True,
 ) -> ATSCheckResult:
+    if job_description:
+        from ..scraper.sanitizer import normalize_description
+        job_description = normalize_description(job_description)
     """Evaluates a resume for ATS compliance.
 
     Routes the LLM call through the active AI provider (Ollama / Gemini / OpenAI)

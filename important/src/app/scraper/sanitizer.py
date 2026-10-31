@@ -2,7 +2,7 @@ import html
 import logging
 import re
 import bleach
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Comment
 
 
 ALLOWED_TAGS = [
@@ -90,6 +90,133 @@ def sanitize_plain_text(text: str | None) -> str | None:
     )
     unescaped = html.unescape(cleaned)
     return re.sub(r"\s+", " ", unescaped).strip()
+
+
+KNOWN_HTML_TAGS = {
+    "a", "abbr", "address", "article", "aside", "b", "bdi", "bdo", "blockquote",
+    "body", "br", "button", "caption", "cite", "code", "col", "colgroup", "data", "dd",
+    "del", "details", "dfn", "div", "dl", "dt", "em", "figcaption", "figure",
+    "footer", "form", "h1", "h2", "h3", "h4", "h5", "h6", "header", "hr",
+    "html", "i", "iframe", "img", "ins", "kbd", "li", "main", "mark", "nav", "noscript",
+    "ol", "p", "pre", "q", "s", "samp", "script", "section", "small", "span",
+    "strong", "style", "sub", "summary", "sup", "svg", "table", "tbody", "td", "tfoot",
+    "th", "thead", "time", "tr", "u", "ul", "var",
+}
+
+
+def normalize_description(text: str | None) -> str:
+    """Normalize a job description into clean, structured plain text.
+
+    - Detects real markup using BeautifulSoup (not naive regex).
+    - Decodes HTML entities up to two levels of encoding.
+    - Removes all tags including <script>/<style>/<noscript> content.
+    - Preserves readable structure:
+        - Block elements and <br> become line breaks.
+        - <li> items become '• ' bullet lines.
+        - Headings and paragraphs preserve blank-line separation.
+        - Tables degrade to clean readable lines with cell separators (' | ').
+        - Whitespace is collapsed, multiple blank lines capped at 2.
+        - Non-breaking spaces (&nbsp; and \u00a0) replaced with standard spaces.
+        - Unicode characters and accents (FR/NL/DE) preserved.
+    - Idempotent and safe on plain text:
+        - Text without HTML tags passes through unchanged, including text
+          that legitimately contains '<', '>', or '&' (e.g. 'C++ <3 years', 'a < b', 'R&D').
+    """
+    if text is None:
+        return ""
+    if not isinstance(text, str):
+        text = str(text)
+    if not text.strip():
+        return ""
+
+    raw = text
+
+    # Handle entity unescaping (up to 2 levels)
+    decoded = raw
+    for _ in range(2):
+        if "&" not in decoded:
+            break
+        unesc = html.unescape(decoded)
+        if unesc == decoded:
+            break
+        decoded = unesc
+
+    # Normalize non-breaking spaces
+    decoded = decoded.replace("\u00a0", " ")
+
+    # Quick check: if no angle brackets exist, it cannot contain HTML tags
+    if "<" not in decoded:
+        return raw.replace("\u00a0", " ").strip()
+
+    soup = BeautifulSoup(decoded, "html.parser")
+
+    # Detect if real HTML markup exists
+    found_tags = [t for t in soup.find_all() if t.name.lower() in KNOWN_HTML_TAGS]
+    if not found_tags:
+        # No recognized HTML tags present; safe plain text with '<' or '>'
+        return raw.replace("\u00a0", " ").strip()
+
+    # Decompose comments
+    for c in soup.find_all(string=lambda t: isinstance(t, Comment)):
+        c.extract()
+
+    # Decompose dangerous/non-content tags and their children
+    for dangerous in soup.find_all(["script", "style", "noscript", "iframe", "svg", "object", "embed", "canvas", "video", "audio"]):
+        dangerous.decompose()
+
+    # Convert line breaks and dividers
+    for br in soup.find_all("br"):
+        br.replace_with("\n")
+
+    for hr in soup.find_all("hr"):
+        hr.replace_with("\n\n---\n\n")
+
+    # Format list items with bullet point
+    for li in soup.find_all("li"):
+        li.insert_before("\n• ")
+        li.unwrap()
+
+    # Ensure paragraphs and headings have spacing
+    for heading in soup.find_all(["h1", "h2", "h3", "h4", "h5", "h6", "p", "blockquote"]):
+        heading.insert_before("\n\n")
+        heading.insert_after("\n\n")
+        heading.unwrap()
+
+    # Format table elements
+    for tr in soup.find_all("tr"):
+        tr.insert_after("\n")
+        tr.unwrap()
+
+    for td in soup.find_all(["td", "th"]):
+        td.insert_after(" | ")
+        td.unwrap()
+
+    # Ensure block containers have line breaks
+    for block in soup.find_all(["div", "section", "article", "header", "footer", "ul", "ol", "table", "tbody", "thead", "dl", "dt", "dd"]):
+        block.insert_before("\n")
+        block.insert_after("\n")
+        block.unwrap()
+
+    # Unwrap any remaining inline tags (b, i, strong, em, a, span, code, etc.)
+    for t in soup.find_all():
+        t.unwrap()
+
+    clean_text = soup.get_text()
+
+    # Clean up whitespace per line
+    lines = [re.sub(r"[ \t]+", " ", line).strip() for line in clean_text.splitlines()]
+
+    # Clean trailing pipe characters from table rows
+    formatted_lines = []
+    for line in lines:
+        if line.endswith("|"):
+            line = line[:-1].strip()
+        formatted_lines.append(line)
+
+    result = "\n".join(formatted_lines)
+    result = re.sub(r"\n{3,}", "\n\n", result)
+    result = re.sub(r"•\s+", "• ", result)
+    return result.strip()
 
 
 SAFE_SVG_TAGS = [

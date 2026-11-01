@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useId } from 'react';
 import { Copy, Check, Loader2, Info, AlertCircle, CheckCircle2, X } from 'lucide-react';
-import { api, type ResumePromptResponse } from '../../api/client';
+import { api, getStoredToken, type ResumePromptResponse } from '../../api/client';
 import { useTranslation } from '../../i18n';
 import './CopyAsPromptControl.css';
 
@@ -93,7 +93,7 @@ export const CopyAsPromptControl: React.FC<CopyAsPromptControlProps> = ({
 
   const handleCopyPrompt = async () => {
     // 1. Session / Auth check
-    const token = localStorage.getItem('token');
+    const token = getStoredToken() || localStorage.getItem('token');
     if (!token) {
       if (onRequireAuth) {
         onRequireAuth();

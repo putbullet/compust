@@ -1,0 +1,27 @@
+{
+  "question_id": "ai_rag_4",
+  "slug": "ai-what-is-agentic-rag-and-graphrag-and-when-should-you-use-them-over-traditional-rag",
+  "track": "ai_tech_interview",
+  "category": "Retrieval-Augmented Generation (RAG) & Vector Systems",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Agentic RAG uses an iterative reasoning loop to decompose multi-hop questions, while GraphRAG traverses structured knowledge graphs to synthesize global cross-document themes.",
+    "simple_explanation": "Traditional RAG performs a single static retrieval pass, which collapses when questions require multi-hop reasoning across disparate documents or broad thematic summaries. Agentic RAG gives the model autonomous tool-calling access to search, evaluate retrieved context, formulate follow-up queries, and self-correct. GraphRAG extracts entities and relationships into a knowledge graph, enabling community-detection summarization across the entire corpus.",
+    "real_world_example": "Comparing financial statements across 10 annual reports: traditional RAG grabs 5 isolated chunks and hallucinates connections; GraphRAG traverses the corporate relationship graph, while Agentic RAG iteratively queries each year's filing.",
+    "why_it_matters_and_pitfalls": "Agentic RAG increases token consumption and latency exponentially due to multiple sequential LLM calls. Graph construction requires significant upfront extraction compute. Use them for complex analytical queries, not simple point-in-time lookups.",
+    "key_terms": [
+      "Agentic RAG",
+      "GraphRAG",
+      "Multi-Hop Reasoning",
+      "Knowledge Graph Extraction",
+      "Community Summarization"
+    ]
+  }
+}

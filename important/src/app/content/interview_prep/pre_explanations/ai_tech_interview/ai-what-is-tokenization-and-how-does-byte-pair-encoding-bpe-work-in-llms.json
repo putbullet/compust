@@ -1,0 +1,27 @@
+{
+  "question_id": "ai_fund_2",
+  "slug": "ai-what-is-tokenization-and-how-does-byte-pair-encoding-bpe-work-in-llms",
+  "track": "ai_tech_interview",
+  "category": "LLM Fundamentals & Transformer Mechanics",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": true,
+  "code_language": "python",
+  "code_snippet": "from collections import Counter\n\ndef find_most_frequent_pair(vocab):\n    pairs = Counter()\n    for word, freq in vocab.items():\n        symbols = word.split()\n        for i in range(len(symbols) - 1):\n            pairs[symbols[i], symbols[i+1]] += freq\n    return pairs.most_common(1)[0][0] if pairs else None\n",
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Byte Pair Encoding (BPE) is a subword tokenization algorithm that iteratively merges the most frequent adjacent character pairs into single units, preventing out-of-vocabulary errors.",
+    "simple_explanation": "LLMs cannot ingest raw strings; text must be broken down into discrete integer indices. Word-level tokenization produces massive vocabularies and fails on typos, while pure character-level tokenization produces overly long sequences. BPE begins with individual characters or raw bytes as base tokens and repeatedly identifies the most frequent adjacent token pair across the corpus, merging it into a new subword token until reaching the target vocabulary budget.",
+    "real_world_example": "Consider compressing repeated text shorthand: if the combination 't' followed by 'h' appears thousands of times, the system replaces every adjacent pair with a dedicated 'th' token, gradually learning common prefixes and roots like 'pre-' or '-ing'.",
+    "why_it_matters_and_pitfalls": "Tokenization affects model pricing, latency, and multilingual performance. Non-English languages often require significantly more tokens per sentence due to underrepresented training corpuses, increasing inference cost and consuming window context faster.",
+    "key_terms": [
+      "Byte Pair Encoding (BPE)",
+      "Subword Tokenization",
+      "Out-Of-Vocabulary (OOV)",
+      "Token Vocabulary Budget",
+      "Byte Fallback"
+    ]
+  }
+}

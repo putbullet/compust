@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "updated_at": "2026-11-01T14:37:00Z",
+  "total_questions": 2188,
+  "completed_count": 20,
+  "rubric": {
+    "tier1": {
+      "definition": "Critical / Core Architectural Foundations & High-Frequency Interview Questions",
+      "target_word_count": "150-300 words",
+      "components": [
+        "TL;DR",
+        "Foundational Mechanism",
+        "Real-World Scenario / Analogy",
+        "Why It Matters & Pitfalls",
+        "Key Terminology (3-6)"
+      ],
+      "code_rule": "Blueprint only when question is algorithmic/syntax-based (needs_code=True)",
+      "diagram_rule": "Theme-safe SVG only when multi-stage topology clarifies mechanics (needs_diagram=True)"
+    },
+    "tier2": {
+      "definition": "Important / Intermediate Operational Patterns, Frameworks & Tooling",
+      "target_word_count": "60-120 words",
+      "components": [
+        "TL;DR",
+        "Core Mechanism",
+        "Why It Matters & Pitfalls",
+        "Key Terminology (2-4)"
+      ],
+      "code_rule": "Minimal blueprint if query-centric",
+      "diagram_rule": "Rare, only if topology clarification needed"
+    },
+    "tier3": {
+      "definition": "Deep Dive Only / Legacy Tooling, Configuration Trivia & Niche Edge Cases",
+      "target_word_count": "Handled on-demand via AI Deep Dive with deterministic question baseline",
+      "components": [
+        "Deterministic Summary",
+        "AI Deep Dive on demand"
+      ]
+    }
+  },
+  "by_track": {
+    "ai_tech_interview": {
+      "total": 20,
+      "tier1": 20,
+      "tier2": 0,
+      "tier3": 0,
+      "completed": 20
+    },
+    "security_engineering": {
+      "total": 67,
+      "tier1": 35,
+      "tier2": 32,
+      "tier3": 0,
+      "completed": 0
+    },
+    "data_engineering": {
+      "total": 2101,
+      "tier1": 192,
+      "tier2": 450,
+      "tier3": 1459,
+      "completed": 0
+    }
+  },
+  "batches": [
+    {
+      "batch_id": "batch_1_ai_engineering",
+      "track": "ai_tech_interview",
+      "count": 20,
+      "tier": 1,
+      "quality_gate": "PASSED",
+      "timestamp": "2026-11-01T14:40:00Z"
+    }
+  ]
+}

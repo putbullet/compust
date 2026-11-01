@@ -1,0 +1,27 @@
+{
+  "question_id": "ai_fund_3",
+  "slug": "ai-what-is-the-kv-cache-and-why-is-it-critical-for-fast-llm-inference",
+  "track": "ai_tech_interview",
+  "category": "LLM Fundamentals & Transformer Mechanics",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": true,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": "<svg viewBox=\"0 0 640 180\" xmlns=\"http://www.w3.org/2000/svg\" style=\"width:100%;height:auto;font-family:sans-serif;\">\n  <rect x=\"30\" y=\"30\" width=\"160\" height=\"90\" rx=\"8\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--primary, #3b82f6)\" stroke-width=\"2\"/>\n  <text x=\"110\" y=\"60\" fill=\"currentColor\" font-size=\"13\" font-weight=\"700\" text-anchor=\"middle\">Prefill Phase</text>\n  <text x=\"110\" y=\"85\" fill=\"currentColor\" font-size=\"11\" opacity=\"0.8\" text-anchor=\"middle\">All prompt tokens (Q, K, V)</text>\n  <text x=\"110\" y=\"105\" fill=\"currentColor\" font-size=\"11\" opacity=\"0.8\" text-anchor=\"middle\">Computed in parallel</text>\n  <path d=\"M190 75 H250\" stroke=\"currentColor\" stroke-width=\"2\" marker-end=\"url(#arrow)\"/>\n  <rect x=\"250\" y=\"20\" width=\"150\" height=\"110\" rx=\"8\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--secondary, #10b981)\" stroke-width=\"2\"/>\n  <text x=\"325\" y=\"55\" fill=\"currentColor\" font-size=\"13\" font-weight=\"700\" text-anchor=\"middle\">GPU VRAM KV Cache</text>\n  <text x=\"325\" y=\"80\" fill=\"currentColor\" font-size=\"11\" opacity=\"0.8\" text-anchor=\"middle\">Stores past Keys &amp; Values</text>\n  <text x=\"325\" y=\"102\" fill=\"currentColor\" font-size=\"11\" opacity=\"0.8\" text-anchor=\"middle\">Saves recalculation</text>\n  <path d=\"M400 75 H460\" stroke=\"currentColor\" stroke-width=\"2\" marker-end=\"url(#arrow)\"/>\n  <rect x=\"460\" y=\"30\" width=\"150\" height=\"90\" rx=\"8\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--primary, #3b82f6)\" stroke-width=\"2\"/>\n  <text x=\"535\" y=\"60\" fill=\"currentColor\" font-size=\"13\" font-weight=\"700\" text-anchor=\"middle\">Decode Phase</text>\n  <text x=\"535\" y=\"85\" fill=\"currentColor\" font-size=\"11\" opacity=\"0.8\" text-anchor=\"middle\">Only 1 new Query vector</text>\n  <text x=\"535\" y=\"105\" fill=\"currentColor\" font-size=\"11\" opacity=\"0.8\" text-anchor=\"middle\">Appends 1 new K, V token</text>\n</svg>",
+  "diagram_caption": "KV Cache eliminates redundant prompt recomputation during autoregressive decoding.",
+  "content": {
+    "tldr": "The Key-Value (KV) cache stores previously computed Key and Value projection vectors in GPU VRAM, preventing redundant O(N^2) token recalculation on each autoregressive generation step.",
+    "simple_explanation": "During text generation, each step produces exactly one new token. Because causal masking prevents future tokens from altering past representations, the Keys and Values of preceding tokens never change. By saving these matrices in GPU memory during the initial prompt prefill phase, the model only computes the Query for the single new token and attends against the cached history, reducing computational complexity from O(N^2) to O(N) per generated token.",
+    "real_world_example": "Imagine writing an essay with a running summary notepad: instead of re-reading every chapter from scratch every time you draft a single sentence, you consult the already compiled summary points on your notepad.",
+    "why_it_matters_and_pitfalls": "The primary operational bottleneck of long-context LLM serving is GPU VRAM exhaustion caused by expanding KV caches. Techniques like PagedAttention (vLLM) and Multi-Query Attention (MQA) were engineered specifically to combat memory fragmentation and reduce KV cache footprint.",
+    "key_terms": [
+      "KV Cache",
+      "Prefill Phase",
+      "Decode Phase",
+      "PagedAttention",
+      "Multi-Query Attention (MQA)"
+    ]
+  }
+}

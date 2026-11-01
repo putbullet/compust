@@ -1,0 +1,27 @@
+{
+  "question_id": "ai_rag_1",
+  "slug": "ai-explain-the-end-to-end-architecture-of-an-advanced-rag-pipeline",
+  "track": "ai_tech_interview",
+  "category": "Retrieval-Augmented Generation (RAG) & Vector Systems",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": true,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": "<svg viewBox=\"0 0 640 180\" xmlns=\"http://www.w3.org/2000/svg\" style=\"width:100%;height:auto;font-family:sans-serif;\">\n  <rect x=\"20\" y=\"20\" width=\"100\" height=\"40\" rx=\"6\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--primary, #3b82f6)\" stroke-width=\"2\"/>\n  <text x=\"70\" y=\"45\" fill=\"currentColor\" font-size=\"11\" font-weight=\"600\" text-anchor=\"middle\">User Query</text>\n  <path d=\"M120 40 H160\" stroke=\"currentColor\" stroke-width=\"2\"/>\n  <rect x=\"160\" y=\"15\" width=\"110\" height=\"50\" rx=\"6\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--accent, #f59e0b)\" stroke-width=\"2\"/>\n  <text x=\"215\" y=\"38\" fill=\"currentColor\" font-size=\"11\" font-weight=\"600\" text-anchor=\"middle\">Query Rewriter</text>\n  <text x=\"215\" y=\"54\" fill=\"currentColor\" font-size=\"10\" opacity=\"0.8\" text-anchor=\"middle\">Hypothetical / HyDE</text>\n  <path d=\"M270 40 H310\" stroke=\"currentColor\" stroke-width=\"2\"/>\n  <rect x=\"310\" y=\"10\" width=\"130\" height=\"60\" rx=\"6\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--secondary, #10b981)\" stroke-width=\"2\"/>\n  <text x=\"375\" y=\"35\" fill=\"currentColor\" font-size=\"11\" font-weight=\"600\" text-anchor=\"middle\">Hybrid Retrieval</text>\n  <text x=\"375\" y=\"55\" fill=\"currentColor\" font-size=\"10\" opacity=\"0.8\" text-anchor=\"middle\">BM25 + Vector Search</text>\n  <path d=\"M440 40 H470\" stroke=\"currentColor\" stroke-width=\"2\"/>\n  <rect x=\"470\" y=\"15\" width=\"150\" height=\"50\" rx=\"6\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--accent, #f59e0b)\" stroke-width=\"2\"/>\n  <text x=\"545\" y=\"38\" fill=\"currentColor\" font-size=\"11\" font-weight=\"600\" text-anchor=\"middle\">Cross-Encoder</text>\n  <text x=\"545\" y=\"54\" fill=\"currentColor\" font-size=\"10\" opacity=\"0.8\" text-anchor=\"middle\">Reranker Top-5</text>\n  <path d=\"M545 65 V110\" stroke=\"currentColor\" stroke-width=\"2\"/>\n  <rect x=\"450\" y=\"110\" width=\"170\" height=\"50\" rx=\"6\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--primary, #3b82f6)\" stroke-width=\"2\"/>\n  <text x=\"535\" y=\"133\" fill=\"currentColor\" font-size=\"11\" font-weight=\"600\" text-anchor=\"middle\">Context Assembly &amp; LLM</text>\n  <text x=\"535\" y=\"149\" fill=\"currentColor\" font-size=\"10\" opacity=\"0.8\" text-anchor=\"middle\">Grounded Synthesis</text>\n</svg>",
+  "diagram_caption": "End-to-end advanced RAG topology with query expansion, hybrid search, and cross-encoder reranking.",
+  "content": {
+    "tldr": "Advanced RAG extends basic vector search with query rewriting, hybrid lexical-dense retrieval, cross-encoder reranking, and context compression to maximize synthesis precision.",
+    "simple_explanation": "Basic RAG (chunk -> embed -> top-k vector cosine -> LLM) suffers from poor retrieval when queries lack exact keywords or semantic overlap. An advanced RAG pipeline introduces pre-retrieval transformations like query expansion or HyDE (Hypothetical Document Embeddings), followed by hybrid search combining sparse inverted indexes (BM25) with dense vector indexes. The retrieved candidate set is then filtered through a compute-heavy cross-encoder reranker before final context synthesis.",
+    "real_world_example": "A legal research assistant: instead of searching a legal library with a vague customer question, the system first drafts a formal legal hypothesis, pulls 50 potential precedents using both exact case numbers and semantic themes, has a senior clerk rerank the best 3, and presents them to the lawyer.",
+    "why_it_matters_and_pitfalls": "Feeding 20 raw chunks into an LLM context creates the 'Lost in the Middle' phenomenon where models ignore evidence placed in the middle of long prompts. Cross-encoder reranking ensures only the top 3-5 genuinely relevant passages consume attention budget.",
+    "key_terms": [
+      "Advanced RAG",
+      "HyDE",
+      "Hybrid Search",
+      "Cross-Encoder Reranker",
+      "Lost in the Middle"
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "question_id": "ai_tune_3",
+  "slug": "ai-what-is-quantization-and-how-do-gguf-awq-and-gptq-differ",
+  "track": "ai_tech_interview",
+  "category": "Fine-Tuning, Quantization & Model Alignment (RLHF / DPO)",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Quantization compresses model weights from 16-bit floats to 4-bit or 8-bit integers, where GGUF targets CPU/mixed execution while GPTQ and AWQ optimize GPU serving.",
+    "simple_explanation": "Standard LLM weights are stored as 16-bit floating point numbers (FP16 or BF16), requiring 2 bytes of VRAM per parameter (e.g. 14GB for a 7B model). Post-Training Quantization (PTQ) maps continuous floats to low-bit integers (INT8, INT4). GGUF is a binary file format optimized by llama.cpp for CPU offloading and consumer hardware. GPTQ performs second-order Taylor expansion calibration layer-by-layer for GPU inference. AWQ (Activation-aware Weight Quantization) observes that protecting the top 1% most salient weight channels avoids perplexity degradation without full calibration.",
+    "real_world_example": "Converting a 24-bit high-resolution audio recording to a compressed MP3 format: human ears cannot discern subtle harmonic losses, but file size shrinks by 75%, allowing playback on mobile devices.",
+    "why_it_matters_and_pitfalls": "Quantization allows a 70B parameter model to run on a single 48GB GPU instead of requiring an expensive multi-GPU cluster. Naive uniform rounding causes severe perplexity collapse, making activation-aware methods like AWQ essential for INT4.",
+    "key_terms": [
+      "Post-Training Quantization (PTQ)",
+      "INT4 / INT8 Precision",
+      "GGUF Binary Format",
+      "GPTQ",
+      "Activation-Aware Weight Quantization (AWQ)"
+    ]
+  }
+}

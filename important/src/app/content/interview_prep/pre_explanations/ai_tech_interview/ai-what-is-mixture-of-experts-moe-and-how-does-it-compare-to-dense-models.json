@@ -1,0 +1,27 @@
+{
+  "question_id": "ai_fund_4",
+  "slug": "ai-what-is-mixture-of-experts-moe-and-how-does-it-compare-to-dense-models",
+  "track": "ai_tech_interview",
+  "category": "LLM Fundamentals & Transformer Mechanics",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": true,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": "<svg viewBox=\"0 0 640 180\" xmlns=\"http://www.w3.org/2000/svg\" style=\"width:100%;height:auto;font-family:sans-serif;\">\n  <rect x=\"30\" y=\"55\" width=\"110\" height=\"50\" rx=\"6\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--primary, #3b82f6)\" stroke-width=\"2\"/>\n  <text x=\"85\" y=\"85\" fill=\"currentColor\" font-size=\"12\" font-weight=\"600\" text-anchor=\"middle\">Input Token</text>\n  <path d=\"M140 80 H200\" stroke=\"currentColor\" stroke-width=\"2\"/>\n  <rect x=\"200\" y=\"45\" width=\"130\" height=\"70\" rx=\"6\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--accent, #f59e0b)\" stroke-width=\"2\"/>\n  <text x=\"265\" y=\"75\" fill=\"currentColor\" font-size=\"12\" font-weight=\"700\" text-anchor=\"middle\">Router / Gating</text>\n  <text x=\"265\" y=\"95\" fill=\"currentColor\" font-size=\"10\" opacity=\"0.8\" text-anchor=\"middle\">Softmax Top-2 Routing</text>\n  <path d=\"M330 65 L400 35\" stroke=\"currentColor\" stroke-width=\"2\"/>\n  <path d=\"M330 80 L400 80\" stroke=\"currentColor\" stroke-width=\"2\"/>\n  <path d=\"M330 95 L400 125\" stroke=\"currentColor\" stroke-width=\"2\" stroke-dasharray=\"4\"/>\n  <rect x=\"400\" y=\"15\" width=\"100\" height=\"40\" rx=\"6\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--secondary, #10b981)\" stroke-width=\"2\"/>\n  <text x=\"450\" y=\"40\" fill=\"currentColor\" font-size=\"11\" font-weight=\"600\" text-anchor=\"middle\">Expert 1 (Active)</text>\n  <rect x=\"400\" y=\"60\" width=\"100\" height=\"40\" rx=\"6\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--secondary, #10b981)\" stroke-width=\"2\"/>\n  <text x=\"450\" y=\"85\" fill=\"currentColor\" font-size=\"11\" font-weight=\"600\" text-anchor=\"middle\">Expert 2 (Active)</text>\n  <rect x=\"400\" y=\"105\" width=\"100\" height=\"40\" rx=\"6\" fill=\"var(--card-bg, #1e293b)\" stroke=\"currentColor\" opacity=\"0.4\" stroke-width=\"1\"/>\n  <text x=\"450\" y=\"130\" fill=\"currentColor\" opacity=\"0.5\" font-size=\"11\" text-anchor=\"middle\">Expert 3..8 (Idle)</text>\n  <path d=\"M500 35 L550 75\" stroke=\"currentColor\" stroke-width=\"2\"/>\n  <path d=\"M500 80 L550 75\" stroke=\"currentColor\" stroke-width=\"2\"/>\n  <rect x=\"550\" y=\"55\" width=\"80\" height=\"50\" rx=\"6\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--primary, #3b82f6)\" stroke-width=\"2\"/>\n  <text x=\"590\" y=\"85\" fill=\"currentColor\" font-size=\"12\" font-weight=\"600\" text-anchor=\"middle\">Combined</text>\n</svg>",
+  "diagram_caption": "MoE gating network activates top-k feedforward sub-networks per token.",
+  "content": {
+    "tldr": "Mixture of Experts (MoE) replaces dense feed-forward layers with multiple specialized subnetworks, using a gating router to dynamically evaluate each token against only a top-k subset of parameters.",
+    "simple_explanation": "In a dense transformer, every single parameter processes every single token. In a sparse Mixture of Experts architecture (such as Mixtral 8x7B), the attention layers remain shared, but the standard feed-forward network is divided into multiple independent 'experts'. A gating router computes a probability distribution over the experts and dispatches the token exclusively to the top-k highest scoring experts (typically top-2), summing their weighted outputs.",
+    "real_world_example": "A hospital triage desk evaluates arriving patients: rather than consulting all eight medical specialists on staff for every minor ailment, the triage nurse routes cardiac symptoms to the cardiologist and fractures to orthopedics.",
+    "why_it_matters_and_pitfalls": "MoE allows a model with 45B total parameters to execute with the compute latency and inference cost of a 12B parameter model. However, serving MoE still requires sufficient GPU VRAM to keep all 45B parameters resident, and improper routing can cause severe expert load imbalance.",
+    "key_terms": [
+      "Mixture of Experts (MoE)",
+      "Sparse Activation",
+      "Router / Gating Network",
+      "Load Balancing Loss",
+      "Capacity Factor"
+    ]
+  }
+}

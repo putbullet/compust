@@ -1,0 +1,27 @@
+{
+  "question_id": "ai_sys_3",
+  "slug": "ai-how-do-you-systematically-evaluate-an-llm-application-in-production-llm-as-a-judge-and-",
+  "track": "ai_tech_interview",
+  "category": "AI System Design, Production Serving & LLMOps",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Systematic LLM evaluation pairs deterministic metrics with automated LLM-as-a-Judge frameworks (RAGAS) across Faithfulness, Answer Relevance, and Context Precision.",
+    "simple_explanation": "Evaluating probabilistic generative text requires moving beyond simple string equality. Production evaluation pipelines apply automated multi-metric testing: deterministic code checks (valid JSON syntax, schema compliance), rule-based toxicity filters, and model-based judges. The RAGAS framework assesses three primary pillars: Faithfulness (is the answer grounded strictly in retrieved context without hallucination?), Answer Relevance (does the answer directly address the query?), and Context Precision (did retrieval avoid noisy irrelevant chunks?).",
+    "real_world_example": "A university grading board: multiple-choice tests are graded automatically by machine; student essays are graded against a detailed standardized rubric by an independent senior evaluator assessing coherence and factual grounding.",
+    "why_it_matters_and_pitfalls": "LLM judges exhibit inherent biases, including position bias (favoring whichever passage is presented first), verbosity bias (favoring longer responses), and self-enhancement bias (scoring generations from their own model family higher). Always swap comparison order and calibrate judge models against human annotators.",
+    "key_terms": [
+      "LLM-as-a-Judge",
+      "RAGAS Framework",
+      "Faithfulness Metric",
+      "Context Precision",
+      "Evaluation Bias"
+    ]
+  }
+}

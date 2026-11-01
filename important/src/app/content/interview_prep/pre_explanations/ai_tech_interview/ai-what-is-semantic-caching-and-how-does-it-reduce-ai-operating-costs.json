@@ -1,0 +1,27 @@
+{
+  "question_id": "ai_sys_2",
+  "slug": "ai-what-is-semantic-caching-and-how-does-it-reduce-ai-operating-costs",
+  "track": "ai_tech_interview",
+  "category": "AI System Design, Production Serving & LLMOps",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": true,
+  "code_language": "python",
+  "code_snippet": "def query_semantic_cache(user_query, vector_index, threshold=0.92):\n    query_vec = embedding_model.embed(user_query)\n    match = vector_index.search_nearest(query_vec, top_k=1)\n    if match and match.cosine_similarity >= threshold:\n        return match.cached_response, True\n    return None, False\n",
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Semantic caching uses vector similarity search across past prompt embeddings to return cached responses for semantically identical questions, cutting API latency and billing costs.",
+    "simple_explanation": "Traditional web caches (like Redis) perform exact string key lookups, which fail on AI prompts because users phrase identical questions differently ('How do I reset my password?' vs 'Where can I change my login password?'). A semantic cache embeds incoming user prompts and searches a vector database of prior queries. If the cosine similarity exceeds a configured threshold (such as 0.92), the cached response is served immediately with sub-50ms latency without invoking the expensive LLM backend.",
+    "real_world_example": "A customer service helpdesk: instead of escalating every customer who asks how to track a package to a live agent, a smart triage system recognizes equivalent phrasing and supplies the standard tracking guide.",
+    "why_it_matters_and_pitfalls": "Setting similarity thresholds too loosely causes catastrophic semantic drift, returning answers to queries with opposing intent ('How to enable 2FA' vs 'How to disable 2FA'). High-risk enterprise domains must scope cache keys by user tenant and role permissions.",
+    "key_terms": [
+      "Semantic Caching",
+      "Cosine Similarity Threshold",
+      "Vector Index Lookup",
+      "Exact-Match Cache Failure",
+      "Tenant Isolation"
+    ]
+  }
+}

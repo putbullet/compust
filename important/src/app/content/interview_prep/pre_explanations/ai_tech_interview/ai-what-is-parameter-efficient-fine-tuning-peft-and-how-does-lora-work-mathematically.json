@@ -1,0 +1,27 @@
+{
+  "question_id": "ai_tune_1",
+  "slug": "ai-what-is-parameter-efficient-fine-tuning-peft-and-how-does-lora-work-mathematically",
+  "track": "ai_tech_interview",
+  "category": "Fine-Tuning, Quantization & Model Alignment (RLHF / DPO)",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": true,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": "<svg viewBox=\"0 0 640 180\" xmlns=\"http://www.w3.org/2000/svg\" style=\"width:100%;height:auto;font-family:sans-serif;\">\n  <rect x=\"40\" y=\"40\" width=\"160\" height=\"90\" rx=\"8\" fill=\"var(--card-bg, #1e293b)\" stroke=\"currentColor\" opacity=\"0.6\" stroke-width=\"2\"/>\n  <text x=\"120\" y=\"80\" fill=\"currentColor\" font-size=\"13\" font-weight=\"700\" text-anchor=\"middle\">Pretrained Base W_0</text>\n  <text x=\"120\" y=\"105\" fill=\"currentColor\" font-size=\"11\" opacity=\"0.8\" text-anchor=\"middle\">FROZEN [d x k]</text>\n  <text x=\"240\" y=\"90\" fill=\"currentColor\" font-size=\"20\" font-weight=\"700\" text-anchor=\"middle\">+</text>\n  <rect x=\"290\" y=\"25\" width=\"110\" height=\"45\" rx=\"6\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--primary, #3b82f6)\" stroke-width=\"2\"/>\n  <text x=\"345\" y=\"52\" fill=\"currentColor\" font-size=\"12\" font-weight=\"600\" text-anchor=\"middle\">Matrix B [d x r]</text>\n  <text x=\"345\" y=\"85\" fill=\"currentColor\" font-size=\"14\" font-weight=\"700\" text-anchor=\"middle\">x</text>\n  <rect x=\"290\" y=\"100\" width=\"110\" height=\"45\" rx=\"6\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--secondary, #10b981)\" stroke-width=\"2\"/>\n  <text x=\"345\" y=\"127\" fill=\"currentColor\" font-size=\"12\" font-weight=\"600\" text-anchor=\"middle\">Matrix A [r x k]</text>\n  <path d=\"M430 85 H500\" stroke=\"currentColor\" stroke-width=\"2\" marker-end=\"url(#arrow)\"/>\n  <rect x=\"500\" y=\"55\" width=\"120\" height=\"60\" rx=\"6\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--accent, #f59e0b)\" stroke-width=\"2\"/>\n  <text x=\"560\" y=\"82\" fill=\"currentColor\" font-size=\"12\" font-weight=\"600\" text-anchor=\"middle\">Output h</text>\n  <text x=\"560\" y=\"102\" fill=\"currentColor\" font-size=\"10\" opacity=\"0.8\" text-anchor=\"middle\">W_0 x + (BA)x</text>\n</svg>",
+  "diagram_caption": "LoRA low-rank decomposition freezes base weights and trains lightweight A and B matrices.",
+  "content": {
+    "tldr": "Low-Rank Adaptation (LoRA) freezes pretrained model weights and injects trainable rank-decomposition matrices into attention layers, reducing trainable parameters and optimizer memory by over 99%.",
+    "simple_explanation": "Full fine-tuning updates all billions of base parameters, requiring massive GPU memory to store gradients and optimizer momentum states. LoRA hypothesizes that the weight updates during task adaptation have a low intrinsic dimension. Instead of updating a full d x k matrix directly, LoRA decomposes the update into delta_W = B x A, where B is d x r and A is r x k, with rank r << min(d, k) (such as r=8). Only A and B are trained while the original base weights remain frozen.",
+    "real_world_example": "Instead of reprinting an entire 1,000-page medical textbook to add regional drug updates, a publisher inserts a 2-page appendix pamphlet into the back cover.",
+    "why_it_matters_and_pitfalls": "During production serving, the trained LoRA adapter matrices can be merged directly into the base weights with zero additional inference latency. Serving multiple tenants requires keeping only one base model in memory while swapping small 50MB LoRA adapter weights dynamically.",
+    "key_terms": [
+      "Parameter-Efficient Fine-Tuning (PEFT)",
+      "Low-Rank Adaptation (LoRA)",
+      "Intrinsic Rank",
+      "Frozen Weights",
+      "Adapter Merging"
+    ]
+  }
+}

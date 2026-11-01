@@ -1,0 +1,27 @@
+{
+  "question_id": "ai_rag_3",
+  "slug": "ai-explain-hybrid-search-and-why-combining-bm25-with-vector-search-outperforms-pure-vector",
+  "track": "ai_tech_interview",
+  "category": "Retrieval-Augmented Generation (RAG) & Vector Systems",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": true,
+  "code_language": "python",
+  "code_snippet": "def reciprocal_rank_fusion(dense_ranks, sparse_ranks, k=60):\n    scores = {}\n    for doc_id, rank in dense_ranks.items():\n        scores[doc_id] = scores.get(doc_id, 0.0) + (1.0 / (k + rank))\n    for doc_id, rank in sparse_ranks.items():\n        scores[doc_id] = scores.get(doc_id, 0.0) + (1.0 / (k + rank))\n    return sorted(scores.items(), key=lambda x: x[1], reverse=True)\n",
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Hybrid search combines sparse lexical search (BM25) with dense vector search, merging results via Reciprocal Rank Fusion (RRF) to capture both exact keyword identifiers and semantic intent.",
+    "simple_explanation": "Pure vector search embeds text into high-dimensional semantic spaces, excelling at conceptual queries ('how to fix car ignition') but frequently failing on exact alphanumeric IDs, model numbers, acronyms, or error codes ('CVE-2024-38077'). BM25 lexical search matches exact term frequency and inverse document frequency. Hybrid search runs both retrieval mechanisms concurrently and merges the rank lists using Reciprocal Rank Fusion (RRF), capitalizing on both strengths.",
+    "real_world_example": "Searching a medical database: vector search understands that 'myocardial infarction' relates to 'heart attack', while BM25 ensures that a search for exact medication code 'RX-90210' retrieves that exact drug.",
+    "why_it_matters_and_pitfalls": "Vector cosine scores and BM25 scores live on entirely different numerical scales and cannot be naively added. Using Reciprocal Rank Fusion normalizes purely by ordinal rank, ensuring robust fusion without fragile score calibration.",
+    "key_terms": [
+      "Hybrid Search",
+      "BM25 Lexical Search",
+      "Dense Vector Embeddings",
+      "Reciprocal Rank Fusion (RRF)",
+      "Exact Identifier Retrieval"
+    ]
+  }
+}

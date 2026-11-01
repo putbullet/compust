@@ -1,0 +1,27 @@
+{
+  "question_id": "ai_prompt_1",
+  "slug": "ai-explain-zero-shot-few-shot-and-chain-of-thought-cot-prompting-with-real-world-engineeri",
+  "track": "ai_tech_interview",
+  "category": "Prompt Engineering, In-Context Learning & Guardrails",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Zero-shot relies solely on pretrained weights, few-shot supplies in-context input-output demonstrations, and Chain-of-Thought prompts the model to generate intermediate reasoning steps before concluding.",
+    "simple_explanation": "Zero-shot prompting provides an instruction without any prior demonstration, testing the model's generalized pretraining. Few-shot in-context learning supplies 2-5 explicit exemplars showing the desired format, edge-case handling, and style without modifying model weights. Chain-of-Thought (CoT) prompting instructs the model to 'think step by step', giving the autoregressive transformer intermediate scratchpad tokens where it can compute state representations for complex multi-hop logic.",
+    "real_world_example": "Asking an intern to solve a tax deduction: zero-shot is 'calculate this return'; few-shot provides two past audited returns as formatting guides; Chain-of-Thought requires showing the arithmetic scratch work on paper before writing the final refund number.",
+    "why_it_matters_and_pitfalls": "Standard transformers struggle with multi-step math and logic in direct generation because next-token prediction cannot perform dynamic backtracking. Generating CoT scratchpad tokens provides the computational depth required to avoid premature greedy token hallucinations.",
+    "key_terms": [
+      "In-Context Learning",
+      "Zero-Shot Prompting",
+      "Few-Shot Exemplars",
+      "Chain-of-Thought (CoT)",
+      "Scratchpad Tokens"
+    ]
+  }
+}

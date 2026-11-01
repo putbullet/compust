@@ -1,0 +1,27 @@
+{
+  "question_id": "ai_prompt_3",
+  "slug": "ai-how-do-you-enforce-guaranteed-structured-json-outputs-from-llms-in-production",
+  "track": "ai_tech_interview",
+  "category": "Prompt Engineering, In-Context Learning & Guardrails",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": true,
+  "code_language": "python",
+  "code_snippet": "from pydantic import BaseModel, Field\n\nclass ExtractionSchema(BaseModel):\n    candidate_name: str\n    experience_years: int = Field(ge=0)\n    skills: list[str]\n\n# Passed to API runtime via response_format schema constraint\njson_schema = ExtractionSchema.model_json_schema()\n",
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Guaranteed structured outputs in production rely on constrained decoding via Context-Free Grammars (CFGs) or token masking during inference, rather than hoping prompt instructions are obeyed.",
+    "simple_explanation": "Instructing an LLM to 'respond only in JSON' fails intermittently on edge cases because next-token prediction can emit conversational preambles or unescaped quotes. Production-grade systems use grammar-constrained decoding (such as llama.cpp GBNF grammars, Outlines, or OpenAI/Gemini Structured Outputs). At each token step, the engine parses the active state against the JSON schema and masks invalid token logits to negative infinity, making syntactic deviation mathematically impossible.",
+    "real_world_example": "An electronic ticket vending machine with physical buttons: if you are at the step to select train quantity, all alphabet buttons are physically locked out and only number buttons accept presses.",
+    "why_it_matters_and_pitfalls": "Relying on post-hoc regex or Pydantic retries adds round-trip latency and operational failure rates. Constrained decoding guarantees 100% schema compliance on the very first generation pass without extra network hops.",
+    "key_terms": [
+      "Constrained Decoding",
+      "Context-Free Grammar (CFG)",
+      "Logit Masking",
+      "Pydantic Schema",
+      "Structured Outputs"
+    ]
+  }
+}

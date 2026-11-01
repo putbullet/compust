@@ -1,0 +1,27 @@
+{
+  "question_id": "ai_agent_2",
+  "slug": "ai-what-is-the-model-context-protocol-mcp-and-how-does-it-standardize-ai-tool-integration",
+  "track": "ai_tech_interview",
+  "category": "AI Agents, Tool Calling & Model Context Protocol (MCP)",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": true,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": "<svg viewBox=\"0 0 640 180\" xmlns=\"http://www.w3.org/2000/svg\" style=\"width:100%;height:auto;font-family:sans-serif;\">\n  <rect x=\"20\" y=\"45\" width=\"130\" height=\"70\" rx=\"8\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--primary, #3b82f6)\" stroke-width=\"2\"/>\n  <text x=\"85\" y=\"75\" fill=\"currentColor\" font-size=\"12\" font-weight=\"700\" text-anchor=\"middle\">MCP Host / Client</text>\n  <text x=\"85\" y=\"95\" fill=\"currentColor\" font-size=\"10\" opacity=\"0.8\" text-anchor=\"middle\">IDE / Agent Platform</text>\n  <path d=\"M150 80 H230\" stroke=\"currentColor\" stroke-width=\"2\"/>\n  <rect x=\"230\" y=\"30\" width=\"160\" height=\"100\" rx=\"8\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--accent, #f59e0b)\" stroke-width=\"2\"/>\n  <text x=\"310\" y=\"60\" fill=\"currentColor\" font-size=\"12\" font-weight=\"700\" text-anchor=\"middle\">Standard MCP Protocol</text>\n  <text x=\"310\" y=\"80\" fill=\"currentColor\" font-size=\"10\" opacity=\"0.8\" text-anchor=\"middle\">JSON-RPC 2.0 Transport</text>\n  <text x=\"310\" y=\"100\" fill=\"currentColor\" font-size=\"10\" opacity=\"0.8\" text-anchor=\"middle\">Resources | Tools | Prompts</text>\n  <path d=\"M390 80 H470\" stroke=\"currentColor\" stroke-width=\"2\"/>\n  <rect x=\"470\" y=\"15\" width=\"150\" height=\"40\" rx=\"6\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--secondary, #10b981)\" stroke-width=\"2\"/>\n  <text x=\"545\" y=\"40\" fill=\"currentColor\" font-size=\"11\" font-weight=\"600\" text-anchor=\"middle\">Database Server</text>\n  <rect x=\"470\" y=\"65\" width=\"150\" height=\"40\" rx=\"6\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--secondary, #10b981)\" stroke-width=\"2\"/>\n  <text x=\"545\" y=\"90\" fill=\"currentColor\" font-size=\"11\" font-weight=\"600\" text-anchor=\"middle\">Git / Filesystem Server</text>\n  <rect x=\"470\" y=\"115\" width=\"150\" height=\"40\" rx=\"6\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--secondary, #10b981)\" stroke-width=\"2\"/>\n  <text x=\"545\" y=\"140\" fill=\"currentColor\" font-size=\"11\" font-weight=\"600\" text-anchor=\"middle\">Slack / Jira Server</text>\n</svg>",
+  "diagram_caption": "Model Context Protocol architecture connecting agent clients to modular MCP servers.",
+  "content": {
+    "tldr": "The Model Context Protocol (MCP) is an open standard that decouples AI agent platforms from data sources and tools via standardized JSON-RPC client-server communication.",
+    "simple_explanation": "Historically, integrating tools into an LLM platform required writing custom bespoke adapters for every combination of client (Claude Desktop, IDEs) and data source (Postgres, GitHub, Slack). MCP functions like the Language Server Protocol (LSP) for AI: tool providers implement a single lightweight MCP server exposing Tools, Resources, and Prompts over stdio or SSE. Any MCP-compliant client can discover and execute these tools without custom glue code.",
+    "real_world_example": "USB-C for artificial intelligence: instead of needing a proprietary charging cable for every distinct phone and peripheral, a standardized universal port allows any laptop to connect to any monitor, drive, or accessory.",
+    "why_it_matters_and_pitfalls": "MCP solves the M x N integration explosion, transforming tool development from custom SDK maintenance to open protocol servers. Security isolation must be maintained at the transport layer to prevent compromised MCP servers from accessing host filesystems.",
+    "key_terms": [
+      "Model Context Protocol (MCP)",
+      "JSON-RPC 2.0",
+      "MCP Client-Server",
+      "Tool Discovery",
+      "Language Server Protocol (LSP) Analogy"
+    ]
+  }
+}

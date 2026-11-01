@@ -1,0 +1,27 @@
+{
+  "question_id": "ai_rag_2",
+  "slug": "ai-what-are-the-major-chunking-strategies-in-rag-and-how-do-you-choose-optimal-chunk-sizes",
+  "track": "ai_tech_interview",
+  "category": "Retrieval-Augmented Generation (RAG) & Vector Systems",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Chunking strategies balance semantic coherence against retrieval granularity, transitioning from fixed-size sliding windows to document-aware semantic and recursive markdown splitting.",
+    "simple_explanation": "Chunk size governs the trade-off between retrieval recall and precision. Small chunks (128-256 tokens) yield precise vector embeddings but lose surrounding conversational context. Large chunks (1024+ tokens) capture complete topics but dilute specific semantic signals with noise. Production architectures employ recursive character splitting respecting markdown headers, semantic similarity breakpoint splitting, or parent-document retrieval where small chunks are matched but full parent sections are injected.",
+    "real_world_example": "Indexing an encyclopedia: fixed chunking might arbitrarily slice a person's biography in half mid-sentence, while structural chunking keeps each section heading, paragraph, and table as an intact unit.",
+    "why_it_matters_and_pitfalls": "Fixed-token splitting without chunk overlap routinely breaks critical sentences in half, causing vector similarity to fail entirely on the split concepts. Always maintain a 10-20% sliding window overlap.",
+    "key_terms": [
+      "Fixed-Size Chunking",
+      "Recursive Splitting",
+      "Parent-Document Retrieval",
+      "Sliding Window Overlap",
+      "Semantic Chunking"
+    ]
+  }
+}

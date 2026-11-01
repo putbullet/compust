@@ -1,0 +1,27 @@
+{
+  "question_id": "ai_fund_1",
+  "slug": "ai-what-is-the-transformer-architecture-and-how-does-self-attention-work",
+  "track": "ai_tech_interview",
+  "category": "LLM Fundamentals & Transformer Mechanics",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": true,
+  "needs_code": true,
+  "code_language": "python",
+  "code_snippet": "import torch\nimport torch.nn.functional as F\n\ndef scaled_dot_product_attention(Q, K, V, mask=None):\n    d_k = Q.size(-1)\n    scores = torch.matmul(Q, K.transpose(-2, -1)) / (d_k ** 0.5)\n    if mask is not None:\n        scores = scores.masked_fill(mask == 0, -1e9)\n    weights = F.softmax(scores, dim=-1)\n    return torch.matmul(weights, V), weights\n",
+  "diagram_svg": "<svg viewBox=\"0 0 640 180\" xmlns=\"http://www.w3.org/2000/svg\" style=\"width:100%;height:auto;font-family:sans-serif;\">\n  <rect x=\"20\" y=\"30\" width=\"120\" height=\"45\" rx=\"6\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--primary, #3b82f6)\" stroke-width=\"2\"/>\n  <text x=\"80\" y=\"58\" fill=\"currentColor\" font-size=\"13\" font-weight=\"600\" text-anchor=\"middle\">Input Tokens</text>\n  <path d=\"M140 52 H180\" stroke=\"currentColor\" stroke-width=\"2\" marker-end=\"url(#arrow)\"/>\n  <rect x=\"180\" y=\"15\" width=\"130\" height=\"75\" rx=\"6\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--primary, #3b82f6)\" stroke-width=\"2\"/>\n  <text x=\"245\" y=\"45\" fill=\"currentColor\" font-size=\"12\" font-weight=\"600\" text-anchor=\"middle\">Linear Projections</text>\n  <text x=\"245\" y=\"68\" fill=\"currentColor\" font-size=\"11\" opacity=\"0.8\" text-anchor=\"middle\">Q, K, V Matrices</text>\n  <path d=\"M310 52 H350\" stroke=\"currentColor\" stroke-width=\"2\"/>\n  <rect x=\"350\" y=\"20\" width=\"130\" height=\"65\" rx=\"6\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--secondary, #10b981)\" stroke-width=\"2\"/>\n  <text x=\"415\" y=\"48\" fill=\"currentColor\" font-size=\"12\" font-weight=\"600\" text-anchor=\"middle\">Scaled Dot-Product</text>\n  <text x=\"415\" y=\"68\" fill=\"currentColor\" font-size=\"11\" opacity=\"0.8\" text-anchor=\"middle\">Softmax(QK^T / sqrt(d))</text>\n  <path d=\"M480 52 H510\" stroke=\"currentColor\" stroke-width=\"2\"/>\n  <rect x=\"510\" y=\"30\" width=\"110\" height=\"45\" rx=\"6\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--primary, #3b82f6)\" stroke-width=\"2\"/>\n  <text x=\"565\" y=\"58\" fill=\"currentColor\" font-size=\"13\" font-weight=\"600\" text-anchor=\"middle\">Context Vector</text>\n  <text x=\"320\" y=\"140\" fill=\"currentColor\" opacity=\"0.75\" font-size=\"12\" text-anchor=\"middle\">Self-attention allows each token to dynamically weight all other tokens simultaneously.</text>\n</svg>",
+  "diagram_caption": "Self-attention matrix computation flow from input embeddings to context vectors.",
+  "content": {
+    "tldr": "The Transformer discards recurrent processing in favor of parallel self-attention, allowing tokens across an entire sequence to dynamically compute pairwise relevance scores simultaneously.",
+    "simple_explanation": "Rather than passing an internal hidden state sequentially like an RNN, the Transformer projects input embeddings into Query (Q), Key (K), and Value (V) matrices. Each token Query calculates a dot product with all token Keys, divided by the square root of the key dimension to prevent gradient saturation. A softmax function normalizes these products into attention weights, which scale the Value vectors to construct contextual representations in parallel.",
+    "real_world_example": "Think of a database lookup system where each word submits a search request (Query), matches against metadata tags of all available documents (Keys), and retrieves weighted content (Values) proportionally to relevance.",
+    "why_it_matters_and_pitfalls": "While attention eliminates sequential recurrence bottlenecks during training, computing all token pairs creates quadratic time and memory complexity O(N^2). Without causal masking in decoder autoregression, tokens would cheat during generation by attending to future ungenerated positions.",
+    "key_terms": [
+      "Query Key Value (QKV)",
+      "Scaled Dot-Product Attention",
+      "Multi-Head Attention",
+      "Causal Masking",
+      "Quadratic Complexity"
+    ]
+  }
+}

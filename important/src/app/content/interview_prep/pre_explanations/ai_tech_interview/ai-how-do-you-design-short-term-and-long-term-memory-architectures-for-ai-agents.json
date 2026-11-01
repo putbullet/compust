@@ -1,0 +1,27 @@
+{
+  "question_id": "ai_agent_3",
+  "slug": "ai-how-do-you-design-short-term-and-long-term-memory-architectures-for-ai-agents",
+  "track": "ai_tech_interview",
+  "category": "AI Agents, Tool Calling & Model Context Protocol (MCP)",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Agent memory combines short-term in-context working memory with long-term external storage systems, using summarization, vector recall, and structured entity graphs.",
+    "simple_explanation": "Short-term memory lives directly inside the active prompt context window, capturing immediate conversation turns and ongoing tool outputs. Because context windows are finite and costly, long-term memory offloads historical facts to external databases. Long-term memory divides into episodic memory (past experiences and task executions retrieved via vector semantic search) and semantic memory (structured user preferences and entity relations stored in relational tables or knowledge graphs).",
+    "real_world_example": "A personal executive assistant: short-term memory is remembering what you discussed in the current 10-minute meeting; long-term memory is consulting a secure profile database to recall that you are allergic to gluten whenever booking flights.",
+    "why_it_matters_and_pitfalls": "Stale or conflicting memories cause agents to hallucinate contradictory behavior. Production memory systems require explicit recency weighting, importance scoring, and memory consolidation routines that periodically summarize and purge obsolete entries.",
+    "key_terms": [
+      "Short-Term Working Memory",
+      "Episodic Memory",
+      "Semantic Memory",
+      "Memory Consolidation",
+      "Vector Store Retrieval"
+    ]
+  }
+}

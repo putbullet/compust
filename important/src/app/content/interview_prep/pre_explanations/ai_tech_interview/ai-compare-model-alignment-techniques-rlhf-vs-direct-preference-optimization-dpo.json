@@ -1,0 +1,27 @@
+{
+  "question_id": "ai_tune_2",
+  "slug": "ai-compare-model-alignment-techniques-rlhf-vs-direct-preference-optimization-dpo",
+  "track": "ai_tech_interview",
+  "category": "Fine-Tuning, Quantization & Model Alignment (RLHF / DPO)",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "RLHF optimizes policy weights against an explicit reward model using reinforcement learning (PPO), whereas DPO mathematically reformulates the objective to optimize directly on paired preference data.",
+    "simple_explanation": "Reinforcement Learning from Human Feedback (RLHF) requires a multi-stage pipeline: first training a separate reward model on human preferences (chosen vs rejected), and then using Proximal Policy Optimization (PPO) to update the actor LLM with a KL-divergence penalty against a reference policy. Direct Preference Optimization (DPO) derives an analytical mapping showing that the reward can be implicitly expressed by the policy itself. DPO eliminates the reward model and PPO loop entirely, optimizing a binary cross-entropy loss directly on preference pairs.",
+    "real_world_example": "Teaching an apprentice chef: RLHF hires a food critic to score each dish with points and uses trial-and-error reinforcement; DPO simply presents pairs of good and bad dishes and directly trains the chef to favor the superior recipe.",
+    "why_it_matters_and_pitfalls": "PPO in RLHF is notoriously unstable and resource-intensive, requiring four distinct models (actor, critic, reference, reward) resident on GPUs simultaneously. DPO requires only the policy and reference model, providing vastly superior training stability.",
+    "key_terms": [
+      "RLHF",
+      "Direct Preference Optimization (DPO)",
+      "Reward Modeling",
+      "PPO Policy Optimization",
+      "KL Divergence Regularization"
+    ]
+  }
+}

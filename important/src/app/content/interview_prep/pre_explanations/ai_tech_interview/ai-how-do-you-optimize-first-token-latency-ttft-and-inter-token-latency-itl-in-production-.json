@@ -1,0 +1,27 @@
+{
+  "question_id": "ai_sys_1",
+  "slug": "ai-how-do-you-optimize-first-token-latency-ttft-and-inter-token-latency-itl-in-production-",
+  "track": "ai_tech_interview",
+  "category": "AI System Design, Production Serving & LLMOps",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Time-To-First-Token (TTFT) is compute-bound during prompt prefill and optimized by prefix caching, while Inter-Token Latency (ITL) is memory-bandwidth bound during decoding and optimized by continuous batching and speculative decoding.",
+    "simple_explanation": "LLM serving has two distinct latency regimes. TTFT measures the time elapsed from user request until the first generated character streams back; it processes the full prompt in parallel and is governed by compute throughput and prefix cache hits. ITL measures the delay between subsequent generated tokens; it reads all model weights from GPU HBM into compute registers for every single token, making it strictly memory-bandwidth bound. Production optimization uses continuous iteration-level batching (vLLM) and speculative decoding with small draft models.",
+    "real_world_example": "A restaurant kitchen: TTFT is the preparation time to chop ingredients and fire the grill for a table's order; ITL is the steady conveyor belt pace at which individual sushi rolls are served once dining commences.",
+    "why_it_matters_and_pitfalls": "Static request batching stalls the entire GPU batch until the longest sequence completes. Continuous batching evicts completed requests dynamically at each token iteration step, boosting serving throughput by 3x-5x.",
+    "key_terms": [
+      "Time-To-First-Token (TTFT)",
+      "Inter-Token Latency (ITL)",
+      "Continuous Batching",
+      "Speculative Decoding",
+      "Memory Bandwidth Bound"
+    ]
+  }
+}

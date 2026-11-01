@@ -205,6 +205,9 @@ from .schemas_resume import (
     StructuredResumeRead,
     StructuredResumeUpdate,
 )
+from .schemas_resume_prompt import ResumePromptResponse
+from .services.resume_prompt_builder import build_tailored_resume_prompt
+from .services.profile_fusion import get_unified_profile
 from .security import (
     create_access_token,
     get_current_user,
@@ -1022,6 +1025,94 @@ def get_job_detail(
         detail.missing_factors = match_res.missing_factors
         detail.category_scores = match_res.category_scores
     return detail
+
+
+@app.get("/api/v1/jobs/{job_id}/resume-prompt", response_model=ResumePromptResponse, tags=["jobs"])
+def get_job_resume_prompt_endpoint(
+    job_id: str = Path(...),
+    include_contact: bool = Query(default=True),
+    format: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Generate a tailored, ready-to-paste markdown prompt for ChatGPT/Claude/Gemini.
+    Builds the prompt server-side from canonical data (Job + Unified Profile).
+    Operates 100% deterministically offline with ZERO LLM calls and zero API quota.
+    """
+    job_data: dict[str, Any] | None = None
+    job_title = ""
+    company_name = ""
+
+    # 1. Try finding in database
+    if job_id.isdigit():
+        job_int_id = int(job_id)
+        db_job = get_job(db, job_int_id)
+        if db_job:
+            skills = get_job_skills(db, job_int_id)
+            comp_name = db_job.company_name or (db_job.company.name if db_job.company else "Unknown Company")
+            job_title = db_job.title or "Position"
+            company_name = comp_name
+            job_data = {
+                "title": job_title,
+                "company": comp_name,
+                "location": db_job.location or "Not specified",
+                "type": db_job.employment_type or "Full-time",
+                "remote_type": db_job.remote_type or "Onsite",
+                "url": db_job.job_url or "Not available",
+                "description": db_job.description or "",
+                "skills": skills,
+            }
+
+    # 2. Try finding in curated GitHub internships
+    if not job_data:
+        from .services.github_internships_service import GitHubInternshipsService
+        internships_service = GitHubInternshipsService()
+        internships_resp = internships_service.get_curated_internships()
+        for item in internships_resp.items:
+            if item.id == job_id or (job_id.isdigit() and str(abs(hash(item.id))) == job_id):
+                job_title = item.role
+                company_name = item.company
+                job_data = {
+                    "title": item.role,
+                    "company": item.company,
+                    "location": item.location,
+                    "type": f"{item.category} / Internship",
+                    "remote_type": "Remote" if "remote" in (item.location or "").lower() else "Onsite",
+                    "url": item.apply_url,
+                    "description": item.notes or f"Internship position for {item.role} at {item.company} in {item.location}.",
+                    "skills": [item.category] if item.category else [],
+                }
+                break
+
+    if not job_data:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # 3. Retrieve canonical unified profile for the authenticated user
+    unified_profile = get_unified_profile(db, current_user.id)
+
+    # 4. Deterministic prompt assembly (Zero LLM calls)
+    prompt_text, has_profile, char_count = build_tailored_resume_prompt(
+        job_data=job_data,
+        unified_profile=unified_profile,
+        include_contact=include_contact,
+    )
+
+    if format == "markdown":
+        from fastapi.responses import PlainTextResponse
+        return PlainTextResponse(prompt_text, media_type="text/markdown")
+
+    return ResumePromptResponse(
+        success=True,
+        has_profile=has_profile,
+        char_count=char_count,
+        prompt=prompt_text,
+        job_id=str(job_id),
+        job_title=job_title,
+        company_name=company_name,
+        include_contact=include_contact,
+        error=None if has_profile else "No resume or profile data found. Please upload a resume first to generate a tailored prompt."
+    )
 
 
 def quick_add_job_core(

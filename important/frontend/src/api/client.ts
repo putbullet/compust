@@ -79,6 +79,18 @@ export interface JobDetail extends Job {
   category_scores?: Record<string, number>;
 }
 
+export interface ResumePromptResponse {
+  success: boolean;
+  has_profile: boolean;
+  char_count: number;
+  prompt: string;
+  job_id: string;
+  job_title: string;
+  company_name: string;
+  include_contact: boolean;
+  error?: string | null;
+}
+
 export interface JobTranslationItem {
   id: number;
   job_id: number;
@@ -977,6 +989,9 @@ export const api = {
   },
 
   getJobDetail: (jobId: number) => request<JobDetail>(`/jobs/${jobId}`),
+
+  getJobResumePrompt: (jobId: number | string, includeContact: boolean = true) =>
+    request<ResumePromptResponse>(`/jobs/${jobId}/resume-prompt?include_contact=${includeContact}`),
 
   // Auth
   login: (email: string, password: string) =>

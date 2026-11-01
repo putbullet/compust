@@ -38,7 +38,9 @@ logs/
 *.mp4
 !docs/media/*.mp4
 *.db
-release/
+release/*
+!release/*.md
+important/release/
 .cache/
 important/.cache/
 Compust.exe

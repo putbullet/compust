@@ -104,3 +104,27 @@ milestones.
 - [x] Add a frontend build and test workflow once the React application exists.
 - [x] Measure requests, scrape duration, parser failures, duplicate rate,
   database writes, and discovered jobs before scaling beyond three sources (`GET /api/v1/admin/metrics`).
+
+## Milestone v1.0.5 — Intelligence, Sync & Experience Enhancements
+
+- [x] **Local AI & Gateway Stabilization**
+  - [x] Restore local Ollama execution at `http://127.0.0.1:11434` and eliminate mutual recursion between `OllamaProvider.check_health` and `get_selected_model`.
+  - [x] Provider isolation: isolate Gemini, OpenAI, and Ollama model lists and prevent cross-provider state leakage.
+  - [x] Background non-blocking health probing with cache-first status returns.
+- [x] **Interview Prep Visual Explanations**
+  - [x] 2-tier "Explain with AI" generation: rapid concept breakdown + deep-dive with domain context packs and sanitized SVG diagrams.
+  - [x] Pre-author curated high-yield explanations across AI Engineering, Security Engineering, and Data Engineering tracks.
+- [x] **Resume Parsing & Profile Synchronization**
+  - [x] Multi-lingual resume header detection: support Dutch (`werkervaring`, `opleiding`, `vaardigheden`, etc.) alongside English and French.
+  - [x] Event-driven profile recomputation on all resume lifecycle events (upload, set default, parse, update, delete).
+  - [x] Synchronize `is_default` and `is_active` atomically.
+  - [x] Zero-stale prompt cache busting with `Cache-Control: no-store`.
+- [x] **Deterministic "Copy as Prompt" Generator**
+  - [x] Standardized Markdown prompt builder synthesizing vacancy details, de-duplicated unified profile, ATS requirements, and adjustment instructions.
+  - [x] Interactive "Include contact info" toggle pill with persistent user preference storage.
+  - [x] 100% offline-compatible requiring zero LLM quota or active provider.
+- [x] **UI Polish & Responsive Layouts**
+  - [x] Restructure Opportunities modal footer into a 2-tier layout: dedicated AI Tools bar + standard dialog action row.
+  - [x] Standardize 38px uniform button heights and resolve multi-line text wrapping across all modal action buttons.
+  - [x] Redesign Internship card footers: meta row (repo tag + date) and actions row (side-by-side prompt and apply buttons).
+  - [x] Full dark/light contrast safety with explicit `[data-theme='light']` and system `@media (prefers-color-scheme: light)` support.

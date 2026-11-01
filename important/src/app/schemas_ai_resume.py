@@ -70,6 +70,8 @@ class AIStatusResponse(BaseModel):
     openai_key_masked: str | None = None
     openai_model: str | None = "gpt-4o-mini"
     fallback_policy: str = "deterministic"
+    selected_models: dict[str, str | None] | None = None
+    ollama_model: str | None = None
     ollama: dict[str, Any] | None = None
     gemini: dict[str, Any] | None = None
     openai: dict[str, Any] | None = None
@@ -91,6 +93,7 @@ class AIProviderRead(BaseModel):
 
 class AISettingsUpdate(BaseModel):
     active_provider: str | None = None
+    ollama_model: str | None = None
     selected_model: str | None = None
     gemini_model: str | None = None
     gemini_consent_given: bool | None = None

@@ -58,6 +58,7 @@ interface CachedAIConfig {
   gemini_model?: string;
   openai_model?: string;
   selected_model?: string;
+  ollama_model?: string;
   consent_granted?: boolean;
   gemini_key_configured?: boolean;
   gemini_key_masked?: string;
@@ -65,6 +66,11 @@ interface CachedAIConfig {
   openai_key_masked?: string;
   fallback_policy?: string;
   is_ollama_connected?: boolean;
+  models_by_provider?: {
+    ollama?: any[];
+    gemini?: any[];
+    openai?: any[];
+  };
   models?: any[];
   timestamp?: number;
 }
@@ -81,10 +87,16 @@ const getStoredAIConfig = (): CachedAIConfig => {
     gemini_model: 'gemini-3.5-flash',
     openai_model: 'gpt-4o-mini',
     selected_model: 'qwen3.5:0.8b',
+    ollama_model: 'qwen3.5:0.8b',
     consent_granted: false,
     gemini_key_configured: false,
     openai_key_configured: false,
     fallback_policy: 'deterministic',
+    models_by_provider: {
+      ollama: [{ name: 'qwen3.5:0.8b', parameter_size: '0.8B' }, { name: 'qwen3.5:4b', parameter_size: '4B' }],
+      gemini: [],
+      openai: [],
+    },
   };
 };
 
@@ -157,37 +169,76 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
 
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [ollamaCatalog, setOllamaCatalog] = useState<AIProviderModelsResponse | null>(null);
   const [geminiCatalog, setGeminiCatalog] = useState<AIProviderModelsResponse | null>(null);
   const [openaiCatalog, setOpenAICatalog] = useState<AIProviderModelsResponse | null>(null);
   const [isProbingModels, setIsProbingModels] = useState<boolean>(false);
   const [isRefreshingModels, setIsRefreshingModels] = useState<boolean>(false);
 
-  const loadProviderModels = async (provider: 'gemini' | 'openai', probe = false, forceRefresh = false) => {
+  const abortControllerRef = React.useRef<AbortController | null>(null);
+  const requestSeqRef = React.useRef<number>(0);
+
+  const loadProviderModels = async (provider: 'ollama' | 'gemini' | 'openai', probe = false, forceRefresh = false) => {
+    const currentSeq = ++requestSeqRef.current;
     try {
       if (probe) setIsProbingModels(true);
       if (forceRefresh) setIsRefreshingModels(true);
-      const catalog = await api.getAIProviderModels(provider, probe, forceRefresh);
+      const catalog = await api.getAIProviderModels(provider, probe, forceRefresh, {
+        signal: abortControllerRef.current?.signal,
+      });
+      if (!isMountedRef.current || currentSeq !== requestSeqRef.current || !catalog) return;
+
       if (provider === 'gemini') {
         setGeminiCatalog(catalog);
         if (catalog.selected_model) {
           setSelectedGeminiModel(catalog.selected_model);
         }
-      } else {
+      } else if (provider === 'openai') {
         setOpenAICatalog(catalog);
         if (catalog.selected_model) {
           setSelectedOpenAIModel(catalog.selected_model);
         }
+      } else if (provider === 'ollama') {
+        setOllamaCatalog(catalog);
+        if (catalog.selected_model && !catalog.selected_model.startsWith('gemini') && !catalog.selected_model.startsWith('gpt')) {
+          setSelectedOllamaModel(catalog.selected_model);
+        }
       }
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return;
       console.error(`Failed to load ${provider} models:`, err);
     } finally {
-      setIsProbingModels(false);
-      setIsRefreshingModels(false);
+      if (isMountedRef.current) {
+        setIsProbingModels(false);
+        setIsRefreshingModels(false);
+      }
     }
   };
   const isMountedRef = React.useRef(false);
 
-  // Dynamic models discovered from live endpoints
+  // Strictly isolated per-provider model discovery
+  const availableOllamaModels = React.useMemo(() => {
+    if (ollamaCatalog?.models && ollamaCatalog.models.length > 0) {
+      return ollamaCatalog.models.map((m: any) => ({
+        name: m.name || m.id,
+        parameter_size: m.description?.includes('(') ? m.description.split('(')[1].replace(')', '') : '',
+      }));
+    }
+    if (Array.isArray(aiStatus?.ollama?.models) && aiStatus.ollama.models.length > 0) {
+      return aiStatus.ollama.models;
+    }
+    if (Array.isArray(cached.models_by_provider?.ollama) && cached.models_by_provider.ollama.length > 0) {
+      return cached.models_by_provider.ollama;
+    }
+    if (Array.isArray(cached.models) && cached.models.length > 0 && !cached.models[0].name?.startsWith('gemini')) {
+      return cached.models;
+    }
+    return [
+      { name: 'qwen3.5:0.8b', parameter_size: '0.8B' },
+      { name: 'qwen3.5:4b', parameter_size: '4B' },
+    ];
+  }, [ollamaCatalog, aiStatus?.ollama?.models, cached]);
+
   const availableGeminiModels = React.useMemo(() => {
     const isRetired = (id: string) => ['1.5', '2.5-flash', 'text-bison'].some((r) => id.includes(r));
     const live = aiStatus?.gemini?.models;
@@ -275,7 +326,8 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
           active_provider: prov,
           gemini_model: statusRes.gemini_model || selectedGeminiModel,
           openai_model: statusRes.openai_model || selectedOpenAIModel,
-          selected_model: statusRes.selected_model || selectedOllamaModel,
+          selected_model: (prov === 'ollama' ? statusRes.selected_model : selectedOllamaModel) || 'qwen3.5:0.8b',
+          ollama_model: selectedOllamaModel,
           consent_granted: statusRes.consent_granted,
           gemini_key_configured: statusRes.gemini_key_configured,
           gemini_key_masked: statusRes.gemini_key_masked,
@@ -283,7 +335,12 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
           openai_key_masked: statusRes.openai_key_masked,
           fallback_policy: statusRes.fallback_policy,
           is_ollama_connected: statusRes.ollama?.status === 'connected' || (statusRes.active_provider === 'ollama' && statusRes.status === 'connected'),
-          models: statusRes.models,
+          models_by_provider: {
+            ollama: availableOllamaModels,
+            gemini: availableGeminiModels,
+            openai: availableOpenAIModels,
+          },
+          models: availableOllamaModels,
           timestamp: Date.now(),
         }));
       } catch {
@@ -302,7 +359,12 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
     isMountedRef.current = isOpen;
     if (isOpen) {
       setIsOllamaChecking(true);
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
       fetchAIInfo();
+      loadProviderModels('ollama');
       loadProviderModels('gemini');
       loadProviderModels('openai');
       setSavedSuccess(false);
@@ -317,8 +379,15 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
   }, [isOpen]);
 
   const handleSelectProvider = (provId: 'ollama' | 'gemini' | 'openai') => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     setActiveProvider(provId);
     setTestResult(null);
+    loadProviderModels(provId);
+
     if (provId === 'gemini') {
       if (!aiStatus?.consent_granted) {
         setWizardStep(1);
@@ -334,6 +403,11 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
   };
 
   const handleOneClickSwitch = async (provId: 'ollama' | 'gemini' | 'openai') => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     try {
       setSaving(true);
       setActiveProvider(provId);
@@ -346,6 +420,7 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
       const updated = await api.setAISettings({
         active_provider: provId,
         selected_model: model,
+        ollama_model: selectedOllamaModel,
         gemini_model: selectedGeminiModel,
         openai_model: selectedOpenAIModel,
         fallback_policy: fallbackPolicy,
@@ -568,7 +643,7 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
                 </div>
                 <div className="provider-meta">
                   {isOllamaConnected
-                    ? `${aiStatus?.models?.length || 0} local models available`
+                    ? `${availableOllamaModels?.length || 0} local models available`
                     : isOllamaChecking
                     ? 'Probing 127.0.0.1:11434...'
                     : 'Not running on 127.0.0.1:11434'}
@@ -712,14 +787,14 @@ export const AISettingsModal: React.FC<AISettingsModalProps> = ({
               <div className="config-section">
                 <div className="section-title">Ollama Local Settings</div>
                 {isOllamaConnected ? (
-                  aiStatus?.models && aiStatus.models.length > 0 ? (
+                  availableOllamaModels && availableOllamaModels.length > 0 ? (
                     <div className="config-box">
                       <label>Installed Local Model</label>
                       <select
                         value={selectedOllamaModel}
                         onChange={(e) => setSelectedOllamaModel(e.target.value)}
                       >
-                        {aiStatus.models.map((m) => (
+                        {availableOllamaModels.map((m: any) => (
                           <option key={m.name} value={m.name}>
                             {m.name} {m.parameter_size ? `(${m.parameter_size})` : ''}
                           </option>

@@ -1321,6 +1321,7 @@ export const api = {
     openai_model?: string;
     consent_granted?: boolean;
     fallback_policy?: string;
+    ollama_model?: string;
   }) => {
     const body = typeof settings === 'string'
       ? { selected_model: settings }
@@ -1371,8 +1372,8 @@ export const api = {
       body: JSON.stringify({ query, model }),
     }),
 
-  getAIProviderModels: (provider: string, probe: boolean = false, forceRefresh: boolean = false) =>
-    request<AIProviderModelsResponse>(`/ai/models/${provider}?probe=${probe}&force_refresh=${forceRefresh}`),
+  getAIProviderModels: (provider: string, probe: boolean = false, forceRefresh: boolean = false, options?: { signal?: AbortSignal }) =>
+    request<AIProviderModelsResponse>(`/ai/models/${provider}?probe=${probe}&force_refresh=${forceRefresh}`, { signal: options?.signal }),
 
   probeAIProviderModels: (provider: string) =>
     request<AIProviderModelsResponse>(`/ai/models/${provider}/probe`, {
@@ -2138,6 +2139,8 @@ export interface AIStatus {
   openai_key_configured?: boolean;
   openai_key_masked?: string | null;
   openai_model?: string | null;
+  ollama_model?: string | null;
+  selected_models?: { ollama?: string; gemini?: string; openai?: string };
   fallback_policy?: string;
   available_providers?: AIProvider[];
   ollama?: Record<string, any> | null;

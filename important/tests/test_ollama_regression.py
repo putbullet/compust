@@ -51,31 +51,40 @@ def test_ollama_normal_response_and_full_model_name() -> None:
             assert res == "This is a clean AI response."
 
 
-def test_ollama_auto_resolves_uninstalled_model() -> None:
+def test_ollama_validates_uninstalled_model_and_lists_installed() -> None:
     mock_tags = {
         "models": [
             {"name": "qwen3.5:0.8b", "size": 800000000, "details": {"parameter_size": "0.8B"}},
+            {"name": "qwen3.5:4b", "size": 4000000000, "details": {"parameter_size": "4B"}},
         ]
     }
-    mock_generate = {"response": "Recovered from uninstalled model.", "done": True}
 
     def mock_get(url, *args, **kwargs):
         return httpx.Response(200, json=mock_tags, request=httpx.Request("GET", str(url)))
 
-    def mock_post(url, *args, **kwargs):
-        payload = kwargs.get("json", {})
-        # Should have auto-resolved to installed qwen3.5:0.8b
-        assert payload.get("model") == "qwen3.5:0.8b"
-        return httpx.Response(200, json=mock_generate, request=httpx.Request("POST", str(url)))
-
     with patch.object(httpx.Client, "get", side_effect=mock_get):
-        with patch.object(httpx.Client, "post", side_effect=mock_post):
-            # Pass non-existent model
-            res = OllamaProvider.generate(
+        # 1. Uninstalled model raises AIGatewayError listing installed models
+        with pytest.raises(AIGatewayError) as exc_info:
+            OllamaProvider.generate(
                 prompt="Hello",
-                model="non-existent-model:latest",
+                model="uninstalled-model:latest",
             )
-            assert res == "Recovered from uninstalled model."
+        err = str(exc_info.value)
+        assert "not installed in Ollama" in err
+        assert "qwen3.5:0.8b" in err
+        assert "qwen3.5:4b" in err
+
+        # 2. When model is None, it resolves to first installed model
+        mock_generate = {"response": "Auto-resolved default", "done": True}
+        def mock_post(url, *args, **kwargs):
+            payload = kwargs.get("json", {})
+            assert payload.get("model") == "qwen3.5:0.8b"
+            return httpx.Response(200, json=mock_generate, request=httpx.Request("POST", str(url)))
+
+        with patch.object(httpx.Client, "post", side_effect=mock_post):
+            with patch("src.app.services.ai_gateway.get_selected_model", return_value=None):
+                res = OllamaProvider.generate(prompt="Hello", model=None)
+                assert res == "Auto-resolved default"
 
 
 def test_ollama_reasoning_style_output_stripped() -> None:
@@ -174,3 +183,46 @@ def test_fallback_reason_diagnostics() -> None:
     e_json = json.JSONDecodeError("Expecting value", "raw", 0)
     reason_json = _format_fallback_reason(e_json, "Ollama", "qwen3.5:0.8b")
     assert "invalid json" in reason_json.lower()
+
+
+def test_provider_switching_model_isolation(db_session=None) -> None:
+    from src.app.services.ai_gateway import (
+        save_user_ai_settings,
+        get_ai_status,
+        get_selected_model,
+        AIProviderType,
+    )
+    from src.app.database import SessionLocal
+
+    with SessionLocal() as db:
+        # Step 1: Configure Ollama with qwen3.5:4b
+        save_user_ai_settings(db, user_id=1, updates={
+            "active_provider": "ollama",
+            "selected_model": "qwen3.5:4b",
+            "ollama_model": "qwen3.5:4b",
+        })
+        status1 = get_ai_status(db, user_id=1)
+        assert status1["active_provider"] == "ollama"
+        assert status1["selected_models"]["ollama"] == "qwen3.5:4b"
+
+        # Step 2: Switch to Gemini with gemini-3.5-flash
+        save_user_ai_settings(db, user_id=1, updates={
+            "active_provider": "gemini",
+            "selected_model": "gemini-3.5-flash",
+            "gemini_model": "gemini-3.5-flash",
+        })
+        status2 = get_ai_status(db, user_id=1)
+        assert status2["active_provider"] == "gemini"
+        assert status2["selected_models"]["gemini"] == "gemini-3.5-flash"
+        # Ollama model must NOT have been overwritten by gemini-3.5-flash
+        assert status2["selected_models"]["ollama"] == "qwen3.5:4b"
+
+        # Step 3: Switch back to Ollama
+        save_user_ai_settings(db, user_id=1, updates={
+            "active_provider": "ollama",
+            "selected_model": "qwen3.5:4b",
+        })
+        status3 = get_ai_status(db, user_id=1)
+        assert status3["active_provider"] == "ollama"
+        assert status3["selected_models"]["ollama"] == "qwen3.5:4b"
+        assert status3["selected_models"]["gemini"] == "gemini-3.5-flash"

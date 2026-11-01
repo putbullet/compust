@@ -286,10 +286,23 @@ def save_user_ai_settings(
     """Persist all AI configuration updates directly to the database record and sync file mirror."""
     row = get_or_create_user_ai_config(db, user_id)
 
-    if "active_provider" in updates and updates["active_provider"]:
-        row.active_provider = str(updates["active_provider"])
-    if "selected_model" in updates and updates["selected_model"]:
-        row.selected_model = str(updates["selected_model"])
+    active_prov = updates.get("active_provider")
+    if active_prov:
+        row.active_provider = str(active_prov)
+
+    # Isolated per-provider model updates - never contaminate Ollama model with cloud models
+    if "ollama_model" in updates and updates["ollama_model"]:
+        row.selected_model = str(updates["ollama_model"])
+    elif "selected_model" in updates and updates["selected_model"]:
+        sel = str(updates["selected_model"])
+        is_cloud = sel.startswith("gemini-") or sel.startswith("gpt-") or sel.startswith("o1") or sel.startswith("o3") or sel.startswith("o4")
+        if (active_prov == "ollama" or not active_prov) and not is_cloud:
+            row.selected_model = sel
+        elif active_prov == "gemini" or sel.startswith("gemini-"):
+            row.gemini_model = sel
+        elif active_prov == "openai" or is_cloud:
+            row.openai_model = sel
+
     if "gemini_model" in updates and updates["gemini_model"]:
         row.gemini_model = str(updates["gemini_model"])
     if "openai_model" in updates and updates["openai_model"]:
@@ -700,18 +713,14 @@ class OllamaProvider:
         installed = [m["name"] for m in health.get("models", [])]
 
         target_model = model or get_selected_model(AIProviderType.OLLAMA, db=db, user_id=user_id)
-        if target_model and installed and target_model not in installed:
-            logger.warning(
-                f"Configured Ollama model '{target_model}' is not in installed models ({installed}). Auto-resolving to '{installed[0]}'."
-            )
-            target_model = installed[0]
-            set_selected_model(target_model, provider_type=AIProviderType.OLLAMA, db=db, user_id=user_id)
-        elif not target_model:
+        if not target_model:
             if installed:
                 target_model = installed[0]
                 set_selected_model(target_model, provider_type=AIProviderType.OLLAMA, db=db, user_id=user_id)
             else:
                 raise AIUnavailableError("No Ollama models installed or available. Run 'ollama pull qwen3.5:0.8b'.")
+        elif installed and target_model not in installed:
+            raise AIGatewayError(f"Model '{target_model}' is not installed in Ollama. Installed models: {', '.join(installed)}. Run 'ollama pull {target_model}'.")
 
         payload: dict[str, Any] = {
             "model": target_model,
@@ -1681,7 +1690,21 @@ def get_selected_model(
         return (row.gemini_model if row and row.gemini_model else None) or cfg.get("gemini_model") or "gemini-3.5-flash"
     if prov == AIProviderType.OPENAI:
         return (row.openai_model if row and row.openai_model else None) or cfg.get("openai_model") or "gpt-4o-mini"
-    return (row.selected_model if row and row.selected_model else None) or cfg.get("selected_model") or get_settings().default_ai_model
+
+    # Ollama provider: ensure we never return a cloud model id
+    stored = (row.selected_model if row and row.selected_model else None) or cfg.get("selected_model") or get_settings().default_ai_model
+    if stored and (stored.startswith("gemini-") or stored.startswith("gpt-") or stored.startswith("o1") or stored.startswith("o3") or stored.startswith("o4")):
+        health = OllamaProvider.check_health(db=db, user_id=user_id)
+        installed = [m["name"] for m in health.get("models", [])]
+        stored = installed[0] if installed else "qwen3.5:0.8b"
+        if row:
+            row.selected_model = stored
+            if db:
+                try:
+                    db.commit()
+                except Exception:
+                    pass
+    return stored
 
 
 def set_selected_model(
@@ -1799,9 +1822,16 @@ def get_ai_status(db: Session | None = None, user_id: int | None = None) -> dict
         gemini_model = "gemini-3.5-flash"
     openai_model = (row.openai_model if row and row.openai_model else None) or cfg.get("openai_model", "gpt-4o-mini")
 
+    ollama_sel = get_selected_model(provider_type=AIProviderType.OLLAMA, db=db, user_id=user_id)
     return {
         "active_provider": active_prov.value,
         "selected_model": get_selected_model(provider_type=active_prov, db=db, user_id=user_id),
+        "selected_models": {
+            "ollama": ollama_sel,
+            "gemini": gemini_model,
+            "openai": openai_model,
+        },
+        "ollama_model": ollama_sel,
         "fallback_policy": fallback_policy,
         "consent_granted": consent,
         "gemini_consent_given": consent,
@@ -1965,8 +1995,17 @@ def generate_completion(
         )
 
     # Default: Ollama
-    if effective_model and (effective_model.startswith("gemini-") or effective_model.startswith("gpt-") or effective_model.startswith("o1") or effective_model.startswith("o3")):
-        effective_model = OllamaProvider.get_active_model(db=db, user_id=user_id)
+    health = OllamaProvider.check_health(db=db, user_id=user_id)
+    installed = [m["name"] for m in health.get("models", [])]
+    target_ollama = effective_model or OllamaProvider.get_active_model(db=db, user_id=user_id)
+
+    if target_ollama and (target_ollama.startswith("gemini-") or target_ollama.startswith("gpt-") or target_ollama.startswith("o1") or target_ollama.startswith("o3")):
+        raise AIGatewayError(f"Model '{target_ollama}' is a cloud model, not installed in Ollama. Installed models: {', '.join(installed) if installed else 'none'}.")
+
+    if installed and target_ollama and target_ollama not in installed:
+        raise AIGatewayError(f"Model '{target_ollama}' is not installed in Ollama. Installed models: {', '.join(installed)}. Run 'ollama pull {target_ollama}'.")
+
+    effective_model = target_ollama
     logger.info(f"AI Gateway routing request to Ollama (model={effective_model})")
     return OllamaProvider.generate(
         prompt=clean_prompt,

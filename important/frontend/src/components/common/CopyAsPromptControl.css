@@ -248,6 +248,33 @@
 .toast-body {
   color: var(--text-secondary, #cbd5e1);
   font-size: 0.775rem;
+  white-space: pre-line;
+}
+
+.copy-prompt-floating-toast.has-warning {
+  border-color: rgba(245, 158, 11, 0.4);
+  background: var(--bg-surface-elevated, #1a1608);
+}
+
+.toast-action-btn {
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(245, 158, 11, 0.2);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.toast-action-btn:hover {
+  background: rgba(245, 158, 11, 0.35);
+  color: #fef3c7;
 }
 
 .toast-close-btn {

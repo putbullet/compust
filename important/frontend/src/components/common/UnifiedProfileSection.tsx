@@ -20,7 +20,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { api } from '../../api/client';
-import type { LinkedInProfileStatus, UnifiedProfileData } from '../../api/client';
+import type { LinkedInProfileStatus, UnifiedProfileData, StructuredResumeItem } from '../../api/client';
 
 const LinkedInIcon: React.FC<{ size?: number; className?: string }> = ({ size = 20, className }) => (
   <svg
@@ -52,18 +52,31 @@ export const UnifiedProfileSection: React.FC = () => {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [importMode, setImportMode] = useState<'export' | 'pdf'>('export');
+  const [refreshing, setRefreshing] = useState(false);
+  const [newerStudioResume, setNewerStudioResume] = useState<StructuredResumeItem | null>(null);
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [statusRes, unifiedRes] = await Promise.all([
+      const [statusRes, unifiedRes, structuredListRes] = await Promise.all([
         api.getLinkedInStatus(),
         api.getUnifiedProfile(),
+        api.listStructuredResumes().catch(() => []),
       ]);
       setLiStatus(statusRes);
       setUnified(unifiedRes);
       if (statusRes.linkedin_url) {
         setUrlInput(statusRes.linkedin_url);
+      }
+      if (Array.isArray(structuredListRes) && structuredListRes.length > 0 && unifiedRes?.updated_at) {
+        const unifiedTime = new Date(unifiedRes.updated_at).getTime();
+        const candidate = structuredListRes.find((r) => {
+          if (r.is_default || (unifiedRes.source_resume_id && r.id === unifiedRes.source_resume_id)) return false;
+          return new Date(r.updated_at).getTime() > unifiedTime;
+        });
+        setNewerStudioResume(candidate || null);
+      } else {
+        setNewerStudioResume(null);
       }
     } catch (err: any) {
       console.error('Failed to load LinkedIn / Unified profile data:', err);
@@ -143,6 +156,45 @@ export const UnifiedProfileSection: React.FC = () => {
       setTimeout(() => setUploadSuccess(null), 3500);
     } catch (err: any) {
       setUploadError(err.message || 'Failed to remove LinkedIn data.');
+    }
+  };
+
+  const handleRefreshUnified = async () => {
+    try {
+      setRefreshing(true);
+      const updatedUnified = await api.refreshUnifiedProfile();
+      setUnified(updatedUnified);
+      setUrlSuccess('Profile refreshed from active resume.');
+      setTimeout(() => setUrlSuccess(null), 3000);
+
+      const structuredListRes = await api.listStructuredResumes().catch(() => []);
+      if (Array.isArray(structuredListRes) && structuredListRes.length > 0 && updatedUnified?.updated_at) {
+        const unifiedTime = new Date(updatedUnified.updated_at).getTime();
+        const candidate = structuredListRes.find((r) => {
+          if (r.is_default || (updatedUnified.source_resume_id && r.id === updatedUnified.source_resume_id)) return false;
+          return new Date(r.updated_at).getTime() > unifiedTime;
+        });
+        setNewerStudioResume(candidate || null);
+      } else {
+        setNewerStudioResume(null);
+      }
+    } catch (err: any) {
+      setUrlError(err.message || 'Failed to refresh unified profile.');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const handleActivateStudioResume = async (resumeId: number) => {
+    try {
+      setLoading(true);
+      await api.setDefaultStructuredResume(resumeId);
+      await fetchData();
+      setUrlSuccess('Studio resume set as active and synchronized to profile.');
+      setTimeout(() => setUrlSuccess(null), 3500);
+    } catch (err: any) {
+      setUrlError(err.message || 'Failed to activate Studio resume.');
+      setLoading(false);
     }
   };
 
@@ -351,17 +403,68 @@ export const UnifiedProfileSection: React.FC = () => {
               <Layers size={18} className="highlight-icon" />
               <h4>What Compust Knows About You (Canonical Unified Profile)</h4>
             </div>
-            <div className="toggle-matching-box">
-              <span className="toggle-label">Use LinkedIn data in job matching:</span>
+            <div className="unified-actions-top">
               <button
                 type="button"
-                className={`switch-btn ${unified.use_linkedin_in_matching ? 'on' : 'off'}`}
-                onClick={() => handleToggleMatching(!unified.use_linkedin_in_matching)}
+                className="refresh-profile-btn"
+                onClick={handleRefreshUnified}
+                disabled={refreshing}
+                title="Force recomputation of profile from active resume"
               >
-                {unified.use_linkedin_in_matching ? 'Enabled' : 'Disabled (Resume-Only)'}
+                <RefreshCw size={13} className={refreshing ? 'spin' : ''} />
+                <span>{refreshing ? 'Refreshing...' : 'Refresh from resume'}</span>
               </button>
+              <div className="toggle-matching-box">
+                <span className="toggle-label">Use LinkedIn:</span>
+                <button
+                  type="button"
+                  className={`switch-btn ${unified.use_linkedin_in_matching ? 'on' : 'off'}`}
+                  onClick={() => handleToggleMatching(!unified.use_linkedin_in_matching)}
+                >
+                  {unified.use_linkedin_in_matching ? 'Enabled' : 'Disabled (Resume-Only)'}
+                </button>
+              </div>
             </div>
           </div>
+
+          <SyncMetadataBar>
+            <div className="meta-source-info">
+              <span className="meta-label">Profile built from:</span>
+              <strong className="meta-value">{unified.source_resume_title || 'Active Resume'}</strong>
+              <span className="meta-dot">·</span>
+              <span className="meta-time">updated {new Date(unified.updated_at).toLocaleString()}</span>
+            </div>
+            <div className="meta-counts">
+              <span className="count-pill">
+                <strong>{unified.counts?.roles ?? unified.experience.length}</strong> roles
+              </span>
+              <span className="count-pill">
+                <strong>{unified.counts?.education ?? unified.education.length}</strong> education
+              </span>
+              <span className="count-pill">
+                <strong>{unified.counts?.skills ?? unified.skills.length}</strong> skills
+              </span>
+              <span className="count-pill">
+                <strong>{unified.counts?.projects ?? (unified.projects?.length ?? 0)}</strong> projects
+              </span>
+            </div>
+          </SyncMetadataBar>
+
+          {newerStudioResume && (
+            <StudioNoticeBanner>
+              <AlertTriangle size={16} className="studio-alert-icon" />
+              <div className="studio-notice-text">
+                Your Studio version <strong>&quot;{newerStudioResume.title}&quot;</strong> has newer changes ({new Date(newerStudioResume.updated_at).toLocaleString()}) &mdash; use it as your active resume?
+              </div>
+              <button
+                type="button"
+                className="activate-studio-btn"
+                onClick={() => handleActivateStudioResume(newerStudioResume.id)}
+              >
+                Set as Active Resume
+              </button>
+            </StudioNoticeBanner>
+          )}
 
           {needsRefresh && (
             <div className="refresh-banner">
@@ -875,6 +978,48 @@ const UnifiedBox = styled.div`
     }
   }
 
+  .unified-actions-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .refresh-profile-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--text-color, #e2e8f0);
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover:not(:disabled) {
+      background: rgba(56, 189, 248, 0.1);
+      border-color: #38bdf8;
+      color: #38bdf8;
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .spin {
+      animation: spin 1s linear infinite;
+    }
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
   .toggle-matching-box {
     display: flex;
     align-items: center;
@@ -915,6 +1060,110 @@ const UnifiedBox = styled.div`
     color: #fbbf24;
     font-size: 12px;
     margin-bottom: 16px;
+  }
+`;
+
+const SyncMetadataBar = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-size: 13px;
+
+  .meta-source-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-muted, #94a3b8);
+    flex-wrap: wrap;
+
+    .meta-value {
+      color: var(--text-color, #f1f5f9);
+      font-weight: 600;
+    }
+
+    .meta-dot {
+      color: #64748b;
+    }
+
+    .meta-time {
+      color: var(--text-muted, #94a3b8);
+      font-size: 12px;
+    }
+  }
+
+  .meta-counts {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+
+    .count-pill {
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      color: #38bdf8;
+      border-radius: 12px;
+      padding: 2px 9px;
+      font-size: 11px;
+
+      strong {
+        font-weight: 700;
+        margin-right: 3px;
+      }
+    }
+  }
+`;
+
+const StudioNoticeBanner = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-left: 4px solid #f59e0b;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: var(--text-color, #f8fafc);
+  flex-wrap: wrap;
+
+  .studio-alert-icon {
+    color: #f59e0b;
+    flex-shrink: 0;
+  }
+
+  .studio-notice-text {
+    flex: 1;
+    color: var(--text-color, #e2e8f0);
+
+    strong {
+      color: #fbbf24;
+    }
+  }
+
+  .activate-studio-btn {
+    background: #d97706;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s ease;
+
+    &:hover {
+      background: #b45309;
+    }
   }
 `;
 

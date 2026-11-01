@@ -88,6 +88,16 @@ export interface ResumePromptResponse {
   job_title: string;
   company_name: string;
   include_contact: boolean;
+  source_resume_title?: string | null;
+  source_resume_id?: number | null;
+  profile_version?: string | null;
+  has_experience?: boolean;
+  counts?: {
+    roles: number;
+    education: number;
+    skills: number;
+    projects: number;
+  };
   error?: string | null;
 }
 
@@ -792,6 +802,14 @@ export interface UnifiedProfileData {
   version_hash: string;
   use_linkedin_in_matching: boolean;
   updated_at: string;
+  source_resume_title?: string | null;
+  source_resume_id?: number | null;
+  counts?: {
+    roles: number;
+    education: number;
+    skills: number;
+    projects: number;
+  };
   contact: {
     full_name?: string;
     email?: string;
@@ -1528,6 +1546,7 @@ export const api = {
       method: 'DELETE',
     }),
   getUnifiedProfile: () => request<UnifiedProfileData>('/profile/unified'),
+  refreshUnifiedProfile: () => request<UnifiedProfileData>('/profile/unified/refresh', { method: 'POST' }),
   updateUnifiedOverrides: (overrides: { pinned_skills: string[]; hidden_skills: string[] }) =>
     request<UnifiedProfileData>('/profile/unified/overrides', {
       method: 'POST',

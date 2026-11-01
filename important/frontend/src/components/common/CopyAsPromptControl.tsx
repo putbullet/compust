@@ -40,7 +40,12 @@ export const CopyAsPromptControl: React.FC<CopyAsPromptControlProps> = ({
 
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [toastMessage, setToastMessage] = useState<{ title: string; body: string } | null>(null);
+  const [toastMessage, setToastMessage] = useState<{
+    title: string;
+    body: string;
+    isWarning?: boolean;
+    showProfileLink?: boolean;
+  } | null>(null);
   const [missingProfileWarning, setMissingProfileWarning] = useState<string | null>(null);
 
   // Sync preference to localStorage
@@ -126,14 +131,29 @@ export const CopyAsPromptControl: React.FC<CopyAsPromptControlProps> = ({
         setCopied(true);
         setTimeout(() => setCopied(false), 2400);
 
-        const toastFormatted = t.copyPrompt.copiedToast.replace(
-          '{chars}',
-          res.char_count ? res.char_count.toLocaleString() : String(res.prompt.length)
-        );
+        const sourceTitle = res.source_resume_title || 'Active Resume';
+        const roles = res.counts?.roles ?? 0;
+        const education = res.counts?.education ?? 0;
+        const skills = res.counts?.skills ?? 0;
+        const chars = res.char_count ? res.char_count.toLocaleString() : String(res.prompt.length);
+
+        let body = t.copyPrompt.copiedToastWithResume
+          .replace('{title}', sourceTitle)
+          .replace('{roles}', String(roles))
+          .replace('{education}', String(education))
+          .replace('{skills}', String(skills))
+          .replace('{chars}', chars);
+
+        const hasExp = res.has_experience ?? (roles > 0);
+        if (!hasExp) {
+          body += '\n\n⚠️ ' + t.copyPrompt.noExperienceWarning;
+        }
 
         setToastMessage({
           title: t.copyPrompt.buttonCopied,
-          body: toastFormatted,
+          body,
+          isWarning: !hasExp,
+          showProfileLink: !hasExp,
         });
       } else {
         setToastMessage({
@@ -222,13 +242,25 @@ export const CopyAsPromptControl: React.FC<CopyAsPromptControlProps> = ({
 
       {/* Floating Success / Error Toast */}
       {toastMessage && (
-        <div className="copy-prompt-floating-toast" role="status" aria-live="polite">
-          <div className="toast-icon-wrap">
-            <CheckCircle2 size={18} />
+        <div className={`copy-prompt-floating-toast ${toastMessage.isWarning ? 'has-warning' : ''}`} role="status" aria-live="polite">
+          <div className="toast-icon-wrap" style={{ color: toastMessage.isWarning ? '#f59e0b' : '#10b981' }}>
+            {toastMessage.isWarning ? <AlertCircle size={18} /> : <CheckCircle2 size={18} />}
           </div>
           <div className="toast-content-wrap">
             <div className="toast-title">{toastMessage.title}</div>
             <div className="toast-body">{toastMessage.body}</div>
+            {toastMessage.showProfileLink && onNavigateToProfile && (
+              <button
+                type="button"
+                className="toast-action-btn"
+                onClick={() => {
+                  setToastMessage(null);
+                  onNavigateToProfile();
+                }}
+              >
+                {t.copyPrompt.viewProfile} &rarr;
+              </button>
+            )}
           </div>
           <button
             type="button"

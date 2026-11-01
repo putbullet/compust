@@ -320,6 +320,9 @@ export interface Translations {
     uploadResumeAction: string;
     copyError: string;
     authRequired: string;
+    copiedToastWithResume: string;
+    noExperienceWarning: string;
+    viewProfile: string;
   };
 }
 
@@ -631,6 +634,9 @@ export const translations: Record<Language, Translations> = {
       uploadResumeAction: 'Upload Resume',
       copyError: 'Failed to copy prompt to clipboard. Please try again.',
       authRequired: 'Please sign in to generate a tailored resume prompt from your profile.',
+      copiedToastWithResume: 'Using resume: {title} — {roles} roles, {education} education, {skills} skills ({chars} chars)',
+      noExperienceWarning: 'Active resume has 0 commercial work experience entries. Check your Profile if unexpected.',
+      viewProfile: 'Check Profile',
     },
   },
   fr: {
@@ -940,6 +946,9 @@ export const translations: Record<Language, Translations> = {
       uploadResumeAction: 'Télécharger un CV',
       copyError: 'Échec de la copie du prompt dans le presse-papiers. Veuillez réessayer.',
       authRequired: 'Veuillez vous connecter pour générer un prompt de CV adapté à partir de votre profil.',
+      copiedToastWithResume: 'Utilisation du CV : {title} — {roles} postes, {education} formations, {skills} compétences ({chars} car.)',
+      noExperienceWarning: 'Le CV actif ne contient aucune expérience professionnelle. Vérifiez votre profil si inattendu.',
+      viewProfile: 'Vérifier le profil',
     },
   },
   de: {
@@ -1194,6 +1203,9 @@ export const translations: Record<Language, Translations> = {
       uploadResumeAction: 'Lebenslauf hochladen',
       copyError: 'Fehler beim Kopieren des Prompts in die Zwischenablage. Bitte versuchen Sie es erneut.',
       authRequired: 'Bitte melden Sie sich an, um einen maßgeschneiderten Lebenslauf-Prompt aus Ihrem Profil zu generieren.',
+      copiedToastWithResume: 'Verwendeter Lebenslauf: {title} — {roles} Positionen, {education} Ausbildungen, {skills} Fähigkeiten ({chars} Zeichen)',
+      noExperienceWarning: 'Der aktive Lebenslauf enthält keine Berufserfahrungen. Prüfen Sie Ihr Profil, falls unerwartet.',
+      viewProfile: 'Profil prüfen',
     },
   },
   nl: {
@@ -1503,6 +1515,9 @@ export const translations: Record<Language, Translations> = {
       uploadResumeAction: 'Cv uploaden',
       copyError: 'Kopiëren van prompt naar klembord mislukt. Probeer het opnieuw.',
       authRequired: 'Meld u aan om een op maat gemaakte cv-prompt te genereren op basis van uw profiel.',
+      copiedToastWithResume: 'Gebruikt cv: {title} — {roles} functies, {education} opleidingen, {skills} vaardigheden ({chars} tekens)',
+      noExperienceWarning: 'Actief cv bevat geen commerciële werkervaring. Controleer uw profiel indien onverwacht.',
+      viewProfile: 'Profiel controleren',
     },
   },
 };

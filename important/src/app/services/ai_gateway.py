@@ -567,7 +567,25 @@ class OllamaProvider:
         target_url = (url or cls.get_url()).rstrip("/")
         if "://localhost" in target_url:
             target_url = target_url.replace("://localhost", "://127.0.0.1")
-        selected_ollama = get_selected_model(AIProviderType.OLLAMA, db=db, user_id=user_id)
+        row = None
+        if db is not None:
+            try:
+                row = get_or_create_user_ai_config(db, user_id)
+            except Exception:
+                pass
+        elif user_id is not None:
+            try:
+                from ..database import SessionLocal
+                with SessionLocal() as session:
+                    row = get_or_create_user_ai_config(session, user_id)
+            except Exception:
+                pass
+
+        cfg = load_ai_config()
+        stored_candidate = (row.selected_model if row and row.selected_model else None) or cfg.get("selected_model") or get_settings().default_ai_model
+        if stored_candidate and any(stored_candidate.startswith(p) for p in ("gemini-", "gpt-", "o1", "o3", "o4", "text-bison", "claude")):
+            stored_candidate = None
+        selected_ollama = stored_candidate
 
         now = time.monotonic()
         # Keep health cache short (5s) so status changes are detected quickly without stalling UI
@@ -1693,11 +1711,11 @@ def get_selected_model(
 
     # Ollama provider: ensure we never return a cloud model id
     stored = (row.selected_model if row and row.selected_model else None) or cfg.get("selected_model") or get_settings().default_ai_model
-    if stored and (stored.startswith("gemini-") or stored.startswith("gpt-") or stored.startswith("o1") or stored.startswith("o3") or stored.startswith("o4")):
-        health = OllamaProvider.check_health(db=db, user_id=user_id)
-        installed = [m["name"] for m in health.get("models", [])]
+    if stored and any(stored.startswith(p) for p in ("gemini-", "gpt-", "o1", "o3", "o4", "text-bison", "claude")):
+        cached_models = _ollama_health_cache.get("models", [])
+        installed = [m["name"] for m in cached_models]
         stored = installed[0] if installed else "qwen3.5:0.8b"
-        if row:
+        if row and stored != row.selected_model:
             row.selected_model = stored
             if db:
                 try:

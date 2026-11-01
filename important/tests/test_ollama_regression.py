@@ -226,3 +226,24 @@ def test_provider_switching_model_isolation(db_session=None) -> None:
         assert status3["active_provider"] == "ollama"
         assert status3["selected_models"]["ollama"] == "qwen3.5:4b"
         assert status3["selected_models"]["gemini"] == "gemini-3.5-flash"
+
+
+def test_ollama_status_no_infinite_recursion_when_cloud_model_in_db() -> None:
+    """Verify get_ai_status never triggers infinite recursion when selected_model is a cloud model."""
+    from src.app.services.ai_gateway import get_ai_status, save_user_ai_settings
+    from src.app.database import SessionLocal
+
+    with SessionLocal() as db:
+        # Simulate legacy/cloud selected_model stored in user settings
+        save_user_ai_settings(db, user_id=1, updates={
+            "active_provider": "gemini",
+            "selected_model": "gemini-3.5-flash-lite",
+            "gemini_model": "gemini-3.5-flash-lite",
+        })
+
+        # This previously triggered RecursionError between check_health and get_selected_model
+        status = get_ai_status(db, user_id=1)
+        assert status is not None
+        assert status["ollama"] is not None
+        assert status["ollama"]["provider"] == "ollama"
+        assert not (status["selected_models"]["ollama"] or "").startswith("gemini-")

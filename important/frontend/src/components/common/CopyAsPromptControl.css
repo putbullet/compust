@@ -1,0 +1,357 @@
+/* Copy as Prompt Control — Dark & Light Mode Contrast Safe */
+
+.copy-as-prompt-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  font-family: inherit;
+  z-index: 5;
+}
+
+/* Modal variant styling */
+.copy-as-prompt-container.variant-modal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 10px;
+  background: var(--bg-surface-glass, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+  border-radius: 8px;
+  backdrop-filter: blur(8px);
+}
+
+/* Card variant styling */
+.copy-as-prompt-container.variant-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Table variant styling */
+.copy-as-prompt-container.variant-table {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* The Main Button */
+.copy-as-prompt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  position: relative;
+}
+
+.copy-as-prompt-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #0369a1 0%, #1d4ed8 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(2, 132, 199, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.copy-as-prompt-btn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.copy-as-prompt-btn:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+}
+
+.copy-as-prompt-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.copy-as-prompt-btn.copied {
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  color: #ffffff;
+}
+
+.copy-icon {
+  flex-shrink: 0;
+}
+
+.copy-icon.spin {
+  animation: cap-spin 1s linear infinite;
+}
+
+@keyframes cap-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Contact Details Toggle */
+.copy-prompt-toggle-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--text-secondary, #94a3b8);
+  user-select: none;
+}
+
+.copy-prompt-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  color: var(--text-secondary, #94a3b8);
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition: color 0.15s ease;
+}
+
+.copy-prompt-toggle-label:hover {
+  color: var(--text-primary, #f1f5f9);
+}
+
+.copy-prompt-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--border-medium, rgba(255, 255, 255, 0.3));
+  border-radius: 3px;
+  background: var(--bg-surface, #1e293b);
+  cursor: pointer;
+  position: relative;
+  transition: all 0.15s ease;
+  vertical-align: middle;
+  margin: 0;
+}
+
+.copy-prompt-checkbox:checked {
+  background: #2563eb;
+  border-color: #38bdf8;
+}
+
+.copy-prompt-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 4px;
+  width: 4px;
+  height: 8px;
+  border: solid #ffffff;
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+}
+
+.copy-prompt-checkbox:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 1px;
+}
+
+.copy-prompt-info-icon {
+  color: var(--text-muted, #64748b);
+  cursor: help;
+  transition: color 0.15s ease;
+}
+
+.copy-prompt-info-icon:hover {
+  color: var(--text-secondary, #cbd5e1);
+}
+
+/* Accessible Tooltip */
+.copy-prompt-tooltip-popover {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  background: var(--bg-surface-elevated, #0f172a);
+  color: var(--text-primary, #f8fafc);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.15));
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  width: max-content;
+  max-width: 300px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.35);
+  z-index: 1000;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.copy-as-prompt-container:hover .copy-prompt-tooltip-popover,
+.copy-as-prompt-container:focus-within .copy-prompt-tooltip-popover {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Floating Toast Notification */
+.copy-prompt-floating-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: var(--bg-surface-elevated, #0f172a);
+  border: 1px solid var(--border-success, rgba(16, 185, 129, 0.4));
+  border-left: 4px solid #10b981;
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: var(--text-primary, #f8fafc);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+  max-width: 440px;
+  z-index: 10001;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  animation: cap-toast-slide 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes cap-toast-slide {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.toast-icon-wrap {
+  flex-shrink: 0;
+  color: #10b981;
+  margin-top: 2px;
+}
+
+.toast-content-wrap {
+  flex: 1;
+}
+
+.toast-title {
+  font-weight: 600;
+  color: var(--text-primary, #ffffff);
+  margin-bottom: 2px;
+}
+
+.toast-body {
+  color: var(--text-secondary, #cbd5e1);
+  font-size: 0.775rem;
+}
+
+.toast-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #94a3b8);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toast-close-btn:hover {
+  color: var(--text-primary, #ffffff);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Missing Profile Alert Box */
+.copy-prompt-alert-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--bg-surface-elevated, #0f172a);
+  border: 1px solid var(--border-warning, rgba(245, 158, 11, 0.4));
+  border-left: 5px solid #f59e0b;
+  border-radius: 10px;
+  padding: 20px 24px;
+  color: var(--text-primary, #f8fafc);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+  max-width: 460px;
+  width: 90%;
+  z-index: 10002;
+  animation: cap-toast-slide 0.2s ease;
+}
+
+.alert-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 10001;
+}
+
+.alert-dialog-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.alert-dialog-icon {
+  color: #f59e0b;
+}
+
+.alert-dialog-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary, #f8fafc);
+}
+
+.alert-dialog-body {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--text-secondary, #cbd5e1);
+  margin-bottom: 16px;
+}
+
+.alert-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.alert-action-primary {
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.alert-action-primary:hover {
+  background: #1d4ed8;
+}
+
+.alert-action-secondary {
+  background: transparent;
+  color: var(--text-secondary, #cbd5e1);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.15));
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.alert-action-secondary:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary, #ffffff);
+}

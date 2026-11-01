@@ -28,6 +28,7 @@ import { CompanyLogo } from './CompanyLogo';
 import { VisaBadge } from './VisaBadge';
 import { SyncStatusBanner } from '../common/SyncStatusBanner';
 import { StatPill } from '../common/StatPill';
+import { CopyAsPromptControl } from '../common/CopyAsPromptControl';
 import { useTranslation } from '../../i18n';
 import './InternshipScraperView.css';
 
@@ -526,19 +527,27 @@ export const GitHubInternshipsView: React.FC = () => {
                   )}
                 </div>
 
-                {item.apply_url && !item.is_closed ? (
-                  <a
-                    href={item.apply_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="curated-apply-btn"
-                  >
-                    <span>{t.internships.applyNow}</span>
-                    <ExternalLink size={13} />
-                  </a>
-                ) : (
-                  <span className="curated-closed-tag">{t.internships.closed}</span>
-                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <CopyAsPromptControl
+                    jobId={item.id}
+                    jobTitle={item.role}
+                    companyName={item.company}
+                    variant="card"
+                  />
+                  {item.apply_url && !item.is_closed ? (
+                    <a
+                      href={item.apply_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="curated-apply-btn"
+                    >
+                      <span>{t.internships.applyNow}</span>
+                      <ExternalLink size={13} />
+                    </a>
+                  ) : (
+                    <span className="curated-closed-tag">{t.internships.closed}</span>
+                  )}
+                </div>
               </div>
             </div>
           ))}
@@ -601,19 +610,27 @@ export const GitHubInternshipsView: React.FC = () => {
                     </span>
                   </td>
                   <td>
-                    {item.apply_url && !item.is_closed ? (
-                      <a
-                        href={item.apply_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="table-apply-btn"
-                      >
-                        <span>{t.internships.applyNow}</span>
-                        <ExternalLink size={12} />
-                      </a>
-                    ) : (
-                      <span className="table-closed-text">{t.internships.closed}</span>
-                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <CopyAsPromptControl
+                        jobId={item.id}
+                        jobTitle={item.role}
+                        companyName={item.company}
+                        variant="table"
+                      />
+                      {item.apply_url && !item.is_closed ? (
+                        <a
+                          href={item.apply_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="table-apply-btn"
+                        >
+                          <span>{t.internships.applyNow}</span>
+                          <ExternalLink size={12} />
+                        </a>
+                      ) : (
+                        <span className="table-closed-text">{t.internships.closed}</span>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

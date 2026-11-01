@@ -307,6 +307,20 @@ export interface Translations {
       backBtn: string;
     };
   };
+  copyPrompt: {
+    buttonLabel: string;
+    buttonCopied: string;
+    generating: string;
+    tooltip: string;
+    includeContact: string;
+    contactNote: string;
+    copiedToast: string;
+    missingProfileTitle: string;
+    missingProfileMsg: string;
+    uploadResumeAction: string;
+    copyError: string;
+    authRequired: string;
+  };
 }
 
 export const translations: Record<Language, Translations> = {
@@ -604,6 +618,20 @@ export const translations: Record<Language, Translations> = {
         backBtn: 'Back to Setup',
       },
     },
+    copyPrompt: {
+      buttonLabel: 'Copy as prompt',
+      buttonCopied: 'Prompt copied!',
+      generating: 'Building prompt...',
+      tooltip: 'Creates a ready-to-paste prompt for ChatGPT, Claude, Gemini or any LLM. It builds a tailored, ATS-friendly resume for this job from the job details and your profile.',
+      includeContact: 'Include contact info',
+      contactNote: 'Personal data in the prompt is shared only with the external LLM you paste it into. Never stored on or sent to Compust servers.',
+      copiedToast: 'Prompt copied ({chars} characters). Paste it into your LLM — add adjustments at the bottom if you want.',
+      missingProfileTitle: 'No profile data found',
+      missingProfileMsg: 'You need to upload a resume or complete your profile before generating a tailored prompt.',
+      uploadResumeAction: 'Upload Resume',
+      copyError: 'Failed to copy prompt to clipboard. Please try again.',
+      authRequired: 'Please sign in to generate a tailored resume prompt from your profile.',
+    },
   },
   fr: {
     applications: applicationsTranslations.fr,
@@ -899,6 +927,20 @@ export const translations: Record<Language, Translations> = {
         backBtn: 'Retour à la Configuration',
       },
     },
+    copyPrompt: {
+      buttonLabel: 'Copier comme prompt',
+      buttonCopied: 'Prompt copié !',
+      generating: 'Création du prompt...',
+      tooltip: 'Crée un prompt prêt à coller pour ChatGPT, Claude, Gemini ou tout autre LLM. Il génère un CV adapté et compatible ATS pour cette offre à partir des détails du poste et de votre profil.',
+      includeContact: 'Inclure les coordonnées',
+      contactNote: 'Les données personnelles du prompt sont partagées uniquement avec le LLM dans lequel vous le collez. Jamais stockées ni envoyées aux serveurs Compust.',
+      copiedToast: 'Prompt copié ({chars} caractères). Collez-le dans votre LLM — ajoutez vos ajustements en bas si vous le souhaitez.',
+      missingProfileTitle: 'Aucun profil trouvé',
+      missingProfileMsg: 'Vous devez télécharger un CV ou compléter votre profil avant de générer un prompt sur mesure.',
+      uploadResumeAction: 'Télécharger un CV',
+      copyError: 'Échec de la copie du prompt dans le presse-papiers. Veuillez réessayer.',
+      authRequired: 'Veuillez vous connecter pour générer un prompt de CV adapté à partir de votre profil.',
+    },
   },
   de: {
     applications: applicationsTranslations.de,
@@ -1138,6 +1180,20 @@ export const translations: Record<Language, Translations> = {
         viewAssessment: 'Bewertung Ansehen',
         backBtn: 'Zurück',
       },
+    },
+    copyPrompt: {
+      buttonLabel: 'Als Prompt kopieren',
+      buttonCopied: 'Prompt kopiert!',
+      generating: 'Prompt wird erstellt...',
+      tooltip: 'Erstellt einen sofort einfügbaren Prompt für ChatGPT, Claude, Gemini oder ein beliebiges LLM. Erstellt anhand der Stellenanzeige und Ihres Profils einen maßgeschneiderten, ATS-optimierten Lebenslauf.',
+      includeContact: 'Kontaktdaten einbeziehen',
+      contactNote: 'Persönliche Daten im Prompt werden nur mit dem externen LLM geteilt, in das Sie ihn einfügen. Niemals auf Compust-Servern gespeichert oder dorthin gesendet.',
+      copiedToast: 'Prompt kopiert ({chars} Zeichen). In Ihr LLM einfügen — fügen Sie unten nach Wunsch Anpassungen hinzu.',
+      missingProfileTitle: 'Keine Profildaten gefunden',
+      missingProfileMsg: 'Bitte laden Sie zuerst einen Lebenslauf hoch oder vervollständigen Sie Ihr Profil, um einen maßgeschneiderten Prompt zu generieren.',
+      uploadResumeAction: 'Lebenslauf hochladen',
+      copyError: 'Fehler beim Kopieren des Prompts in die Zwischenablage. Bitte versuchen Sie es erneut.',
+      authRequired: 'Bitte melden Sie sich an, um einen maßgeschneiderten Lebenslauf-Prompt aus Ihrem Profil zu generieren.',
     },
   },
   nl: {
@@ -1433,6 +1489,20 @@ export const translations: Record<Language, Translations> = {
         viewAssessment: 'Rapport Bekijken',
         backBtn: 'Terug naar Instellingen',
       },
+    },
+    copyPrompt: {
+      buttonLabel: 'Kopiëren als prompt',
+      buttonCopied: 'Prompt gekopieerd!',
+      generating: 'Prompt samenstellen...',
+      tooltip: 'Maakt een direct te plakken prompt voor ChatGPT, Claude, Gemini of een ander LLM. Het bouwt een op maat gemaakt, ATS-vriendelijk cv voor deze vacature op basis van de functiedetails en uw profiel.',
+      includeContact: 'Contactgegevens opnemen',
+      contactNote: 'Persoonlijke gegevens in de prompt worden alleen gedeeld met het externe LLM waarin u deze plakt. Nooit opgeslagen op of verzonden naar Compust-servers.',
+      copiedToast: 'Prompt gekopieerd ({chars} tekens). Plak het in uw LLM — voeg onderaan eventueel aanpassingen toe.',
+      missingProfileTitle: 'Geen profielgegevens gevonden',
+      missingProfileMsg: 'U moet eerst een cv uploaden of uw profiel invullen voordat u een op maat gemaakte prompt kunt genereren.',
+      uploadResumeAction: 'Cv uploaden',
+      copyError: 'Kopiëren van prompt naar klembord mislukt. Probeer het opnieuw.',
+      authRequired: 'Meld u aan om een op maat gemaakte cv-prompt te genereren op basis van uw profiel.',
     },
   },
 };

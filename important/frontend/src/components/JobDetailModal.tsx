@@ -31,6 +31,7 @@ import {
 } from '../api/client';
 import { ResumeTailorDrawer } from './ResumeBuilder/ResumeTailorDrawer';
 import { StageProgressList, useStageProgress } from './common/StageProgressList';
+import { CopyAsPromptControl } from './common/CopyAsPromptControl';
 
 const RESUME_SUGGESTION_STAGES = [
   'Reading target job requirements…',
@@ -494,25 +495,36 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                 <p>Run 5-stage career analysis with local AI: match scoring, bullet tailoring, cover letter, cold outreach, and STAR interview prep.</p>
               </div>
             </div>
-            <button
-              type="button"
-              className="studio-tailor-btn"
-              style={{ background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)', color: '#fff', cursor: 'pointer' }}
-              onClick={() => {
-                if (job && onTargetJob) {
-                  const cleanDesc = currentTranslation?.description_text || currentTranslation?.description || job.description_text || job.description || '';
-                  onTargetJob({
-                    role: currentTranslation?.title || job.title,
-                    description: cleanDesc,
-                    companyName: companyName,
-                  });
-                }
-              }}
-              title="Open in Career Assistant"
-            >
-              <Sparkles size={15} />
-              <span>Target in Career Assistant</span>
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="studio-tailor-btn"
+                style={{ background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)', color: '#fff', cursor: 'pointer' }}
+                onClick={() => {
+                  if (job && onTargetJob) {
+                    const cleanDesc = currentTranslation?.description_text || currentTranslation?.description || job.description_text || job.description || '';
+                    onTargetJob({
+                      role: currentTranslation?.title || job.title,
+                      description: cleanDesc,
+                      companyName: companyName,
+                    });
+                  }
+                }}
+                title="Open in Career Assistant"
+              >
+                <Sparkles size={15} />
+                <span>Target in Career Assistant</span>
+              </button>
+
+              {job && (
+                <CopyAsPromptControl
+                  jobId={job.id}
+                  jobTitle={currentTranslation?.title || job.title}
+                  companyName={companyName}
+                  variant="modal"
+                />
+              )}
+            </div>
           </div>
 
           {/* Feature 2: Attached Actionable Resume Guidance */}
@@ -859,6 +871,15 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
         {/* Footer Actions */}
         <div className="modal-footer">
           <button className="secondary-btn" onClick={onClose}>Close</button>
+
+          {job && (
+            <CopyAsPromptControl
+              jobId={job.id}
+              jobTitle={currentTranslation?.title || job.title}
+              companyName={companyName}
+              variant="card"
+            />
+          )}
 
           {/* Refresh Suggestions Button */}
           <button

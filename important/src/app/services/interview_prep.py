@@ -52,6 +52,80 @@ STAR_TARGET_SPLIT = {
     "result": 15,
 }
 
+
+def _repair_json_escapes(s: str) -> str:
+    """Properly escape invalid backslashes inside JSON string literals (e.g. LaTeX formulas, regexes)."""
+    out = []
+    in_string = False
+    i = 0
+    n = len(s)
+    while i < n:
+        c = s[i]
+        if c == '"' and (i == 0 or s[i - 1] != '\\'):
+            in_string = not in_string
+            out.append(c)
+            i += 1
+            continue
+
+        if in_string and c == '\\':
+            if i + 1 < n:
+                nxt = s[i + 1]
+                if nxt in ('"', '\\', '/', 'b', 'f', 'n', 'r', 't'):
+                    out.append(c)
+                    out.append(nxt)
+                    i += 2
+                    continue
+                elif nxt == 'u':
+                    hex_part = s[i + 2 : i + 6]
+                    if len(hex_part) == 4 and all(h in '0123456789abcdefABCDEF' for h in hex_part):
+                        out.append(c)
+                        out.append(nxt)
+                        out.append(hex_part)
+                        i += 6
+                        continue
+            out.append('\\\\')
+            i += 1
+            continue
+
+        out.append(c)
+        i += 1
+    return "".join(out)
+
+
+def _safe_parse_json(text: str) -> dict:
+    """Robustly parse JSON produced by LLMs, handling markdown blocks, LaTeX math escapes, and trailing content."""
+    clean = (text or "").strip()
+    if clean.startswith("```json"):
+        clean = clean[7:]
+    elif clean.startswith("```"):
+        clean = clean[3:]
+    if clean.endswith("```"):
+        clean = clean[:-3]
+    clean = clean.strip()
+
+    try:
+        return json.loads(clean, strict=False)
+    except Exception:
+        pass
+
+    try:
+        repaired = _repair_json_escapes(clean)
+        return json.loads(repaired, strict=False)
+    except Exception:
+        pass
+
+    match = re.search(r'\{.*\}', clean, re.DOTALL)
+    if match:
+        extracted = match.group(0)
+        try:
+            return json.loads(extracted, strict=False)
+        except Exception:
+            repaired = _repair_json_escapes(extracted)
+            return json.loads(repaired, strict=False)
+
+    raise ValueError("Model output could not be parsed as valid JSON.")
+
+
 DOMAIN_DEFINITIONS = [
     {
         "id": "data_engineering",
@@ -1136,17 +1210,8 @@ class InterviewPrepService:
                 timeout_seconds=45.0,
             )
             if raw_resp:
-                clean_json = raw_resp.strip()
-                if clean_json.startswith("```json"):
-                    clean_json = clean_json[7:]
-                if clean_json.startswith("```"):
-                    clean_json = clean_json[3:]
-                if clean_json.endswith("```"):
-                    clean_json = clean_json[:-3]
-                clean_json = clean_json.strip()
-
                 try:
-                    parsed_dict = json.loads(clean_json)
+                    parsed_dict = _safe_parse_json(raw_resp)
 
                     # Sanitize any SVG diagram produced by the model
                     if parsed_dict.get("svg_diagram"):
@@ -1505,7 +1570,8 @@ class InterviewPrepService:
             f"4. List 2-4 tough interview follow-up questions.\n"
             f"5. CODE & DIAGRAM RULES:\n"
             f"   - Only output code if question genuinely requires query/implementation/config ({'Code is expected for this question' if needs_code_flag else 'Code is NOT expected unless strictly needed'}).\n"
-            f"   - Only output diagram if architectural flow clarifies the concept ({'Diagram is expected' if needs_diagram_flag else 'Diagram is NOT expected'}). Standalone valid SVG viewBox '0 0 640 200'.\n\n"
+            f"   - Only output diagram if architectural flow clarifies the concept ({'Diagram is expected' if needs_diagram_flag else 'Diagram is NOT expected'}). Standalone valid SVG viewBox '0 0 640 200'.\n"
+            f"6. CONCISENESS: Keep explanations dense and focused (under 400 words total across all sections).\n\n"
             f"RETURN RAW JSON ONLY matching schema:\n"
             f'{{"deeper_explanation": "...", "extra_example": "...", "pitfalls": ["..."], "interview_followups": ["..."], "has_code": false, "code_language": null, "code_snippet": null, "has_diagram": false, "diagram_svg": null}}'
         )
@@ -1519,16 +1585,7 @@ class InterviewPrepService:
                 temperature=0.2,
                 timeout_seconds=45.0,
             )
-            clean_json = raw_resp.strip()
-            if clean_json.startswith("```json"):
-                clean_json = clean_json[7:]
-            if clean_json.startswith("```"):
-                clean_json = clean_json[3:]
-            if clean_json.endswith("```"):
-                clean_json = clean_json[:-3]
-            clean_json = clean_json.strip()
-
-            parsed = json.loads(clean_json)
+            parsed = _safe_parse_json(raw_resp)
 
             # Sanitize diagram if model emitted one
             if parsed.get("diagram_svg"):

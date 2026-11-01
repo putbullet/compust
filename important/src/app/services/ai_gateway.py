@@ -1097,7 +1097,7 @@ class GeminiProvider:
             ],
             "generationConfig": {
                 "temperature": temperature,
-                "maxOutputTokens": 4096,
+                "maxOutputTokens": 8192,
             },
         }
         if system_prompt:

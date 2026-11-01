@@ -1,0 +1,27 @@
+{
+  "question_id": "de_iceberg_11",
+  "slug": "iceberg-how-do-upserts-merges-work-with-iceberg",
+  "track": "data_engineering",
+  "category": "Lakehouse Storage & Formats",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": true,
+  "code_language": "sql",
+  "code_snippet": "MERGE INTO prod.customers t USING stage.updates s ON t.id = s.id\nWHEN MATCHED THEN UPDATE SET t.email = s.email, t.updated_at = current_timestamp()\nWHEN NOT MATCHED THEN INSERT (id, email, updated_at) VALUES (s.id, s.email, current_timestamp());\n",
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Iceberg executes ACID MERGE and UPSERT operations using either Copy-On-Write (rewriting matching data files) or Merge-On-Read (writing delta and delete files).",
+    "simple_explanation": "Executing a SQL MERGE joins the target Iceberg table with incoming staging records to classify rows into matched updates and unmatched inserts. In Copy-on-Write (CoW) mode, Iceberg rewrites every target data file containing a modified row, generating clean new Parquet files. In Merge-on-Read (MoR) mode, Iceberg writes newly inserted rows to new data files and writes deleted/updated rows to separate positional delete files, leaving original data files untouched until compaction.",
+    "real_world_example": "Updating an encyclopedia entry: Copy-on-Write reprints the entire volume page with corrections; Merge-on-Read places an errata sticker over the old sentence and appends new paragraphs in an addendum.",
+    "why_it_matters_and_pitfalls": "CoW produces optimal query scan performance for analytics but creates high write amplification during streaming updates. MoR minimizes write latency but shifts merge overhead to query time.",
+    "key_terms": [
+      "MERGE INTO Operation",
+      "Copy-On-Write (CoW)",
+      "Merge-On-Read (MoR)",
+      "Write Amplification",
+      "Compaction Lifecycle"
+    ]
+  }
+}

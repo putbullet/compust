@@ -1,0 +1,27 @@
+{
+  "question_id": "de_kafka_7",
+  "slug": "kafka-what-is-the-zookeeper-s-role-in-kafka-s-ecosystem-and-can-we-use-kafka-wit",
+  "track": "data_engineering",
+  "category": "Streaming & Event Messaging",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "ZooKeeper historically managed Kafka cluster consensus and metadata, but has been replaced by KRaft (Kafka Raft), allowing Kafka to operate autonomously without ZooKeeper.",
+    "simple_explanation": "In legacy Kafka architectures (prior to version 3.x), Apache ZooKeeper maintained cluster membership, elected the active Controller broker, and stored topic/partition metadata. This dual-system architecture created operational complexity and limited clusters to around 200,000 partitions due to metadata sync latency. KIP-500 introduced KRaft (Kafka Raft consensus protocol), which stores cluster metadata directly in an internal Kafka topic (`@metadata`), enabling sub-second failover and millions of partitions.",
+    "real_world_example": "A ship captain: in legacy days, the ship needed a remote shore station (ZooKeeper) to approve every internal watch rotation; with KRaft, the ship's officers run an internal voting council right on board.",
+    "why_it_matters_and_pitfalls": "ZooKeeper was fully removed in Kafka 4.0. Modern production deployments should run KRaft mode exclusively for simplified operations and faster controller recovery.",
+    "key_terms": [
+      "Apache ZooKeeper",
+      "KRaft (Kafka Raft Consensus)",
+      "KIP-500",
+      "Metadata Quorum",
+      "Partition Scalability"
+    ]
+  }
+}

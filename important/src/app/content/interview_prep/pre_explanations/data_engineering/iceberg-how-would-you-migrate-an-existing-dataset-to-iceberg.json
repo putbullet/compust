@@ -1,0 +1,27 @@
+{
+  "question_id": "de_iceberg_15",
+  "slug": "iceberg-how-would-you-migrate-an-existing-dataset-to-iceberg",
+  "track": "data_engineering",
+  "category": "Lakehouse Storage & Formats",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Migrating existing Parquet datasets to Iceberg can be performed in-place using metadata-only migration (CALL snapshot or CALL migrate) without rewriting underlying data files.",
+    "simple_explanation": "Migrating petabyte-scale Hive Parquet tables by rewriting all data files (`INSERT OVERWRITE`) is prohibitively slow and expensive. Iceberg provides in-place migration procedures: `CALL catalog.system.snapshot('db.table', 'db.iceberg_table')` creates a shadow Iceberg table referencing existing Parquet files in-place. Once verified, `CALL catalog.system.migrate('db.table')` replaces the Hive table completely. Existing files are indexed into Iceberg manifests with zero data copying.",
+    "real_world_example": "Installing modern barcoded catalog tags on existing warehouse shipping containers: rather than repacking goods into new boxes, staff affix digital RFID tags to existing boxes and register them in the digital warehouse database.",
+    "why_it_matters_and_pitfalls": "While snapshot migration is instantaneous, historical files retain legacy directory partitioning. After migration, engineers should execute partition evolution and gradual background compaction.",
+    "key_terms": [
+      "In-Place Migration",
+      "CALL snapshot",
+      "CALL migrate",
+      "Zero-Copy Table Migration",
+      "Hive Metastore Transition"
+    ]
+  }
+}

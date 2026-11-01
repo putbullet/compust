@@ -1,0 +1,27 @@
+{
+  "question_id": "de_kafka_8",
+  "slug": "kafka-how-are-messages-consumed-by-a-consumer-in-apache-kafka",
+  "track": "data_engineering",
+  "category": "Streaming & Event Messaging",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": true,
+  "code_language": "python",
+  "code_snippet": "from kafka import KafkaConsumer\nconsumer = KafkaConsumer('orders', group_id='billing_app', bootstrap_servers=['localhost:9092'], enable_auto_commit=False)\nfor message in consumer:\n    process_order(message.value)\n    consumer.commit()  # Synchronous commit after successful processing\n",
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Kafka consumers retrieve records using a pull-based model, polling brokers for message batches and tracking progress via committed partition offsets.",
+    "simple_explanation": "Kafka uses a pull-based consumer architecture instead of a push model. Consumers issue `poll()` calls to fetch batches of records from assigned partitions. This ensures consumers are never overwhelmed by high producer bursts, self-pacing based on local processing capacity. The consumer tracks its progress by committing an integer offset to the internal `__consumer_offsets` topic. If a consumer crashes, a replacement resumes reading from the last committed offset.",
+    "real_world_example": "Reading chapters in an educational textbook: you place a physical bookmark at page 45; whenever you resume reading, you open directly to your bookmark rather than having someone read pages aloud at an overwhelming speed.",
+    "why_it_matters_and_pitfalls": "Enabling automatic offset commit (`enable_auto_commit=True`) commits offsets on a timer regardless of whether message processing succeeded, causing data loss during crashes. Critical systems must commit offsets manually after business logic succeeds.",
+    "key_terms": [
+      "Pull-Based Consumption",
+      "Consumer Offset",
+      "poll() Loop",
+      "__consumer_offsets Topic",
+      "Manual vs Auto-Commit"
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "question_id": "de_kafka_4",
+  "slug": "kafka-what-is-the-benefits-of-apache-kafka-over-the-traditional-technique",
+  "track": "data_engineering",
+  "category": "Streaming & Event Messaging",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Kafka outperforms traditional message queues through disk persistence, consumer replayability, zero-copy network transfer, and horizontal partition-level scaling.",
+    "simple_explanation": "Legacy message queues (JMS, RabbitMQ) maintain transient in-memory queues where brokers track individual consumer acknowledgments and delete messages upon delivery. This creates high broker CPU overhead and prevents message replay. Kafka reverses this model: brokers are lightweight append-only log engines, consumers track their own offsets, and disk sequential I/O with page cache zero-copy maximizes throughput while supporting arbitrary consumer replay.",
+    "real_world_example": "A published daily newspaper: the printer prints copies sequentially; whether one reader reads the news at 8 AM or ten readers re-read articles at 6 PM, the printing press does not need to reprint papers for each person.",
+    "why_it_matters_and_pitfalls": "Decoupling message retention from consumption allows diverse systems (real-time fraud alerting, batch daily data lake ingestion) to consume the exact same event stream without duplicate queues.",
+    "key_terms": [
+      "Decoupled Pub/Sub",
+      "Message Replayability",
+      "Sequential Disk I/O",
+      "Zero-Copy Data Transfer",
+      "Queue vs Stream Semantics"
+    ]
+  }
+}

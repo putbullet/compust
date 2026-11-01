@@ -1,0 +1,27 @@
+{
+  "question_id": "de_iceberg_13",
+  "slug": "iceberg-what-maintenance-operations-are-common-for-iceberg-tables",
+  "track": "data_engineering",
+  "category": "Lakehouse Storage & Formats",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Essential Iceberg table maintenance includes data file compaction, snapshot expiration, deleting orphan files, and rewriting manifest files to optimize query planning.",
+    "simple_explanation": "An Iceberg table requires routine maintenance to maintain high query efficiency and avoid storage cost bloat: 1) `rewrite_data_files`: compacts small data files into optimal sizes and sorts data using Z-ordering; 2) `expire_snapshots`: removes old snapshots past the retention window and deletes unreferenced data files; 3) `remove_orphan_files`: purges files left behind in cloud storage by failed tasks; 4) `rewrite_manifests`: merges small manifest files to accelerate query planning.",
+    "real_world_example": "Maintaining an office archive: discarding shredded draft documents, consolidating loose papers into organized ring binders, and cleaning out forgotten folders left in hallway storage.",
+    "why_it_matters_and_pitfalls": "Running `remove_orphan_files` with a retention threshold shorter than the longest running write job can delete active in-flight files written by concurrent tasks, corrupting the table.",
+    "key_terms": [
+      "Table Maintenance",
+      "expire_snapshots",
+      "remove_orphan_files",
+      "rewrite_manifests",
+      "Z-Order Clustering"
+    ]
+  }
+}

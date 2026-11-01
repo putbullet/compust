@@ -1,0 +1,27 @@
+{
+  "question_id": "de_iceberg_10",
+  "slug": "iceberg-what-are-equality-deletes-and-positional-deletes",
+  "track": "data_engineering",
+  "category": "Lakehouse Storage & Formats",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Iceberg supports two row-level deletion formats: Positional Deletes reference exact file paths and row offsets, while Equality Deletes filter rows by matching column values.",
+    "simple_explanation": "In Merge-on-Read (MoR) tables, deleting rows without rewriting entire Parquet files requires writing delete files. A Positional Delete file explicitly lists `(file_path, row_position)` pairs pointing to rows that must be ignored during scans. An Equality Delete file stores specific column values (e.g. `id = 1042`), instructing the reader to discard any row matching that value. Positional deletes are fast for readers to evaluate, while equality deletes are faster for streaming ingestion to write.",
+    "real_world_example": "Canceling appointments in a physical ledger: a positional delete puts a red line through 'page 4, line 12'; an equality delete places a note on the front desk saying 'cancel any appointment booked under the name Smith'.",
+    "why_it_matters_and_pitfalls": "Equality deletes require query readers to perform expensive broadcast hash joins at scan time to filter deleted rows. High-throughput analytic tables should compact equality deletes into positional deletes or rewrite data files via compaction.",
+    "key_terms": [
+      "Positional Deletes",
+      "Equality Deletes",
+      "Merge-on-Read (MoR)",
+      "Row-Level Deletions",
+      "Read-Time Overhead"
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "question_id": "de_kafka_20",
+  "slug": "kafka-what-is-the-role-of-the-offset-in-kafka",
+  "track": "data_engineering",
+  "category": "Streaming & Event Messaging",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "An offset is a 64-bit integer that uniquely identifies the sequential position of a message within a specific partition, providing order and enabling consumer progress tracking.",
+    "simple_explanation": "When a producer writes a message to a partition, Kafka assigns it a sequential, immutable integer offset starting at 0. Offsets are strictly local to a partition (offset 42 in partition 0 has no relation to offset 42 in partition 1). Consumers maintain an offset pointer indicating the next record they intend to read. Offsets decouple consumers from brokers: multiple consumers can read from different offsets concurrently without locking or deleting records.",
+    "real_world_example": "A numbered ticket dispenser at a bakery counter: every arriving customer pulls ticket #101, #102, #103; the server calls the next ticket number sequentially, and anyone can look at the counter display to see exactly what number is being served.",
+    "why_it_matters_and_pitfalls": "Offsets cannot provide total global ordering across an entire topic with multiple partitions; Kafka guarantees strict FIFO message ordering exclusively within a single partition.",
+    "key_terms": [
+      "Sequential Offset",
+      "Partition Log Position",
+      "Consumer Offset Pointer",
+      "Per-Partition Ordering",
+      "Log Start vs End Offset"
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "question_id": "de_iceberg_2",
+  "slug": "iceberg-what-is-apache-iceberg",
+  "track": "data_engineering",
+  "category": "Lakehouse Storage & Formats",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": true,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": "<svg viewBox=\"0 0 640 180\" xmlns=\"http://www.w3.org/2000/svg\" style=\"width:100%;height:auto;font-family:sans-serif;\">\n  <rect x=\"230\" y=\"15\" width=\"180\" height=\"40\" rx=\"6\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--primary, #3b82f6)\" stroke-width=\"2\"/>\n  <text x=\"320\" y=\"40\" fill=\"currentColor\" font-size=\"12\" font-weight=\"700\" text-anchor=\"middle\">Iceberg Catalog (Pointer)</text>\n  <path d=\"M320 55 V80\" stroke=\"currentColor\" stroke-width=\"2\"/>\n  <rect x=\"210\" y=\"80\" width=\"220\" height=\"40\" rx=\"6\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--accent, #f59e0b)\" stroke-width=\"2\"/>\n  <text x=\"320\" y=\"105\" fill=\"currentColor\" font-size=\"12\" font-weight=\"700\" text-anchor=\"middle\">Table Metadata (v1.metadata.json)</text>\n  <path d=\"M250 120 L150 145\" stroke=\"currentColor\" stroke-width=\"2\"/>\n  <path d=\"M390 120 L490 145\" stroke=\"currentColor\" stroke-width=\"2\"/>\n  <rect x=\"70\" y=\"145\" width=\"160\" height=\"30\" rx=\"4\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--secondary, #10b981)\" stroke-width=\"2\"/>\n  <text x=\"150\" y=\"165\" fill=\"currentColor\" font-size=\"11\" font-weight=\"600\" text-anchor=\"middle\">Manifest List (Snapshots)</text>\n  <rect x=\"410\" y=\"145\" width=\"160\" height=\"30\" rx=\"4\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--secondary, #10b981)\" stroke-width=\"2\"/>\n  <text x=\"490\" y=\"165\" fill=\"currentColor\" font-size=\"11\" font-weight=\"600\" text-anchor=\"middle\">Data Files (Parquet/ORC)</text>\n</svg>",
+  "diagram_caption": "Iceberg hierarchical metadata tree decoupling logical table state from physical storage paths.",
+  "content": {
+    "tldr": "Apache Iceberg is an open-source table format for huge analytic datasets, providing ACID transactions, scalable metadata pruning, time travel, and full schema evolution on data lakes.",
+    "simple_explanation": "Traditional data lake tables (Hive metastore) define tables as directories of files. When querying a Hive table, the engine must perform expensive object store list operations (O(N) S3 listing) to discover files, suffering from race conditions and lacking atomicity. Apache Iceberg tracks tables at the individual file level using a tree of immutable metadata files (snapshots, manifest lists, manifest files). Engines like Spark, Trino, and Flink interact with Iceberg as a reliable relational table with full snapshot isolation.",
+    "real_world_example": "A library catalog ledger: instead of searching every physical bookshelf in the entire building to find missing volumes, you consult the central computerized ledger that lists the exact aisle, shelf, and barcode location of every active book.",
+    "why_it_matters_and_pitfalls": "Because Iceberg tracks files explicitly in metadata, write operations commit atomically via compare-and-swap on the catalog pointer. Readers never experience partial write reads or inconsistent states during ongoing batch jobs.",
+    "key_terms": [
+      "Apache Iceberg",
+      "Table Format vs File Format",
+      "ACID Transactions",
+      "Snapshot Isolation",
+      "Hive Directory Listing Bottleneck"
+    ]
+  }
+}

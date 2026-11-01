@@ -1,0 +1,27 @@
+{
+  "question_id": "de_kafka_11",
+  "slug": "kafka-what-is-in-sync-messages-isr-in-apache-kafka",
+  "track": "data_engineering",
+  "category": "Streaming & Event Messaging",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "The In-Sync Replicas (ISR) list comprises partition replicas that are fully caught up with the partition leader within the configured time threshold (`replica.lag.time.max.ms`).",
+    "simple_explanation": "Each Kafka partition has one leader replica and multiple follower replicas. Follower replicas send fetch requests to replicate records from the leader log. Replicas that remain caught up within `replica.lag.time.max.ms` (typically 30 seconds) belong to the In-Sync Replicas (ISR) pool. When producers configure `acks=all`, the leader will not acknowledge the message until all active ISR replicas have appended the record to their local logs, guaranteeing zero data loss.",
+    "real_world_example": "A military squad marching in formation: any soldier who stays within 10 paces of the leader is in-sync; a soldier who twists an ankle and falls 50 paces behind is temporarily dropped from the active formation until caught up.",
+    "why_it_matters_and_pitfalls": "Setting `min.insync.replicas=2` on a 3-replica topic ensures that even if one broker fails, writes succeed with redundancy; but if two brokers fail, the leader rejects writes (`NotEnoughReplicasException`) to prevent data loss.",
+    "key_terms": [
+      "In-Sync Replicas (ISR)",
+      "replica.lag.time.max.ms",
+      "min.insync.replicas",
+      "acks=all Durability",
+      "High Watermark"
+    ]
+  }
+}

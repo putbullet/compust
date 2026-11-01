@@ -1,0 +1,27 @@
+{
+  "question_id": "de_iceberg_16",
+  "slug": "iceberg-iceberg-vs-delta-vs-hudi-when-would-you-choose-iceberg",
+  "track": "data_engineering",
+  "category": "Lakehouse Storage & Formats",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Iceberg excels in multi-engine ecosystem neutrality and hidden partitioning, Delta Lake leads in deep Spark/Databricks integration, and Apache Hudi optimizes low-latency upsert streams.",
+    "simple_explanation": "All three modern table formats provide ACID transactions on Parquet. Delta Lake was engineered by Databricks with native Spark optimization and JSON transaction logs. Apache Hudi originated at Uber, prioritizing low-latency streaming ingest via specialized indexing. Apache Iceberg originated at Netflix with a focus on engine-agnostic neutrality, robust specification governance, hidden partitioning, and equal performance across Trino, Spark, Flink, and Snowflake.",
+    "real_world_example": "Selecting an operating system: Delta Lake is macOS (deeply integrated with its ecosystem hardware); Iceberg is Linux (open, vendor-neutral standard adopted across diverse enterprise architectures).",
+    "why_it_matters_and_pitfalls": "Organizations with heterogeneous query engines (e.g. Trino for interactive SQL, Spark for ETL, Flink for streaming) benefit significantly from Iceberg's vendor neutrality and open REST catalog standard.",
+    "key_terms": [
+      "Table Format Comparison",
+      "Multi-Engine Interoperability",
+      "Delta Lake Transaction Log",
+      "Apache Hudi Upsert Indexing",
+      "Apache Iceberg Ecosystem"
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "question_id": "de_iceberg_8",
+  "slug": "iceberg-what-is-partition-evolution-and-why-is-it-important",
+  "track": "data_engineering",
+  "category": "Lakehouse Storage & Formats",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Partition evolution allows table partitioning schemes to be updated on-the-fly without requiring historical data to be rewritten or table schemas to be recreated.",
+    "simple_explanation": "In legacy data lake architectures, changing a table's partition granularity (e.g. from `years(ts)` to `days(ts)` as data volume scales) was a catastrophic operational event: it required creating a new table and rewriting petabytes of historical files. Iceberg tables track a `partition-spec-id` in each manifest file. When the partition spec evolves, new data is written using the new layout while existing historical data remains in its original layout. Queries seamlessly span both specs simultaneously.",
+    "real_world_example": "A growing photo album: when you took 50 photos a year, sorting by year was fine; as you start taking 5,000 photos a year, you start organizing new albums by month without having to cut up and reorganize all your childhood albums.",
+    "why_it_matters_and_pitfalls": "Partition evolution permits data engineers to adapt table structures as query access patterns and ingest volumes change over time, without downtime or expensive data migration pipelines.",
+    "key_terms": [
+      "Partition Evolution",
+      "Partition Spec ID",
+      "Zero Data Rewrite",
+      "Dynamic Query Planning",
+      "Schema Flexibility"
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "question_id": "de_iceberg_7",
+  "slug": "iceberg-what-is-hidden-partitioning-in-iceberg",
+  "track": "data_engineering",
+  "category": "Lakehouse Storage & Formats",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": true,
+  "code_language": "sql",
+  "code_snippet": "-- Iceberg handles partition transformation automatically\nCREATE TABLE prod.events (id BIGINT, event_time TIMESTAMP)\nUSING iceberg PARTITIONED BY (days(event_time));\n-- Querying event_time automatically prunes day partitions without extra columns!\nSELECT * FROM prod.events WHERE event_time >= '2026-11-01';\n",
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Hidden partitioning in Iceberg computes partition values dynamically via transform functions on existing table columns, freeing query writers from needing to specify synthetic partition fields.",
+    "simple_explanation": "In traditional Hive tables, partitioning by date required adding an explicit synthetic string column (e.g. `event_date = '2026-11-01'`) derived from a timestamp. If an analyst queried `WHERE event_time >= '2026-11-01'` without including `AND event_date = '2026-11-01'`, Hive scanned the entire table. Iceberg introduces hidden partitioning: partition transforms (`days(ts)`, `bucket(16, id)`) are tracked natively in metadata. Querying the original column automatically triggers partition pruning without synthetic column leaks.",
+    "real_world_example": "A smart filing cabinet: you file receipts strictly by exact transaction timestamp; the cabinet's internal sorting mechanism automatically groups receipts into monthly folders behind the scenes without requiring you to stamp each receipt twice.",
+    "why_it_matters_and_pitfalls": "Hidden partitioning eliminates accidental full table scans caused by developers forgetting to filter on partition columns, protecting cloud warehouse clusters from runaway compute costs.",
+    "key_terms": [
+      "Hidden Partitioning",
+      "Partition Transforms",
+      "Accidental Full Scans",
+      "Hive Synthetic Column Flaw",
+      "Dynamic Pruning"
+    ]
+  }
+}

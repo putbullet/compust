@@ -1,0 +1,27 @@
+{
+  "question_id": "de_iceberg_6",
+  "slug": "iceberg-how-does-iceberg-handle-concurrent-writes",
+  "track": "data_engineering",
+  "category": "Lakehouse Storage & Formats",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Iceberg coordinates concurrent writes using Optimistic Concurrency Control (OCC) and atomic Compare-And-Swap (CAS) catalog operations, automatically retrying non-conflicting commits.",
+    "simple_explanation": "When a writer begins a transaction, it reads the current table snapshot base. It writes new data and manifest files independently. When ready to commit, it attempts an atomic Compare-And-Swap (CAS) update in the catalog (e.g. in DynamoDB, JDBC, or Hive). If another writer committed first, the CAS fails. Iceberg then checks whether the two commits actually conflict: if Writer A appended partition '2026-10-31' and Writer B appended '2026-11-01', Iceberg re-bases Writer B's commit on top of A and retries automatically without failing the job.",
+    "real_world_example": "Collaborative document editing: two users simultaneously edit different paragraphs in a shared online document; the system seamlessly merges both edits without rejecting either contributor's work.",
+    "why_it_matters_and_pitfalls": "True conflicts occur when two concurrent writers attempt to mutate or delete the exact same data files (e.g. concurrent MERGE operations). In this scenario, Iceberg throws a CommitFailedException to protect data integrity, requiring application retry.",
+    "key_terms": [
+      "Optimistic Concurrency Control (OCC)",
+      "Compare-And-Swap (CAS)",
+      "Concurrent Append Re-base",
+      "CommitFailedException",
+      "Isolated Transactions"
+    ]
+  }
+}

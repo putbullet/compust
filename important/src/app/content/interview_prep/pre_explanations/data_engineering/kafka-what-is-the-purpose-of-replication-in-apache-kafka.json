@@ -1,0 +1,27 @@
+{
+  "question_id": "de_kafka_16",
+  "slug": "kafka-what-is-the-purpose-of-replication-in-apache-kafka",
+  "track": "data_engineering",
+  "category": "Streaming & Event Messaging",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Replication in Kafka distributes identical partition copies across multiple independent brokers to ensure high availability, fault tolerance, and zero data loss during server failures.",
+    "simple_explanation": "A topic is configured with a replication factor (typically 3 in production). For each partition, one broker is elected Leader (handling all read and write traffic), while the remaining brokers act as passive Followers replicating the leader's commit log. If the host running the partition leader crashes or undergoes maintenance, the Controller automatically promotes an in-sync follower to become the new leader in milliseconds, maintaining seamless availability.",
+    "real_world_example": "An airplane flight control computer: three independent computers compute flight parameters simultaneously; if computer #1 experiences hardware failure, computer #2 takes over steering immediately without passengers feeling turbulence.",
+    "why_it_matters_and_pitfalls": "A replication factor of 1 provides zero fault tolerance: losing a single hard drive permanently destroys all partition data on that node. Production topics must always configure a replication factor of at least 3.",
+    "key_terms": [
+      "Replication Factor (RF)",
+      "Leader Election",
+      "Fault Tolerance",
+      "High Availability",
+      "Cluster Resilience"
+    ]
+  }
+}

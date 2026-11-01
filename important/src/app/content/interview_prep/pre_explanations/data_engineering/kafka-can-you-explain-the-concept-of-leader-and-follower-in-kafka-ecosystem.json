@@ -1,0 +1,27 @@
+{
+  "question_id": "de_kafka_21",
+  "slug": "kafka-can-you-explain-the-concept-of-leader-and-follower-in-kafka-ecosystem",
+  "track": "data_engineering",
+  "category": "Streaming & Event Messaging",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Every Kafka partition has one designated Leader that handles all client reads and writes, while Followers act as passive shadow replicas pulling log updates to maintain fault tolerance.",
+    "simple_explanation": "Kafka uses a single-leader replication model per partition. When producers send messages, they route directly to the partition Leader broker, which writes to disk and exposes the data to replicas. Follower brokers issue periodic fetch requests to pull records from the leader log, functioning as consumers behind the scenes. If the leader fails, an election promotes an in-sync follower to leader. In modern Kafka, consumers can optionally read from closest followers in multi-datacenter clouds to avoid cross-AZ egress costs.",
+    "real_world_example": "A principal courtroom stenographer (Leader) who records the official testimony in real-time, accompanied by two junior assistants (Followers) sitting alongside who transcribe matching copies into backup ledgers.",
+    "why_it_matters_and_pitfalls": "Distributing partition leaders evenly across all brokers (Leader Rebalancing) is critical; otherwise, a broker with too many leaders will suffer from hot-spot CPU and network saturation.",
+    "key_terms": [
+      "Partition Leader",
+      "Follower Replica",
+      "Leader Election",
+      "Fetch Request",
+      "Cross-AZ Read Replica"
+    ]
+  }
+}

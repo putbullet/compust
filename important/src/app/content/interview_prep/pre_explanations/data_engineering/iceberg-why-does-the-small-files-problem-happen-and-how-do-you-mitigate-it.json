@@ -1,0 +1,27 @@
+{
+  "question_id": "de_iceberg_12",
+  "slug": "iceberg-why-does-the-small-files-problem-happen-and-how-do-you-mitigate-it",
+  "track": "data_engineering",
+  "category": "Lakehouse Storage & Formats",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Frequent streaming ingestion creates millions of tiny Parquet files, degrading query performance through metadata overhead, mitigated via Iceberg compaction procedures.",
+    "simple_explanation": "Near-real-time streaming pipelines (e.g. Flink or Spark Streaming committing every 30 seconds) write small batches of rows into independent Parquet files. Over days, tables accumulate hundreds of thousands of tiny files (often < 1MB each). While Iceberg metadata handles file listing better than Hive, query engines still suffer from excessive HTTP GET requests, small footer decompression overhead, and thread scheduling strain. Mitigation requires running asynchronous compaction via `rewrite_data_files` to merge small files into optimal 128MB-512MB chunks.",
+    "real_world_example": "Mailing individual envelopes for every single receipt instead of bundling monthly receipts into a single shipping packet: postage costs and mailbox sorting time explode.",
+    "why_it_matters_and_pitfalls": "Running compaction during peak query hours can cause commit conflicts if concurrent pipelines are writing to the same partitions. Always schedule compaction as an asynchronous background maintenance job.",
+    "key_terms": [
+      "Small Files Problem",
+      "Data Compaction",
+      "rewrite_data_files",
+      "Target File Size (128MB-512MB)",
+      "Streaming File Proliferation"
+    ]
+  }
+}

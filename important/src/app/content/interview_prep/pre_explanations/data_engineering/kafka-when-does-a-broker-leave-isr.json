@@ -1,0 +1,27 @@
+{
+  "question_id": "de_kafka_13",
+  "slug": "kafka-when-does-a-broker-leave-isr",
+  "track": "data_engineering",
+  "category": "Streaming & Event Messaging",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "A follower broker is evicted from the ISR when it fails to send fetch requests to the leader within the configured `replica.lag.time.max.ms` window due to network, crash, or GC pauses.",
+    "simple_explanation": "The leader partition continuously monitors the replication progress of its followers. If a follower crashes, suffers a long JVM stop-the-world garbage collection pause, experiences network partition, or has insufficient I/O bandwidth to keep pace with incoming writes, the time elapsed since its last caught-up fetch request exceeds `replica.lag.time.max.ms`. The leader immediately updates cluster metadata to drop that follower from the active ISR list.",
+    "real_world_example": "A satellite relay chain: if one ground station stops sending ping acknowledgments for more than 30 seconds, the central coordinator drops that station from the active broadcast routing table.",
+    "why_it_matters_and_pitfalls": "Frequent ISR churn (brokers constantly dropping out and rejoining) causes significant Controller metadata updates and performance stutter. This typically indicates undersized broker disk I/O or undersized network bandwidth.",
+    "key_terms": [
+      "ISR Eviction",
+      "replica.lag.time.max.ms",
+      "Follower Replication Lag",
+      "JVM GC Pause Risk",
+      "Controller Metadata Churn"
+    ]
+  }
+}

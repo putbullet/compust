@@ -1,0 +1,27 @@
+{
+  "question_id": "de_iceberg_9",
+  "slug": "iceberg-how-does-schema-evolution-work-in-iceberg",
+  "track": "data_engineering",
+  "category": "Lakehouse Storage & Formats",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Iceberg achieves full schema evolution by tracking columns via unique permanent integer IDs rather than column names or positional ordinals.",
+    "simple_explanation": "In Hive or raw Parquet, schema evolution is notoriously dangerous: renaming or reordering columns causes existing Parquet files to misread data into incorrect fields or return NULL values because fields were mapped by position or name. Iceberg assigns every column an immutable integer field ID upon creation. When a column is renamed, moved, added, or deleted, Iceberg only updates the metadata ID mapping. Old data files are read accurately regardless of name or position changes.",
+    "real_world_example": "Employee payroll records: the company tracks every employee by a permanent national identification number; even if an employee changes their legal name or department title, their payroll history remains linked to their unique ID.",
+    "why_it_matters_and_pitfalls": "Iceberg guarantees safe column renames, drops, and reorders without rewriting data files. Type promotions are strictly limited to safe non-lossy widening (e.g. int to long, float to double).",
+    "key_terms": [
+      "Schema Evolution",
+      "Immutable Field IDs",
+      "Column Renaming Safety",
+      "Type Widening",
+      "Positional Drift Prevention"
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "question_id": "de_iceberg_5",
+  "slug": "iceberg-what-is-time-travel-and-why-is-it-useful",
+  "track": "data_engineering",
+  "category": "Lakehouse Storage & Formats",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": true,
+  "code_language": "sql",
+  "code_snippet": "-- Time travel by timestamp or snapshot ID in Spark SQL\nSELECT * FROM prod.analytics.orders TIMESTAMP AS OF '2026-10-31 00:00:00';\nSELECT * FROM prod.analytics.orders VERSION AS OF 847291048201948201;\n",
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Time travel allows analytic engines to query historical states of a table using a past timestamp or snapshot ID, enabling auditability, regression debugging, and rollback.",
+    "simple_explanation": "Because Iceberg retains historical snapshots and their underlying immutable data files, query engines can travel backward in time by referencing prior metadata states. Engines syntax like `TIMESTAMP AS OF` or `VERSION AS OF` instructs Iceberg to load the manifest list associated with the historical snapshot. This capability enables reproducible machine learning feature training, regulatory compliance auditing, and instantaneous rollback after faulty pipeline runs.",
+    "real_world_example": "A financial bank ledger: if an erroneous automated billing script corrupted customer balances at midnight, engineers can query the table exactly as it existed at 23:59:59 to recalculate accurate transactions without restoring from tape backups.",
+    "why_it_matters_and_pitfalls": "Time travel relies on historical snapshots not being expired. If snapshot retention policies are set too aggressively (e.g. expiring after 24 hours), historical queries beyond that window will fail.",
+    "key_terms": [
+      "Time Travel Query",
+      "TIMESTAMP AS OF",
+      "VERSION AS OF",
+      "Data Rollback",
+      "Reproducible ML Datasets"
+    ]
+  }
+}

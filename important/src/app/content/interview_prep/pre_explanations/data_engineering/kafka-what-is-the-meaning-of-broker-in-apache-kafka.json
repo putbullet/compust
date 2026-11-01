@@ -1,0 +1,27 @@
+{
+  "question_id": "de_kafka_5",
+  "slug": "kafka-what-is-the-meaning-of-broker-in-apache-kafka",
+  "track": "data_engineering",
+  "category": "Streaming & Event Messaging",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "A Kafka broker is an individual server instance in a Kafka cluster responsible for storing partition log segments and serving producer append and consumer fetch requests.",
+    "simple_explanation": "A Kafka cluster consists of multiple stateless/stateful broker nodes identified by an integer `broker.id`. Brokers receive records from producers, append them to local disk segment files, replicate data to follower brokers, and serve fetch requests to consumers. A cluster elects one broker as the Controller, which manages partition leader assignments, cluster metadata, and administrative partition reassignments.",
+    "real_world_example": "A regional postal distribution hub: each regional hub warehouse manages designated postal code zones (partitions); if one warehouse undergoes maintenance, a neighboring backup hub handles incoming parcels.",
+    "why_it_matters_and_pitfalls": "Brokers rely heavily on operating system page caches rather than JVM heap memory for message caching, avoiding catastrophic JVM garbage collection pauses during heavy streaming load.",
+    "key_terms": [
+      "Kafka Broker",
+      "Cluster Controller",
+      "Log Segments",
+      "OS Page Cache",
+      "Broker Partition Distribution"
+    ]
+  }
+}

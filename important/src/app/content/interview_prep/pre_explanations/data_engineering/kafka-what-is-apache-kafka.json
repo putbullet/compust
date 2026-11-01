@@ -1,0 +1,27 @@
+{
+  "question_id": "de_kafka_2",
+  "slug": "kafka-what-is-apache-kafka",
+  "track": "data_engineering",
+  "category": "Streaming & Event Messaging",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": true,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": "<svg viewBox=\"0 0 640 180\" xmlns=\"http://www.w3.org/2000/svg\" style=\"width:100%;height:auto;font-family:sans-serif;\">\n  <rect x=\"20\" y=\"60\" width=\"110\" height=\"50\" rx=\"6\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--primary, #3b82f6)\" stroke-width=\"2\"/>\n  <text x=\"75\" y=\"90\" fill=\"currentColor\" font-size=\"12\" font-weight=\"700\" text-anchor=\"middle\">Producers</text>\n  <path d=\"M130 85 H200\" stroke=\"currentColor\" stroke-width=\"2\" marker-end=\"url(#arrow)\"/>\n  <rect x=\"200\" y=\"30\" width=\"240\" height=\"110\" rx=\"8\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--accent, #f59e0b)\" stroke-width=\"2\"/>\n  <text x=\"320\" y=\"55\" fill=\"currentColor\" font-size=\"12\" font-weight=\"700\" text-anchor=\"middle\">Kafka Cluster (Brokers)</text>\n  <rect x=\"220\" y=\"70\" width=\"200\" height=\"25\" rx=\"4\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--secondary, #10b981)\" stroke-width=\"1.5\"/>\n  <text x=\"320\" y=\"87\" fill=\"currentColor\" font-size=\"10\" text-anchor=\"middle\">Partition 0: [0][1][2][3][4]...</text>\n  <rect x=\"220\" y=\"102\" width=\"200\" height=\"25\" rx=\"4\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--secondary, #10b981)\" stroke-width=\"1.5\"/>\n  <text x=\"320\" y=\"119\" fill=\"currentColor\" font-size=\"10\" text-anchor=\"middle\">Partition 1: [0][1][2][3][4]...</text>\n  <path d=\"M440 85 H510\" stroke=\"currentColor\" stroke-width=\"2\" marker-end=\"url(#arrow)\"/>\n  <rect x=\"510\" y=\"60\" width=\"110\" height=\"50\" rx=\"6\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--primary, #3b82f6)\" stroke-width=\"2\"/>\n  <text x=\"565\" y=\"90\" fill=\"currentColor\" font-size=\"12\" font-weight=\"700\" text-anchor=\"middle\">Consumers</text>\n</svg>",
+  "diagram_caption": "Kafka distributed append-only commit log architecture with partitioned topics.",
+  "content": {
+    "tldr": "Apache Kafka is a distributed event streaming platform built on a partitioned, immutable append-only commit log, enabling high-throughput pub/sub messaging and stream processing.",
+    "simple_explanation": "Unlike traditional message brokers that pop and delete messages once consumed, Kafka retains events in an ordered, disk-persisted commit log. Messages are grouped into topics, which are partitioned across multiple cluster nodes (brokers) for horizontal scale. Producers append records to partition tails, and consumers read independently at their own pace using monotonic offsets. This architecture supports millions of events per second with sub-millisecond latencies.",
+    "real_world_example": "A municipal shipping harbor shipping record: every arriving container is permanently logged in sequential chronological order; accounting, customs, and logistics inspect the exact same logbook at their own pace without tearing out pages.",
+    "why_it_matters_and_pitfalls": "Because events persist on disk according to retention policies (e.g. 7 days), new consumer applications can replay historical data from offset 0 without affecting active production pipelines.",
+    "key_terms": [
+      "Apache Kafka",
+      "Append-Only Commit Log",
+      "Topics and Partitions",
+      "Consumer Offsets",
+      "High-Throughput Streaming"
+    ]
+  }
+}

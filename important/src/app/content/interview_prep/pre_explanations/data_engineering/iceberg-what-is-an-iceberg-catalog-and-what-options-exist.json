@@ -1,0 +1,27 @@
+{
+  "question_id": "de_iceberg_14",
+  "slug": "iceberg-what-is-an-iceberg-catalog-and-what-options-exist",
+  "track": "data_engineering",
+  "category": "Lakehouse Storage & Formats",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "The Iceberg catalog tracks the current metadata pointer for every table and enforces atomic Compare-And-Swap (CAS) commits across concurrent transactions.",
+    "simple_explanation": "Because an Iceberg table's state is encapsulated in an immutable root metadata file (`vN.metadata.json`), engines need a centralized registry that points to the current active metadata version. The Catalog acts as this central source of truth. Common catalog implementations include: REST Catalog (the vendor-neutral industry standard protocol used by Polaris and Unity), AWS Glue Catalog, Hive Metastore, JDBC (Postgres/MySQL), and Nessie (offering Git-like branching for data lakes).",
+    "real_world_example": "The domain registrar for the internet: when you look up a website name, the central DNS registry points to the active IP address; when servers migrate, updating the registrar redirects all global visitors instantly.",
+    "why_it_matters_and_pitfalls": "The Iceberg REST Catalog protocol prevents vendor lock-in, enabling seamless interoperability between Snowflake, Databricks, Trino, and Spark on the exact same underlying storage bucket.",
+    "key_terms": [
+      "Iceberg Catalog",
+      "REST Catalog Protocol",
+      "Atomic Pointer Swap",
+      "AWS Glue Catalog",
+      "Project Nessie Data Branching"
+    ]
+  }
+}

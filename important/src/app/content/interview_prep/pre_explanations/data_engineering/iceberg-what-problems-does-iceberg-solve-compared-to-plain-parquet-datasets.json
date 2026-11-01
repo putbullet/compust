@@ -1,0 +1,27 @@
+{
+  "question_id": "de_iceberg_3",
+  "slug": "iceberg-what-problems-does-iceberg-solve-compared-to-plain-parquet-datasets",
+  "track": "data_engineering",
+  "category": "Lakehouse Storage & Formats",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Iceberg replaces raw directory-based Parquet files with an atomic metadata layer, solving partial write corruption, slow S3 list overhead, and unsafe concurrent modifications.",
+    "simple_explanation": "Raw Parquet datasets on cloud storage suffer from serious architectural limitations: writing a partitioned table requires modifying multiple cloud directories without transactional guarantees, risking partial data exposure if jobs fail mid-way. Directory listing on S3 is slow and eventually consistent. Concurrent writes cause silent data overwrites. Iceberg solves these issues by making all mutations atomic via new snapshot commits, maintaining column-level min/max statistics for instant file pruning, and supporting safe concurrent writes through optimistic concurrency control.",
+    "real_world_example": "Publishing an edited manuscript: raw Parquet is loose leaf pages swapped directly on an office desk where anyone walking by might read half-edited drafts; Iceberg binds a new hardcover volume edition and swaps the edition number instantaneously.",
+    "why_it_matters_and_pitfalls": "Without a table format, queries against raw Parquet must read footer metadata from hundreds of thousands of files during planning. Iceberg consolidates all partition and column metrics in manifest files, reducing planning time from minutes to milliseconds.",
+    "key_terms": [
+      "Atomic Commits",
+      "Object Store Listing Latency",
+      "Min/Max File Pruning",
+      "Optimistic Concurrency Control (OCC)",
+      "Data Lakehouse"
+    ]
+  }
+}

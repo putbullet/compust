@@ -1,0 +1,27 @@
+{
+  "question_id": "de_iceberg_4",
+  "slug": "iceberg-what-is-a-snapshot-in-iceberg",
+  "track": "data_engineering",
+  "category": "Lakehouse Storage & Formats",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "An Iceberg snapshot represents the complete state of a table at a specific point in time, defined by an immutable manifest list referencing all active data files.",
+    "simple_explanation": "Every commit to an Iceberg table (append, overwrite, delete) creates a new immutable snapshot. A snapshot contains a manifest list file, which enumerates all the manifest files that compose the table at that commit. Because past snapshots are never altered, queries are guaranteed repeatable read isolation: a reader pinned to snapshot ID 1234 will always see identical records, even while concurrent jobs commit millions of new rows under snapshot ID 1235.",
+    "real_world_example": "A Git commit tree: each Git commit represents an immutable snapshot of your entire codebase; you can inspect the current master branch while another developer checks out a previous commit hash without interference.",
+    "why_it_matters_and_pitfalls": "Accumulating thousands of snapshots causes metadata bloat and holds unreferenced data files indefinitely. Data engineers must run automated snapshot expiration procedures (`expire_snapshots`) to reclaim storage and prune stale manifests.",
+    "key_terms": [
+      "Iceberg Snapshot",
+      "Repeatable Read Isolation",
+      "Manifest List",
+      "Immutable Table State",
+      "Snapshot Expiration"
+    ]
+  }
+}

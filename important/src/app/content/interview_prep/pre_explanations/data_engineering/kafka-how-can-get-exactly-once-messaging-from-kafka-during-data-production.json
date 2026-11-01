@@ -1,0 +1,27 @@
+{
+  "question_id": "de_kafka_10",
+  "slug": "kafka-how-can-get-exactly-once-messaging-from-kafka-during-data-production",
+  "track": "data_engineering",
+  "category": "Streaming & Event Messaging",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": true,
+  "code_language": "properties",
+  "code_snippet": "# Kafka Producer Exactly-Once Semantics Configuration\nenable.idempotence=true\nacks=all\nretries=2147483647\nmax.in.flight.requests.per.connection=5\n",
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Exactly-Once Semantics (EOS) during production is achieved by enabling producer idempotence (`enable.idempotence=true`) and transactional two-phase commit across partitions.",
+    "simple_explanation": "Network timeouts during production can cause duplicate messages if a broker writes a record but its ACK is lost in transit, prompting the producer to retry. Enabling idempotence assigns the producer a unique 64-bit Producer ID (PID) and a monotonically increasing sequence number per partition. The broker verifies incoming sequence numbers, transparently deduplicating retried records. For multi-partition atomic writes, Kafka Transactions use a two-phase commit coordinator.",
+    "real_world_example": "A financial wire transfer with transaction reference IDs: if the internet disconnects after submitting transfer #1042, re-submitting transfer #1042 allows the bank to recognize the duplicate ID and ensure your account is only debited once.",
+    "why_it_matters_and_pitfalls": "End-to-end exactly-once processing requires both idempotent production and transactional consumption (`isolation.level=read_committed`) to prevent reading uncommitted transaction aborts.",
+    "key_terms": [
+      "Exactly-Once Semantics (EOS)",
+      "Producer Idempotence",
+      "Producer ID (PID)",
+      "Sequence Number Deduplication",
+      "Two-Phase Commit Coordinator"
+    ]
+  }
+}

@@ -1371,9 +1371,14 @@ class InterviewPrepService:
         cached_deep_dive: Optional[QuestionDeepDivePayload] = None
         try:
             with SessionLocal() as db:
+                from .ai_gateway import get_active_provider, get_selected_model
+                _active_prov = get_active_provider()
+                _active_model = get_selected_model(_active_prov)
+                model_key = f"{_active_prov.value}:{_active_model or 'default'}"
                 cached = db.query(InterviewExplanation).filter(
                     InterviewExplanation.question_id == q.id,
                     InterviewExplanation.language == lang,
+                    InterviewExplanation.model_name == model_key,
                     InterviewExplanation.schema_version == 4,
                 ).order_by(InterviewExplanation.id.desc()).first()
                 if cached and cached.payload:
@@ -1612,15 +1617,25 @@ class InterviewPrepService:
             # Persist to database cache
             try:
                 with SessionLocal() as db:
-                    new_cache = InterviewExplanation(
-                        question_id=q.id,
-                        language=lang,
-                        model_name=model_key,
-                        payload=deep_dive_payload.model_dump(),
-                        schema_version=DEEP_DIVE_SCHEMA_VERSION,
-                        generated_at=datetime.utcnow(),
-                    )
-                    db.add(new_cache)
+                    existing = db.query(InterviewExplanation).filter(
+                        InterviewExplanation.question_id == q.id,
+                        InterviewExplanation.language == lang,
+                        InterviewExplanation.model_name == model_key,
+                        InterviewExplanation.schema_version == DEEP_DIVE_SCHEMA_VERSION,
+                    ).first()
+                    if existing:
+                        existing.payload = deep_dive_payload.model_dump()
+                        existing.generated_at = datetime.utcnow()
+                    else:
+                        new_cache = InterviewExplanation(
+                            question_id=q.id,
+                            language=lang,
+                            model_name=model_key,
+                            payload=deep_dive_payload.model_dump(),
+                            schema_version=DEEP_DIVE_SCHEMA_VERSION,
+                            generated_at=datetime.utcnow(),
+                        )
+                        db.add(new_cache)
                     db.commit()
             except Exception as pe_err:
                 logger.debug(f"Cache write note: {pe_err}")

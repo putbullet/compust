@@ -957,7 +957,17 @@ export const InterviewPrepView: React.FC<InterviewPrepViewProps> = ({ onNavigate
                 <div
                   key={dom.id}
                   className={`domain-card glass-panel ${isSelected ? 'active' : ''}`}
-                  onClick={() => setSelectedDomainId(dom.id)}
+                  onClick={() => {
+                    if (selectedDomainId !== dom.id) {
+                      setSelectedDomainId(dom.id);
+                      setActiveQuestionSlug('');
+                      setActiveQuestion(null);
+                      setShowAiModal(false);
+                      setPreExplanation(null);
+                      setDeepDive(null);
+                      setDeepDiveError(null);
+                    }
+                  }}
                   role="button"
                   tabIndex={0}
                 >

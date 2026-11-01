@@ -1,0 +1,27 @@
+{
+  "question_id": "de_spark_2",
+  "slug": "spark-what-are-the-main-features-of-apache-spark",
+  "track": "data_engineering",
+  "category": "Distributed Compute & Processing",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": true,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": "<svg viewBox=\"0 0 640 180\" xmlns=\"http://www.w3.org/2000/svg\" style=\"width:100%;height:auto;font-family:sans-serif;\">\n  <rect x=\"20\" y=\"40\" width=\"130\" height=\"90\" rx=\"8\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--primary, #3b82f6)\" stroke-width=\"2\"/>\n  <text x=\"85\" y=\"70\" fill=\"currentColor\" font-size=\"12\" font-weight=\"700\" text-anchor=\"middle\">Driver Program</text>\n  <text x=\"85\" y=\"90\" fill=\"currentColor\" font-size=\"10\" opacity=\"0.8\" text-anchor=\"middle\">SparkSession</text>\n  <text x=\"85\" y=\"105\" fill=\"currentColor\" font-size=\"10\" opacity=\"0.8\" text-anchor=\"middle\">DAGScheduler</text>\n  <path d=\"M150 85 H230\" stroke=\"currentColor\" stroke-width=\"2\" marker-end=\"url(#arrow)\"/>\n  <rect x=\"230\" y=\"55\" width=\"140\" height=\"60\" rx=\"6\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--accent, #f59e0b)\" stroke-width=\"2\"/>\n  <text x=\"300\" y=\"80\" fill=\"currentColor\" font-size=\"12\" font-weight=\"700\" text-anchor=\"middle\">Cluster Manager</text>\n  <text x=\"300\" y=\"98\" fill=\"currentColor\" font-size=\"10\" opacity=\"0.8\" text-anchor=\"middle\">YARN / K8s / Standalone</text>\n  <path d=\"M370 85 H450\" stroke=\"currentColor\" stroke-width=\"2\" marker-end=\"url(#arrow)\"/>\n  <rect x=\"450\" y=\"25\" width=\"170\" height=\"55\" rx=\"6\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--secondary, #10b981)\" stroke-width=\"2\"/>\n  <text x=\"535\" y=\"48\" fill=\"currentColor\" font-size=\"11\" font-weight=\"600\" text-anchor=\"middle\">Worker Executor 1</text>\n  <text x=\"535\" y=\"65\" fill=\"currentColor\" font-size=\"10\" opacity=\"0.8\" text-anchor=\"middle\">Tungsten Cache &amp; Tasks</text>\n  <rect x=\"450\" y=\"95\" width=\"170\" height=\"55\" rx=\"6\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--secondary, #10b981)\" stroke-width=\"2\"/>\n  <text x=\"535\" y=\"118\" fill=\"currentColor\" font-size=\"11\" font-weight=\"600\" text-anchor=\"middle\">Worker Executor 2</text>\n  <text x=\"535\" y=\"135\" fill=\"currentColor\" font-size=\"10\" opacity=\"0.8\" text-anchor=\"middle\">Tungsten Cache &amp; Tasks</text>\n</svg>",
+  "diagram_caption": "Apache Spark distributed driver-executor topology with in-memory execution.",
+  "content": {
+    "tldr": "Apache Spark is a unified multi-language distributed analytics engine featuring in-memory DAG pipelining, the Catalyst query optimizer, and Project Tungsten hardware-level code generation.",
+    "simple_explanation": "Spark eliminated the disk-bound latency of legacy Hadoop MapReduce by executing computations as Directed Acyclic Graphs (DAGs) in RAM across a cluster of worker nodes. Its architecture unites SQL queries (Spark SQL), streaming event ingestion (Structured Streaming), distributed machine learning (MLlib), and graph analytics (GraphX) into a shared runtime. Queries benefit from Catalyst's rule-based and cost-based logical optimizations, alongside Tungsten's off-heap binary memory management and whole-stage code generation.",
+    "real_world_example": "An automotive assembly line: Hadoop MapReduce stops the conveyor belt after every single weld to pack the car into a shipping crate, roll it into a warehouse, and unpack it for the next bolt; Spark keeps the car moving continuously on a synchronized conveyor belt in one fluid motion.",
+    "why_it_matters_and_pitfalls": "While in-memory caching is fast, data skew and unbounded shuffles during large joins can easily cause Executor Out-Of-Memory (OOM) errors. Production pipelines must leverage Adaptive Query Execution (AQE) and broadcast joins to optimize partition skew.",
+    "key_terms": [
+      "In-Memory DAG Execution",
+      "Catalyst Query Optimizer",
+      "Project Tungsten",
+      "Adaptive Query Execution (AQE)",
+      "Resilient Distributed Dataset (RDD)"
+    ]
+  }
+}

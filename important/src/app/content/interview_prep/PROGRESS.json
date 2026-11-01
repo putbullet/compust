@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "updated_at": "2026-11-01T14:37:00Z",
+  "updated_at": "2026-11-01T15:00:25.564767+00:00",
   "total_questions": 2188,
-  "completed_count": 81,
+  "completed_count": 83,
   "rubric": {
     "tier1": {
       "definition": "Critical / Core Architectural Foundations & High-Frequency Interview Questions",
@@ -51,14 +51,14 @@
       "tier1": 35,
       "tier2": 32,
       "tier3": 0,
-      "completed": 35
+      "completed": 36
     },
     "data_engineering": {
       "total": 2101,
       "tier1": 192,
       "tier2": 450,
       "tier3": 1459,
-      "completed": 26
+      "completed": 27
     }
   },
   "batches": [

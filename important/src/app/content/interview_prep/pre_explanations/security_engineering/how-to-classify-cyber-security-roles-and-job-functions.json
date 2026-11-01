@@ -1,0 +1,27 @@
+{
+  "question_id": "sec_role_taxonomy",
+  "slug": "how-to-classify-cyber-security-roles-and-job-functions",
+  "track": "security_engineering",
+  "category": "Cybersecurity Fundamentals & Threat Taxonomy",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Cybersecurity roles classify across four operational pillars: Defensive Operations (Blue Team), Offensive Engineering (Red Team), Security Architecture & AppSec, and Governance, Risk & Compliance (GRC).",
+    "simple_explanation": "Modern cybersecurity is divided into specialized domains to protect organizations across the entire threat lifecycle: 1) Defensive Operations (Blue Team/SecOps): SOC Analysts, Incident Responders, and Threat Hunters monitor telemetry and contain active incidents. 2) Offensive Operations (Red Team): Penetration testers and vulnerability researchers simulate adversary tactics to expose architectural weaknesses. 3) Engineering & Architecture: AppSec, Cloud, and Cryptography engineers embed secure coding standards and zero-trust perimeters into software delivery pipelines. 4) GRC: Compliance officers and risk assessors align systems with NIST, ISO 27001, and SOC 2 frameworks.",
+    "real_world_example": "A municipal transit security network: Blue Team monitors live security cameras and alarm tripwires; Red Team acts as approved inspectors probing fences for physical gaps; Security Engineers install biometric access gates; and GRC officers ensure fire escape routes meet safety regulations.",
+    "why_it_matters_and_pitfalls": "Operating defensive and offensive teams in rigid silos produces defensive blind spots. Modern mature engineering organizations implement Purple Teaming, where Red and Blue teams collaboratively run real-time attack simulations to continuously refine detection rules.",
+    "key_terms": [
+      "Blue Team / SecOps",
+      "Red Team / Penetration Testing",
+      "Purple Teaming Collaboration",
+      "Application Security (AppSec)",
+      "GRC Frameworks"
+    ]
+  }
+}

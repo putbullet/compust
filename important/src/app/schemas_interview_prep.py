@@ -265,3 +265,82 @@ class RepositoryImportResponse(BaseModel):
     content_hash: str
     license_detected: str
     message: str
+
+
+# ─── Two-Tier Explanation & Deep Dive Schemas (v4) ───────────────────────────
+
+class PreExplanationContent(BaseModel):
+    tldr: str
+    simple_explanation: str
+    real_world_example: str
+    why_it_matters_and_pitfalls: Optional[str] = None
+    key_terms: List[str] = Field(default_factory=list)
+
+
+class PreExplanationData(BaseModel):
+    question_id: str
+    slug: str
+    track: str
+    category: Optional[str] = None
+    tier: Optional[int] = 1
+    version: int = 1
+    needs_diagram: bool = False
+    needs_code: bool = False
+    code_language: Optional[str] = None
+    code_snippet: Optional[str] = None
+    diagram_svg: Optional[str] = None
+    diagram_caption: Optional[str] = None
+    content: PreExplanationContent
+    created_at: Optional[str] = None
+
+
+class QuestionDeepDivePayload(BaseModel):
+    deeper_explanation: str
+    extra_example: str
+    pitfalls: List[str] = Field(default_factory=list)
+    interview_followups: List[str] = Field(default_factory=list)
+    has_diagram: bool = False
+    diagram_svg: Optional[str] = None
+    has_code: bool = False
+    code_language: Optional[str] = None
+    code_snippet: Optional[str] = None
+
+
+class QuestionExplanationResponse(BaseModel):
+    has_pre_explanation: bool
+    question_id: str
+    slug: str
+    track: str
+    category: Optional[str] = None
+    tier: Optional[int] = None
+    version: int = 1
+    needs_diagram: bool = False
+    needs_code: bool = False
+    code_language: Optional[str] = None
+    code_snippet: Optional[str] = None
+    diagram_svg: Optional[str] = None
+    diagram_caption: Optional[str] = None
+    tldr: Optional[str] = None
+    simple_explanation: Optional[str] = None
+    real_world_example: Optional[str] = None
+    why_it_matters_and_pitfalls: Optional[str] = None
+    key_terms: List[str] = Field(default_factory=list)
+    cached_deep_dive: Optional[QuestionDeepDivePayload] = None
+    ai_active_provider: Optional[str] = None
+    ai_selected_model: Optional[str] = None
+
+
+class QuestionDeepDiveRequest(BaseModel):
+    language: str = "en"
+    force_regenerate: bool = False
+
+
+class QuestionDeepDiveResponse(BaseModel):
+    success: bool
+    question_id: str
+    slug: str
+    provider: Optional[str] = None
+    model: Optional[str] = None
+    deep_dive: Optional[QuestionDeepDivePayload] = None
+    error_reason: Optional[str] = None
+    can_retry: bool = False

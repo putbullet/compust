@@ -1,689 +1,913 @@
 import React, { useState } from 'react';
+import styled from 'styled-components';
 import {
   Sparkles,
   Globe,
   Terminal,
   Check,
   Copy,
-  CheckCircle2,
-  AlertTriangle,
-  Award,
   Layers,
-  ShieldAlert,
-  Server,
-  Database,
-  User,
-  SkipBack,
-  SkipForward,
-  ChevronLeft,
   ChevronRight,
-  Eye,
-  EyeOff,
+  RefreshCw,
+  Sliders,
+  AlertCircle,
+  HelpCircle,
+  Maximize2,
+  Minimize2,
+  BookOpen,
 } from 'lucide-react';
 import type {
-  StructuredAIExplanationPayload,
-  Actor,
-  ScenarioStep,
-  ScenarioVariant,
+  QuestionExplanationResponse,
+  QuestionDeepDivePayload,
   QuestionAIExplainResponse,
 } from '../../api/client';
 
 interface VisualAIExplanationProps {
-  result: QuestionAIExplainResponse;
+  preExplanation?: QuestionExplanationResponse | null;
+  deepDive?: QuestionDeepDivePayload | null;
+  deepDiveLoading?: boolean;
+  deepDiveError?: string | null;
+  canRetry?: boolean;
+  activeProvider?: string | null;
+  activeModel?: string | null;
+  language?: string;
+  onRetryDeepDive?: () => void;
+  onOpenAISettings?: () => void;
   renderMarkdown: (markdown: string) => React.ReactNode;
+  // Backward compatibility
+  result?: QuestionAIExplainResponse;
 }
 
+const UI_TEXT: Record<string, Record<string, string>> = {
+  en: {
+    coreBadge: 'VERIFIED PRE-EXPLANATION',
+    tldrLabel: 'Core Takeaway (TL;DR)',
+    conceptLabel: 'Foundational Mechanism',
+    scenarioLabel: 'Real-World Scenario & Intuition',
+    pitfallsLabel: 'Why It Matters & Pitfalls',
+    keyTermsLabel: 'Key Terminology',
+    codeLabel: 'Code Blueprint',
+    diagramLabel: 'Architecture Diagram',
+    deepDiveTitle: 'AI TECHNICAL DEEP DIVE',
+    deepDiveGoing: 'Going deeper with',
+    deepDiveUnavailable: 'Deep dive unavailable',
+    retry: 'Retry',
+    aiSettings: 'Configure AI',
+    mechanicsLabel: 'Advanced Mechanics & Internals',
+    extraScenarioLabel: 'Production Incident & Edge Case',
+    pitfallsHeader: 'Critical Engineering Pitfalls',
+    followupsHeader: 'Likely Interview Follow-Up Questions',
+    noPreExp: 'No verified pre-explanation authored for this question yet.',
+    noPreExpSub: 'Connect an AI provider in settings to generate an on-demand deep dive.',
+    copyCode: 'Copy Code',
+    copied: 'Copied!',
+    expand: 'Expand Diagram',
+    shrink: 'Close Zoom',
+  },
+  fr: {
+    coreBadge: 'EXPLICATION FONDAMENTALE VALIDÉE',
+    tldrLabel: "L'Essentiel (TL;DR)",
+    conceptLabel: 'Mécanisme Fondamental',
+    scenarioLabel: 'Scénario Concret & Analogie',
+    pitfallsLabel: 'Enjeux & Pièges Courants',
+    keyTermsLabel: 'Termes Clés',
+    codeLabel: 'Exemple de Code',
+    diagramLabel: 'Diagramme d\'Architecture',
+    deepDiveTitle: 'ANALYSE TECHNIQUE APPROFONDIE (IA)',
+    deepDiveGoing: 'Approfondissement avec',
+    deepDiveUnavailable: 'Approfondissement IA indisponible',
+    retry: 'Réessayer',
+    aiSettings: "Configurer l'IA",
+    mechanicsLabel: 'Mécanique Avancée & Fonctionnement Interne',
+    extraScenarioLabel: 'Cas Pratique en Production & Cas Limite',
+    pitfallsHeader: "Pièges d'Ingénierie à Éviter",
+    followupsHeader: "Questions de Relance en Entretien",
+    noPreExp: 'Aucune explication hors ligne disponible pour cette question pour le moment.',
+    noPreExpSub: "Connectez un fournisseur d'IA dans les paramètres pour générer une analyse.",
+    copyCode: 'Copier',
+    copied: 'Copié !',
+    expand: 'Agrandir',
+    shrink: 'Fermer Zoom',
+  },
+  nl: {
+    coreBadge: 'GEVERIFIEERDE KERNUITLEG',
+    tldrLabel: 'Belangrijkste Inzicht (TL;DR)',
+    conceptLabel: 'Kernmechanisme',
+    scenarioLabel: 'Praktijkvoorbeeld & Scenario',
+    pitfallsLabel: 'Waarom Dit Telt & Veelgemaakte Fouten',
+    keyTermsLabel: 'Kernbegrippen',
+    codeLabel: 'Code Voorbeeld',
+    diagramLabel: 'Architectuurdiagram',
+    deepDiveTitle: 'AI TECHNISCHE VERDIEPING',
+    deepDiveGoing: 'Dieper ingaan met',
+    deepDiveUnavailable: 'AI-verdieping niet beschikbaar',
+    retry: 'Opnieuw proberen',
+    aiSettings: 'AI configureren',
+    mechanicsLabel: 'Geavanceerde Werking & Internals',
+    extraScenarioLabel: 'Productiescenario & Randgeval',
+    pitfallsHeader: 'Valkuilen om te Vermijden',
+    followupsHeader: 'Mogelijke Vervolgvragen in Interview',
+    noPreExp: 'Voor deze vraag is offline nog geen uitleg beschikbaar.',
+    noPreExpSub: 'Koppel een AI-provider in instellingen voor een analyse op maat.',
+    copyCode: 'Kopiëren',
+    copied: 'Gekopieerd!',
+    expand: 'Vergroten',
+    shrink: 'Sluiten',
+  },
+  de: {
+    coreBadge: 'VERIFIZIERTE GRUNDERKLÄRUNG',
+    tldrLabel: 'Kernbotschaft (TL;DR)',
+    conceptLabel: 'Grundlegender Mechanismus',
+    scenarioLabel: 'Praxisbeispiel & Alltagsanalogie',
+    pitfallsLabel: 'Warum es zählt & Fallstricke',
+    keyTermsLabel: 'Schlüsselbegriffe',
+    codeLabel: 'Code-Blaupause',
+    diagramLabel: 'Architekturdiagramm',
+    deepDiveTitle: 'TECHNISCHER AI-DEEP-DIVE',
+    deepDiveGoing: 'Vertiefung mit',
+    deepDiveUnavailable: 'AI-Vertiefung nicht verfügbar',
+    retry: 'Wiederholen',
+    aiSettings: 'AI konfigurieren',
+    mechanicsLabel: 'Fortgeschrittene Mechanismen & Interna',
+    extraScenarioLabel: 'Produktionsszenario & Grenzfall',
+    pitfallsHeader: 'Kritische Fallstricke in der Praxis',
+    followupsHeader: 'Häufige Nachfragen im Interview',
+    noPreExp: 'Für diese Frage liegt offline noch keine vorgefertigte Erklärung vor.',
+    noPreExpSub: 'Verbinden Sie einen AI-Anbieter in den Einstellungen für einen Deep-Dive.',
+    copyCode: 'Kopieren',
+    copied: 'Kopiert!',
+    expand: 'Vergrößern',
+    shrink: 'Schließen',
+  },
+};
+
 export const VisualAIExplanation: React.FC<VisualAIExplanationProps> = ({
-  result,
+  preExplanation,
+  deepDive,
+  deepDiveLoading = false,
+  deepDiveError = null,
+  canRetry = false,
+  activeProvider = 'ollama',
+  activeModel = 'qwen3.5:0.8b',
+  language = 'en',
+  onRetryDeepDive,
+  onOpenAISettings,
   renderMarkdown,
+  result,
 }) => {
-  const [copiedCode, setCopiedCode] = useState(false);
-  const [activeVariantIndex, setActiveVariantIndex] = useState(0);
-  const [currentPlaybackStep, setCurrentPlaybackStep] = useState(0);
-  const [showAllSteps, setShowAllSteps] = useState(true);
+  const [copiedPreCode, setCopiedPreCode] = useState(false);
+  const [copiedDeepCode, setCopiedDeepCode] = useState(false);
+  const [diagramExpanded, setDiagramExpanded] = useState(false);
 
-  // If there is no structured payload, fall back seamlessly to formatted text
-  if (!result.structured_payload) {
-    return (
-      <div className="ai-fallback-content">
-        <div className="ai-markdown-content">{renderMarkdown(result.explanation)}</div>
+  const lang = (language || 'en').toLowerCase().slice(0, 2);
+  const t = UI_TEXT[lang] || UI_TEXT.en;
 
-        {result.real_world_scenario && (
-          <div className="ai-scenario-card glass-panel">
-            <div className="ai-section-badge scenario">
-              <Globe size={15} />
-              <span>Real-World Scenario & Practical Analogy</span>
-            </div>
-            <p className="ai-scenario-text">{result.real_world_scenario}</p>
-          </div>
-        )}
+  const providerLabel = activeProvider === 'gemini'
+    ? 'Google Gemini'
+    : activeProvider === 'openai'
+    ? 'OpenAI'
+    : 'Ollama';
 
-        {result.svg_diagram && (
-          <div className="ai-svg-diagram-card glass-panel" aria-label="Visual Architecture Diagram">
-            <div className="ai-section-badge diagram">
-              <Layers size={15} />
-              <span>Architecture & Concept Flow Diagram</span>
-            </div>
-            <div
-              className="ai-svg-rendered-wrapper"
-              dangerouslySetInnerHTML={{ __html: result.svg_diagram }}
-            />
-          </div>
-        )}
-
-        {result.code_sample && (
-          <div className="ai-code-card glass-panel">
-            <div className="ai-code-header">
-              <div className="ai-section-badge code">
-                <Terminal size={15} />
-                <span>Production Implementation / Verification Blueprint</span>
-              </div>
-              <button
-                type="button"
-                className="copy-ai-code-btn"
-                onClick={() => {
-                  navigator.clipboard.writeText(result.code_sample!);
-                  setCopiedCode(true);
-                  setTimeout(() => setCopiedCode(false), 2000);
-                }}
-              >
-                {copiedCode ? <Check size={13} color="#34d399" /> : <Copy size={13} />}
-                <span>{copiedCode ? 'Copied' : 'Copy Code'}</span>
-              </button>
-            </div>
-            <pre className="ai-code-pre">
-              <code>{result.code_sample}</code>
-            </pre>
-          </div>
-        )}
-
-        {result.key_interview_takeaways && result.key_interview_takeaways.length > 0 && (
-          <div className="ai-takeaways-card glass-panel">
-            <div className="ai-section-badge takeaways">
-              <Award size={15} />
-              <span>Key Interviewer Talking Points & Evaluation Criteria</span>
-            </div>
-            <ul className="ai-takeaways-list">
-              {result.key_interview_takeaways.map((item, idx) => (
-                <li key={idx}>
-                  <CheckCircle2 size={14} className="takeaway-icon" />
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  const payload: StructuredAIExplanationPayload = result.structured_payload;
-  const variants: ScenarioVariant[] = payload.scenario?.variants || [];
-  const currentVariant = variants[activeVariantIndex] || variants[0];
-  const actors: Actor[] = payload.actors || [];
-  const steps: ScenarioStep[] = currentVariant?.steps || [];
-  const displayedSteps = showAllSteps ? steps : steps.slice(0, currentPlaybackStep + 1);
-  const svgDiagram = result.svg_diagram || payload.svg_diagram;
-
-  // SVG dimensions & layout calculations
-  const laneCount = Math.max(1, actors.length);
-  const svgWidth = 840;
-  const laneWidth = svgWidth / laneCount;
-  const rowHeight = 90;
-  const svgHeight = Math.max(240, displayedSteps.length * rowHeight + 60);
-
-  const getActorIcon = (role: string) => {
-    switch (role) {
-      case 'attacker':
-        return <ShieldAlert size={16} className="actor-icon attacker" />;
-      case 'legitimate_user':
-      case 'client':
-        return <User size={16} className="actor-icon user" />;
-      case 'database':
-        return <Database size={16} className="actor-icon database" />;
-      default:
-        return <Server size={16} className="actor-icon system" />;
-    }
-  };
-
-  const getStatusColor = (status?: string) => {
-    switch (status) {
-      case 'attack':
-        return '#f43f5e'; // rose red
-      case 'blocked':
-        return '#ef4444'; // red
-      case 'secure':
-        return '#10b981'; // emerald
-      default:
-        return '#38bdf8'; // cyan
-    }
-  };
+  // 1. Backward compatibility adapter if legacy QuestionAIExplainResponse was passed
+  const hasLegacyPayload = Boolean(result?.structured_payload);
+  const legacyPayload = result?.structured_payload;
 
   return (
-    <div className="visual-ai-explanation-root">
-      {(!result.is_ai_generated || result.fallback_reason) && (
-        <div
-          className="ai-fallback-badge"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '8px 12px',
-            borderRadius: '8px',
-            fontSize: '0.82rem',
-            backgroundColor: 'rgba(234, 179, 8, 0.1)',
-            color: '#eab308',
-            border: '1px solid rgba(234, 179, 8, 0.25)',
-            marginBottom: '16px',
-          }}
-        >
-          <AlertTriangle size={15} style={{ flexShrink: 0 }} />
-          <span>
-            {result.fallback_reason
-              ? `AI service offline (${result.fallback_reason}) — displaying curated question context baseline.`
-              : 'Active AI provider offline — displaying curated question context baseline.'}
-          </span>
-        </div>
-      )}
+    <RootContainer className="visual-ai-explanation-root">
+      {/* ─── SECTION 1: INSTANT PRE-EXPLANATION ──────────────────────────── */}
+      {preExplanation && preExplanation.has_pre_explanation ? (
+        <PreExplanationSection className="pre-explanation-card">
+          <SectionHeaderBadge>
+            <BookOpen size={14} className="badge-icon" />
+            <span>{t.coreBadge} {preExplanation.tier ? `· TIER ${preExplanation.tier}` : ''}</span>
+          </SectionHeaderBadge>
 
-      {/* 1. CONCEPT SUMMARY & ANALOGY BANNER */}
-      <div className="ai-concept-analogy-banner glass-panel">
-        <div className="concept-block">
-          <div className="section-label">
-            <Sparkles size={15} className="text-primary" />
-            <span>Foundational Engineering Mechanism</span>
-          </div>
-          <p className="concept-summary-text">{payload.concept_summary}</p>
-        </div>
-
-        {payload.analogy && (
-          <div className="analogy-block">
-            <div className="section-label analogy">
-              <Globe size={15} />
-              <span>Real-World Intuition & Analogy</span>
-            </div>
-            <p className="analogy-text">"{payload.analogy}"</p>
-          </div>
-        )}
-      </div>
-
-      {/* OPTIONAL ARCHITECTURAL SVG DIAGRAM (VISUAL ONLY, SANITIZED, NO RAW CODE) */}
-      {svgDiagram && (
-        <section className="ai-svg-diagram-card glass-panel" aria-label="Visual Architecture Diagram">
-          <div className="ai-section-badge diagram">
-            <Layers size={15} />
-            <span>Architecture & System Flow Diagram</span>
-          </div>
-          <div
-            className="ai-svg-rendered-wrapper"
-            dangerouslySetInnerHTML={{ __html: svgDiagram }}
-          />
-        </section>
-      )}
-
-      {/* 2. SCENARIO SEQUENCE LANE DIAGRAM */}
-      <section className="actor-diagram-card glass-panel">
-        <div className="diagram-header-row">
-          <div className="diagram-title-group">
-            <Layers size={18} className="text-primary" />
-            <div>
-              <h3 className="scenario-title">{payload.scenario?.title || 'Production Execution Flow'}</h3>
-              <p className="scenario-subtitle">
-                Interactive sequence lane mapping operational requests, failure modes, and architectural protections.
-              </p>
-            </div>
-          </div>
-
-          {/* Variant Selector Tabs */}
-          {variants.length > 1 && (
-            <div className="variant-tabs-row" role="tablist" aria-label="Scenario Architecture Variants">
-              {variants.map((v, vIdx) => {
-                const isSelected = activeVariantIndex === vIdx;
-                return (
-                  <button
-                    key={vIdx}
-                    type="button"
-                    className={`variant-tab-btn ${isSelected ? 'active' : ''} ${v.outcome}`}
-                    onClick={() => {
-                      setActiveVariantIndex(vIdx);
-                      setCurrentPlaybackStep(0);
-                    }}
-                    role="tab"
-                    aria-selected={isSelected}
-                  >
-                    <span className={`outcome-dot ${v.outcome}`} />
-                    <span className="variant-tab-label">{v.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Step-Through Playback Controller */}
-        <div className="playback-controls-bar">
-          <div className="playback-btn-group">
-            <button
-              type="button"
-              className="playback-btn"
-              onClick={() => {
-                setCurrentPlaybackStep(0);
-                setShowAllSteps(false);
-              }}
-              disabled={currentPlaybackStep === 0 && !showAllSteps}
-              title="First Step"
-            >
-              <SkipBack size={13} />
-            </button>
-            <button
-              type="button"
-              className="playback-btn"
-              onClick={() => {
-                setCurrentPlaybackStep((prev) => Math.max(0, prev - 1));
-                setShowAllSteps(false);
-              }}
-              disabled={currentPlaybackStep === 0 && !showAllSteps}
-              title="Previous Step"
-            >
-              <ChevronLeft size={14} />
-            </button>
-            <span className="step-counter-text">
-              {showAllSteps
-                ? `Showing All ${steps.length} Steps`
-                : `Step ${currentPlaybackStep + 1} of ${steps.length}`}
-            </span>
-            <button
-              type="button"
-              className="playback-btn"
-              onClick={() => {
-                setCurrentPlaybackStep((prev) => Math.min(steps.length - 1, prev + 1));
-                setShowAllSteps(false);
-              }}
-              disabled={currentPlaybackStep >= steps.length - 1 && !showAllSteps}
-              title="Next Step"
-            >
-              <ChevronRight size={14} />
-            </button>
-            <button
-              type="button"
-              className="playback-btn"
-              onClick={() => {
-                setCurrentPlaybackStep(steps.length - 1);
-                setShowAllSteps(false);
-              }}
-              disabled={currentPlaybackStep >= steps.length - 1 && !showAllSteps}
-              title="Last Step"
-            >
-              <SkipForward size={13} />
-            </button>
-          </div>
-
-          <button
-            type="button"
-            className={`mode-toggle-btn ${showAllSteps ? 'active' : ''}`}
-            onClick={() => setShowAllSteps((prev) => !prev)}
-            title="Toggle between seeing all steps and stepping through one by one"
-          >
-            {showAllSteps ? <EyeOff size={13} /> : <Eye size={13} />}
-            <span>{showAllSteps ? 'Step-by-Step Playback' : 'Show Complete Sequence'}</span>
-          </button>
-        </div>
-
-        {/* Top Actor Lanes Header */}
-        <div className="actor-lanes-header-row">
-          {actors.map((actor) => (
-            <div key={actor.id} className={`actor-lane-card ${actor.role}`}>
-              <div className="actor-icon-box">{getActorIcon(actor.role)}</div>
-              <div className="actor-meta">
-                <span className="actor-label">{actor.label}</span>
-                <span className="actor-role-chip">{actor.role.replace('_', ' ')}</span>
-                <span className="actor-desc">{actor.description}</span>
+          {/* TL;DR Box */}
+          {preExplanation.tldr && (
+            <TldrBox className="tldr-box glass-panel">
+              <div className="box-title">
+                <Sparkles size={14} className="text-accent" />
+                <span>{t.tldrLabel}</span>
               </div>
-            </div>
-          ))}
-        </div>
+              <p className="tldr-text">{preExplanation.tldr}</p>
+            </TldrBox>
+          )}
 
-        {/* Pure SVG Sequence Lane Diagram */}
-        <div className="diagram-svg-scroll-container">
-          <svg
-            className="sequence-lane-svg"
-            viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-            width="100%"
-            height={svgHeight}
-            aria-label="Sequence Lane Flowchart"
-          >
-            <defs>
-              <marker
-                id="arrow-normal"
-                viewBox="0 0 10 10"
-                refX="8"
-                refY="5"
-                markerWidth="6"
-                markerHeight="6"
-                orient="auto-start-reverse"
-              >
-                <path d="M 0 1 L 10 5 L 0 9 z" fill="#38bdf8" />
-              </marker>
-              <marker
-                id="arrow-attack"
-                viewBox="0 0 10 10"
-                refX="8"
-                refY="5"
-                markerWidth="6"
-                markerHeight="6"
-                orient="auto-start-reverse"
-              >
-                <path d="M 0 1 L 10 5 L 0 9 z" fill="#f43f5e" />
-              </marker>
-              <marker
-                id="arrow-secure"
-                viewBox="0 0 10 10"
-                refX="8"
-                refY="5"
-                markerWidth="6"
-                markerHeight="6"
-                orient="auto-start-reverse"
-              >
-                <path d="M 0 1 L 10 5 L 0 9 z" fill="#10b981" />
-              </marker>
-              <marker
-                id="arrow-blocked"
-                viewBox="0 0 10 10"
-                refX="8"
-                refY="5"
-                markerWidth="6"
-                markerHeight="6"
-                orient="auto-start-reverse"
-              >
-                <path d="M 0 1 L 10 5 L 0 9 z" fill="#ef4444" />
-              </marker>
-            </defs>
+          {/* Core Concept */}
+          {preExplanation.simple_explanation && (
+            <ContentCard className="concept-card glass-panel">
+              <div className="card-header">
+                <span className="card-title">{t.conceptLabel}</span>
+              </div>
+              <div className="card-body">
+                {renderMarkdown(preExplanation.simple_explanation)}
+              </div>
+            </ContentCard>
+          )}
 
-            {/* Vertical Lifelines */}
-            {actors.map((actor, aIdx) => {
-              const x = (aIdx + 0.5) * laneWidth;
-              return (
-                <line
-                  key={actor.id}
-                  x1={x}
-                  y1={8}
-                  x2={x}
-                  y2={svgHeight - 12}
-                  stroke="rgba(255, 255, 255, 0.12)"
-                  strokeWidth={2}
-                  strokeDasharray="4 4"
-                />
-              );
-            })}
+          {/* Real-World Scenario */}
+          {preExplanation.real_world_example && (
+            <ContentCard className="scenario-card glass-panel">
+              <div className="card-header">
+                <Globe size={15} className="text-secondary" />
+                <span className="card-title">{t.scenarioLabel}</span>
+              </div>
+              <div className="card-body scenario-body">
+                {renderMarkdown(preExplanation.real_world_example)}
+              </div>
+            </ContentCard>
+          )}
 
-            {/* Step Sequence Arrows */}
-            {displayedSteps.map((step, sIdx) => {
-              const fromId = step.from || (step as any).from_actor;
-              const toId = step.to || (step as any).to_actor;
+          {/* Why It Matters & Pitfalls */}
+          {preExplanation.why_it_matters_and_pitfalls && (
+            <ContentCard className="pitfalls-card glass-panel">
+              <div className="card-header">
+                <AlertCircle size={15} className="text-warning" />
+                <span className="card-title">{t.pitfallsLabel}</span>
+              </div>
+              <div className="card-body">
+                {renderMarkdown(preExplanation.why_it_matters_and_pitfalls)}
+              </div>
+            </ContentCard>
+          )}
 
-              let fi = actors.findIndex((a) => a.id === fromId);
-              let ti = actors.findIndex((a) => a.id === toId);
-              if (fi === -1) fi = 0;
-              if (ti === -1) ti = Math.min(1, actors.length - 1);
-
-              const x1 = (fi + 0.5) * laneWidth;
-              const x2 = (ti + 0.5) * laneWidth;
-              const y = 50 + sIdx * rowHeight;
-              const midX = (x1 + x2) / 2;
-              const statusColor = getStatusColor(step.status);
-              const isSelf = fi === ti;
-
-              return (
-                <g key={sIdx} className={`step-arrow-group status-${step.status || 'normal'}`}>
-                  {isSelf ? (
-                    <path
-                      d={`M ${x1} ${y - 12} C ${x1 + 65} ${y - 28}, ${x1 + 65} ${y + 20}, ${x1 + 8} ${y + 14}`}
-                      fill="none"
-                      stroke={statusColor}
-                      strokeWidth={2.5}
-                      strokeDasharray={step.status === 'attack' ? '5 3' : undefined}
-                      markerEnd={`url(#arrow-${step.status || 'normal'})`}
-                    />
-                  ) : (
-                    <line
-                      x1={x1}
-                      y1={y}
-                      x2={x2 > x1 ? x2 - 12 : x2 + 12}
-                      y2={y}
-                      stroke={statusColor}
-                      strokeWidth={2.5}
-                      strokeDasharray={step.status === 'attack' ? '5 3' : undefined}
-                      markerEnd={step.status !== 'blocked' ? `url(#arrow-${step.status || 'normal'})` : undefined}
-                    />
-                  )}
-
-                  {/* Blocked marker ✕ */}
-                  {step.status === 'blocked' && (
-                    <g transform={`translate(${x2}, ${y})`}>
-                      <circle r={9} fill="#ef4444" />
-                      <text y={3.5} textAnchor="middle" fill="#ffffff" fontSize="10" fontWeight="bold">
-                        ✕
-                      </text>
-                    </g>
-                  )}
-
-                  {/* Secure checkmark ✓ */}
-                  {step.status === 'secure' && (
-                    <g transform={`translate(${x2}, ${y})`}>
-                      <circle r={8} fill="#10b981" />
-                      <text y={3} textAnchor="middle" fill="#ffffff" fontSize="9" fontWeight="bold">
-                        ✓
-                      </text>
-                    </g>
-                  )}
-
-                  {/* Step order circle */}
-                  <g transform={`translate(${isSelf ? x1 + 35 : midX}, ${y - 18})`}>
-                    <circle r={9} fill="#0f172a" stroke={statusColor} strokeWidth={1.5} />
-                    <text y={3.5} textAnchor="middle" fill={statusColor} fontSize="9" fontWeight="bold">
-                      {step.order}
-                    </text>
-                  </g>
-
-                  {/* Action label */}
-                  <text
-                    x={isSelf ? x1 + 75 : midX}
-                    y={y - 7}
-                    textAnchor={isSelf ? 'start' : 'middle'}
-                    fill="#f8fafc"
-                    fontSize="11"
-                    fontWeight="600"
-                  >
-                    {step.action}
-                  </text>
-
-                  {/* Payload badge */}
-                  {step.payload && (
-                    <g transform={`translate(${isSelf ? x1 + 75 : midX}, ${y + 14})`}>
-                      <rect
-                        x={-55}
-                        y={-8}
-                        width={110}
-                        height={16}
-                        rx={4}
-                        fill="#0b1120"
-                        stroke={statusColor}
-                        strokeWidth={0.8}
-                      />
-                      <text y={4} textAnchor="middle" fill={statusColor} fontSize="9" fontWeight="500">
-                        {step.payload.length > 28 ? step.payload.slice(0, 26) + '…' : step.payload}
-                      </text>
-                    </g>
-                  )}
-
-                  {/* Annotation note */}
-                  {step.annotation && (
-                    <text
-                      x={isSelf ? x1 + 75 : midX}
-                      y={y + 30}
-                      textAnchor={isSelf ? 'start' : 'middle'}
-                      fill="#94a3b8"
-                      fontSize="9.5"
-                      fontStyle="italic"
-                    >
-                      {step.annotation}
-                    </text>
-                  )}
-                </g>
-              );
-            })}
-          </svg>
-        </div>
-
-        {/* Accessible Step Breakdown Cards */}
-        <div className="step-breakdown-details-list">
-          <span className="breakdown-list-title">Sequence Step Ledger:</span>
-          <div className="breakdown-cards-grid">
-            {displayedSteps.map((step, idx) => {
-              const fromId = step.from || (step as any).from_actor;
-              const toId = step.to || (step as any).to_actor;
-              const fromLabel = actors.find((a) => a.id === fromId)?.label || fromId;
-              const toLabel = actors.find((a) => a.id === toId)?.label || toId;
-
-              return (
-                <div key={idx} className={`step-ledger-card status-${step.status || 'normal'}`}>
-                  <div className="step-ledger-head">
-                    <span className="step-num-pill">#{step.order}</span>
-                    <span className="step-route">
-                      {fromLabel} → {toLabel}
-                    </span>
-                    <span className={`step-status-tag ${step.status || 'normal'}`}>{step.status || 'normal'}</span>
-                  </div>
-                  <p className="step-action-desc">{step.action}</p>
-                  {step.payload && (
-                    <div className="step-payload-row">
-                      <span className="payload-label">Data Payload:</span>
-                      <code>{step.payload}</code>
-                    </div>
-                  )}
-                  {step.annotation && <p className="step-annotation-text">💡 {step.annotation}</p>}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* 3. SYNTAX-ANNOTATED CODE PANEL (HIDDEN IF NULL) */}
-      {payload.code_sample && (
-        <section className="ai-code-card visual glass-panel">
-          <div className="ai-code-header">
-            <div className="ai-section-badge code">
-              <Terminal size={15} />
-              <span>Production Implementation & Verification Blueprint</span>
-              <span className="lang-tag">{payload.code_sample.language.toUpperCase()}</span>
-            </div>
-            <button
-              type="button"
-              className="copy-ai-code-btn"
-              onClick={() => {
-                navigator.clipboard.writeText(payload.code_sample!.code);
-                setCopiedCode(true);
-                setTimeout(() => setCopiedCode(false), 2000);
-              }}
-            >
-              {copiedCode ? <Check size={13} color="#34d399" /> : <Copy size={13} />}
-              <span>{copiedCode ? 'Copied' : 'Copy Code'}</span>
-            </button>
-          </div>
-
-          <div className="annotated-code-container">
-            {payload.code_sample.code.split('\n').map((lineText, idx) => {
-              const lineNum = idx + 1;
-              const noteObj = payload.code_sample!.explanation_lines?.find((el) => el.line === lineNum);
-              return (
-                <div key={idx} className={`annotated-code-row ${noteObj ? 'has-note' : ''}`}>
-                  <div className="code-line-gutter">
-                    <span className="gutter-num">{lineNum}</span>
-                    {noteObj && <span className="gutter-dot" title={`Line ${lineNum} Note`} />}
-                  </div>
-                  <div className="code-line-content">
-                    <span className="code-text">{lineText || ' '}</span>
-                    {noteObj && (
-                      <div className="inline-gutter-note">
-                        <span className="note-badge">Line {lineNum} Insight:</span>
-                        <span className="note-text">{noteObj.note}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* 4. TECHNICAL COMPARISON TABLE */}
-      {payload.comparison_table && payload.comparison_table.length > 0 && (
-        <section className="ai-comparison-card glass-panel">
-          <div className="ai-section-badge comparison">
-            <Layers size={15} />
-            <span>Architectural Trade-off & Engineering Comparison</span>
-          </div>
-          <div className="comparison-table-wrapper">
-            <table className="comparison-table">
-              <thead>
-                <tr>
-                  <th className="th-criterion">Evaluation Criterion</th>
-                  <th className="th-option-a">Option A (Naive / Vulnerable)</th>
-                  <th className="th-option-b">Option B (Production / Hardened)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {payload.comparison_table.map((row, rIdx) => (
-                  <tr key={rIdx}>
-                    <td className="td-criterion">{row.criterion}</td>
-                    <td className="td-option-a">{row.option_a}</td>
-                    <td className="td-option-b">{row.option_b}</td>
-                  </tr>
+          {/* Key Terminology Pills */}
+          {preExplanation.key_terms && preExplanation.key_terms.length > 0 && (
+            <KeyTermsRow className="key-terms-row">
+              <span className="terms-label">{t.keyTermsLabel}:</span>
+              <div className="terms-chips">
+                {preExplanation.key_terms.map((term, i) => (
+                  <span key={i} className="term-chip">{term}</span>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            </KeyTermsRow>
+          )}
+
+          {/* Code Blueprint - ONLY WHEN FLAGGED */}
+          {preExplanation.needs_code && preExplanation.code_snippet && (
+            <CodeBox className="code-box glass-panel">
+              <div className="code-header">
+                <div className="code-lang-tag">
+                  <Terminal size={14} />
+                  <span>{preExplanation.code_language ? preExplanation.code_language.toUpperCase() : 'SNIPPET'}</span>
+                </div>
+                <button
+                  type="button"
+                  className="copy-btn"
+                  onClick={() => {
+                    navigator.clipboard.writeText(preExplanation.code_snippet!);
+                    setCopiedPreCode(true);
+                    setTimeout(() => setCopiedPreCode(false), 2000);
+                  }}
+                  aria-label="Copy code snippet"
+                >
+                  {copiedPreCode ? <Check size={13} color="#34d399" /> : <Copy size={13} />}
+                  <span>{copiedPreCode ? t.copied : t.copyCode}</span>
+                </button>
+              </div>
+              <pre className="code-pre">
+                <code>{preExplanation.code_snippet}</code>
+              </pre>
+            </CodeBox>
+          )}
+
+          {/* Architectural SVG Diagram - ONLY WHEN FLAGGED */}
+          {preExplanation.needs_diagram && preExplanation.diagram_svg && (
+            <DiagramContainer className={`diagram-container glass-panel ${diagramExpanded ? 'expanded' : ''}`}>
+              <div className="diagram-header">
+                <div className="diagram-title-row">
+                  <Layers size={15} className="text-accent" />
+                  <span>{preExplanation.diagram_caption || t.diagramLabel}</span>
+                </div>
+                <button
+                  type="button"
+                  className="zoom-btn"
+                  onClick={() => setDiagramExpanded((prev) => !prev)}
+                  title={diagramExpanded ? t.shrink : t.expand}
+                >
+                  {diagramExpanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                  <span>{diagramExpanded ? t.shrink : t.expand}</span>
+                </button>
+              </div>
+              <div
+                className="svg-rendered-wrapper"
+                dangerouslySetInnerHTML={{ __html: preExplanation.diagram_svg }}
+              />
+            </DiagramContainer>
+          )}
+        </PreExplanationSection>
+      ) : hasLegacyPayload && legacyPayload ? (
+        /* Legacy fallback representation */
+        <PreExplanationSection className="pre-explanation-card">
+          <TldrBox className="tldr-box glass-panel">
+            <div className="box-title">
+              <Sparkles size={14} className="text-accent" />
+              <span>{t.tldrLabel}</span>
+            </div>
+            <p className="tldr-text">{legacyPayload.concept_summary}</p>
+          </TldrBox>
+          {legacyPayload.analogy && (
+            <ContentCard className="scenario-card glass-panel">
+              <div className="card-header">
+                <Globe size={15} className="text-secondary" />
+                <span className="card-title">{t.scenarioLabel}</span>
+              </div>
+              <div className="card-body scenario-body">
+                <p>"{legacyPayload.analogy}"</p>
+              </div>
+            </ContentCard>
+          )}
+        </PreExplanationSection>
+      ) : !deepDive && !deepDiveLoading ? (
+        <EmptyStateCard className="empty-state-card glass-panel">
+          <BookOpen size={28} className="empty-icon" />
+          <h4 className="empty-title">{t.noPreExp}</h4>
+          <p className="empty-sub">{t.noPreExpSub}</p>
+          {onOpenAISettings && (
+            <button type="button" className="action-link-btn" onClick={onOpenAISettings}>
+              <Sliders size={14} />
+              <span>{t.aiSettings}</span>
+            </button>
+          )}
+        </EmptyStateCard>
+      ) : null}
+
+      {/* ─── SECTION 2: AI DEEP DIVE ─────────────────────────────────────── */}
+      {deepDiveLoading && (
+        <DeepDiveLoadingBox className="deep-dive-loading glass-panel">
+          <div className="spinner" />
+          <div className="loading-text">
+            <span>{t.deepDiveGoing} <strong>{providerLabel} · {activeModel}</strong>…</span>
           </div>
-        </section>
+        </DeepDiveLoadingBox>
       )}
 
-      {/* 5. INTERVIEW TAKEAWAYS & TRAPS GRID */}
-      <div className="ai-insights-split-grid">
-        {payload.takeaways && payload.takeaways.length > 0 && (
-          <div className="ai-insights-box takeaways glass-panel">
-            <div className="insights-head">
-              <Award size={15} className="text-emerald" />
-              <h5>Key Interviewer Talking Points</h5>
+      {deepDive && (
+        <DeepDiveSection className="deep-dive-section">
+          <DeepDiveDivider>
+            <span className="divider-line" />
+            <div className="divider-badge">
+              <Sparkles size={14} />
+              <span>{t.deepDiveTitle} · {providerLabel} ({activeModel})</span>
             </div>
-            <ul className="insights-list">
-              {payload.takeaways.map((item, idx) => (
-                <li key={idx}>
-                  <CheckCircle2 size={14} className="icon-point" />
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+            <span className="divider-line" />
+          </DeepDiveDivider>
 
-        {payload.common_mistakes && payload.common_mistakes.length > 0 && (
-          <div className="ai-insights-box mistakes glass-panel">
-            <div className="insights-head">
-              <AlertTriangle size={15} className="text-amber" />
-              <h5>Common Candidate Traps & Anti-patterns</h5>
+          {/* Advanced Mechanics */}
+          <ContentCard className="mechanics-card glass-panel">
+            <div className="card-header">
+              <span className="card-title">{t.mechanicsLabel}</span>
             </div>
-            <ul className="insights-list">
-              {payload.common_mistakes.map((item, idx) => (
-                <li key={idx}>
-                  <span className="trap-bullet">⚠</span>
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
+            <div className="card-body">
+              {renderMarkdown(deepDive.deeper_explanation)}
+            </div>
+          </ContentCard>
+
+          {/* Production Incident & Edge Case */}
+          {deepDive.extra_example && (
+            <ContentCard className="scenario-card glass-panel">
+              <div className="card-header">
+                <Globe size={15} className="text-secondary" />
+                <span className="card-title">{t.extraScenarioLabel}</span>
+              </div>
+              <div className="card-body">
+                {renderMarkdown(deepDive.extra_example)}
+              </div>
+            </ContentCard>
+          )}
+
+          {/* Critical Pitfalls */}
+          {deepDive.pitfalls && deepDive.pitfalls.length > 0 && (
+            <ContentCard className="pitfalls-card glass-panel">
+              <div className="card-header">
+                <AlertCircle size={15} className="text-warning" />
+                <span className="card-title">{t.pitfallsHeader}</span>
+              </div>
+              <ul className="bullet-list">
+                {deepDive.pitfalls.map((p, idx) => (
+                  <li key={idx}>{renderMarkdown(p)}</li>
+                ))}
+              </ul>
+            </ContentCard>
+          )}
+
+          {/* Interviewer Follow-Up Questions */}
+          {deepDive.interview_followups && deepDive.interview_followups.length > 0 && (
+            <ContentCard className="followups-card glass-panel">
+              <div className="card-header">
+                <HelpCircle size={15} className="text-accent" />
+                <span className="card-title">{t.followupsHeader}</span>
+              </div>
+              <ul className="bullet-list followups-list">
+                {deepDive.interview_followups.map((q, idx) => (
+                  <li key={idx}>
+                    <ChevronRight size={14} className="followup-arrow" />
+                    <span>{renderMarkdown(q)}</span>
+                  </li>
+                ))}
+              </ul>
+            </ContentCard>
+          )}
+
+          {/* Optional Code from Deep Dive - ONLY WHEN FLAGGED/NEEDED */}
+          {deepDive.has_code && deepDive.code_snippet && (
+            <CodeBox className="code-box glass-panel">
+              <div className="code-header">
+                <div className="code-lang-tag">
+                  <Terminal size={14} />
+                  <span>{deepDive.code_language ? deepDive.code_language.toUpperCase() : 'CODE'}</span>
+                </div>
+                <button
+                  type="button"
+                  className="copy-btn"
+                  onClick={() => {
+                    navigator.clipboard.writeText(deepDive.code_snippet!);
+                    setCopiedDeepCode(true);
+                    setTimeout(() => setCopiedDeepCode(false), 2000);
+                  }}
+                  aria-label="Copy deep dive code"
+                >
+                  {copiedDeepCode ? <Check size={13} color="#34d399" /> : <Copy size={13} />}
+                  <span>{copiedDeepCode ? t.copied : t.copyCode}</span>
+                </button>
+              </div>
+              <pre className="code-pre">
+                <code>{deepDive.code_snippet}</code>
+              </pre>
+            </CodeBox>
+          )}
+
+          {/* Optional Diagram from Deep Dive - ONLY WHEN FLAGGED/NEEDED */}
+          {deepDive.has_diagram && deepDive.diagram_svg && (
+            <DiagramContainer className="diagram-container glass-panel">
+              <div className="diagram-header">
+                <div className="diagram-title-row">
+                  <Layers size={15} className="text-accent" />
+                  <span>{t.diagramLabel}</span>
+                </div>
+              </div>
+              <div
+                className="svg-rendered-wrapper"
+                dangerouslySetInnerHTML={{ __html: deepDive.diagram_svg }}
+              />
+            </DiagramContainer>
+          )}
+        </DeepDiveSection>
+      )}
+
+      {/* Neutral Status Note when Deep Dive is Unavailable */}
+      {deepDiveError && (
+        <NeutralNoteBox className="deep-dive-neutral-note">
+          <div className="note-left">
+            <AlertCircle size={14} className="note-icon" />
+            <span className="note-text">
+              {t.deepDiveUnavailable}: {deepDiveError}
+            </span>
           </div>
-        )}
-      </div>
-    </div>
+          <div className="note-actions">
+            {canRetry && onRetryDeepDive && (
+              <button type="button" className="retry-btn" onClick={onRetryDeepDive}>
+                <RefreshCw size={12} />
+                <span>{t.retry}</span>
+              </button>
+            )}
+            {onOpenAISettings && (
+              <button type="button" className="settings-link-btn" onClick={onOpenAISettings}>
+                <span>{t.aiSettings}</span>
+              </button>
+            )}
+          </div>
+        </NeutralNoteBox>
+      )}
+    </RootContainer>
   );
 };
+
+// ─── STYLES (Theme-safe with CSS variables, accessible in dark and light modes) ─
+
+const RootContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  color: var(--text-primary, #f1f5f9);
+`;
+
+const PreExplanationSection = styled.section`
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+`;
+
+const SectionHeaderBadge = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  background: rgba(56, 189, 248, 0.12);
+  color: var(--accent-color, #38bdf8);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+`;
+
+const TldrBox = styled.div`
+  padding: 14px 18px;
+  border-radius: 10px;
+  background: var(--card-bg, rgba(30, 41, 59, 0.6));
+  border: 1px solid var(--border-color, rgba(148, 163, 184, 0.15));
+  border-left: 4px solid var(--accent-color, #38bdf8);
+
+  .box-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--accent-color, #38bdf8);
+    margin-bottom: 6px;
+  }
+
+  .tldr-text {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    font-weight: 500;
+    color: var(--text-primary, #f8fafc);
+    margin: 0;
+  }
+`;
+
+const ContentCard = styled.div`
+  padding: 16px 18px;
+  border-radius: 10px;
+  background: var(--card-bg, rgba(30, 41, 59, 0.5));
+  border: 1px solid var(--border-color, rgba(148, 163, 184, 0.12));
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-secondary, #94a3b8);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .card-body {
+    font-size: 0.92rem;
+    line-height: 1.6;
+    color: var(--text-primary, #e2e8f0);
+
+    p {
+      margin: 0 0 8px 0;
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+  }
+
+  .bullet-list {
+    margin: 0;
+    padding-left: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: var(--text-primary, #e2e8f0);
+  }
+
+  .followups-list {
+    list-style: none;
+    padding-left: 0;
+
+    li {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      margin-bottom: 8px;
+
+      .followup-arrow {
+        color: var(--accent-color, #38bdf8);
+        flex-shrink: 0;
+        margin-top: 3px;
+      }
+    }
+  }
+`;
+
+const KeyTermsRow = styled.div`
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 0.82rem;
+
+  .terms-label {
+    font-weight: 700;
+    color: var(--text-secondary, #94a3b8);
+  }
+
+  .terms-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .term-chip {
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    background: rgba(148, 163, 184, 0.12);
+    color: var(--text-primary, #cbd5e1);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+  }
+`;
+
+const CodeBox = styled.div`
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--code-bg, #0b1120);
+  border: 1px solid var(--border-color, rgba(148, 163, 184, 0.18));
+
+  .code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px;
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+
+    .code-lang-tag {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--accent-color, #38bdf8);
+      letter-spacing: 0.05em;
+    }
+
+    .copy-btn {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: var(--text-secondary, #94a3b8);
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: #fff;
+      }
+    }
+  }
+
+  .code-pre {
+    margin: 0;
+    padding: 14px;
+    overflow-x: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: #e2e8f0;
+  }
+`;
+
+const DiagramContainer = styled.div`
+  border-radius: 10px;
+  padding: 14px;
+  background: var(--card-bg, rgba(30, 41, 59, 0.6));
+  border: 1px solid var(--border-color, rgba(148, 163, 184, 0.15));
+  transition: all 0.3s ease;
+
+  &.expanded {
+    position: fixed;
+    top: 5vh;
+    left: 5vw;
+    right: 5vw;
+    bottom: 5vh;
+    z-index: 1000;
+    background: var(--modal-bg, #0f172a);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .diagram-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+
+    .diagram-title-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-primary, #f1f5f9);
+    }
+
+    .zoom-btn {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: transparent;
+      border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
+      color: var(--text-secondary, #94a3b8);
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      cursor: pointer;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: #fff;
+      }
+    }
+  }
+
+  .svg-rendered-wrapper {
+    display: flex;
+    justify-content: center;
+    overflow-x: auto;
+    padding: 8px;
+
+    svg {
+      max-width: 100%;
+      height: auto;
+    }
+  }
+`;
+
+const DeepDiveLoadingBox = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: 8px;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+
+  .spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(56, 189, 248, 0.3);
+    border-top-color: #38bdf8;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  .loading-text {
+    font-size: 0.88rem;
+    color: var(--text-primary, #f1f5f9);
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+`;
+
+const DeepDiveSection = styled.section`
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: fadeIn 0.3s ease;
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+`;
+
+const DeepDiveDivider = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0 6px 0;
+
+  .divider-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border-color, rgba(148, 163, 184, 0.2));
+  }
+
+  .divider-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--accent-color, #38bdf8);
+    letter-spacing: 0.05em;
+  }
+`;
+
+const NeutralNoteBox = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  font-size: 0.82rem;
+  color: var(--text-secondary, #94a3b8);
+
+  .note-left {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    .note-icon {
+      flex-shrink: 0;
+    }
+  }
+
+  .note-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .retry-btn, .settings-link-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: transparent;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      color: var(--text-primary, #f1f5f9);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      cursor: pointer;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.08);
+      }
+    }
+  }
+`;
+
+const EmptyStateCard = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+  text-align: center;
+  border-radius: 10px;
+
+  .empty-icon {
+    color: var(--text-secondary, #94a3b8);
+    margin-bottom: 12px;
+  }
+
+  .empty-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 6px 0;
+    color: var(--text-primary, #f1f5f9);
+  }
+
+  .empty-sub {
+    font-size: 0.85rem;
+    color: var(--text-secondary, #94a3b8);
+    margin: 0 0 16px 0;
+    max-width: 440px;
+  }
+
+  .action-link-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(56, 189, 248, 0.15);
+    color: var(--accent-color, #38bdf8);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    &:hover {
+      background: rgba(56, 189, 248, 0.25);
+    }
+  }
+`;

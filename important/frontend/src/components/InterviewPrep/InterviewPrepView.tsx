@@ -35,6 +35,8 @@ import type {
   InterviewQuestionDetail,
   InterviewQuestionSummary,
   QuestionAIExplainResponse,
+  QuestionExplanationResponse,
+  QuestionDeepDivePayload,
 } from '../../api/client';
 import {
   STARProportionBar,
@@ -124,7 +126,10 @@ export const InterviewPrepView: React.FC<InterviewPrepViewProps> = ({ onNavigate
   // AI Explanation State
   const [aiExplainLoading, setAiExplainLoading] = useState(false);
   const [aiExplainResult, setAiExplainResult] = useState<QuestionAIExplainResponse | null>(null);
-  const [userDraftAnswer, setUserDraftAnswer] = useState('');
+  const [preExplanation, setPreExplanation] = useState<QuestionExplanationResponse | null>(null);
+  const [deepDive, setDeepDive] = useState<QuestionDeepDivePayload | null>(null);
+  const [deepDiveLoading, setDeepDiveLoading] = useState(false);
+  const [deepDiveError, setDeepDiveError] = useState<string | null>(null);
   const [showAiModal, setShowAiModal] = useState(false);
   const [aiMode, setAiMode] = useState<'simplify' | 'mock_feedback'>('simplify');
   const explainProgressStage = useStageProgress(AI_EXPLAIN_STAGES, aiExplainLoading, 480);
@@ -196,7 +201,10 @@ export const InterviewPrepView: React.FC<InterviewPrepViewProps> = ({ onNavigate
     if (!selectedDomainId || !activeQuestionSlug) return;
     setLoadingQuestion(true);
     setAiExplainResult(null);
-    setUserDraftAnswer('');
+    setPreExplanation(null);
+    setDeepDive(null);
+    setDeepDiveError(null);
+    setShowAiModal(false);
     api.getInterviewQuestionDetail(selectedDomainId, activeQuestionSlug)
       .then((detail) => {
         setActiveQuestion(detail);
@@ -248,36 +256,88 @@ export const InterviewPrepView: React.FC<InterviewPrepViewProps> = ({ onNavigate
     });
   };
 
-  // Trigger AI explanation
+  // Helper to fetch deep dive
+  const fetchDeepDive = async (
+    domainId: string,
+    slug: string,
+    lang: string,
+    forceRegen: boolean = false
+  ) => {
+    setDeepDiveLoading(true);
+    setDeepDiveError(null);
+    try {
+      const res = await api.generateQuestionDeepDive(domainId, slug, lang, forceRegen);
+      if (res.deep_dive) {
+        setDeepDive(res.deep_dive);
+      } else if (res.error_reason) {
+        setDeepDiveError(res.error_reason);
+      }
+    } catch (err: any) {
+      setDeepDiveError(err.message || 'AI service unavailable');
+    } finally {
+      setDeepDiveLoading(false);
+    }
+  };
+
+  // Trigger Two-Tier AI explanation
   const handleRequestAIExplanation = async (
-    mode: 'simplify' | 'mock_feedback',
+    mode: 'simplify' | 'mock_feedback' = 'simplify',
     forceRegenerate: boolean = false
   ) => {
     if (!activeQuestion) return;
-    setAiExplainLoading(true);
-    setAiMode(mode);
     setShowAiModal(true);
+    setAiMode(mode);
+
+    if (forceRegenerate) {
+      setDeepDive(null);
+      await fetchDeepDive(activeQuestion.domain_id, activeQuestion.slug, prepLanguage, true);
+      return;
+    }
+
+    setAiExplainLoading(true);
+    setDeepDive(null);
+    setDeepDiveError(null);
+
     try {
-      const res = await api.explainInterviewQuestionAI(
+      const explanationRes = await api.getQuestionExplanation(
         activeQuestion.domain_id,
         activeQuestion.slug,
-        mode,
-        mode === 'mock_feedback' ? userDraftAnswer : undefined,
-        prepLanguage,
-        forceRegenerate
+        prepLanguage
       );
-      setAiExplainResult(res);
-    } catch (err: any) {
-      setAiExplainResult({
-        question_id: activeQuestion.id,
-        mode,
-        explanation: `AI service encountered an issue: ${err.message}. Question content, educational diagrams, and repository material remain fully functional.`,
-        ai_model_used: 'unavailable',
-        is_ai_generated: true,
-        disclaimer: 'Active AI gateway generation unavailable. Deterministic educational resources remain available.',
-      });
-    } finally {
+      setPreExplanation(explanationRes);
       setAiExplainLoading(false);
+
+      if (explanationRes.cached_deep_dive) {
+        setDeepDive(explanationRes.cached_deep_dive);
+      } else {
+        // Trigger non-blocking AI deep dive
+        fetchDeepDive(activeQuestion.domain_id, activeQuestion.slug, prepLanguage, false);
+      }
+    } catch (err: any) {
+      setAiExplainLoading(false);
+      // Construct fallback pre-explanation from question detail
+      setPreExplanation({
+        has_pre_explanation: false,
+        question_id: activeQuestion.id,
+        slug: activeQuestion.slug,
+        track: activeQuestion.domain_id,
+        category: activeQuestion.category,
+        tier: 3,
+        version: 1,
+        needs_diagram: false,
+        needs_code: false,
+        code_language: null,
+        code_snippet: null,
+        diagram_svg: null,
+        diagram_caption: null,
+        tldr: activeQuestion.title,
+        simple_explanation: activeQuestion.markdown_content.slice(0, 300) + '...',
+        real_world_example: null,
+        why_it_matters_and_pitfalls: null,
+        key_terms: activeQuestion.tags || [],
+        cached_deep_dive: null,
+      });
+      setDeepDiveError(err.message || 'AI provider unavailable');
     }
   };
 
@@ -1306,7 +1366,24 @@ export const InterviewPrepView: React.FC<InterviewPrepViewProps> = ({ onNavigate
                           <StageProgressList
                             stages={AI_EXPLAIN_STAGES}
                             currentStage={explainProgressStage}
-                            title="Synthesizing AI Technical Explanation..."
+                            title="Loading Verified Pre-Explanation..."
+                          />
+                        </div>
+                      ) : preExplanation ? (
+                        <div className="ai-result-box">
+                          <VisualAIExplanation
+                            preExplanation={preExplanation}
+                            deepDive={deepDive}
+                            deepDiveLoading={deepDiveLoading}
+                            deepDiveError={deepDiveError}
+                            canRetry={true}
+                            language={prepLanguage}
+                            onRetryDeepDive={() => {
+                              if (activeQuestion) {
+                                fetchDeepDive(activeQuestion.domain_id, activeQuestion.slug, prepLanguage, false);
+                              }
+                            }}
+                            renderMarkdown={renderMarkdown}
                           />
                         </div>
                       ) : aiExplainResult ? (

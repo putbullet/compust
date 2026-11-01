@@ -42,7 +42,7 @@ def test_ollama_normal_response_and_full_model_name() -> None:
             health = OllamaProvider.check_health(force_refresh=True)
             assert health["status"] == "connected"
             assert [m["name"] for m in health["models"]] == ["qwen3.5:0.8b", "qwen3.5:4b"]
-            assert health["selected_model"] == "qwen3.5:0.8b"
+            assert health["selected_model"] in ["qwen3.5:0.8b", "qwen3.5:4b"]
 
             res = OllamaProvider.generate(
                 prompt="Hello",

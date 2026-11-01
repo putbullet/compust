@@ -894,6 +894,54 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   return response.json();
 }
 
+
+export interface QuestionDeepDivePayload {
+  deeper_explanation: string;
+  extra_example: string;
+  pitfalls: string[];
+  interview_followups: string[];
+  has_diagram: boolean;
+  diagram_svg?: string | null;
+  has_code: boolean;
+  code_language?: string | null;
+  code_snippet?: string | null;
+}
+
+export interface QuestionExplanationResponse {
+  has_pre_explanation: boolean;
+  question_id: string;
+  slug: string;
+  track: string;
+  category?: string | null;
+  tier?: number | null;
+  version: number;
+  needs_diagram: boolean;
+  needs_code: boolean;
+  code_language?: string | null;
+  code_snippet?: string | null;
+  diagram_svg?: string | null;
+  diagram_caption?: string | null;
+  tldr?: string | null;
+  simple_explanation?: string | null;
+  real_world_example?: string | null;
+  why_it_matters_and_pitfalls?: string | null;
+  key_terms: string[];
+  cached_deep_dive?: QuestionDeepDivePayload | null;
+  ai_active_provider?: string | null;
+  ai_selected_model?: string | null;
+}
+
+export interface QuestionDeepDiveResponse {
+  success: boolean;
+  question_id: string;
+  slug: string;
+  provider?: string | null;
+  model?: string | null;
+  deep_dive?: QuestionDeepDivePayload | null;
+  error_reason?: string | null;
+  can_retry: boolean;
+}
+
 export const api = {
   // Countries & Companies
   getCountries: () => request<Country[]>('/countries'),
@@ -1925,6 +1973,28 @@ export const api = {
     if (domainId) params.set('domain_id', domainId);
     return request<InterviewQuestionSummary[]>(`/interview-prep/search?${params.toString()}`);
   },
+
+  getQuestionExplanation: (domainId: string, slug: string, lang: string = 'en') =>
+    request<QuestionExplanationResponse>(
+      `/interview-prep/questions/${encodeURIComponent(domainId)}/${encodeURIComponent(slug)}/explanation?lang=${encodeURIComponent(lang)}`
+    ),
+
+  generateQuestionDeepDive: (
+    domainId: string,
+    slug: string,
+    language: string = 'en',
+    forceRegenerate: boolean = false
+  ) =>
+    request<QuestionDeepDiveResponse>(
+      `/interview-prep/questions/${encodeURIComponent(domainId)}/${encodeURIComponent(slug)}/deep-dive`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          language,
+          force_regenerate: forceRegenerate,
+        }),
+      }
+    ),
 
   explainInterviewQuestionAI: (
     domainId: string,

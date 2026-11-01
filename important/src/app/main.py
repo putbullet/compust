@@ -294,6 +294,9 @@ from .schemas_interview_prep import (
     InterviewQuestionSummary,
     QuestionAIExplainRequest,
     QuestionAIExplainResponse,
+    QuestionExplanationResponse,
+    QuestionDeepDiveRequest,
+    QuestionDeepDiveResponse,
     RepositoryImportRequest,
     RepositoryImportResponse,
     STAREvaluationRequest,
@@ -3252,6 +3255,43 @@ def search_interview_prep_questions(
     return interview_prep_service.search_questions(query=q, domain_id=domain_id)
 
 
+@app.get(
+    "/api/v1/interview-prep/questions/{domain_id}/{question_slug}/explanation",
+    response_model=QuestionExplanationResponse,
+    tags=["interview-prep"],
+)
+def get_interview_prep_question_explanation(
+    domain_id: str = Path(...),
+    question_slug: str = Path(...),
+    lang: str = Query(default="en"),
+) -> QuestionExplanationResponse:
+    """Instant lazy fetch of pre-written explanation and any cached AI deep dive (offline-ready)."""
+    return interview_prep_service.get_question_pre_explanation(
+        domain_id=domain_id,
+        question_slug=question_slug,
+        language=lang,
+    )
+
+
+@app.post(
+    "/api/v1/interview-prep/questions/{domain_id}/{question_slug}/deep-dive",
+    response_model=QuestionDeepDiveResponse,
+    tags=["interview-prep"],
+)
+async def generate_interview_prep_question_deep_dive(
+    domain_id: str = Path(...),
+    question_slug: str = Path(...),
+    payload: QuestionDeepDiveRequest = Body(...),
+) -> QuestionDeepDiveResponse:
+    """Generates an AI deep dive that builds upon the pre-written explanation without repeating it."""
+    return await interview_prep_service.generate_question_deep_dive(
+        domain_id=domain_id,
+        question_slug=question_slug,
+        language=payload.language,
+        force_regenerate=payload.force_regenerate,
+    )
+
+
 @app.post(
     "/api/v1/interview-prep/questions/{domain_id}/{question_slug}/ai-explain",
     response_model=QuestionAIExplainResponse,
@@ -3262,7 +3302,7 @@ async def explain_interview_prep_question_ai(
     question_slug: str = Path(...),
     payload: QuestionAIExplainRequest = Body(...),
 ) -> QuestionAIExplainResponse:
-    """Uses local Ollama AI to generate structured visual explanations or evaluate answers."""
+    """Uses active AI provider to generate structured visual explanations or evaluate answers."""
     return await interview_prep_service.explain_with_ai(
         domain_id=domain_id,
         question_slug=question_slug,

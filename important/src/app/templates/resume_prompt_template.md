@@ -39,6 +39,10 @@ Description:
    certifications, skills, tools, metrics, or achievements. If a job
    requirement is not supported by the profile, do not claim it; list it under
    "Gaps" in your notes instead.
+   If the candidate profile contains no work experience (e.g. entry-level, student,
+   or career switcher), emphasize education, academic or open-source projects,
+   relevant coursework, and certifications. NEVER invent past commercial employers
+   or work experience.
 2. TAILORING: prioritize and reorder the most relevant experience, projects and
    skills for this job; mirror the job's keywords and terminology naturally
    (only where the profile supports them); rewrite bullets as concise

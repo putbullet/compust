@@ -1066,23 +1066,16 @@ def recompute_unified_profile(db: Session, user_id: int) -> UserUnifiedProfile:
     
     Triggered when:
     - Active resume is uploaded or modified
-    - LinkedIn export is uploaded or updated
+    - Active resume is switched or set default
+    - Resume is edited and saved in Resume Studio
+    - Resume is deleted
+    - LinkedIn export is uploaded or updated/removed
     - User overrides (pinned/hidden) are changed
     """
-    from ..models import Resume
+    from ..repositories.resume import get_active_resume
 
-    # 1. Fetch active resume
-    active_resume = db.scalar(
-        select(Resume).where(
-            Resume.user_id == user_id,
-            Resume.is_active == True,
-        ).order_by(Resume.created_at.desc())
-    )
-    if not active_resume:
-        # Fallback to any resume
-        active_resume = db.scalar(
-            select(Resume).where(Resume.user_id == user_id).order_by(Resume.created_at.desc())
-        )
+    # 1. Fetch canonical active resume
+    active_resume = get_active_resume(db, user_id)
 
     resume_data = active_resume.structured_data if active_resume else None
     resume_ref = f"Resume #{active_resume.id}" if active_resume else "None"
@@ -1121,7 +1114,23 @@ def recompute_unified_profile(db: Session, user_id: int) -> UserUnifiedProfile:
         imported_at_iso=datetime.now(timezone.utc).isoformat(),
     )
 
-    # 5. Compute version hash
+    # 5. Record source resume metadata and section counts
+    unified_data["source_resume"] = {
+        "id": active_resume.id if active_resume else None,
+        "title": active_resume.title if active_resume else "None",
+        "filename": active_resume.filename if active_resume else "",
+        "updated_at": active_resume.updated_at.isoformat() if (active_resume and active_resume.updated_at) else None,
+    }
+    unified_data["counts"] = {
+        "roles": len([e for e in (unified_data.get("experience") or []) if isinstance(e, dict) and not e.get("hidden")]),
+        "education": len([ed for ed in (unified_data.get("education") or []) if isinstance(ed, dict) and not ed.get("hidden")]),
+        "skills": len([s for s in (unified_data.get("skills") or []) if isinstance(s, dict) and not s.get("hidden")]),
+        "projects": len([p for p in (unified_data.get("projects") or []) if isinstance(p, dict) and not p.get("hidden")]),
+        "certifications": len([c for c in (unified_data.get("certifications") or []) if isinstance(c, dict) and not c.get("hidden")]),
+        "languages": len([l for l in (unified_data.get("languages") or []) if isinstance(l, dict) and not l.get("hidden")]),
+    }
+
+    # 6. Compute version hash
     hash_payload = json.dumps(unified_data, sort_keys=True)
     version_hash = hashlib.sha256(hash_payload.encode("utf-8")).hexdigest()
 
@@ -1141,12 +1150,38 @@ def get_unified_profile(db: Session, user_id: int) -> dict[str, Any]:
     All matching engines, gap analysis, ATS checkers, and Job Targeting Assistants
     must read candidate profile data through this accessor.
     
-    If no Unified Profile exists yet, it computes one dynamically.
+    Features automatic self-healing: if the underlying active resume changed,
+    was switched, was edited, or was deleted since the profile was last computed,
+    it recomputes automatically.
     """
+    from ..repositories.resume import get_active_resume
+    active_resume = get_active_resume(db, user_id)
+
     unified_record = db.scalar(
         select(UserUnifiedProfile).where(UserUnifiedProfile.user_id == user_id)
     )
+
+    should_recompute = False
     if not unified_record or not unified_record.unified_data:
+        should_recompute = True
+    else:
+        src = unified_record.unified_data.get("source_resume") or {}
+        src_id = src.get("id")
+        active_id = active_resume.id if active_resume else None
+
+        if src_id != active_id:
+            should_recompute = True
+        elif active_resume and active_resume.updated_at and unified_record.updated_at:
+            res_up = active_resume.updated_at
+            if res_up.tzinfo is None:
+                res_up = res_up.replace(tzinfo=timezone.utc)
+            unif_up = unified_record.updated_at
+            if unif_up.tzinfo is None:
+                unif_up = unif_up.replace(tzinfo=timezone.utc)
+            if res_up > unif_up:
+                should_recompute = True
+
+    if should_recompute:
         unified_record = recompute_unified_profile(db, user_id)
 
     return unified_record.unified_data

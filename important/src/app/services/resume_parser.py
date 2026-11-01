@@ -48,6 +48,14 @@ MULTILINGUAL_SECTION_HEADERS: dict[str, dict[str, list[str]]] = {
             r"pers[oö]nliches\s+profil",
             r"(?:karriere)?ziel",
         ],
+        "nl": [
+            r"samenvatting",
+            r"profiel(?:\s+schets)?",
+            r"persoonlijk\s+profiel",
+            r"over\s+mij",
+            r"wie\s+ben\s+ik",
+            r"ambitie",
+        ],
     },
     "experience": {
         "en": [
@@ -76,6 +84,16 @@ MULTILINGUAL_SECTION_HEADERS: dict[str, dict[str, list[str]]] = {
             r"t[aä]tigkeiten",
             r"anstellungen",
         ],
+        "nl": [
+            r"werkervaring(?:en)?",
+            r"ervaring(?:en)?",
+            r"arbeidsverleden",
+            r"werkverleden",
+            r"loopbaan(?:overzicht)?",
+            r"beroepservaring",
+            r"relevante\s+werkervaring",
+            r"functies",
+        ],
     },
     "education": {
         "en": [
@@ -102,6 +120,15 @@ MULTILINGUAL_SECTION_HEADERS: dict[str, dict[str, list[str]]] = {
             r"bildung",
             r"hochschulbildung",
             r"abschluss",
+        ],
+        "nl": [
+            r"opleiding(?:en)?",
+            r"studies",
+            r"onderwijs",
+            r"studie",
+            r"academische\s+achtergrond",
+            r"diploma(?:'s)?",
+            r"getuigschriften",
         ],
     },
     "skills": {
@@ -138,6 +165,15 @@ MULTILINGUAL_SECTION_HEADERS: dict[str, dict[str, list[str]]] = {
             r"fertigkeiten",
             r"schwerpunkte",
         ],
+        "nl": [
+            r"vaardigheden",
+            r"competenties",
+            r"kennis(?:\s+en\s+vaardigheden)?",
+            r"technische\s+vaardigheden",
+            r"talenten",
+            r"specialisaties",
+            r"expertises",
+        ],
     },
     "projects": {
         "en": [
@@ -158,6 +194,12 @@ MULTILINGUAL_SECTION_HEADERS: dict[str, dict[str, list[str]]] = {
             r"projektarbeit",
             r"pers[oö]nliche\s+projekte",
             r"ausgew[aä]hlte\s+projekte",
+        ],
+        "nl": [
+            r"projecten",
+            r"persoonlijke\s+projecten",
+            r"portfolio",
+            r"relevante\s+projecten",
         ],
     },
     "certifications": {
@@ -182,6 +224,13 @@ MULTILINGUAL_SECTION_HEADERS: dict[str, dict[str, list[str]]] = {
             r"lehrg[aä]nge",
             r"lizenzen",
         ],
+        "nl": [
+            r"certificaten",
+            r"certificeringen",
+            r"getuigschriften",
+            r"cursussen",
+            r"accreditaties",
+        ],
     },
     "languages": {
         "en": [
@@ -197,6 +246,11 @@ MULTILINGUAL_SECTION_HEADERS: dict[str, dict[str, list[str]]] = {
             r"sprachen",
             r"sprachkenntnisse",
             r"fremdsprachen",
+        ],
+        "nl": [
+            r"talen(?:kennis)?",
+            r"gesproken\s+talen",
+            r"taalvaardigheid",
         ],
     },
 }

@@ -93,6 +93,9 @@ class UnifiedProfileResponse(BaseModel):
     version_hash: str
     use_linkedin_in_matching: bool
     updated_at: str
+    source_resume_id: int | None = None
+    source_resume_title: str | None = None
+    counts: dict = Field(default_factory=dict)
     contact: dict = Field(default_factory=dict)
     skills: list = Field(default_factory=list)
     experience: list = Field(default_factory=list)

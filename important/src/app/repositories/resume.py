@@ -490,7 +490,7 @@ def create_structured_resume(
         db.execute(
             update(Resume)
             .where(Resume.user_id == user_id)
-            .values(is_default=False, updated_at=now)
+            .values(is_default=False, is_active=False, updated_at=now)
         )
 
     final_structured_data = structured_data or build_default_structured_data(user)
@@ -506,7 +506,7 @@ def create_structured_resume(
         parsed_sections=parsed_sections,
         structured_data=final_structured_data,
         settings=final_settings,
-        is_active=True,
+        is_active=is_default,
         is_default=is_default,
         target_job_id=target_job_id,
         source_resume_id=source_resume_id,
@@ -558,12 +558,16 @@ def update_structured_resume(
         db.execute(
             update(Resume)
             .where(Resume.user_id == user_id)
-            .values(is_default=False, updated_at=now)
+            .values(is_default=False, is_active=False, updated_at=now)
         )
         resume.is_default = True
+        resume.is_active = True
     elif is_default is False and resume.is_default:
         # Don't unset default if it's the only resume
         resume.is_default = False
+        resume.is_active = False
+
+    resume.updated_at = now
 
     if title is not None:
         resume.title = title
@@ -630,6 +634,7 @@ def delete_structured_resume(db: Session, user_id: int, resume_id: int) -> bool:
         )
         if next_resume:
             next_resume.is_default = True
+            next_resume.is_active = True
             db.commit()
 
     return True
@@ -644,9 +649,10 @@ def set_default_structured_resume(db: Session, user_id: int, resume_id: int) -> 
     db.execute(
         update(Resume)
         .where(Resume.user_id == user_id)
-        .values(is_default=False, updated_at=now)
+        .values(is_default=False, is_active=False, updated_at=now)
     )
     resume.is_default = True
+    resume.is_active = True
     resume.updated_at = now
     db.commit()
     db.refresh(resume)
@@ -682,6 +688,127 @@ def create_studio_copy(
 
 # --- Backwards Compatibility & Upload Helpers ---
 
+def _parse_experience_text_blocks(exp_val: str) -> list[dict[str, Any]]:
+    """Parse raw multiline experience text into structured position dictionaries."""
+    results: list[dict[str, Any]] = []
+    if not exp_val or not exp_val.strip():
+        return results
+
+    normalized = exp_val.replace("\r\n", "\n").replace("\r", "\n").strip()
+    raw_blocks = [b.strip() for b in re.split(r"\n\s*\n", normalized) if b.strip()]
+
+    # If single block with multiple lines, split by date/header heuristics
+    if len(raw_blocks) == 1 and len(normalized.splitlines()) > 3:
+        lines = normalized.splitlines()
+        current_block: list[str] = []
+        new_blocks: list[str] = []
+        date_pattern = re.compile(r"\b(?:19|20)\d{2}\b", re.IGNORECASE)
+        for line in lines:
+            s_line = line.strip()
+            is_header = (
+                not s_line.startswith(("-", "•", "*", "–", "—"))
+                and (
+                    date_pattern.search(s_line)
+                    or " - " in s_line
+                    or " | " in s_line
+                    or " at " in s_line.lower()
+                    or " chez " in s_line.lower()
+                    or " bij " in s_line.lower()
+                )
+                and len(current_block) >= 2
+            )
+            if is_header:
+                new_blocks.append("\n".join(current_block))
+                current_block = [line]
+            else:
+                current_block.append(line)
+        if current_block:
+            new_blocks.append("\n".join(current_block))
+        if len(new_blocks) > 1:
+            raw_blocks = new_blocks
+
+    for b in raw_blocks:
+        lines = [l.strip() for l in b.splitlines() if l.strip()]
+        if not lines:
+            continue
+        title_line = lines[0]
+        desc_lines = lines[1:] if len(lines) > 1 else []
+
+        company = ""
+        title = title_line
+        start_date = ""
+        end_date = ""
+
+        # Extract dates
+        date_match = re.search(
+            r"\(?\b((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|[A-Za-z]+)?\s*(?:19|20)\d{2})\s*[-–—to]+\s*((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|[A-Za-z]+)?\s*(?:19|20)\d{2}|Present|Current|Aujourd'hui|Heden|Heute)?\)?",
+            title_line,
+            re.IGNORECASE,
+        )
+        if date_match:
+            start_date = date_match.group(1).strip()
+            end_date = (date_match.group(2) or "Present").strip()
+            title_line = re.sub(re.escape(date_match.group(0)), "", title_line).strip(" ()|-–—,")
+            title = title_line
+
+        # Parse title vs company delimiters
+        if " at " in title:
+            parts = title.split(" at ", 1)
+            title = parts[0].strip()
+            company = parts[1].strip()
+        elif " chez " in title.lower():
+            parts = re.split(r"\s+chez\s+", title, flags=re.IGNORECASE)
+            title = parts[0].strip()
+            company = parts[1].strip()
+        elif " bij " in title.lower():
+            parts = re.split(r"\s+bij\s+", title, flags=re.IGNORECASE)
+            title = parts[0].strip()
+            company = parts[1].strip()
+        elif " | " in title:
+            parts = title.split(" | ")
+            title = parts[0].strip()
+            company = parts[1].strip()
+        elif " - " in title:
+            parts = title.split(" - ", 1)
+            title = parts[0].strip()
+            company = parts[1].strip()
+
+        # If second line has company or date info
+        if desc_lines and not company and len(desc_lines[0]) < 60 and not desc_lines[0].startswith(("-", "•", "*", "–")):
+            second_line = desc_lines[0]
+            if not date_match:
+                d_match = re.search(
+                    r"\(?\b((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|[A-Za-z]+)?\s*(?:19|20)\d{2})\s*[-–—to]+\s*((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|[A-Za-z]+)?\s*(?:19|20)\d{2}|Present|Current|Aujourd'hui|Heden|Heute)?\)?",
+                    second_line,
+                    re.IGNORECASE,
+                )
+                if d_match:
+                    start_date = d_match.group(1).strip()
+                    end_date = (d_match.group(2) or "Present").strip()
+                    second_line = re.sub(re.escape(d_match.group(0)), "", second_line).strip(" ()|-–—,")
+            if second_line:
+                company = second_line
+            desc_lines = desc_lines[1:]
+
+        highlights = [l.lstrip("-•*–— ").strip() for l in desc_lines if l.strip().startswith(("-", "•", "*", "–", "—"))]
+        other_desc = [l for l in desc_lines if not l.strip().startswith(("-", "•", "*", "–", "—"))]
+
+        results.append({
+            "id": str(uuid.uuid4())[:8],
+            "company": company or "Company",
+            "title": title or "Position",
+            "location": "",
+            "employment_type": "full_time",
+            "start_date": start_date,
+            "end_date": end_date,
+            "is_current": end_date.lower() in ("present", "current", "aujourd'hui", "heden", "heute"),
+            "description": "\n".join(other_desc).strip() or "\n".join(desc_lines).strip(),
+            "highlights": highlights,
+        })
+
+    return results
+
+
 def save_resume(
     db: Session,
     user_id: int,
@@ -694,7 +821,7 @@ def save_resume(
     db.execute(
         update(Resume)
         .where(Resume.user_id == user_id)
-        .values(is_active=False, updated_at=now)
+        .values(is_active=False, is_default=False, updated_at=now)
     )
 
     user = db.scalar(select(User).where(User.id == user_id))
@@ -729,23 +856,7 @@ def save_resume(
                             "highlights": item.get("highlights", []),
                         })
             elif isinstance(exp_val, str) and exp_val.strip():
-                blocks = [b.strip() for b in exp_val.split("\n\n") if b.strip()]
-                for b in blocks:
-                    lines = b.splitlines()
-                    title_line = lines[0].strip() if lines else "Experience"
-                    desc_lines = lines[1:] if len(lines) > 1 else []
-                    structured_data["experience"].append({
-                        "id": str(uuid.uuid4())[:8],
-                        "company": "",
-                        "title": title_line,
-                        "location": "",
-                        "employment_type": "full_time",
-                        "start_date": "",
-                        "end_date": "",
-                        "is_current": False,
-                        "description": "\n".join(desc_lines).strip() or title_line,
-                        "highlights": [l.strip("-•* ") for l in desc_lines if l.strip("-•* ")],
-                    })
+                structured_data["experience"].extend(_parse_experience_text_blocks(exp_val))
 
         # B1/B3: Map Education sections so content is never dropped
         if parsed_sections.get("education"):
@@ -873,17 +984,25 @@ def save_resume(
 
 
 def get_active_resume(db: Session, user_id: int) -> Resume | None:
-    # Prefer default structured resume; fallback to most recent active
+    # 1. Prefer default structured resume
     resume = db.scalar(
         select(Resume)
         .where(Resume.user_id == user_id, Resume.is_default.is_(True))
-        .order_by(desc(Resume.updated_at))
+        .order_by(desc(Resume.updated_at), desc(Resume.created_at))
     )
+    # 2. Fallback to active resume
     if not resume:
         resume = db.scalar(
             select(Resume)
             .where(Resume.user_id == user_id, Resume.is_active.is_(True))
-            .order_by(desc(Resume.updated_at))
+            .order_by(desc(Resume.updated_at), desc(Resume.created_at))
+        )
+    # 3. Fallback to any latest resume
+    if not resume:
+        resume = db.scalar(
+            select(Resume)
+            .where(Resume.user_id == user_id)
+            .order_by(desc(Resume.updated_at), desc(Resume.created_at))
         )
     if resume and resume.structured_data and (not resume.parsed_sections or not resume.parsed_sections.get("skills")):
         resume.parsed_sections = build_parsed_sections_from_structured_data(resume.structured_data)

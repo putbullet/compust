@@ -207,7 +207,7 @@ from .schemas_resume import (
 )
 from .schemas_resume_prompt import ResumePromptResponse
 from .services.resume_prompt_builder import build_tailored_resume_prompt
-from .services.profile_fusion import get_unified_profile
+from .services.profile_fusion import get_unified_profile, recompute_unified_profile
 from .security import (
     create_access_token,
     get_current_user,
@@ -1032,6 +1032,7 @@ def get_job_resume_prompt_endpoint(
     job_id: str = Path(...),
     include_contact: bool = Query(default=True),
     format: str | None = Query(default=None),
+    response: Response = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -1040,6 +1041,10 @@ def get_job_resume_prompt_endpoint(
     Builds the prompt server-side from canonical data (Job + Unified Profile).
     Operates 100% deterministically offline with ZERO LLM calls and zero API quota.
     """
+    if response:
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+
     job_data: dict[str, Any] | None = None
     job_title = ""
     company_name = ""
@@ -1098,9 +1103,23 @@ def get_job_resume_prompt_endpoint(
         include_contact=include_contact,
     )
 
+    source_resume = unified_profile.get("source_resume") or {}
+    counts = unified_profile.get("counts") or {
+        "roles": len([e for e in (unified_profile.get("experience") or []) if isinstance(e, dict) and not e.get("hidden")]),
+        "education": len([ed for ed in (unified_profile.get("education") or []) if isinstance(ed, dict) and not ed.get("hidden")]),
+        "skills": len([s for s in (unified_profile.get("skills") or []) if isinstance(s, dict) and not s.get("hidden")]),
+        "projects": len([p for p in (unified_profile.get("projects") or []) if isinstance(p, dict) and not p.get("hidden")]),
+    }
+    has_experience = counts.get("roles", 0) > 0
+
+    from .models import UserUnifiedProfile
+    uup = db.scalar(select(UserUnifiedProfile.version_hash).where(UserUnifiedProfile.user_id == current_user.id))
+    profile_version = uup or ""
+
     if format == "markdown":
         from fastapi.responses import PlainTextResponse
-        return PlainTextResponse(prompt_text, media_type="text/markdown")
+        headers = {"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0", "Pragma": "no-cache"}
+        return PlainTextResponse(prompt_text, media_type="text/markdown", headers=headers)
 
     return ResumePromptResponse(
         success=True,
@@ -1111,6 +1130,11 @@ def get_job_resume_prompt_endpoint(
         job_title=job_title,
         company_name=company_name,
         include_contact=include_contact,
+        source_resume_title=source_resume.get("title"),
+        source_resume_id=source_resume.get("id"),
+        profile_version=profile_version,
+        has_experience=has_experience,
+        counts=counts,
         error=None if has_profile else "No resume or profile data found. Please upload a resume first to generate a tailored prompt."
     )
 
@@ -2399,6 +2423,7 @@ async def upload_resume(
         raw_text=raw_text,
         parsed_sections=parsed_sections,
     )
+    recompute_unified_profile(db, user.id)
     return resume
 
 
@@ -2430,6 +2455,7 @@ def activate_user_resume(
     resume = set_active_resume(db, user.id, resume_id)
     if not resume:
         raise HTTPException(status_code=404, detail="Resume record not found.")
+    recompute_unified_profile(db, user.id)
     return resume
 
 
@@ -2442,6 +2468,7 @@ def remove_user_resume(
     deleted = delete_resume(db, user.id, resume_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Resume record not found.")
+    recompute_unified_profile(db, user.id)
     return {"status": "deleted", "resume_id": resume_id}
 
 
@@ -2464,7 +2491,7 @@ def create_new_structured_resume(
 ) -> Resume:
     structured_data_dict = payload.structured_data.model_dump() if payload.structured_data else None
     settings_dict = payload.settings.model_dump() if payload.settings else None
-    return create_structured_resume(
+    res = create_structured_resume(
         db=db,
         user_id=user.id,
         title=payload.title,
@@ -2474,6 +2501,9 @@ def create_new_structured_resume(
         target_job_id=payload.target_job_id,
         source_resume_id=payload.source_resume_id,
     )
+    if payload.is_default:
+        recompute_unified_profile(db, user.id)
+    return res
 
 
 @app.get("/api/v1/resumes/{resume_id}", response_model=StructuredResumeRead, tags=["resume-builder"])
@@ -2508,6 +2538,9 @@ def update_single_structured_resume(
     )
     if not updated:
         raise HTTPException(status_code=404, detail="Resume not found.")
+    active_now = get_active_resume(db, user.id)
+    if active_now and active_now.id == updated.id:
+        recompute_unified_profile(db, user.id)
     return updated
 
 
@@ -2545,6 +2578,7 @@ def delete_single_structured_resume(
     deleted = delete_structured_resume(db, user.id, resume_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Resume not found.")
+    recompute_unified_profile(db, user.id)
     return {"status": "deleted", "id": resume_id}
 
 
@@ -2557,6 +2591,7 @@ def set_default_single_resume(
     res = set_default_structured_resume(db, user.id, resume_id)
     if not res:
         raise HTTPException(status_code=404, detail="Resume not found.")
+    recompute_unified_profile(db, user.id)
     return res
 
 
@@ -4439,17 +4474,21 @@ def get_user_unified_profile(
 ) -> UnifiedProfileResponse:
     """Return the canonical, deduplicated Unified Profile with full provenance and conflicts."""
     from .models import UserUnifiedProfile
-    from .services.profile_fusion import recompute_unified_profile
+    from .services.profile_fusion import get_unified_profile
 
+    u = get_unified_profile(db, user.id)
     rec = db.scalar(select(UserUnifiedProfile).where(UserUnifiedProfile.user_id == user.id))
-    if not rec or not rec.unified_data:
-        rec = recompute_unified_profile(db, user.id)
 
-    u = rec.unified_data or {}
+    src_resume = u.get("source_resume") or {}
+    counts = u.get("counts") or {}
+
     return UnifiedProfileResponse(
-        version_hash=rec.version_hash or "",
-        use_linkedin_in_matching=rec.use_linkedin_in_matching,
-        updated_at=rec.updated_at.isoformat(),
+        version_hash=rec.version_hash if rec else "",
+        use_linkedin_in_matching=rec.use_linkedin_in_matching if rec else True,
+        updated_at=rec.updated_at.isoformat() if rec and rec.updated_at else datetime.now(timezone.utc).isoformat(),
+        source_resume_id=src_resume.get("id"),
+        source_resume_title=src_resume.get("title"),
+        counts=counts,
         contact=u.get("contact") or {},
         skills=u.get("skills") or [],
         experience=u.get("experience") or [],
@@ -4459,9 +4498,19 @@ def get_user_unified_profile(
         projects=u.get("projects") or [],
         honors=u.get("honors") or [],
         courses=u.get("courses") or [],
-        conflicts=rec.conflicts or [],
-        user_overrides=rec.user_overrides or {},
+        conflicts=rec.conflicts if rec else [],
+        user_overrides=rec.user_overrides if rec else {},
     )
+
+
+@app.post("/api/v1/profile/unified/refresh", response_model=UnifiedProfileResponse, tags=["profile"])
+def refresh_user_unified_profile(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> UnifiedProfileResponse:
+    """Force an immediate recomputation of the Unified Profile from active resume and LinkedIn data."""
+    recompute_unified_profile(db, user.id)
+    return get_user_unified_profile(user=user, db=db)
 
 
 @app.post("/api/v1/profile/unified/overrides", response_model=UnifiedProfileResponse, tags=["profile"])

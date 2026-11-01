@@ -1,0 +1,27 @@
+{
+  "question_id": "sec_f_19",
+  "slug": "sec-what-does-xss-stand-for-and-how-can-it-be-prevented",
+  "track": "security_engineering",
+  "category": "Application Security, Injection Attacks & Web Exploits",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": true,
+  "code_language": "html",
+  "code_snippet": "<!-- Secure context-aware escaping & CSP header -->\nContent-Security-Policy: default-src 'self'; script-src 'self' 'nonce-rAnd0m'; object-src 'none';\nSet-Cookie: session_id=abc123xyz; Secure; HttpOnly; SameSite=Strict;\n",
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Cross-Site Scripting (XSS) occurs when malicious JavaScript is injected into trusted web applications, executing within the victim browser session under the application origin authority.",
+    "simple_explanation": "XSS vulnerabilities fall into three primary classes: Stored (persistent script saved into databases and rendered to other visitors), Reflected (non-persistent script bounced off server parameters into immediate responses), and DOM-based (client-side JavaScript modifying the Document Object Model unsafely via sinks like innerHTML or eval). Attackers exploit XSS to hijack session cookies, capture keystrokes, exfiltrate sensitive DOM data, or perform unauthorized state-changing actions.",
+    "real_world_example": "A malicious actor writes a script inside a guestbook comment: whenever genuine users open the comment page, their browser automatically executes the hidden code and quietly transmits their authentication session tokens to an external server.",
+    "why_it_matters_and_pitfalls": "Relying purely on naive client-side string blacklists or regex tag stripping fails against sophisticated obfuscation like HTML entity encoding or SVG onload payloads. Prevention requires contextual output encoding, strict Content Security Policy (CSP), and HttpOnly cookie flags.",
+    "key_terms": [
+      "Cross-Site Scripting (XSS)",
+      "Stored vs Reflected vs DOM",
+      "Contextual Output Encoding",
+      "Content Security Policy (CSP)",
+      "HttpOnly Cookies"
+    ]
+  }
+}

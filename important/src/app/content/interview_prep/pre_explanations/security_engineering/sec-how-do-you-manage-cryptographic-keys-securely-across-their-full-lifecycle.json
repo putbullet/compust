@@ -1,0 +1,27 @@
+{
+  "question_id": "sec_e_8",
+  "slug": "sec-how-do-you-manage-cryptographic-keys-securely-across-their-full-lifecycle",
+  "track": "security_engineering",
+  "category": "Cryptography, PKI, IAM & Key Lifecycle",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Cryptographic key management enforces strict operational controls across generation, storage in Hardware Security Modules (HSMs), regular rotation, and cryptographically verified destruction.",
+    "simple_explanation": "A cryptographic algorithm is only as secure as the management of its keys. The NIST key management lifecycle encompasses: Generation (using high-entropy hardware random number generators), Storage (protecting private keys inside FIPS 140-3 Level 3 Hardware Security Modules or Cloud KMS), Distribution (using envelope encryption and TLS), Rotation (scheduled automated replacement to limit cryptoperiod exposure), and Destruction (cryptographic erasure or physical demagnetization ensuring zero data recovery).",
+    "real_world_example": "Hotel room electronic keycards: generated dynamically at check-in with high entropy, programmed to expire automatically at check-out time, and deactivated immediately if a guest reports a lost card.",
+    "why_it_matters_and_pitfalls": "Hardcoding cryptographic keys or cloud API tokens in source code or docker images is one of the leading root causes of cloud enterprise breaches. Keys must be injected dynamically at runtime via secrets managers like HashiCorp Vault or AWS KMS.",
+    "key_terms": [
+      "Key Lifecycle Management",
+      "Hardware Security Module (HSM)",
+      "FIPS 140-3 Standard",
+      "Envelope Encryption",
+      "Automated Key Rotation"
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "question_id": "sec_f_12",
+  "slug": "sec-what-is-the-difference-between-plaintext-and-cleartext",
+  "track": "security_engineering",
+  "category": "Cryptography, PKI, IAM & Key Lifecycle",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Plaintext refers specifically to unencrypted input awaiting mathematical transformation by a cryptographic cipher, whereas cleartext refers to any unencrypted data transmitted or stored in human-readable form.",
+    "simple_explanation": "While frequently used interchangeably in informal dialogue, security engineering makes a precise distinction. Plaintext is a cryptographic term describing the raw operand fed into an encryption algorithm (or produced by a decryption algorithm). Cleartext is an architectural and networking term describing unencrypted, unprotected communications (such as legacy HTTP, Telnet, or FTP traffic) that can be intercepted by network sniffers.",
+    "real_world_example": "A typed corporate document resting on a desktop is cleartext; when you feed that document into an AES encryption engine, the algorithm treats the document as its plaintext input.",
+    "why_it_matters_and_pitfalls": "Logging cleartext sensitive credentials (API keys, passwords, health data) into production log aggregators creates severe compliance and data exfiltration liabilities. Cleartext network protocols must be prohibited in zero trust architectures.",
+    "key_terms": [
+      "Plaintext",
+      "Cleartext",
+      "Cryptographic Operands",
+      "Unencrypted Wire Protocols",
+      "Data Exposure"
+    ]
+  }
+}

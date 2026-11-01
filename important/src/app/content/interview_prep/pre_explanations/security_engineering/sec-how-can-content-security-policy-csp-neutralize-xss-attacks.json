@@ -1,0 +1,27 @@
+{
+  "question_id": "sec_f_33",
+  "slug": "sec-how-can-content-security-policy-csp-neutralize-xss-attacks",
+  "track": "security_engineering",
+  "category": "Application Security, Injection Attacks & Web Exploits",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": true,
+  "code_language": "http",
+  "code_snippet": "Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-2726c7f26c' 'strict-dynamic'; object-src 'none'; base-uri 'none'; require-trusted-types-for 'script';\n",
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Content Security Policy (CSP) is an HTTP header defense-in-depth standard that restricts which scripts, styles, and external origins the browser is permitted to load and execute.",
+    "simple_explanation": "Even if an injection flaw permits an attacker to inject inline script markup into HTML, a robust CSP prevents browser execution by disallowing inline scripts by default (blocking unsafe-inline). Modern CSP architectures rely on cryptographically random, per-request nonces or cryptographic hashes. The browser only evaluates script tags carrying the exact matching nonce attribute, while disallowing unapproved external domains from exfiltrating data or loading secondary payloads.",
+    "real_world_example": "A building security protocol: visitors can only speak to staff if they wear a tamper-evident badge carrying today's temporary stamp; even if a stranger enters uninvited, staff refuse to interact with anyone lacking the valid token.",
+    "why_it_matters_and_pitfalls": "Misconfigured CSPs that include 'unsafe-inline' or wildcard domain origins ('*') provide zero effective security against modern exploits. Always deploy CSP initially in 'Content-Security-Policy-Report-Only' mode to audit legitimate corporate scripts before enforcing blocks.",
+    "key_terms": [
+      "Content Security Policy (CSP)",
+      "Cryptographic Nonce",
+      "unsafe-inline Mitigation",
+      "Report-Only Mode",
+      "Strict-Dynamic Directive"
+    ]
+  }
+}

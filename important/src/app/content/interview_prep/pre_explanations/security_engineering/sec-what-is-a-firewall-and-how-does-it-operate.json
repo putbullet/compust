@@ -1,0 +1,27 @@
+{
+  "question_id": "sec_f_4",
+  "slug": "sec-what-is-a-firewall-and-how-does-it-operate",
+  "track": "security_engineering",
+  "category": "Network Security, Protocols & Perimeter Defenses",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "A firewall is a network security perimeter barrier that inspects incoming and outgoing traffic, enforcing rules based on packet headers, stateful connection tables, or application content.",
+    "simple_explanation": "Firewalls function across three evolutionary tiers: Stateless packet filters inspect individual IP headers (source, destination, port) in isolation. Stateful inspection firewalls track the connection state (SYN, ESTABLISHED) in a state table, automatically allowing return traffic for legitimate outbound sessions while dropping unsolicited inbound packets. Next-Generation Firewalls (NGFW) perform deep packet inspection (DPI) at Layer 7, decoding protocols, detecting malware signatures, and blocking unauthorized application behavior regardless of port.",
+    "real_world_example": "A gated community guardhouse: a stateless guard only checks if you have a visitor sticker; a stateful guard maintains a logbook noting that resident Alice drove out, allowing Alice to return without questioning; an NGFW guard inspects the trunk of the car for contraband.",
+    "why_it_matters_and_pitfalls": "Opening outbound port 80/443 without Layer 7 application inspection permits attackers to establish reverse shells or tunnel unauthorized protocols out of corporate perimeters. Firewalls must be paired with zero trust microsegmentation.",
+    "key_terms": [
+      "Firewall Architecture",
+      "Stateful Packet Inspection",
+      "Next-Generation Firewall (NGFW)",
+      "Deep Packet Inspection (DPI)",
+      "State Connection Table"
+    ]
+  }
+}

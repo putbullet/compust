@@ -1,0 +1,27 @@
+{
+  "question_id": "sec_i_11",
+  "slug": "sec-explain-session-hijacking-mechanisms-and-countermeasures",
+  "track": "security_engineering",
+  "category": "Application Security, Injection Attacks & Web Exploits",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Session hijacking steals or predicts an authenticated user's session identifier to impersonate them without knowing their actual login credentials.",
+    "simple_explanation": "After successful authentication, web applications assign session tokens (stored in cookies or local storage) to avoid re-authenticating on every subsequent HTTP request. Attackers hijack sessions through packet sniffing over unencrypted channels, client-side script theft via XSS, predictable token generation, session fixation (forcing a known session ID before login), or cross-site request forgery. Once the identifier is obtained, the attacker assumes the victim's full privileges.",
+    "real_world_example": "A coat check ticket at a theater: the attendant gives you a claim stub when you hand over your jacket; if someone steals that numbered ticket from your pocket, they can present it to the counter and walk away with your property without proving identity.",
+    "why_it_matters_and_pitfalls": "Failing to regenerate session tokens upon privilege escalation (e.g. after password entry) leaves applications vulnerable to session fixation attacks. Modern defenses require regenerating session identifiers immediately upon login, setting HttpOnly and Secure flags, and enforcing short idle expirations.",
+    "key_terms": [
+      "Session Hijacking",
+      "Session Fixation",
+      "Token Regeneration",
+      "HttpOnly Cookie",
+      "Idle Timeout Invalidation"
+    ]
+  }
+}

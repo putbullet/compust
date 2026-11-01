@@ -1,0 +1,27 @@
+{
+  "question_id": "sec_i_4",
+  "slug": "sec-what-is-a-distributed-denial-of-service-ddos-attack-and-mitigation-options",
+  "track": "security_engineering",
+  "category": "Network Security, Protocols & Perimeter Defenses",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "A Distributed Denial of Service (DDoS) attack overwhelms target systems using botnet traffic across volumetric, protocol, or application layers, mitigated via Anycast routing, scrubbing centers, and WAF rate-limiting.",
+    "simple_explanation": "DDoS attacks aim to make online services unavailable. Volumetric attacks (UDP/DNS amplification, NTP reflection) flood network bandwidth with hundreds of gigabits per second. Protocol attacks (SYN floods, Ping of Death) exhaust state connection tables in firewalls and load balancers. Application layer attacks (HTTP GET floods, slowloris) consume web server threads by mimicking legitimate user traffic. Mitigation leverages BGP Anycast to disperse traffic across globally distributed scrubbing centers, CDN caching, and automated rate-limiting.",
+    "real_world_example": "A physical retail store: a volumetric attack is 10,000 paid demonstrators crowding the parking lot so real shoppers cannot park; an application-layer attack is 50 individuals asking the cashier complex questions without ever buying anything.",
+    "why_it_matters_and_pitfalls": "Trying to mitigate multi-hundred gigabit volumetric attacks on-premises will saturate the ISP uplink before traffic even reaches the local firewall. Volumetric mitigation requires cloud-scale Anycast scrubbing capacity.",
+    "key_terms": [
+      "DDoS Attack",
+      "Volumetric vs Protocol vs L7",
+      "BGP Anycast Routing",
+      "Scrubbing Center",
+      "Slowloris Attack"
+    ]
+  }
+}

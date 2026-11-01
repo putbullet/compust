@@ -1,0 +1,27 @@
+{
+  "question_id": "sec_f_13",
+  "slug": "sec-what-is-a-block-cipher-and-what-are-common-cipher-modes",
+  "track": "security_engineering",
+  "category": "Cryptography, PKI, IAM & Key Lifecycle",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "A block cipher encrypts data in fixed-size blocks (e.g. 128 bits), using modes of operation like GCM or CBC to securely process arbitary-length streams.",
+    "simple_explanation": "Algorithms like AES evaluate fixed blocks of bits (128 bits). The cipher mode dictates how multiple blocks are chained together. Electronic Codebook (ECB) encrypts each block independently with the key; identical plaintext blocks yield identical ciphertext blocks, preserving visual structural patterns. Cipher Block Chaining (CBC) XORs each plaintext block with the previous ciphertext block using an Initialization Vector (IV). Galois/Counter Mode (GCM) combines counter-mode encryption with Galois authentication tags, providing high-speed Authenticated Encryption (AEAD).",
+    "real_world_example": "Stamping cookie dough with an inked mould: ECB presses the exact same pattern every time, revealing the underlying image; CBC and GCM continuously alter the stamp angle between each cookie so no two output shapes look alike.",
+    "why_it_matters_and_pitfalls": "ECB mode must never be used in production because it leaks data patterns (famous 'ECB Penguin' vulnerability). Reusing an IV with GCM mode completely destroys the cryptographic integrity of the session, enabling key recovery.",
+    "key_terms": [
+      "Block Cipher",
+      "Electronic Codebook (ECB)",
+      "Cipher Block Chaining (CBC)",
+      "Galois/Counter Mode (GCM)",
+      "Initialization Vector (IV)"
+    ]
+  }
+}

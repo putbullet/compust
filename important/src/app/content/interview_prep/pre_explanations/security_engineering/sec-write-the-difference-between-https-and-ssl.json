@@ -1,0 +1,27 @@
+{
+  "question_id": "sec_f_23",
+  "slug": "sec-write-the-difference-between-https-and-ssl",
+  "track": "security_engineering",
+  "category": "Network Security, Protocols & Perimeter Defenses",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "SSL is a deprecated cryptographic transport protocol, whereas HTTPS is the secure combination of HTTP running over modern TLS encryption.",
+    "simple_explanation": "Secure Sockets Layer (SSL) was developed by Netscape in the 1990s as a transport-layer security protocol. Due to catastrophic cryptographic vulnerabilities (POODLE, DROWN), all SSL versions (1.0, 2.0, 3.0) were officially deprecated and replaced by Transport Layer Security (TLS 1.2, TLS 1.3). Hypertext Transfer Protocol Secure (HTTPS) is not a standalone protocol; it is standard application-layer HTTP communicating over an underlying TLS-encrypted tunnel.",
+    "real_world_example": "Writing a business proposal is HTTP; placing that proposal inside an armored courier van is TLS; the entire service of delivering business proposals via armored courier is HTTPS.",
+    "why_it_matters_and_pitfalls": "Many practitioners casually say 'SSL certificate', but the underlying protocol running on modern servers is TLS. Using actual legacy SSL protocols in production violates PCI-DSS compliance and introduces severe remote interception vulnerabilities.",
+    "key_terms": [
+      "SSL vs TLS",
+      "HTTPS (HTTP over TLS)",
+      "Protocol Deprecation",
+      "Cryptographic Tunneling",
+      "PCI-DSS Compliance"
+    ]
+  }
+}

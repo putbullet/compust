@@ -1,0 +1,27 @@
+{
+  "question_id": "sec_f_15",
+  "slug": "sec-what-is-the-tcp-three-way-handshake-and-what-anomaly-patterns-threaten-it",
+  "track": "security_engineering",
+  "category": "Network Security, Protocols & Perimeter Defenses",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": true,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": "<svg viewBox=\"0 0 640 180\" xmlns=\"http://www.w3.org/2000/svg\" style=\"width:100%;height:auto;font-family:sans-serif;\">\n  <rect x=\"50\" y=\"30\" width=\"120\" height=\"40\" rx=\"6\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--primary, #3b82f6)\" stroke-width=\"2\"/>\n  <text x=\"110\" y=\"55\" fill=\"currentColor\" font-size=\"12\" font-weight=\"700\" text-anchor=\"middle\">Client</text>\n  <rect x=\"470\" y=\"30\" width=\"120\" height=\"40\" rx=\"6\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--primary, #3b82f6)\" stroke-width=\"2\"/>\n  <text x=\"530\" y=\"55\" fill=\"currentColor\" font-size=\"12\" font-weight=\"700\" text-anchor=\"middle\">Server</text>\n  <path d=\"M110 80 L530 100\" stroke=\"currentColor\" stroke-width=\"2\" marker-end=\"url(#arrow)\"/>\n  <text x=\"320\" y=\"85\" fill=\"currentColor\" font-size=\"11\" font-weight=\"600\" text-anchor=\"middle\">1. SYN (Seq=x)</text>\n  <path d=\"M530 115 L110 135\" stroke=\"currentColor\" stroke-width=\"2\" marker-end=\"url(#arrow)\"/>\n  <text x=\"320\" y=\"120\" fill=\"currentColor\" font-size=\"11\" font-weight=\"600\" text-anchor=\"middle\">2. SYN-ACK (Seq=y, Ack=x+1)</text>\n  <path d=\"M110 150 L530 170\" stroke=\"currentColor\" stroke-width=\"2\" marker-end=\"url(#arrow)\"/>\n  <text x=\"320\" y=\"155\" fill=\"currentColor\" font-size=\"11\" font-weight=\"600\" text-anchor=\"middle\">3. ACK (Ack=y+1) -&gt; ESTABLISHED</text>\n</svg>",
+  "diagram_caption": "TCP 3-way handshake establishing stateful sequence numbers.",
+  "content": {
+    "tldr": "The TCP three-way handshake (SYN, SYN-ACK, ACK) establishes reliable, stateful bidirectional transport, but is susceptible to SYN Flood exhaustion attacks.",
+    "simple_explanation": "Transmission Control Protocol (TCP) guarantees reliable delivery by synchronizing sequence numbers between hosts: 1) Client sends SYN with initial sequence number x. 2) Server reserves connection state memory in its backlog queue and responds with SYN-ACK (sequence y, acknowledging x+1). 3) Client returns ACK (acknowledging y+1), transitioning connection to ESTABLISHED. In a SYN flood attack, adversaries send thousands of spoofed SYN packets and withhold final ACKs, filling the server's half-open connection table.",
+    "real_world_example": "A telephone reservation desk: a caller says 'Hold a table for me, I'll confirm in a moment'; if thousands of phantom callers make reservations and never confirm, legitimate diners are turned away.",
+    "why_it_matters_and_pitfalls": "SYN flood attacks completely exhaust operating system kernel memory tables. Modern kernels defend against this using SYN Cookies: encoding connection parameters directly into the server's Initial Sequence Number (ISN) so zero server memory is allocated until the client returns a valid ACK.",
+    "key_terms": [
+      "TCP Three-Way Handshake",
+      "SYN Flood Attack",
+      "Half-Open Connection Backlog",
+      "SYN Cookies",
+      "Sequence Number Randomization"
+    ]
+  }
+}

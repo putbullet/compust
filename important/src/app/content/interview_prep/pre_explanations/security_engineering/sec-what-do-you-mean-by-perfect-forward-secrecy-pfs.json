@@ -1,0 +1,27 @@
+{
+  "question_id": "sec_f_26",
+  "slug": "sec-what-do-you-mean-by-perfect-forward-secrecy-pfs",
+  "track": "security_engineering",
+  "category": "Cryptography, PKI, IAM & Key Lifecycle",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Perfect Forward Secrecy (PFS) ensures that future compromise of a server's long-term private key does not compromise past encrypted session traffic.",
+    "simple_explanation": "In legacy TLS key exchange (like static RSA key transport), the client generates a pre-master secret, encrypts it with the server's public key, and sends it across the wire. If an adversary records all encrypted internet traffic today and compromises the server's private key two years later, they can decrypt all historical recordings. PFS uses ephemeral Diffie-Hellman key exchanges (ECDHE) where unique, temporary session keys are generated dynamically per handshake and destroyed immediately after the session ends.",
+    "real_world_example": "A spy agency: instead of using one master corporate codebook for every message across ten years, agents generate a single-use pad that is burned to ash after reading each dispatch.",
+    "why_it_matters_and_pitfalls": "TLS 1.3 completely removed static RSA and non-ephemeral key exchanges from the specification, mandating ephemeral Diffie-Hellman (ECDHE) to enforce Perfect Forward Secrecy across all modern secure web sessions.",
+    "key_terms": [
+      "Perfect Forward Secrecy (PFS)",
+      "Ephemeral Diffie-Hellman (ECDHE)",
+      "Harvest Now Decrypt Later",
+      "TLS 1.3 Specification",
+      "Session Key Isolation"
+    ]
+  }
+}

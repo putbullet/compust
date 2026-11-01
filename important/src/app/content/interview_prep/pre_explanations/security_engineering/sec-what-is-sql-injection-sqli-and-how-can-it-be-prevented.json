@@ -1,0 +1,27 @@
+{
+  "question_id": "sec_i_3",
+  "slug": "sec-what-is-sql-injection-sqli-and-how-can-it-be-prevented",
+  "track": "security_engineering",
+  "category": "Application Security, Injection Attacks & Web Exploits",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": true,
+  "code_language": "python",
+  "code_snippet": "# Vulnerable: cursor.execute(f'SELECT * FROM users WHERE user = \"{username}\"')\n# Secure: Parameterized query separates SQL instruction from untrusted data\ncursor.execute('SELECT id, role FROM users WHERE user = %s AND pass_hash = %s', (username, hashed))\n",
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "SQL Injection (SQLi) occurs when untrusted user input is directly concatenated into database queries, altering query logic to expose, mutate, or destroy backend records.",
+    "simple_explanation": "When an application interpolates raw strings into database query commands, characters like single quotes or semicolons break out of the data context and enter the interpreter command context. Attackers can execute arbitrary SQL syntax (e.g. `' OR '1'='1`), extract sensitive tables via UNION-based attacks, probe schema architecture via blind time-delays (e.g. `SLEEP(5)`), or execute remote system commands via database administrative extensions.",
+    "real_world_example": "A bank teller processing a deposit slip where a customer writes 'Deposit $10, and also transfer $10,000 to my overseas account'. If the clerk reads the entire handwritten sentence as an official command, an unauthorized transaction occurs.",
+    "why_it_matters_and_pitfalls": "Using naive input escaping or filtering blacklists is notoriously fragile against character set evasion and multi-byte encoding tricks. The only robust, definitive architectural defense is parameterized prepared statements, which compile the SQL execution plan before binding variables as pure literal data.",
+    "key_terms": [
+      "SQL Injection (SQLi)",
+      "Parameterized Queries",
+      "Prepared Statements",
+      "Blind SQLi",
+      "Principle of Least Privilege"
+    ]
+  }
+}

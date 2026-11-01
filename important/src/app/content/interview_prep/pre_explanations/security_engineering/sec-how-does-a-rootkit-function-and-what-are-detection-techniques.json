@@ -1,0 +1,27 @@
+{
+  "question_id": "sec_i_14",
+  "slug": "sec-how-does-a-rootkit-function-and-what-are-detection-techniques",
+  "track": "security_engineering",
+  "category": "Enterprise Architecture, System Hardening & Advanced Threats",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "A rootkit is stealth malware engineered to conceal processes, files, and unauthorized access by intercepting operating system API calls or executing in kernel/hypervisor ring 0.",
+    "simple_explanation": "Unlike standard malware that runs in user space (Ring 3), advanced rootkits hook kernel data structures (Ring 0) or hypervisors (Ring -1). By intercepting system call tables (e.g. sys_call_table in Linux or SSDT in Windows), the rootkit alters the responses returned to administrative tools. When an administrator runs `ps` or `netstat`, the rootkit intercepts the call and deletes its own process IDs, open ports, and file descriptors from the output.",
+    "real_world_example": "A burglar who taps the bank's CCTV surveillance feed: when the security guard looks at the monitor, the hacked feed loops tranquil footage of an empty vault while the burglar works undetected.",
+    "why_it_matters_and_pitfalls": "Detecting a kernel rootkit from within the infected operating system is inherently unreliable because the kernel itself lies to security tools. Detection requires out-of-band analysis: live memory dump acquisition (Volatility), hardware TPM Measured Boot, or running antivirus from an external trusted boot environment.",
+    "key_terms": [
+      "Rootkit",
+      "Kernel Ring 0",
+      "System Call Table Hooking",
+      "DKOM (Direct Kernel Object Manipulation)",
+      "Memory Forensics"
+    ]
+  }
+}

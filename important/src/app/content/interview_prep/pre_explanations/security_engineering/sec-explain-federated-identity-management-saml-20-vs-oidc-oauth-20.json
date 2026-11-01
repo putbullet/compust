@@ -1,0 +1,27 @@
+{
+  "question_id": "sec_e_7",
+  "slug": "sec-explain-federated-identity-management-saml-20-vs-oidc-oauth-20",
+  "track": "security_engineering",
+  "category": "Cryptography, PKI, IAM & Key Lifecycle",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "SAML 2.0 is an XML-based enterprise federation standard for browser Single Sign-On (SSO), while OIDC (OpenID Connect) is a modern JSON/REST identity layer built on OAuth 2.0.",
+    "simple_explanation": "Federated identity permits users to authenticate once with a central Identity Provider (IdP) and access multiple independent Service Providers (SPs). SAML 2.0 uses digitally signed XML assertions transmitted via HTTP POST bindings, common in legacy corporate IT and government systems. OpenID Connect (OIDC) extends the OAuth 2.0 authorization framework with an `id_token` formatted as a JSON Web Token (JWT), providing a lightweight, mobile-friendly identity protocol ideal for modern APIs and cloud-native applications.",
+    "real_world_example": "A government passport (SAML) with embossed physical stamps used at formal corporate checkpoints, versus a digital mobile driver's license QR code (OIDC) scanned seamlessly by mobile apps.",
+    "why_it_matters_and_pitfalls": "SAML parsers are historically susceptible to XML External Entity (XXE) injection and XML signature wrapping attacks. OIDC simplifies token validation using standard JSON Web Key Sets (JWKS) while supporting fine-grained OAuth 2.0 API scopes.",
+    "key_terms": [
+      "Federated Identity Management",
+      "SAML 2.0",
+      "OpenID Connect (OIDC)",
+      "IdP vs SP",
+      "JSON Web Token (JWT)"
+    ]
+  }
+}

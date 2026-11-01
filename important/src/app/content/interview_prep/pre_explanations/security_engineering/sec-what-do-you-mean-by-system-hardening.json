@@ -1,0 +1,27 @@
+{
+  "question_id": "sec_f_24",
+  "slug": "sec-what-do-you-mean-by-system-hardening",
+  "track": "security_engineering",
+  "category": "Enterprise Architecture, System Hardening & Advanced Threats",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "System hardening reduces an operating system or application's attack surface by eliminating unnecessary services, enforcing least-privilege configurations, and applying standardized security benchmarks.",
+    "simple_explanation": "Default operating system installations prioritize broad usability and backward compatibility, leaving unneeded network daemons active, default credentials intact, and permissive access rights enabled. System hardening applies standardized security benchmarks (such as CIS Benchmarks or DISA STIGs) to systematically disable unused ports, remove default accounts, enforce strong password policies, mandate multi-factor authentication, enable host-based firewalls, and restrict kernel module loading.",
+    "real_world_example": "Renovating a commercial building for maximum security: bolting shut unused basement doors, removing master duplicate keys, installing keycard readers on elevators, and sealing off air ducts.",
+    "why_it_matters_and_pitfalls": "Attackers routinely compromise peripheral, unhardened utility servers to gain an initial foothold. Hardening must be automated via immutable infrastructure (e.g. Packer golden images, Ansible playbooks) to prevent configuration drift.",
+    "key_terms": [
+      "System Hardening",
+      "Attack Surface Reduction",
+      "CIS Benchmarks",
+      "Least Privilege Configuration",
+      "Golden Image Pipeline"
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "question_id": "sec_auth_vs_authz",
+  "slug": "sec-what-is-the-difference-between-authentication-and-authorization",
+  "track": "security_engineering",
+  "category": "Cryptography, PKI, IAM & Key Lifecycle",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Authentication verifies who you are, whereas authorization determines what resources and actions you are permitted to access.",
+    "simple_explanation": "Authentication (AuthN) validates identity claims through credentials, passwords, biometric scans, or cryptographic tokens (answering 'Who are you?'). Once identity is verified, Authorization (AuthZ) evaluates access control policies (Role-Based Access Control RBAC, Attribute-Based Access Control ABAC) to determine whether that authenticated identity has permission to execute specific actions (answering 'What are you allowed to do?').",
+    "real_world_example": "An airport boarding gate: presenting your government passport authenticates your identity as a verified traveler; checking your boarding pass ticket authorizes you to board flight 402 and sit in seat 14B.",
+    "why_it_matters_and_pitfalls": "Conflating AuthN and AuthZ leads to Insecure Direct Object Reference (IDOR) vulnerabilities: an application authenticates that User A is valid, but fails to authorize whether User A is allowed to view User B's billing records (`/api/invoices/1029`).",
+    "key_terms": [
+      "Authentication (AuthN)",
+      "Authorization (AuthZ)",
+      "Role-Based Access Control (RBAC)",
+      "Attribute-Based Access Control (ABAC)",
+      "IDOR Vulnerability"
+    ]
+  }
+}

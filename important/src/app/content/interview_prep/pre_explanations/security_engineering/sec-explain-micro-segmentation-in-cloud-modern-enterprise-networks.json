@@ -1,0 +1,27 @@
+{
+  "question_id": "sec_e_5",
+  "slug": "sec-explain-micro-segmentation-in-cloud-modern-enterprise-networks",
+  "track": "security_engineering",
+  "category": "Enterprise Architecture, System Hardening & Advanced Threats",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Micro-segmentation divides data centers and cloud workloads into isolated, granular security segments down to individual workloads, enforcing strict east-west traffic policies.",
+    "simple_explanation": "Traditional network security focused on north-south traffic (traffic entering or leaving the perimeter via edge firewalls), leaving internal east-west traffic (communication between servers inside the same VLAN) largely unmonitored. Micro-segmentation applies software-defined security policies directly to individual virtual machines, containers, or Kubernetes pods using host-based firewalls (iptables, eBPF) or cloud Security Groups, permitting only authorized service-to-service communication.",
+    "real_world_example": "Watertight bulkheads inside a submarine: if one compartment floods with seawater, sealed doors prevent the water from cascading into adjacent compartments, keeping the vessel afloat.",
+    "why_it_matters_and_pitfalls": "Without micro-segmentation, compromising a single low-security web server allows an attacker to pivot unimpeded across the internal network to payment databases. Micro-segmentation confines breaches to their immediate workload.",
+    "key_terms": [
+      "Micro-Segmentation",
+      "East-West Traffic Isolation",
+      "eBPF Workload Filtering",
+      "Software-Defined Networking (SDN)",
+      "Lateral Pivot Prevention"
+    ]
+  }
+}

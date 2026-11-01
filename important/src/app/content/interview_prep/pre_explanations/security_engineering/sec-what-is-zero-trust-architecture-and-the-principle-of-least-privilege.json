@@ -1,0 +1,27 @@
+{
+  "question_id": "sec_i_12",
+  "slug": "sec-what-is-zero-trust-architecture-and-the-principle-of-least-privilege",
+  "track": "security_engineering",
+  "category": "Enterprise Architecture, System Hardening & Advanced Threats",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": true,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": "<svg viewBox=\"0 0 640 180\" xmlns=\"http://www.w3.org/2000/svg\" style=\"width:100%;height:auto;font-family:sans-serif;\">\n  <rect x=\"30\" y=\"50\" width=\"130\" height=\"70\" rx=\"8\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--primary, #3b82f6)\" stroke-width=\"2\"/>\n  <text x=\"95\" y=\"80\" fill=\"currentColor\" font-size=\"12\" font-weight=\"700\" text-anchor=\"middle\">Subject / Device</text>\n  <text x=\"95\" y=\"100\" fill=\"currentColor\" font-size=\"10\" opacity=\"0.8\" text-anchor=\"middle\">Untrusted by default</text>\n  <path d=\"M160 85 H240\" stroke=\"currentColor\" stroke-width=\"2\" marker-end=\"url(#arrow)\"/>\n  <rect x=\"240\" y=\"30\" width=\"160\" height=\"110\" rx=\"8\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--accent, #f59e0b)\" stroke-width=\"2\"/>\n  <text x=\"320\" y=\"60\" fill=\"currentColor\" font-size=\"12\" font-weight=\"700\" text-anchor=\"middle\">Policy Engine (PDP)</text>\n  <text x=\"320\" y=\"85\" fill=\"currentColor\" font-size=\"10\" opacity=\"0.8\" text-anchor=\"middle\">Continuous Verification</text>\n  <text x=\"320\" y=\"105\" fill=\"currentColor\" font-size=\"10\" opacity=\"0.8\" text-anchor=\"middle\">Context + Health + AuthZ</text>\n  <path d=\"M400 85 H480\" stroke=\"currentColor\" stroke-width=\"2\" marker-end=\"url(#arrow)\"/>\n  <rect x=\"480\" y=\"50\" width=\"130\" height=\"70\" rx=\"8\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--secondary, #10b981)\" stroke-width=\"2\"/>\n  <text x=\"545\" y=\"80\" fill=\"currentColor\" font-size=\"12\" font-weight=\"700\" text-anchor=\"middle\">Workload / API</text>\n  <text x=\"545\" y=\"100\" fill=\"currentColor\" font-size=\"10\" opacity=\"0.8\" text-anchor=\"middle\">Least-Privilege Access</text>\n</svg>",
+  "diagram_caption": "Zero Trust model continuously validating device posture and context via Policy Decision Points.",
+  "content": {
+    "tldr": "Zero Trust is a security paradigm rooted in the principle 'never trust, always verify', mandating continuous identity and device posture evaluation regardless of network location.",
+    "simple_explanation": "Legacy perimeter security operated under a 'castle-and-moat' assumption: once a user authenticated past the corporate VPN or firewall, internal traffic was trusted implicitly. Zero Trust (NIST SP 800-207) assumes the network is already hostile. Every request must be explicitly authenticated, authorized, and encrypted. Access decisions evaluate dynamic context: user identity, endpoint health posture, geolocation, and risk telemetry, granting only the minimum permissions necessary (Least Privilege).",
+    "real_world_example": "A high-security research laboratory: rather than checking your badge only at the front lobby turnstile, every single interior door, supply cabinet, and computer terminal requires re-scanning your badge and fingerprint.",
+    "why_it_matters_and_pitfalls": "Zero Trust prevents lateral movement after an initial perimeter breach. If an attacker compromises an engineering laptop, they cannot access financial databases because access is segmented and contextually gated at the application layer.",
+    "key_terms": [
+      "Zero Trust Architecture (ZTA)",
+      "Principle of Least Privilege",
+      "NIST SP 800-207",
+      "Never Trust Always Verify",
+      "Lateral Movement Prevention"
+    ]
+  }
+}

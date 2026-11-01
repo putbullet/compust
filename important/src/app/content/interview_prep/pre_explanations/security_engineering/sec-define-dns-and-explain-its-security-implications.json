@@ -1,0 +1,27 @@
+{
+  "question_id": "sec_f_3",
+  "slug": "sec-define-dns-and-explain-its-security-implications",
+  "track": "security_engineering",
+  "category": "Network Security, Protocols & Perimeter Defenses",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Domain Name System (DNS) maps human-readable domain names to IP addresses; without cryptographic validation, legacy UDP DNS is vulnerable to cache poisoning and traffic hijacking.",
+    "simple_explanation": "DNS traditionally operates over unencrypted UDP port 53. Because UDP is stateless and unauthenticated, adversaries can forge DNS responses (DNS cache poisoning / Kaminsky attacks) to redirect users to malicious clones. Attackers also exploit DNS for command-and-control communication and data exfiltration via DNS tunneling. Modern security architectures enforce DNSSEC (cryptographic signature validation of DNS resource records) and DNS-over-HTTPS (DoH) or DNS-over-TLS (DoT) to protect user query privacy.",
+    "real_world_example": "A municipal telephone book: if an attacker secretly swaps the telephone number listed for the police station with the number of their own criminal den, callers unknowingly connect directly to the adversary.",
+    "why_it_matters_and_pitfalls": "DNSSEC guarantees the authenticity and integrity of DNS records, but does not provide confidentiality: DNSSEC records travel in cleartext. Pairing DNSSEC with DoT/DoH achieves both integrity and query privacy.",
+    "key_terms": [
+      "Domain Name System (DNS)",
+      "DNS Cache Poisoning",
+      "DNSSEC Cryptographic Signing",
+      "DNS Tunneling Exfiltration",
+      "DNS-over-HTTPS (DoH)"
+    ]
+  }
+}

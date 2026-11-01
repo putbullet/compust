@@ -1,0 +1,27 @@
+{
+  "question_id": "sec_f_17",
+  "slug": "sec-what-are-common-hashing-functions-and-how-do-cryptographic-hashes-differ-from-index-ha",
+  "track": "security_engineering",
+  "category": "Cryptography, PKI, IAM & Key Lifecycle",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Cryptographic hash functions are deterministic one-way mathematical functions designed for pre-image resistance and collision resistance, unlike fast non-cryptographic hash table algorithms.",
+    "simple_explanation": "Hash table algorithms (e.g. MurmurHash, xxHash) prioritize computational speed and uniform distribution across hash buckets. Cryptographic hashes (e.g. SHA-256, SHA-3, BLAKE3) prioritize computational irreversibility and security properties: Pre-image resistance (computationally infeasible to reverse H(m) to m), Second pre-image resistance (infeasible to find m2 != m1 such that H(m1) = H(m2)), and Collision resistance (infeasible to find any two arbitrary colliding inputs).",
+    "real_world_example": "A biometric finger scanner: you can verify that an incoming fingerprint matches the stored hash template, but you cannot construct a living human finger solely from the numerical hash score.",
+    "why_it_matters_and_pitfalls": "Never use general-purpose cryptographic hashes like raw SHA-256 for password verification; GPUs can compute billions of SHA-256 hashes per second. Passwords require memory-hard, computationally expensive key-derivation algorithms like Argon2id or bcrypt.",
+    "key_terms": [
+      "Cryptographic Hash",
+      "Pre-Image Resistance",
+      "Collision Resistance",
+      "Avalanche Effect",
+      "Argon2id Key Derivation"
+    ]
+  }
+}

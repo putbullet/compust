@@ -1,0 +1,27 @@
+{
+  "question_id": "sec_f_5",
+  "slug": "sec-what-is-a-vpn-and-how-does-it-protect-traffic",
+  "track": "security_engineering",
+  "category": "Network Security, Protocols & Perimeter Defenses",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "A Virtual Private Network (VPN) creates an encrypted tunnel across an untrusted public network, authenticating peers and encapsulating IP packets to protect data confidentiality and integrity.",
+    "simple_explanation": "VPN protocols (IPsec, WireGuard, OpenVPN) encapsulate standard IP packets inside an encrypted outer packet. In IPsec Tunnel mode, the entire original IP packet (header and payload) is encrypted via Encapsulating Security Payload (ESP) and assigned a new outer IP header routing between VPN gateway endpoints. Intermediary routers and ISPs can only observe the outer tunnel IP, preventing eavesdropping, man-in-the-middle tampering, and local network packet sniffing.",
+    "real_world_example": "Sending a letter inside an armored courier pouch: the courier only reads the corporate distribution center address on the outside pouch; no one along the delivery route can inspect the confidential internal correspondence.",
+    "why_it_matters_and_pitfalls": "Traditional remote-access VPNs grant broad Layer 3 network access upon connection, violating least-privilege principles. If an employee laptop is compromised, the attacker can move laterally across the entire corporate subnet. Enterprises are migrating to Zero Trust Network Access (ZTNA).",
+    "key_terms": [
+      "Virtual Private Network (VPN)",
+      "IPsec Tunnel vs Transport",
+      "Encapsulating Security Payload (ESP)",
+      "Packet Encapsulation",
+      "ZTNA Migration"
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "question_id": "sec_f_7",
+  "slug": "sec-how-does-email-work-and-what-are-its-key-security-protocols",
+  "track": "security_engineering",
+  "category": "Network Security, Protocols & Perimeter Defenses",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": true,
+  "code_language": "dns",
+  "code_snippet": "; Core Email Authentication DNS Records\nv=spf1 ip4:198.51.100.0/24 include:_spf.google.com -all\nv=DKIM1; k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQD...\nv=DMARC1; p=reject; rua=mailto:dmarc-reports@company.com; pct=100;\n",
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Email authentication relies on the cryptographic triad of SPF, DKIM, and DMARC to prevent spoofing, detect message tampering, and enforce domain governance.",
+    "simple_explanation": "The legacy Simple Mail Transfer Protocol (SMTP) lacks built-in sender verification, allowing any client to send messages claiming any arbitrary 'From' address. Modern defense combines three standards: Sender Policy Framework (SPF) publishes a DNS list of authorized sending IP addresses. DomainKeys Identified Mail (DKIM) applies a cryptographic signature to message headers verified via public keys published in DNS. Domain-based Message Authentication, Reporting, and Conformance (DMARC) instructs recipient servers how to handle messages that fail SPF or DKIM (reject or quarantine).",
+    "real_world_example": "A corporate wax seal and courier registry: SPF verifies the courier company is contracted by the firm; DKIM checks the unbroken embossed wax seal; DMARC instructs the recipient to shred the envelope if the courier or seal is invalid.",
+    "why_it_matters_and_pitfalls": "Configuring DMARC in passive monitoring mode (`p=none`) generates telemetry reports but does not block spoofed phishing emails. Organizations must achieve strict enforcement (`p=reject`) to eliminate domain spoofing attacks.",
+    "key_terms": [
+      "Sender Policy Framework (SPF)",
+      "DKIM Digital Signatures",
+      "DMARC Policy Enforcement",
+      "SMTP Header Spoofing",
+      "Email Security Triad"
+    ]
+  }
+}

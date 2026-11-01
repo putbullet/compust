@@ -1,0 +1,27 @@
+{
+  "question_id": "sec_f_11",
+  "slug": "sec-define-encryption-and-decryption",
+  "track": "security_engineering",
+  "category": "Cryptography, PKI, IAM & Key Lifecycle",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Encryption mathematically transforms plaintext into ciphertext using a cryptographic algorithm and key, while decryption reverses the process to recover original content.",
+    "simple_explanation": "Encryption ensures confidentiality across untrusted storage and communication channels. In symmetric cryptography (e.g. AES-256), the exact same secret key encrypts and decrypts data, demanding secure out-of-band key exchange. In asymmetric cryptography (e.g. RSA, ECC), a mathematically linked key pair is used: a public key encrypts data that only the corresponding private key can decrypt, enabling secure communication between untrusted parties without pre-shared secrets.",
+    "real_world_example": "A locked postal dispatch box: anyone with an open slot can drop a confidential letter inside the box, but only the authorized postal carrier possessing the physical key can open the rear door to retrieve and read the letters.",
+    "why_it_matters_and_pitfalls": "Confidentiality alone does not guarantee message integrity or authenticity. Encrypting data without an Authenticated Encryption with Associated Data (AEAD) cipher like AES-GCM allows adversaries to tamper with ciphertext bits undetectable by the recipient.",
+    "key_terms": [
+      "Plaintext vs Ciphertext",
+      "Symmetric Cryptography",
+      "Asymmetric Cryptography",
+      "AEAD Ciphers",
+      "Confidentiality"
+    ]
+  }
+}

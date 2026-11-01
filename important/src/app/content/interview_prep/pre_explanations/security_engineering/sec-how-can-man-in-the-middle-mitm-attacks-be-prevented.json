@@ -1,0 +1,27 @@
+{
+  "question_id": "sec_f_27",
+  "slug": "sec-how-can-man-in-the-middle-mitm-attacks-be-prevented",
+  "track": "security_engineering",
+  "category": "Network Security, Protocols & Perimeter Defenses",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Man-in-the-Middle (MITM) attacks are prevented through mutual cryptographic authentication, strict certificate pinning, HSTS preloading, and encrypted link-layer protocols.",
+    "simple_explanation": "In an MITM attack, an adversary positions themselves between two communicating endpoints, transparently intercepting, decrypting, and relaying traffic (often via ARP spoofing, rogue Wi-Fi access points, or DNS hijacking). Prevention requires end-to-end cryptographic verification: TLS validates server identity using trusted CAs; HTTP Strict Transport Security (HSTS) prevents SSL-stripping downgrades; and Mutual TLS (mTLS) forces clients to present valid cryptographic identity certificates as well.",
+    "real_world_example": "A fake courier standing between two bank branches: if the branches simply hand unsealed envelopes to whoever wears a courier cap, the spy reads everything; if each envelope is sealed with verified cryptographic stamps, the spy cannot forge or read messages.",
+    "why_it_matters_and_pitfalls": "SSL stripping tools like SSLsplit degrade initial unencrypted HTTP connections before the browser redirects to HTTPS. HSTS Preloading forces browsers to connect exclusively via HTTPS from the very first request, completely eliminating the downgrade window.",
+    "key_terms": [
+      "Man-in-the-Middle (MITM)",
+      "Mutual TLS (mTLS)",
+      "HSTS Preloading",
+      "SSL Stripping Downgrade",
+      "ARP Poisoning Mitigation"
+    ]
+  }
+}

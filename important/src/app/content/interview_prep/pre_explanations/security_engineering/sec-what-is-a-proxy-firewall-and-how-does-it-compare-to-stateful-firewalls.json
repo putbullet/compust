@@ -1,0 +1,27 @@
+{
+  "question_id": "sec_i_6",
+  "slug": "sec-what-is-a-proxy-firewall-and-how-does-it-compare-to-stateful-firewalls",
+  "track": "security_engineering",
+  "category": "Network Security, Protocols & Perimeter Defenses",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "A proxy firewall terminates incoming connections at Layer 7 and initiates a completely new connection to the backend server, unlike stateful firewalls that pass packets directly through state tables.",
+    "simple_explanation": "A stateful inspection firewall operates at Layers 3 and 4: it inspects packet headers, tracks connection states, and routes packets directly through the kernel network stack without terminating TCP connections. A proxy firewall (Application Layer Gateway) completely terminates the client TCP connection, reconstructs and inspects the Layer 7 application payload (e.g. HTTP, FTP), and opens a separate, isolated TCP connection to the destination server if the payload complies with policy.",
+    "real_world_example": "A customs courier inspection: a stateful guard checks the delivery driver's badge and lets the truck drive directly into the warehouse; a proxy guard unloads every package from the driver's truck, inspects the contents in an isolation room, and loads approved items into a company-owned truck.",
+    "why_it_matters_and_pitfalls": "Because proxy firewalls reconstruct full application sessions in memory, they can detect sophisticated application attacks and enforce protocol conformance, but introduce significant latency and CPU overhead compared to stateful packet routing.",
+    "key_terms": [
+      "Proxy Firewall",
+      "Application Layer Gateway",
+      "Stateful Inspection",
+      "TCP Termination",
+      "Deep Packet Payload Inspection"
+    ]
+  }
+}

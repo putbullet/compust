@@ -1,0 +1,27 @@
+{
+  "question_id": "sec_e_6",
+  "slug": "sec-what-is-post-quantum-cryptography-pqc-and-why-must-organizations-prepare",
+  "track": "security_engineering",
+  "category": "Cryptography, PKI, IAM & Key Lifecycle",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Post-Quantum Cryptography (PQC) comprises cryptographic algorithms designed to resist cryptanalysis by quantum computers running Shor's algorithm, which threatens all classical public-key cryptography.",
+    "simple_explanation": "Shor's algorithm running on a sufficiently large fault-tolerant quantum computer solves both integer prime factorization and discrete logarithms in polynomial time. This breaks RSA, Diffie-Hellman, and all elliptic-curve algorithms (ECC). NIST standardized lattice-based and module-lattice algorithms like ML-KEM (Kyber) for key encapsulation and ML-DSA (Dilithium) for digital signatures. Symmetric ciphers (AES-256) remain secure against Grover's quantum search by simply using 256-bit key lengths.",
+    "real_world_example": "Replacing traditional brass door tumblers with magnetic induction locks: a newly invented master acoustic pick can instantly open all mechanical tumblers, requiring a completely different physical mechanism.",
+    "why_it_matters_and_pitfalls": "Adversaries currently execute 'Harvest Now, Decrypt Later' campaigns: intercepting and archiving encrypted enterprise and government communications today to decrypt them once quantum hardware matures. Migration requires adopting hybrid classical/PQC cipher suites immediately.",
+    "key_terms": [
+      "Post-Quantum Cryptography (PQC)",
+      "Shor's Algorithm",
+      "Grover's Algorithm",
+      "ML-KEM (Kyber)",
+      "Harvest Now Decrypt Later"
+    ]
+  }
+}

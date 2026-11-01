@@ -1,0 +1,27 @@
+{
+  "question_id": "sec_f_21",
+  "slug": "sec-what-is-the-difference-between-hashing-and-encryption",
+  "track": "security_engineering",
+  "category": "Cryptography, PKI, IAM & Key Lifecycle",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Encryption is a two-way mathematical operation intended for confidentiality that can be reversed using a key, while hashing is a one-way operation intended for integrity that cannot be reversed.",
+    "simple_explanation": "Encryption takes plaintext and converts it into ciphertext using an encryption key; anyone possessing the corresponding decryption key can recover the original data. In contrast, a hash function takes an arbitrary-length message and computes a fixed-length digest through irreversible mathematical compression. Hashing verifies data integrity (confirming a file was not altered in transit) and stores password verifiers without exposing credentials.",
+    "real_world_example": "Cooking: chopping and baking apples into an applesauce puree is a hash (one-way; you cannot turn applesauce back into fresh whole apples); placing an apple inside a locked safe is encryption (reversible when unlocked with the combination).",
+    "why_it_matters_and_pitfalls": "Storing user passwords using reversible encryption is a dangerous anti-pattern: if the decryption key is compromised, every user password in the organization is instantly leaked in plaintext. Passwords must always be hashed with salted, slow adaptive algorithms.",
+    "key_terms": [
+      "Two-Way vs One-Way",
+      "Confidentiality vs Integrity",
+      "Reversible Cipher",
+      "Irreversible Digest",
+      "Salted Password Hashing"
+    ]
+  }
+}

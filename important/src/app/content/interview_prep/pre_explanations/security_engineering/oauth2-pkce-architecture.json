@@ -1,0 +1,27 @@
+{
+  "question_id": "sec_f_39",
+  "slug": "oauth2-pkce-architecture",
+  "track": "security_engineering",
+  "category": "Cryptography, PKI, IAM & Key Lifecycle",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": true,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": "<svg viewBox=\"0 0 640 180\" xmlns=\"http://www.w3.org/2000/svg\" style=\"width:100%;height:auto;font-family:sans-serif;\">\n  <rect x=\"20\" y=\"40\" width=\"130\" height=\"90\" rx=\"8\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--primary, #3b82f6)\" stroke-width=\"2\"/>\n  <text x=\"85\" y=\"70\" fill=\"currentColor\" font-size=\"12\" font-weight=\"700\" text-anchor=\"middle\">Single Page App</text>\n  <text x=\"85\" y=\"90\" fill=\"currentColor\" font-size=\"10\" opacity=\"0.8\" text-anchor=\"middle\">Generates Verifier</text>\n  <text x=\"85\" y=\"105\" fill=\"currentColor\" font-size=\"10\" opacity=\"0.8\" text-anchor=\"middle\">Hashes Challenge</text>\n  <path d=\"M150 65 H310\" stroke=\"currentColor\" stroke-width=\"2\" marker-end=\"url(#arrow)\"/>\n  <text x=\"230\" y=\"58\" fill=\"currentColor\" font-size=\"10\" opacity=\"0.85\" text-anchor=\"middle\">Auth Request + Challenge</text>\n  <rect x=\"310\" y=\"25\" width=\"150\" height=\"120\" rx=\"8\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--secondary, #10b981)\" stroke-width=\"2\"/>\n  <text x=\"385\" y=\"55\" fill=\"currentColor\" font-size=\"12\" font-weight=\"700\" text-anchor=\"middle\">Authorization Server</text>\n  <text x=\"385\" y=\"80\" fill=\"currentColor\" font-size=\"10\" opacity=\"0.8\" text-anchor=\"middle\">Returns Auth Code</text>\n  <text x=\"385\" y=\"110\" fill=\"currentColor\" font-size=\"10\" opacity=\"0.8\" text-anchor=\"middle\">Verifies SHA256(Verifier)</text>\n  <text x=\"385\" y=\"125\" fill=\"currentColor\" font-size=\"10\" opacity=\"0.8\" text-anchor=\"middle\">Matches Challenge</text>\n  <path d=\"M310 115 H150\" stroke=\"currentColor\" stroke-width=\"2\" marker-end=\"url(#arrow)\"/>\n  <text x=\"230\" y=\"135\" fill=\"currentColor\" font-size=\"10\" opacity=\"0.85\" text-anchor=\"middle\">Code + Raw Verifier Exchange</text>\n  <rect x=\"500\" y=\"55\" width=\"120\" height=\"60\" rx=\"8\" fill=\"var(--card-bg, #1e293b)\" stroke=\"var(--accent, #f59e0b)\" stroke-width=\"2\"/>\n  <text x=\"560\" y=\"85\" fill=\"currentColor\" font-size=\"12\" font-weight=\"700\" text-anchor=\"middle\">Access Token</text>\n  <text x=\"560\" y=\"100\" fill=\"currentColor\" font-size=\"10\" opacity=\"0.8\" text-anchor=\"middle\">Issued to Client</text>\n</svg>",
+  "diagram_caption": "OAuth 2.0 PKCE flow dynamically verifying code_challenge against code_verifier.",
+  "content": {
+    "tldr": "Proof Key for Code Exchange (PKCE) secures public OAuth 2.0 clients against authorization code interception by verifying a cryptographically hashed challenge before token issuance.",
+    "simple_explanation": "Public clients (like mobile apps or React Single-Page Applications) cannot securely store a static client_secret without exposing it in decompiled code. In standard authorization code flows, a malicious app on the device could intercept the authorization code redirect. With PKCE (RFC 7636), the client generates a high-entropy secret `code_verifier` and sends its SHA-256 hash (`code_challenge`) during the initial authorization request. During token exchange, the client submits the raw `code_verifier`; the authorization server hashes it and verifies it matches the original challenge before granting tokens.",
+    "real_world_example": "Ordering takeout with a secret handshake: when placing the phone order, you announce 'I will send someone who knows the word Apple'; when your courier arrives, they must whisper 'Apple' to claim the food.",
+    "why_it_matters_and_pitfalls": "The deprecated OAuth Implicit Grant returned access tokens directly in URL hash fragments, leaking them via browser history and Referer headers. PKCE is now mandatory for all Single-Page Apps and native mobile clients according to OAuth 2.1 best practices.",
+    "key_terms": [
+      "OAuth 2.0 PKCE",
+      "code_verifier and code_challenge",
+      "Public Client Security",
+      "Authorization Code Interception",
+      "OAuth 2.1 Specification"
+    ]
+  }
+}

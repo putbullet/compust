@@ -1,0 +1,27 @@
+{
+  "question_id": "sec_i_1",
+  "slug": "sec-what-are-the-steps-involved-in-hacking-a-server-or-network-and-how-defenders-counter-t",
+  "track": "security_engineering",
+  "category": "Enterprise Architecture, System Hardening & Advanced Threats",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "The attack lifecycle follows reconnaissance, weaponization, exploitation, privilege escalation, persistence, and exfiltration, countered by defenders at each stage using the MITRE ATT&CK framework.",
+    "simple_explanation": "Adversary operations follow a structured sequence: 1) Reconnaissance (scanning OSINT, IP ranges, exposed services); 2) Weaponization & Exploitation (delivering tailored exploits against identified vulnerabilities); 3) Privilege Escalation (exploiting local misconfigurations or kernel bugs to gain root/SYSTEM); 4) Persistence (installing cron jobs, services, or registry keys); 5) Lateral Movement (harvesting credentials via Mimikatz to access neighboring servers); and 6) Objective Execution (ransomware encryption or exfiltration). Defenders map detections directly to these MITRE ATT&CK techniques.",
+    "real_world_example": "A bank robbery operation: casing the building for camera blind spots, picking the rear door lock, overriding alarm panels, opening internal vault gates, and loading cash into a getaway vehicle.",
+    "why_it_matters_and_pitfalls": "Defenders only need to break one single link in the attack chain to disrupt an entire intrusion. Detecting and responding early during reconnaissance or lateral movement prevents critical data exfiltration.",
+    "key_terms": [
+      "Cyber Kill Chain",
+      "MITRE ATT&CK Matrix",
+      "Privilege Escalation",
+      "Lateral Movement",
+      "Intrusion Disruption"
+    ]
+  }
+}

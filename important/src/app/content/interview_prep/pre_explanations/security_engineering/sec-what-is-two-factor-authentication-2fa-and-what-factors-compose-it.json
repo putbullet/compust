@@ -1,0 +1,27 @@
+{
+  "question_id": "sec_f_18",
+  "slug": "sec-what-is-two-factor-authentication-2fa-and-what-factors-compose-it",
+  "track": "security_engineering",
+  "category": "Cryptography, PKI, IAM & Key Lifecycle",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "Two-Factor Authentication (2FA) mandates that users substantiate identity by presenting credentials across at least two distinct authentication categories.",
+    "simple_explanation": "Authentication factors are categorized into three core classes: Knowledge (something you know, like a password or PIN), Possession (something you have, like a hardware FIDO2 key, authenticator app TOTP, or smartcard), and Inherence (something you are, like a fingerprint or facial scan). True multi-factor authentication requires combining elements from different categories; demanding two separate passwords constitutes two-step verification, not two-factor.",
+    "real_world_example": "Withdrawing cash from an ATM: you must present your physical bank card (Possession) and enter your private 4-digit PIN (Knowledge); without both distinct factors, the terminal denies the withdrawal.",
+    "why_it_matters_and_pitfalls": "SMS-based OTP verification is vulnerable to SIM swapping, SS7 signaling redirection, and real-time reverse-proxy phishing (Evilginx). High-assurance architectures require FIDO2/WebAuthn hardware tokens, which cryptographically bind the authentication assertion to the origin domain.",
+    "key_terms": [
+      "Multi-Factor Authentication (MFA)",
+      "Knowledge Possession Inherence",
+      "Time-Based One-Time Password (TOTP)",
+      "FIDO2 / WebAuthn",
+      "SIM Swapping Vulnerability"
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "question_id": "sec_i_10",
+  "slug": "sec-explain-the-difference-between-diffie-hellman-and-rsa-cryptography",
+  "track": "security_engineering",
+  "category": "Cryptography, PKI, IAM & Key Lifecycle",
+  "tier": 1,
+  "version": 1,
+  "needs_diagram": false,
+  "needs_code": false,
+  "code_language": null,
+  "code_snippet": null,
+  "diagram_svg": null,
+  "diagram_caption": null,
+  "content": {
+    "tldr": "RSA is a versatile public-key algorithm supporting encryption, key transport, and digital signatures, whereas Diffie-Hellman is a dedicated key-agreement protocol allowing parties to establish a shared secret over an insecure channel.",
+    "simple_explanation": "RSA relies on the computational difficulty of factoring the product of two large prime numbers. In RSA key exchange, one party generates a symmetric key, encrypts it with the other party's public key, and sends it. Diffie-Hellman (DH) relies on the discrete logarithm problem (or elliptic curve discrete log). Neither party transmits the secret; instead, both exchange mathematical public values and combine them with their private values to independently compute the exact same shared secret key.",
+    "real_world_example": "Color mixing: Alice and Bob agree on a common yellow paint; each adds their private color (blue or red) and swaps the mixed paints publicly; each then adds their own private color to the partner's mix, arriving at identical brown paint without an eavesdropper being able to separate the pigments.",
+    "why_it_matters_and_pitfalls": "RSA key transport cannot provide Perfect Forward Secrecy because the long-term private key can decrypt historical recordings. Modern security protocols use Diffie-Hellman (ECDHE) for ephemeral key agreement and restrict RSA (or ECDSA/Ed25519) to identity signatures.",
+    "key_terms": [
+      "RSA Cryptography",
+      "Diffie-Hellman (DH)",
+      "Elliptic Curve Diffie-Hellman (ECDH)",
+      "Discrete Logarithm Problem",
+      "Prime Factorization"
+    ]
+  }
+}

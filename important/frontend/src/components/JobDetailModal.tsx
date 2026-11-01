@@ -868,61 +868,66 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
           )}
         </div>
 
-        {/* Footer Actions */}
+        {/* Footer Actions — 2-Tier Structured Layout */}
         <div className="modal-footer">
-          <button className="secondary-btn" onClick={onClose}>Close</button>
-
-          {job && (
-            <CopyAsPromptControl
-              jobId={job.id}
-              jobTitle={currentTranslation?.title || job.title}
-              companyName={companyName}
-              variant="card"
-            />
-          )}
-
-          {/* Refresh Suggestions Button */}
-          <button
-            type="button"
-            className={`suggestion-btn ${showSuggestions ? 'active' : ''}`}
-            onClick={() => handleFetchResumeSuggestions(true)}
-            disabled={loadingSuggestions}
-            title="Suggest Resume Customization: Recalculate gap analysis against your active resume and selected AI model"
-          >
-            <RefreshCw size={14} className={loadingSuggestions ? 'spin' : ''} />
-            <span>{loadingSuggestions ? 'Analyzing Resume…' : 'Suggest Resume Customization'}</span>
-          </button>
-
-          {/* Mark as Applied Action */}
-          <button
-            type="button"
-            className={`applied-btn ${isApplied ? 'applied' : ''}`}
-            onClick={handleMarkAsApplied}
-            disabled={isApplied || markingApplied}
-          >
-            {isApplied ? (
-              <>
-                <Check size={15} />
-                <span>Marked as Applied</span>
-              </>
-            ) : (
-              <>
-                <CheckCheck size={15} />
-                <span>{markingApplied ? 'Updating...' : 'Mark as Applied'}</span>
-              </>
+          {/* Tier 1: AI Prompt & Analysis Toolbar */}
+          <div className="modal-footer-tools">
+            {job && (
+              <CopyAsPromptControl
+                jobId={job.id}
+                jobTitle={currentTranslation?.title || job.title}
+                companyName={companyName}
+                variant="modal"
+              />
             )}
-          </button>
 
-          {/* External Genuine Portal Link */}
-          <a
-            href={job.job_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="primary-btn"
-          >
-            <span>Apply on Official Portal</span>
-            <ExternalLink size={16} />
-          </a>
+            <button
+              type="button"
+              className={`suggestion-btn ${showSuggestions ? 'active' : ''}`}
+              onClick={() => handleFetchResumeSuggestions(true)}
+              disabled={loadingSuggestions}
+              title="Suggest Resume Customization: Recalculate gap analysis against your active resume and selected AI model"
+            >
+              <RefreshCw size={14} className={loadingSuggestions ? 'spin' : ''} />
+              <span>{loadingSuggestions ? 'Analyzing Resume…' : 'Suggest Resume Customization'}</span>
+            </button>
+          </div>
+
+          {/* Tier 2: Primary Dialog Actions Bar */}
+          <div className="modal-footer-actions">
+            <button className="secondary-btn" onClick={onClose}>Close</button>
+
+            <div className="modal-footer-primary-group">
+              <button
+                type="button"
+                className={`applied-btn ${isApplied ? 'applied' : ''}`}
+                onClick={handleMarkAsApplied}
+                disabled={isApplied || markingApplied}
+              >
+                {isApplied ? (
+                  <>
+                    <Check size={15} />
+                    <span>Marked as Applied</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCheck size={15} />
+                    <span>{markingApplied ? 'Updating...' : 'Mark as Applied'}</span>
+                  </>
+                )}
+              </button>
+
+              <a
+                href={job.job_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="primary-btn"
+              >
+                <span>Apply on Official Portal</span>
+                <ExternalLink size={15} />
+              </a>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -949,7 +954,7 @@ const StyledModalBackdrop = styled.div`
 
   .modal-container {
     width: 100%;
-    max-width: 760px;
+    max-width: 820px;
     max-height: 90vh;
     display: flex;
     flex-direction: column;
@@ -1314,67 +1319,108 @@ const StyledModalBackdrop = styled.div`
 
   .modal-footer {
     display: flex;
-    align-items: center;
-    justify-content: flex-end;
+    flex-direction: column;
     gap: 12px;
-    padding: 18px 28px;
+    padding: 16px 24px;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(10, 15, 26, 0.9);
+    background: rgba(10, 15, 26, 0.95);
+  }
+
+  .modal-footer-tools {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .modal-footer-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .modal-footer-primary-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
   }
 
   .secondary-btn {
-    padding: 10px 20px;
-    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 38px;
+    padding: 0 18px;
+    border-radius: 8px;
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.84rem;
     color: #94a3b8;
     background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-sizing: border-box;
+    white-space: nowrap;
+    cursor: pointer;
     transition: all 0.2s;
 
     &:hover {
       color: #ffffff;
       background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
     }
   }
 
   .primary-btn {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 10px 22px;
-    border-radius: 10px;
+    justify-content: center;
+    gap: 7px;
+    height: 38px;
+    padding: 0 18px;
+    border-radius: 8px;
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.84rem;
     color: #ffffff;
     background: #2563eb;
-    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
-    transition: all 0.2s;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
+    box-sizing: border-box;
+    white-space: nowrap;
+    text-decoration: none;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 
     &:hover {
       background: #1d4ed8;
-      box-shadow: 0 6px 18px rgba(37, 99, 235, 0.55);
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.5);
       transform: translateY(-1px);
+      color: #ffffff;
     }
   }
-
 
   .suggestion-btn {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 6px;
-    padding: 10px 16px;
-    border-radius: 10px;
+    height: 38px;
+    padding: 0 14px;
+    border-radius: 8px;
     font-weight: 600;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     color: #93c5fd;
     background: rgba(59, 130, 246, 0.12);
     border: 1px solid rgba(59, 130, 246, 0.25);
+    box-sizing: border-box;
+    white-space: nowrap;
     cursor: pointer;
     transition: all 0.2s;
 
     &:hover {
       background: rgba(59, 130, 246, 0.22);
       color: #ffffff;
+      border-color: rgba(59, 130, 246, 0.4);
     }
 
     &.active {
@@ -1387,14 +1433,18 @@ const StyledModalBackdrop = styled.div`
   .applied-btn {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 6px;
-    padding: 10px 16px;
-    border-radius: 10px;
+    height: 38px;
+    padding: 0 14px;
+    border-radius: 8px;
     font-weight: 600;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     color: #cbd5e1;
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid rgba(255, 255, 255, 0.12);
+    box-sizing: border-box;
+    white-space: nowrap;
     cursor: pointer;
     transition: all 0.2s;
 
@@ -2251,15 +2301,33 @@ const StyledModalBackdrop = styled.div`
 
     .modal-footer {
       padding: 14px 18px;
-      flex-direction: column-reverse;
-      align-items: stretch;
-      gap: 8px;
+      gap: 10px;
 
-      button, a {
+      .modal-footer-tools {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+      }
+
+      .modal-footer-actions {
+        flex-direction: column-reverse;
+        align-items: stretch;
+        gap: 8px;
+      }
+
+      .modal-footer-primary-group {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+      }
+
+      button, a, .copy-as-prompt-container {
         width: 100%;
         justify-content: center;
       }
     }
+  }
+
   /* Light Mode High-Contrast Overrides */
   @media (prefers-color-scheme: light) {
     .modal-container {
@@ -2331,19 +2399,44 @@ const StyledModalBackdrop = styled.div`
       border-top-color: #e2e8f0;
     }
 
+    .modal-footer-tools {
+      border-bottom-color: #e2e8f0;
+    }
+
     .secondary-btn {
-      background: #e2e8f0;
-      color: #0f172a;
+      background: #f1f5f9;
+      color: #334155;
+      border-color: #cbd5e1;
       &:hover {
-        background: #cbd5e1;
-        color: #000000;
+        background: #e2e8f0;
+        color: #0f172a;
       }
     }
 
     .applied-btn {
       background: #f1f5f9;
       border-color: #cbd5e1;
-      color: #0f172a;
+      color: #334155;
+      &:hover:not(:disabled) {
+        background: #ecfdf5;
+        border-color: #6ee7b7;
+        color: #059669;
+      }
+      &.applied {
+        background: #d1fae5;
+        border-color: #34d399;
+        color: #065f46;
+      }
+    }
+
+    .suggestion-btn {
+      background: #eff6ff;
+      border-color: #93c5fd;
+      color: #1d4ed8;
+      &:hover {
+        background: #dbeafe;
+        color: #1e40af;
+      }
     }
 
     .attached-guidance-panel {
@@ -2422,5 +2515,77 @@ const StyledModalBackdrop = styled.div`
   @keyframes spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
+  }
+
+  /* Explicit data-theme="light" support */
+  [data-theme='light'] & {
+    .modal-container {
+      background: #ffffff;
+      color: #0f172a;
+      border: 1px solid #cbd5e1;
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.18);
+    }
+
+    .modal-header {
+      background: #f8fafc;
+      border-bottom-color: #e2e8f0;
+    }
+
+    .job-title {
+      color: #0f172a;
+    }
+
+    .company-line {
+      color: #334155;
+    }
+
+    .modal-body {
+      background: #ffffff;
+    }
+
+    .modal-footer {
+      background: #f8fafc;
+      border-top-color: #e2e8f0;
+    }
+
+    .modal-footer-tools {
+      border-bottom-color: #e2e8f0;
+    }
+
+    .secondary-btn {
+      background: #f1f5f9;
+      color: #334155;
+      border-color: #cbd5e1;
+      &:hover {
+        background: #e2e8f0;
+        color: #0f172a;
+      }
+    }
+
+    .applied-btn {
+      background: #f1f5f9;
+      border-color: #cbd5e1;
+      color: #334155;
+      &:hover:not(:disabled) {
+        background: #ecfdf5;
+        border-color: #6ee7b7;
+        color: #059669;
+      }
+      &.applied {
+        background: #d1fae5;
+        border-color: #34d399;
+        color: #065f46;
+      }
+    }
+
+    .suggestion-btn {
+      background: #eff6ff;
+      border-color: #93c5fd;
+      color: #1d4ed8;
+      &:hover {
+        background: #dbeafe;
+        color: #1e40af;
+      }
+    }
   }
 `;

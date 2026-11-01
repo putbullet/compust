@@ -3,7 +3,7 @@
 .copy-as-prompt-container {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   position: relative;
   font-family: inherit;
   z-index: 5;
@@ -11,26 +11,46 @@
 
 /* Modal variant styling */
 .copy-as-prompt-container.variant-modal {
-  display: flex;
-  flex-wrap: wrap;
+  display: inline-flex;
   align-items: center;
-  gap: 12px;
-  padding: 6px 10px;
-  background: var(--bg-surface-glass, rgba(255, 255, 255, 0.04));
-  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
-  border-radius: 8px;
-  backdrop-filter: blur(8px);
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 /* Card variant styling */
 .copy-as-prompt-container.variant-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+/* Table variant styling */
+.copy-as-prompt-container.variant-table {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Buttons Row */
+.copy-prompt-actions-row {
   display: inline-flex;
   align-items: center;
   gap: 8px;
 }
 
-/* Table variant styling */
-.copy-as-prompt-container.variant-table {
+.copy-as-prompt-container.variant-card .copy-prompt-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.copy-as-prompt-container.variant-card .copy-prompt-actions-row > * {
+  flex: 1;
+}
+
+.copy-as-prompt-container.variant-table .copy-prompt-actions-row {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -45,15 +65,31 @@
   background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
   color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  padding: 6px 12px;
-  font-size: 0.8125rem;
+  border-radius: 8px;
+  padding: 0 16px;
+  height: 38px;
+  font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  box-sizing: border-box;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.2);
   position: relative;
+}
+
+.copy-as-prompt-container.variant-card .copy-as-prompt-btn {
+  height: 34px;
+  padding: 0 12px;
+  font-size: 0.8rem;
+  border-radius: 8px;
+}
+
+.copy-as-prompt-container.variant-table .copy-as-prompt-btn {
+  height: 28px;
+  padding: 0 9px;
+  font-size: 0.75rem;
+  border-radius: 6px;
 }
 
 .copy-as-prompt-btn:hover:not(:disabled) {
@@ -96,44 +132,85 @@
   to { transform: rotate(360deg); }
 }
 
-/* Contact Details Toggle */
+/* Contact Details Toggle Pill */
 .copy-prompt-toggle-wrap {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.75rem;
+  height: 38px;
+  padding: 0 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
   color: var(--text-secondary, #94a3b8);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
   user-select: none;
+  white-space: nowrap;
+  box-sizing: border-box;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.copy-as-prompt-container.variant-card .copy-prompt-toggle-wrap {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 0.74rem;
+  border-radius: 6px;
+  width: 100%;
+  justify-content: center;
+}
+
+.copy-as-prompt-container.variant-table .copy-prompt-toggle-wrap {
+  height: 28px;
+  padding: 0 8px;
+  font-size: 0.72rem;
+  border-radius: 6px;
+}
+
+.copy-prompt-toggle-wrap:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: var(--text-primary, #f1f5f9);
+}
+
+.copy-prompt-toggle-wrap.active {
+  background: rgba(37, 99, 235, 0.12);
+  border-color: rgba(59, 130, 246, 0.35);
+  color: #93c5fd;
 }
 
 .copy-prompt-toggle-label {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   cursor: pointer;
-  color: var(--text-secondary, #94a3b8);
-  font-size: 0.75rem;
-  font-weight: 500;
-  transition: color 0.15s ease;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
 }
 
-.copy-prompt-toggle-label:hover {
-  color: var(--text-primary, #f1f5f9);
+.copy-prompt-toggle-text {
+  white-space: nowrap;
 }
 
 .copy-prompt-checkbox {
   appearance: none;
   -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
-  border: 1px solid var(--border-medium, rgba(255, 255, 255, 0.3));
-  border-radius: 3px;
-  background: var(--bg-surface, #1e293b);
+  width: 15px;
+  height: 15px;
+  min-width: 15px;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  border-radius: 4px;
+  background: rgba(15, 23, 42, 0.6);
   cursor: pointer;
   position: relative;
-  transition: all 0.15s ease;
-  vertical-align: middle;
   margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  transition: all 0.15s ease;
 }
 
 .copy-prompt-checkbox:checked {
@@ -143,19 +220,23 @@
 
 .copy-prompt-checkbox:checked::after {
   content: '';
-  position: absolute;
-  top: 1px;
-  left: 4px;
   width: 4px;
-  height: 8px;
+  height: 7px;
   border: solid #ffffff;
   border-width: 0 1.5px 1.5px 0;
   transform: rotate(45deg);
+  margin-top: -1px;
 }
 
 .copy-prompt-checkbox:focus-visible {
   outline: 2px solid #38bdf8;
   outline-offset: 1px;
+}
+
+.copy-prompt-info-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .copy-prompt-info-icon {
@@ -381,4 +462,44 @@
 .alert-action-secondary:hover {
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-primary, #ffffff);
+}
+
+
+/* Light Theme Contrast Overrides for CopyAsPromptControl */
+[data-theme='light'] .copy-prompt-toggle-wrap,
+:root[data-theme='light'] .copy-prompt-toggle-wrap,
+.light .copy-prompt-toggle-wrap {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #475569;
+}
+
+[data-theme='light'] .copy-prompt-toggle-wrap:hover,
+:root[data-theme='light'] .copy-prompt-toggle-wrap:hover,
+.light .copy-prompt-toggle-wrap:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
+[data-theme='light'] .copy-prompt-toggle-wrap.active,
+:root[data-theme='light'] .copy-prompt-toggle-wrap.active,
+.light .copy-prompt-toggle-wrap.active {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+[data-theme='light'] .copy-prompt-checkbox,
+:root[data-theme='light'] .copy-prompt-checkbox,
+.light .copy-prompt-checkbox {
+  background: #ffffff;
+  border-color: #94a3b8;
+}
+
+[data-theme='light'] .copy-prompt-checkbox:checked,
+:root[data-theme='light'] .copy-prompt-checkbox:checked,
+.light .copy-prompt-checkbox:checked {
+  background: #2563eb;
+  border-color: #1d4ed8;
 }

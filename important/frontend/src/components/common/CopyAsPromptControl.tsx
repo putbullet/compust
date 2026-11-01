@@ -14,6 +14,7 @@ export interface CopyAsPromptControlProps {
   className?: string;
   onRequireAuth?: () => void;
   onNavigateToProfile?: () => void;
+  children?: React.ReactNode;
 }
 
 export const CopyAsPromptControl: React.FC<CopyAsPromptControlProps> = ({
@@ -24,6 +25,7 @@ export const CopyAsPromptControl: React.FC<CopyAsPromptControlProps> = ({
   className = '',
   onRequireAuth,
   onNavigateToProfile,
+  children,
 }) => {
   const { t } = useTranslation();
   const tooltipId = useId();
@@ -186,35 +188,38 @@ export const CopyAsPromptControl: React.FC<CopyAsPromptControlProps> = ({
   return (
     <>
       <div className={`copy-as-prompt-container variant-${variant} ${className}`}>
-        {/* Main Action Button */}
-        <button
-          type="button"
-          className={`copy-as-prompt-btn ${copied ? 'copied' : ''}`}
-          onClick={handleCopyPrompt}
-          disabled={loading}
-          aria-label={t.copyPrompt.buttonLabel}
-          aria-describedby={tooltipId}
-        >
-          {loading ? (
-            <>
-              <Loader2 size={13} className="copy-icon spin" />
-              <span>{t.copyPrompt.generating}</span>
-            </>
-          ) : copied ? (
-            <>
-              <Check size={13} className="copy-icon" />
-              <span>{t.copyPrompt.buttonCopied}</span>
-            </>
-          ) : (
-            <>
-              <Copy size={13} className="copy-icon" />
-              <span>{t.copyPrompt.buttonLabel}</span>
-            </>
-          )}
-        </button>
+        {/* Buttons Row */}
+        <div className="copy-prompt-actions-row">
+          <button
+            type="button"
+            className={`copy-as-prompt-btn ${copied ? 'copied' : ''}`}
+            onClick={handleCopyPrompt}
+            disabled={loading}
+            aria-label={t.copyPrompt.buttonLabel}
+            aria-describedby={tooltipId}
+          >
+            {loading ? (
+              <>
+                <Loader2 size={13} className="copy-icon spin" />
+                <span>{t.copyPrompt.generating}</span>
+              </>
+            ) : copied ? (
+              <>
+                <Check size={13} className="copy-icon" />
+                <span>{t.copyPrompt.buttonCopied}</span>
+              </>
+            ) : (
+              <>
+                <Copy size={13} className="copy-icon" />
+                <span>{t.copyPrompt.buttonLabel}</span>
+              </>
+            )}
+          </button>
+          {children}
+        </div>
 
-        {/* Contact Details Toggle */}
-        <div className="copy-prompt-toggle-wrap">
+        {/* Contact Details Toggle Pill */}
+        <div className={`copy-prompt-toggle-wrap ${includeContact ? 'active' : ''}`}>
           <label className="copy-prompt-toggle-label" title={t.copyPrompt.contactNote}>
             <input
               type="checkbox"
@@ -223,7 +228,7 @@ export const CopyAsPromptControl: React.FC<CopyAsPromptControlProps> = ({
               className="copy-prompt-checkbox"
               aria-label={t.copyPrompt.includeContact}
             />
-            <span>{t.copyPrompt.includeContact}</span>
+            <span className="copy-prompt-toggle-text">{t.copyPrompt.includeContact}</span>
           </label>
           <span title={t.copyPrompt.contactNote} className="copy-prompt-info-wrap">
             <Info

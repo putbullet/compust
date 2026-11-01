@@ -515,38 +515,41 @@ export const GitHubInternshipsView: React.FC = () => {
               </div>
 
               <div className="curated-card-footer">
-                <div className="curated-source-info">
-                  <span className="source-repo-tag" title={item.source_repo_name}>
-                    {item.source_repo_name.split(':')[0]}
-                  </span>
-                  {item.date_posted && (
-                    <span className="posted-time">
-                      <Calendar size={11} />
-                      <span>{item.date_posted}</span>
+                <div className="curated-card-meta-row">
+                  <div className="curated-source-info">
+                    <span className="source-repo-tag" title={item.source_repo_name}>
+                      {item.source_repo_name.split(':')[0]}
                     </span>
-                  )}
+                    {item.date_posted && (
+                      <span className="posted-time">
+                        <Calendar size={11} />
+                        <span>{item.date_posted}</span>
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <div className="curated-card-actions-wrapper">
                   <CopyAsPromptControl
                     jobId={item.id}
                     jobTitle={item.role}
                     companyName={item.company}
                     variant="card"
-                  />
-                  {item.apply_url && !item.is_closed ? (
-                    <a
-                      href={item.apply_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="curated-apply-btn"
-                    >
-                      <span>{t.internships.applyNow}</span>
-                      <ExternalLink size={13} />
-                    </a>
-                  ) : (
-                    <span className="curated-closed-tag">{t.internships.closed}</span>
-                  )}
+                  >
+                    {item.apply_url && !item.is_closed ? (
+                      <a
+                        href={item.apply_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="curated-apply-btn"
+                      >
+                        <span>{t.internships.applyNow}</span>
+                        <ExternalLink size={13} />
+                      </a>
+                    ) : (
+                      <span className="curated-closed-tag">{t.internships.closed}</span>
+                    )}
+                  </CopyAsPromptControl>
                 </div>
               </div>
             </div>
@@ -567,7 +570,7 @@ export const GitHubInternshipsView: React.FC = () => {
                 <th>Visa Sponsorship</th>
                 <th>Posted / Age</th>
                 <th>Source</th>
-                <th>Action</th>
+                <th className="table-col-action">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -609,27 +612,28 @@ export const GitHubInternshipsView: React.FC = () => {
                       {item.source_repo_name.split(':')[0]}
                     </span>
                   </td>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <td className="table-col-action">
+                    <div className="table-action-cell">
                       <CopyAsPromptControl
                         jobId={item.id}
                         jobTitle={item.role}
                         companyName={item.company}
                         variant="table"
-                      />
-                      {item.apply_url && !item.is_closed ? (
-                        <a
-                          href={item.apply_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="table-apply-btn"
-                        >
-                          <span>{t.internships.applyNow}</span>
-                          <ExternalLink size={12} />
-                        </a>
-                      ) : (
-                        <span className="table-closed-text">{t.internships.closed}</span>
-                      )}
+                      >
+                        {item.apply_url && !item.is_closed ? (
+                          <a
+                            href={item.apply_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="table-apply-btn"
+                          >
+                            <span>{t.internships.applyNow}</span>
+                            <ExternalLink size={12} />
+                          </a>
+                        ) : (
+                          <span className="table-closed-text">{t.internships.closed}</span>
+                        )}
+                      </CopyAsPromptControl>
                     </div>
                   </td>
                 </tr>

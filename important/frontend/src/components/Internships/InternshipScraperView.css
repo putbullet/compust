@@ -1196,12 +1196,23 @@
 
 .curated-card-footer {
   margin-top: auto;
-  padding-top: 12px;
+  padding-top: 14px;
   border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.curated-card-meta-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  min-height: 22px;
+}
+
+.curated-card-actions-wrapper {
+  width: 100%;
 }
 
 .curated-source-info {
@@ -1235,16 +1246,20 @@
 .curated-apply-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  padding: 6px 14px;
+  height: 34px;
+  padding: 0 14px;
   border-radius: 8px;
   background: #2563eb;
   color: #ffffff;
-  font-size: 0.82em;
+  font-size: 0.82rem;
   font-weight: 600;
   text-decoration: none;
   transition: all 0.2s ease;
   white-space: nowrap;
+  box-sizing: border-box;
+  flex: 1;
 }
 
 .curated-apply-btn:hover {
@@ -1254,12 +1269,20 @@
 }
 
 .curated-closed-tag {
-  font-size: 0.78em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font-size: 0.78rem;
   color: #64748b;
   font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 6px;
   background: rgba(100, 116, 139, 0.12);
+  border: 1px solid rgba(100, 116, 139, 0.2);
+  box-sizing: border-box;
+  flex: 1;
+  white-space: nowrap;
 }
 
 /* Table View */
@@ -1359,18 +1382,34 @@
   white-space: nowrap;
 }
 
+.table-col-action {
+  white-space: nowrap;
+  min-width: 250px;
+}
+
+.table-action-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
 .table-apply-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
+  justify-content: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 12px;
   border-radius: 6px;
   background: #2563eb;
   color: #ffffff;
-  font-size: 0.8em;
+  font-size: 0.75rem;
   font-weight: 600;
   text-decoration: none;
-  transition: background 0.18s ease;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+  box-sizing: border-box;
 }
 
 .table-apply-btn:hover {

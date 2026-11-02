@@ -140,6 +140,8 @@ milestones.
   - [x] Diagnostics view accessible before authentication showing dialect, health status, and missing columns count.
   - [x] One-click Auto-Repair and snapshot rollback (`restore_pre_migration_backup`).
   - [x] Instant SQLite switch for offline/remote database recovery.
+  - [x] Dark design system restyle (`#080c14`, `#0f1623`, `#162032`) with `color-scheme: dark`.
+  - [x] Automated WCAG AA contrast compliance across all 5 operational states (healthy, outdated, unreachable, repairing, failed) on desktop (1400px) and laptop (1024px) viewports with zero violations.
 - [x] **Multi-Port MySQL Discovery & Resilient DB Engine**
   - [x] Auto-detect running MySQL/MariaDB instances across ports `3306-3309` and XAMPP `my.ini`.
   - [x] Windows DPAPI encryption for saved database passwords in `db_config.json`.

@@ -9,8 +9,8 @@
 
 | Asset | Format | Size | SHA-256 Checksum |
 | :--- | :--- | :--- | :--- |
-| **`Compust-Setup-v1.0.6.exe`** | Windows Inno Setup Installer | 225.26 MB (`236,205,728` bytes) | `a90924c93de93275f9e335b729624da1b1ed1fc0ab8cb5243745442aaa4fd4b5` |
-| **`Compust-Windows-Portable-v1.0.6.zip`** | Portable Zero-Install Archive | 84.84 MB (`88,962,389` bytes) | `fd675cfdd0e5b32306fe0a6435c4bfc021f495595c3cb2e4920b849bfb07b18a` |
+| **`Compust-Setup-v1.0.6.exe`** | Windows Inno Setup Installer | 225.26 MB (`236,206,951` bytes) | `b0d8511f252c9bf636c27a14347f8c914dd65f98f98089a0d807ba3227f9be36` |
+| **`Compust-Windows-Portable-v1.0.6.zip`** | Portable Zero-Install Archive | 84.85 MB (`88,966,534` bytes) | `7a1d5230ebef3642ca60a1d1d550197752218c62a2ca48fb106d08e1db11c857` |
 
 ---
 
@@ -55,6 +55,10 @@ This release resolves the critical startup and data detection regression where n
   - Deep health endpoint `/health/deep` confirmed `database: ok`, `migrations: synced`, `schema_synced: true`.
   - Database Doctor `/doctor` UI confirmed healthy state and 0 missing columns.
   - Opportunities UI confirmed active vacancies loaded correctly.
+- **WCAG AA Automated Contrast Matrix:** 3/3 passed (`test_wcag_contrast.py`):
+  - Database Doctor verified in all 5 states (healthy, schema outdated, unreachable, repairing, failed) on Desktop (1400px) and Laptop (1024px) viewports with 0 violations.
+  - Standalone service diagnostic pages verified with 0 violations.
+  - Core navigation views (Opportunities, Internships, Applications, Tracker, Profile, Interview Prep) verified with 0 violations.
 - **Playwright E2E Screenshots:** Captured and verified in light and dark modes:
   - `installed_opportunities_populated.png`
   - `installed_doctor_view.png`

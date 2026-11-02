@@ -54,6 +54,7 @@
 > - **Multi-Port MySQL Discovery & DPAPI Encryption**: Automatically scans ports `3306-3309` and XAMPP configurations, secures saved database passwords using Windows DPAPI, and bundles `cryptography` in the Python runtime for seamless MySQL 8 authentication.
 > - **Import Wizard Overhaul with Dry-Run & Undo**: Data Supervision now features dry-run import simulation, comprehensive import history batches, and one-click rollback (`undo_import`) while keeping database configuration accessible even when MySQL is offline.
 > - **Deterministic "Copy as Prompt" & Dynamic Profile Synchronization**: Ready-to-paste tailored Markdown prompts for ChatGPT, Claude, and Gemini with privacy toggles and dynamic resume ↔ profile synchronization.
+> - **Dark Design System & WCAG AA Contrast Alignment**: Restyled the pre-login Database Doctor and out-of-shell diagnostic pages using Compust design tokens, explicit `color-scheme: dark`, and 100% WCAG AA contrast compliance across all 5 operational states.
 
 ---
 

@@ -361,7 +361,7 @@ const StyledCard = styled.div`
 
     .source-tag {
       font-size: 0.75rem;
-      color: #64748b;
+      color: var(--text-muted, #94a3b8);
     }
 
     .view-detail-btn {

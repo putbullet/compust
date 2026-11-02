@@ -633,28 +633,30 @@ const StyledApp = styled.div`
     padding: 10px 20px;
     background: rgba(245, 158, 11, 0.15);
     border-bottom: 1px solid rgba(245, 158, 11, 0.35);
-    color: #d97706;
+    color: #fbbf24;
     font-size: 13px;
     font-weight: 500;
     z-index: 99;
 
     .alert-icon {
       flex-shrink: 0;
+      color: #f59e0b;
     }
 
     .banner-doc-btn {
-      padding: 4px 10px;
-      background: #d97706;
-      color: white;
+      padding: 4px 12px;
+      background: #f59e0b;
+      color: #080c14;
       border: none;
       border-radius: 6px;
       font-size: 12px;
-      font-weight: 600;
+      font-weight: 700;
       cursor: pointer;
       margin-left: 6px;
+      transition: background 0.2s;
 
       &:hover {
-        background: #b45309;
+        background: #fbbf24;
       }
     }
 
@@ -662,7 +664,7 @@ const StyledApp = styled.div`
       background: none;
       border: none;
       font-size: 18px;
-      color: #d97706;
+      color: #fbbf24;
       cursor: pointer;
       padding: 0 4px;
       line-height: 1;

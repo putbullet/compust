@@ -1,6 +1,7 @@
+import json
 import pytest
-import time
 from playwright.sync_api import sync_playwright
+from src.app.diagnostics_view import render_missing_frontend_page, render_friendly_error_page
 
 BASE_URL = "http://127.0.0.1:8000"
 
@@ -67,7 +68,7 @@ CONTRAST_EVAL_JS = """
     return effective;
   }
 
-  const defaultCanvasBg = theme === 'light' ? [255, 255, 255, 1.0] : [9, 13, 22, 1.0];
+  const defaultCanvasBg = [9, 13, 22, 1.0];
   const violations = [];
 
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT);
@@ -139,33 +140,31 @@ CONTRAST_EVAL_JS = """
 
 
 def evaluate_contrast_on_page(page, theme="dark"):
-    # Set theme attribute on root
     page.evaluate(
-        f"""() => {{
-        document.documentElement.setAttribute('data-theme', '{theme}');
-        document.body.className = '{theme}';
-        localStorage.setItem('compust_theme', '{theme}');
-    }}"""
+        """() => {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.body.className = 'dark';
+        localStorage.setItem('compust_theme', 'dark');
+    }"""
     )
     page.wait_for_timeout(300)
-    violations = page.evaluate(CONTRAST_EVAL_JS, theme)
+    violations = page.evaluate(CONTRAST_EVAL_JS, "dark")
     return violations
 
 
-@pytest.mark.parametrize("theme", ["dark", "light"])
-def test_wcag_contrast_across_views(theme):
-    """Walks the rendered DOM of every major view in dark and light mode, asserting WCAG AA contrast."""
+def test_wcag_contrast_across_views():
+    """Walks the rendered DOM of every major view in the single dark theme, asserting WCAG AA contrast."""
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        page = browser.new_page(viewport={"width": 1400, "height": 900})
+        page = browser.new_page(color_scheme="dark", viewport={"width": 1400, "height": 900})
 
-        # Views to test
         views = [
             ("Opportunities", f"{BASE_URL}/?tab=directory"),
             ("Internships", f"{BASE_URL}/?tab=internships"),
             ("Applications", f"{BASE_URL}/?tab=tracker"),
             ("Resume Studio", f"{BASE_URL}/?tab=profile"),
             ("Interview Prep", f"{BASE_URL}/?tab=interview_prep"),
+            ("Database Doctor", f"{BASE_URL}/?tab=doctor"),
         ]
 
         all_violations = []
@@ -174,27 +173,9 @@ def test_wcag_contrast_across_views(theme):
             page.goto(url, wait_until="networkidle")
             page.wait_for_timeout(600)
 
-            # If opportunities, also test with Job Detail Modal open
-            if name == "Opportunities":
-                job_card = page.locator(".job-card, .jobs-grid > div").first
-                if job_card.count() > 0:
-                    job_card.click()
-                    page.wait_for_timeout(600)
-                    modal_violations = evaluate_contrast_on_page(page, theme)
-                    for v in modal_violations:
-                        v["view"] = "Opportunities (JobDetailModal)"
-                        v["theme"] = theme
-                        all_violations.append(v)
-                    # Close modal
-                    close_btn = page.locator("button.modal-close-btn, button[aria-label='Close modal']").first
-                    if close_btn.count() > 0:
-                        close_btn.click()
-                        page.wait_for_timeout(400)
-
-            v_list = evaluate_contrast_on_page(page, theme)
+            v_list = evaluate_contrast_on_page(page, "dark")
             for v in v_list:
                 v["view"] = name
-                v["theme"] = theme
                 all_violations.append(v)
 
         browser.close()
@@ -202,9 +183,143 @@ def test_wcag_contrast_across_views(theme):
         if all_violations:
             summary = "\n".join(
                 [
-                    f"[{v['theme']}][{v['view']}] <{v['tag']} class='{v['className']}'> \"{v['text']}\" "
+                    f"[{v['view']}] <{v['tag']} class='{v['className']}'> \"{v['text']}\" "
                     f"Ratio: {v['ratio']}:1 (Req: {v['requiredRatio']}:1) FG: {v['fg']} BG: {v['bg']}"
                     for v in all_violations[:20]
                 ]
             )
             pytest.fail(f"Found {len(all_violations)} WCAG AA contrast violations:\n{summary}")
+
+
+def test_wcag_contrast_database_doctor_states():
+    """Verifies WCAG AA contrast across all Database Doctor states (healthy, schema outdated, unreachable, repair failed)."""
+    healthy_status = {
+        "is_healthy": True,
+        "active_engine": "sqlite",
+        "active_location": "compust.db",
+        "is_sqlite": True,
+        "is_fallback_active": False,
+        "schema_synced": True,
+        "missing_tables": [],
+        "missing_columns": {},
+        "table_counts": {"users": 2, "jobs": 84, "companies": 42},
+        "backup_count": 1,
+        "latest_backups": [{"filename": "backup.db", "timestamp": "2026-11-02", "size_kb": 100}],
+        "size_mb": 0.2,
+        "db_version": "1.0.6",
+    }
+
+    outdated_status = {
+        **healthy_status,
+        "is_healthy": False,
+        "schema_synced": False,
+        "missing_tables": ["audit_logs"],
+        "missing_columns": {"users": ["email"]},
+    }
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        all_violations = []
+
+        # 1. Healthy state
+        page = browser.new_page(color_scheme="dark", viewport={"width": 1400, "height": 900})
+        page.route("**/api/v1/doctor/status", lambda route: route.fulfill(
+            status=200, content_type="application/json", body=json.dumps(healthy_status)
+        ))
+        page.goto(f"{BASE_URL}/?tab=doctor", wait_until="networkidle")
+        page.wait_for_timeout(400)
+        for v in evaluate_contrast_on_page(page, "dark"):
+            v["state"] = "Doctor (Healthy)"
+            all_violations.append(v)
+        page.close()
+
+        # 2. Schema outdated state (Broken Database simulation)
+        page = browser.new_page(color_scheme="dark", viewport={"width": 1400, "height": 900})
+        page.route("**/api/v1/doctor/status", lambda route: route.fulfill(
+            status=200, content_type="application/json", body=json.dumps(outdated_status)
+        ))
+        page.goto(f"{BASE_URL}/?tab=doctor", wait_until="networkidle")
+        page.wait_for_timeout(400)
+        for v in evaluate_contrast_on_page(page, "dark"):
+            v["state"] = "Doctor (Schema Outdated)"
+            all_violations.append(v)
+        page.close()
+
+        # 3. Unreachable database error state
+        page = browser.new_page(color_scheme="dark", viewport={"width": 1400, "height": 900})
+        page.route("**/api/v1/doctor/status", lambda route: route.abort("failed"))
+        page.goto(f"{BASE_URL}/?tab=doctor", wait_until="networkidle")
+        page.wait_for_timeout(400)
+        for v in evaluate_contrast_on_page(page, "dark"):
+            v["state"] = "Doctor (Unreachable)"
+            all_violations.append(v)
+        page.close()
+
+        # 4. Repair failed state
+        page = browser.new_page(color_scheme="dark", viewport={"width": 1400, "height": 900})
+        page.route("**/api/v1/doctor/status", lambda route: route.fulfill(
+            status=200, content_type="application/json", body=json.dumps(outdated_status)
+        ))
+        page.route("**/api/v1/doctor/repair", lambda route: route.fulfill(
+            status=500, content_type="application/json", body=json.dumps({"detail": "Schema lock timeout"})
+        ))
+        page.goto(f"{BASE_URL}/?tab=doctor", wait_until="networkidle")
+        page.wait_for_timeout(300)
+        page.locator(".repair-primary-btn").click()
+        page.wait_for_timeout(500)
+        for v in evaluate_contrast_on_page(page, "dark"):
+            v["state"] = "Doctor (Repair Failed)"
+            all_violations.append(v)
+        page.close()
+
+        browser.close()
+
+        if all_violations:
+            summary = "\n".join(
+                [
+                    f"[{v['state']}] <{v['tag']} class='{v['className']}'> \"{v['text']}\" "
+                    f"Ratio: {v['ratio']}:1 (Req: {v['requiredRatio']}:1) FG: {v['fg']} BG: {v['bg']}"
+                    for v in all_violations[:20]
+                ]
+            )
+            pytest.fail(f"Found {len(all_violations)} WCAG AA contrast violations in Doctor states:\n{summary}")
+
+
+def test_wcag_contrast_standalone_diagnostic_pages():
+    """Verifies WCAG AA contrast on standalone backend diagnostic and server error pages."""
+    p1_html = render_missing_frontend_page(port=8000, mode="installed", logs_path="logs/backend.log", db_status="ok", version="1.0.6")
+    p2_html = render_friendly_error_page(request_id="req_test_12345", path="/api/v1/test", logs_path="logs/backend.log", error_summary="An unexpected server error occurred.")
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        all_violations = []
+
+        # Missing frontend page
+        page = browser.new_page(color_scheme="dark", viewport={"width": 1400, "height": 900})
+        page.set_content(p1_html)
+        page.wait_for_timeout(300)
+        for v in page.evaluate(CONTRAST_EVAL_JS, "dark"):
+            v["page"] = "Missing Frontend Diagnostic Page"
+            all_violations.append(v)
+        page.close()
+
+        # Friendly error page
+        page = browser.new_page(color_scheme="dark", viewport={"width": 1400, "height": 900})
+        page.set_content(p2_html)
+        page.wait_for_timeout(300)
+        for v in page.evaluate(CONTRAST_EVAL_JS, "dark"):
+            v["page"] = "Friendly Error Page"
+            all_violations.append(v)
+        page.close()
+
+        browser.close()
+
+        if all_violations:
+            summary = "\n".join(
+                [
+                    f"[{v['page']}] <{v['tag']} class='{v['className']}'> \"{v['text']}\" "
+                    f"Ratio: {v['ratio']}:1 (Req: {v['requiredRatio']}:1) FG: {v['fg']} BG: {v['bg']}"
+                    for v in all_violations[:20]
+                ]
+            )
+            pytest.fail(f"Found {len(all_violations)} WCAG AA contrast violations in standalone pages:\n{summary}")

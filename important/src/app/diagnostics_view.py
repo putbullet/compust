@@ -59,19 +59,21 @@ npm run build</code></pre>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark">
   <title>Compust - Frontend Service Diagnostics</title>
   <style>
     :root {{
-      --bg: #0b0f19;
-      --card-bg: #111827;
-      --border: #1f2937;
-      --text: #f3f4f6;
-      --text-muted: #9ca3af;
+      color-scheme: dark;
+      --bg: #080c14;
+      --card-bg: #0f1623;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
       --primary: #3b82f6;
       --primary-hover: #2563eb;
       --success: #10b981;
       --warn: #f59e0b;
-      --code-bg: #1f2937;
+      --code-bg: #162032;
     }}
     * {{ box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }}
     body {{
@@ -196,12 +198,13 @@ npm run build</code></pre>
       transition: all 0.2s;
     }}
     .btn-primary {{
-      background: var(--primary);
+      background: #1d4ed8;
       color: #ffffff;
-      border: 1px solid var(--primary);
+      border: 1px solid #2563eb;
+      font-weight: 600;
     }}
     .btn-primary:hover {{
-      background: var(--primary-hover);
+      background: #1e40af;
     }}
     .btn-secondary {{
       background: transparent;
@@ -281,17 +284,20 @@ def render_friendly_error_page(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark">
   <title>Compust - Server Error</title>
   <style>
     :root {{
-      --bg: #0b0f19;
-      --card-bg: #111827;
-      --border: #1f2937;
-      --text: #f3f4f6;
-      --text-muted: #9ca3af;
-      --danger: #ef4444;
+      color-scheme: dark;
+      --bg: #080c14;
+      --card-bg: #0f1623;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --danger: #f87171;
       --primary: #3b82f6;
       --primary-hover: #2563eb;
+      --code-bg: #162032;
     }}
     * {{ box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }}
     body {{
@@ -352,7 +358,9 @@ def render_friendly_error_page(
     .label {{ color: var(--text-muted); }}
     .value {{ font-family: monospace; font-weight: 600; color: #60a5fa; }}
     pre {{
-      background: #1f2937;
+      background: var(--code-bg, #162032);
+      border: 1px solid var(--border);
+      color: #f8fafc;
       padding: 8px 12px;
       border-radius: 6px;
       font-size: 12px;
@@ -386,11 +394,12 @@ def render_friendly_error_page(
       transition: all 0.2s;
     }}
     .btn-primary {{
-      background: var(--primary);
+      background: #1d4ed8;
       color: #ffffff;
-      border: 1px solid var(--primary);
+      border: 1px solid #2563eb;
+      font-weight: 600;
     }}
-    .btn-primary:hover {{ background: var(--primary-hover); }}
+    .btn-primary:hover {{ background: #1e40af; }}
     .btn-secondary {{
       background: transparent;
       color: var(--text);

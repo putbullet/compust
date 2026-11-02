@@ -146,7 +146,14 @@ def apply_migrations(engine=None) -> list[str]:
                                         {"tbl": table_name},
                                     ).fetchone()
                                     if not check:
-                                        connection.execute(text(f"CREATE TABLE {table_name} (id INTEGER PRIMARY KEY)"))
+                                        try:
+                                            from src.app.models import Base
+                                            if table_name in Base.metadata.tables:
+                                                Base.metadata.tables[table_name].create(bind=connection)
+                                            else:
+                                                connection.execute(text(f"CREATE TABLE {table_name} (id INTEGER PRIMARY KEY)"))
+                                        except Exception:
+                                            connection.execute(text(f"CREATE TABLE {table_name} (id INTEGER PRIMARY KEY)"))
 
                                     add_col = re.match(r"^ALTER\s+TABLE\s+(\w+)\s+ADD\s+COLUMN\s+(\w+)", stmt, re.IGNORECASE)
                                     if add_col:

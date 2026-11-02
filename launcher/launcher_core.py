@@ -914,6 +914,33 @@ def get_user_logs_dir(repo_root: Path) -> Path:
     return get_logs_dir(data_dir)
 
 
+
+def get_or_create_setup_token(data_dir: Path) -> str:
+    """Generate or retrieve a cryptographically secure local setup token in the data directory."""
+    import secrets
+    token_file = data_dir / "setup_token.json"
+    if token_file.is_file():
+        try:
+            data = json.loads(token_file.read_text(encoding="utf-8"))
+            tok = data.get("token")
+            if tok and len(tok) >= 16:
+                return tok
+        except Exception:
+            pass
+
+    token = secrets.token_hex(24)
+    payload = {
+        "token": token,
+        "created_at": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
+    }
+    token_file.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    try:
+        os.chmod(token_file, 0o600)
+    except Exception:
+        pass
+    return token
+
+
 def run_check_and_repair(repo_root: Path, data_dir: Path | None = None) -> dict[str, Any]:
     """Execute self-healing diagnostic and repair routines."""
     if data_dir is None:
@@ -957,6 +984,13 @@ def run_check_and_repair(repo_root: Path, data_dir: Path | None = None) -> dict[
                 backup_file = backup_sqlite_database(db_path)
                 report["repairs_performed"].append(f"Backed up damaged DB to {backup_file}")
 
+        from src.app.schema_reconciler import reconcile_database_schema, get_schema_diff
+        from src.app.database import engine
+        diff = get_schema_diff(engine)
+        if not diff["is_synced"]:
+            report["issues_detected"].append(f"Schema mismatch detected: missing {len(diff['missing_columns'])} table columns")
+            reconcile_res = reconcile_database_schema(engine, auto_backup=True)
+            report["repairs_performed"].append(f"Auto-healed database schema: {reconcile_res.get('added_columns')}")
         applied = apply_migrations()
         if applied:
             report["repairs_performed"].append(f"Applied {len(applied)} missing migration(s): {', '.join(applied)}")
@@ -1062,11 +1096,14 @@ def start_system_tray(repo_root: Path, data_dir: Path, target_url: str, port: in
 
     def on_check_repair(icon, item):
         logger.info("Check & Repair requested from tray.")
+        token = get_or_create_setup_token(data_dir)
+        doctor_url = f"http://127.0.0.1:{port}/doctor?setup_token={token}"
+        webbrowser.open(doctor_url)
         res = run_check_and_repair(repo_root, data_dir)
         try:
             icon.notify(
                 title="Compust Health Check",
-                message=f"Status: {res.get('status')}. Repairs: {len(res.get('repairs_performed', []))}",
+                message=f"Status: {res.get('status')}. Opened Database Doctor in browser.",
             )
         except Exception:
             pass

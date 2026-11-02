@@ -156,11 +156,23 @@ from .schemas_ai_resume import (
 from .schemas_data import (
     BackupExportResponse,
     BackupRestoreResponse,
+    DatabaseActiveInfoResponse,
+    DatabaseCreateRequest,
+    DatabaseDetectResponse,
+    DatabaseSwitchRequest,
+    DatabaseTestRequest,
+    DatabaseTestResponse,
+    DoctorRepairResponse,
+    DoctorStatusResponse,
     ImportExecuteRequest,
     ImportExecuteResponse,
+    ImportHistoryItem,
     ImportPreviewRequest,
     ImportPreviewResponse,
+    ImportSourceInfo,
     ImportSourcesResponse,
+    UndoImportResponse,
+    UserDataSummary,
 )
 from .services.data_manager import data_manager_service
 from .schemas_applications import (
@@ -461,14 +473,12 @@ def health_deep(db: Session = Depends(get_db)) -> dict[str, Any]:
     except Exception as e:
         db_status = f"error: {e}"
 
-    # 2. Schema / migration status
-    migration_status = "ok"
-    try:
-        res = db.execute(text("SELECT version_num FROM alembic_version"))
-        v = res.scalar()
-        migration_status = f"at_head ({v})" if v else "initialized"
-    except Exception:
-        migration_status = "declarative_synced"
+    # 2. Schema & migration status
+    from .schema_reconciler import get_schema_diff
+    from .database import get_active_database_info
+    diff = get_schema_diff(engine)
+    active_info = get_active_database_info()
+    migration_status = "synced" if diff["is_synced"] else "update_required"
 
     # 3. Frontend static build check
     dist_index = pathlib.Path(__file__).resolve().parent.parent.parent / "frontend" / "dist" / "index.html"
@@ -494,7 +504,7 @@ def health_deep(db: Session = Depends(get_db)) -> dict[str, Any]:
     return {
         "status": "ok" if is_healthy else "degraded",
         "app": "compust",
-        "version": "1.0.4",
+        "version": "1.0.5",
         "mode": app_mode,
         "instance_id": os.environ.get("COMPUST_INSTANCE_ID", f"compust_{app_mode}_{os.getpid()}"),
         "pid": os.getpid(),
@@ -502,6 +512,12 @@ def health_deep(db: Session = Depends(get_db)) -> dict[str, Any]:
         "data_dir": str(get_user_data_dir()),
         "database": db_status,
         "migrations": migration_status,
+        "schema_synced": diff["is_synced"],
+        "missing_tables": diff["missing_tables"],
+        "missing_columns": diff["missing_columns"],
+        "active_engine": active_info["engine"],
+        "database_location": active_info["location"],
+        "is_fallback_active": active_info["is_fallback_active"],
         "frontend_build": frontend_status,
         "ollama": ollama_status,
         "latency_ms": latency_ms,
@@ -1525,6 +1541,63 @@ AUTH_ERROR_MESSAGES = {
 }
 
 
+
+def classify_db_error(exc: Exception, lang: str = "en", req_id: str = "") -> HTTPException:
+    """Map database exceptions into distinct HTTP status codes and actionable, localized messages."""
+    msg_lower = str(exc).lower()
+    logger.error(f"Database operation failed [{req_id}]: {exc}", exc_info=True)
+
+    # 1. Schema mismatch
+    if any(k in msg_lower for k in ["no such column", "no such table", "unknown column", "table doesn't exist"]):
+        messages = {
+            "en": f"Local database schema requires an update. Please use Check & Repair or visit /doctor. [{req_id}]",
+            "fr": f"Mise à jour du schéma de base de données requise. Veuillez utiliser Vérifier et Réparer ou visiter /doctor. [{req_id}]",
+            "nl": f"Databaseschema-update vereist. Gebruik Controleren en Repareren of bezoek /doctor. [{req_id}]",
+        }
+        return HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=messages.get(lang, messages["en"]),
+            headers={"X-Error-Code": "SCHEMA_MISMATCH"},
+        )
+
+    # 2. Database authentication rejected
+    if any(k in msg_lower for k in ["access denied for user", "password authentication failed", "1045"]):
+        messages = {
+            "en": f"Database login failed. Please verify credentials in Settings. [{req_id}]",
+            "fr": f"Échec de connexion à la base de données. Veuillez vérifier les identifiants dans les Paramètres. [{req_id}]",
+            "nl": f"Database-inloggen mislukt. Controleer de inloggegevens in Instellingen. [{req_id}]",
+        }
+        return HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=messages.get(lang, messages["en"]),
+            headers={"X-Error-Code": "DB_AUTH_FAILED"},
+        )
+
+    # 3. Server unreachable
+    if any(k in msg_lower for k in ["can't connect", "connection refused", "timeout", "timed out", "operationalerror", "2003"]):
+        messages = {
+            "en": f"Database server is not reachable. Please verify the service is running. [{req_id}]",
+            "fr": f"Le serveur de base de données n'est pas accessible. Veuillez vérifier que le service est actif. [{req_id}]",
+            "nl": f"Databaseserver is niet bereikbaar. Controleer of de service actief is. [{req_id}]",
+        }
+        return HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=messages.get(lang, messages["en"]),
+            headers={"X-Error-Code": "DB_UNREACHABLE"},
+        )
+
+    messages = {
+        "en": f"Database error encountered. [{req_id}]",
+        "fr": f"Erreur de base de données rencontrée. [{req_id}]",
+        "nl": f"Databasefout opgetreden. [{req_id}]",
+    }
+    return HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail=messages.get(lang, messages["en"]),
+        headers={"X-Error-Code": "DB_ERROR"},
+    )
+
+
 def _get_client_lang(request: Request) -> str:
     accept = request.headers.get("accept-language", "").lower()
     if "fr" in accept:
@@ -1562,11 +1635,7 @@ def register_user(
         )
     except (OperationalError, DatabaseError) as db_err:
         db.rollback()
-        base_msg = AUTH_ERROR_MESSAGES["db_unavailable"].get(lang, AUTH_ERROR_MESSAGES["db_unavailable"]["en"])
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"{base_msg} [{req_id}]",
-        )
+        raise classify_db_error(db_err, lang=lang, req_id=req_id)
 
 
 @app.post("/api/v1/auth/login", response_model=TokenResponse, tags=["auth"])
@@ -1590,11 +1659,7 @@ def login_user(
         raise
     except (OperationalError, DatabaseError) as db_err:
         db.rollback()
-        base_msg = AUTH_ERROR_MESSAGES["db_unavailable"].get(lang, AUTH_ERROR_MESSAGES["db_unavailable"]["en"])
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"{base_msg} [{req_id}]",
-        )
+        raise classify_db_error(db_err, lang=lang, req_id=req_id)
 
 
 @app.post("/api/v1/auth/reset-password", response_model=TokenResponse, tags=["auth"])
@@ -1618,11 +1683,7 @@ def reset_password(
         raise
     except (OperationalError, DatabaseError) as db_err:
         db.rollback()
-        base_msg = AUTH_ERROR_MESSAGES["db_unavailable"].get(lang, AUTH_ERROR_MESSAGES["db_unavailable"]["en"])
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"{base_msg} [{req_id}]",
-        )
+        raise classify_db_error(db_err, lang=lang, req_id=req_id)
 
 
 @app.get("/api/v1/auth/me", response_model=UserProfileResponse, tags=["auth"])
@@ -4650,6 +4711,313 @@ def make_error_response(request: Request, exc: Exception) -> Response:
         },
         headers={"X-Request-ID": request_id},
     )
+
+
+
+# ---------------------------------------------------------------------------
+# Database Management & Doctor Endpoints
+# ---------------------------------------------------------------------------
+
+def _validate_loopback_host(request: Request) -> None:
+    host_header = request.headers.get("host", "").split(":")[0].strip().lower()
+    allowed_hosts = {"127.0.0.1", "localhost", "::1", "testserver"}
+    if host_header not in allowed_hosts:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Host header must be loopback (127.0.0.1 or localhost) to prevent DNS rebinding.",
+        )
+
+
+def _validate_same_origin(request: Request) -> None:
+    origin = request.headers.get("origin")
+    if origin:
+        origin_clean = origin.split("://")[-1].split(":")[0].strip().lower()
+        if origin_clean not in {"127.0.0.1", "localhost", "::1", "testserver"}:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Forbidden: Cross-origin requests from non-loopback origins are blocked.",
+            )
+
+
+def _verify_auth_or_setup_token(request: Request, user: User | None = Depends(get_optional_current_user)) -> bool:
+    _validate_loopback_host(request)
+    _validate_same_origin(request)
+
+    if user:
+        return True
+
+    # Check setup token from data folder
+    try:
+        from .paths import get_user_data_dir
+        import secrets
+        token_file = get_user_data_dir() / "setup_token.json"
+        if token_file.is_file():
+            data = json.loads(token_file.read_text(encoding="utf-8"))
+            stored_token = data.get("token")
+        else:
+            stored_token = secrets.token_hex(24)
+            token_file.write_text(json.dumps({"token": stored_token, "created_at": datetime.now(timezone.utc).isoformat()}), encoding="utf-8")
+
+        provided_token = request.headers.get("X-Setup-Token") or request.query_params.get("setup_token")
+        if provided_token and secrets.compare_digest(provided_token, stored_token):
+            return True
+    except Exception as exc:
+        logger.warning(f"Setup token verification exception: {exc}")
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Authentication or valid local setup token required for database management operations.",
+    )
+
+
+@app.get("/api/v1/doctor/status", response_model=DoctorStatusResponse, tags=["doctor"])
+def get_doctor_status(request: Request) -> DoctorStatusResponse:
+    """Pre-login safe health & schema audit of active database."""
+    _validate_loopback_host(request)
+    from .schema_reconciler import get_schema_diff
+    from .database import get_active_database_info
+    from .paths import get_backups_dir
+
+    active_info = get_active_database_info()
+    diff = get_schema_diff(engine)
+
+    backups_dir = get_backups_dir()
+    available_backups = []
+    if backups_dir.is_dir():
+        for p in sorted(backups_dir.glob("*.db"), key=lambda x: x.stat().st_mtime, reverse=True):
+            available_backups.append({
+                "filename": p.name,
+                "size_bytes": p.stat().st_size,
+                "size_mb": round(p.stat().st_size / (1024 * 1024), 2),
+                "created_at": datetime.fromtimestamp(p.stat().st_mtime, timezone.utc).isoformat(),
+            })
+
+    is_healthy = diff["is_synced"] and not active_info["is_fallback_active"]
+    return DoctorStatusResponse(
+        is_healthy=is_healthy,
+        active_engine=active_info["engine"],
+        active_location=active_info["location"],
+        is_sqlite=active_info["is_sqlite"],
+        size_mb=active_info["size_mb"],
+        schema_synced=diff["is_synced"],
+        missing_tables=diff["missing_tables"],
+        missing_columns=diff["missing_columns"],
+        table_counts=active_info["table_counts"],
+        is_fallback_active=active_info["is_fallback_active"],
+        available_backups=available_backups,
+        error_message=None,
+    )
+
+
+@app.post("/api/v1/doctor/repair", response_model=DoctorRepairResponse, tags=["doctor"])
+def repair_database_schema(request: Request) -> DoctorRepairResponse:
+    """Execute safe, idempotent schema reconciliation, auto-healing missing columns and tables."""
+    _validate_loopback_host(request)
+    _validate_same_origin(request)
+    from .schema_reconciler import reconcile_database_schema
+
+    try:
+        res = reconcile_database_schema(engine, auto_backup=True)
+        return DoctorRepairResponse(
+            success=True,
+            message="Database schema successfully verified and auto-healed.",
+            is_synced=res.get("is_synced", True),
+            created_tables=res.get("created_tables", []),
+            added_columns=res.get("added_columns", {}),
+            applied_migrations=res.get("applied_migrations", []),
+            backup_file=res.get("backup_file"),
+        )
+    except Exception as exc:
+        logger.error(f"Doctor database repair failed: {exc}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Database repair failed: {exc}")
+
+
+@app.post("/api/v1/doctor/restore", tags=["doctor"])
+def restore_doctor_backup(
+    filename: str,
+    request: Request,
+    authorized: bool = Depends(_verify_auth_or_setup_token),
+):
+    """Restore a local SQLite backup file from backups directory."""
+    from .paths import get_backups_dir, get_database_path, backup_sqlite_database
+    safe_name = Path(filename).name
+    backup_file = get_backups_dir() / safe_name
+    if not backup_file.is_file():
+        raise HTTPException(status_code=404, detail=f"Backup file '{safe_name}' not found.")
+
+    target_db = get_database_path()
+    if target_db.is_file():
+        backup_sqlite_database(target_db)
+
+    try:
+        from .database import engine, rebind_database_engine, init_database_schema, get_default_sqlite_url
+        engine.dispose()
+        shutil.copy2(backup_file, target_db)
+        sqlite_url = get_default_sqlite_url()
+        new_eng = create_engine(sqlite_url, connect_args={"check_same_thread": False})
+        rebind_database_engine(new_eng)
+        init_database_schema()
+        return {"success": True, "message": f"Successfully restored database from {safe_name}"}
+    except Exception as exc:
+        logger.error(f"Failed to restore backup {safe_name}: {exc}")
+        raise HTTPException(status_code=500, detail=f"Restore failed: {exc}")
+
+
+@app.get("/api/v1/database/active", response_model=DatabaseActiveInfoResponse, tags=["database"])
+def get_active_database(request: Request) -> DatabaseActiveInfoResponse:
+    """Retrieve full details on currently active database engine and health."""
+    _validate_loopback_host(request)
+    from .database import get_active_database_info
+    from .services.db_config import load_db_config
+
+    info = get_active_database_info()
+    cfg = load_db_config()
+    return DatabaseActiveInfoResponse(
+        engine=info["engine"],
+        location=info["location"],
+        is_sqlite=info["is_sqlite"],
+        size_mb=info["size_mb"],
+        table_counts=info["table_counts"],
+        schema_synced=info["schema_synced"],
+        missing_tables=info["missing_tables"],
+        missing_columns=info["missing_columns"],
+        is_fallback_active=info["is_fallback_active"],
+        configured=bool(cfg and cfg.get("enabled", True)),
+    )
+
+
+@app.get("/api/v1/database/detect", response_model=DatabaseDetectResponse, tags=["database"])
+def detect_mysql_servers(request: Request) -> DatabaseDetectResponse:
+    """Scan loopback 127.0.0.1 for active MySQL / MariaDB instances."""
+    _validate_loopback_host(request)
+    from .services.db_config import scan_local_mysql_instances
+    detected = scan_local_mysql_instances()
+    return DatabaseDetectResponse(detected_servers=detected)
+
+
+@app.post("/api/v1/database/test", response_model=DatabaseTestResponse, tags=["database"])
+def test_database_connection_endpoint(req: DatabaseTestRequest, request: Request) -> DatabaseTestResponse:
+    """Test connection credentials and schema state against target MySQL server."""
+    _validate_loopback_host(request)
+    from .services.db_config import test_mysql_connection
+    res = test_mysql_connection(
+        host=req.host,
+        port=req.port,
+        user=req.user,
+        password=req.password,
+        database=req.database,
+    )
+    return DatabaseTestResponse(**res)
+
+
+@app.post("/api/v1/database/create-database", tags=["database"])
+def create_mysql_database_endpoint(
+    req: DatabaseCreateRequest,
+    request: Request,
+    authorized: bool = Depends(_verify_auth_or_setup_token),
+):
+    """Create target database with utf8mb4 encoding on connected MySQL server."""
+    from .services.db_config import create_mysql_database
+    res = create_mysql_database(
+        host=req.host,
+        port=req.port,
+        user=req.user,
+        password=req.password,
+        database=req.database,
+    )
+    if not res.get("success"):
+        raise HTTPException(status_code=400, detail=res.get("message"))
+    return res
+
+
+@app.post("/api/v1/database/switch", response_model=DatabaseActiveInfoResponse, tags=["database"])
+def switch_database_endpoint(
+    req: DatabaseSwitchRequest,
+    request: Request,
+    authorized: bool = Depends(_verify_auth_or_setup_token),
+) -> DatabaseActiveInfoResponse:
+    """Switch active database between MySQL and SQLite live with safety backup and migrations."""
+    from .database import switch_active_database
+    try:
+        params = {
+            "host": req.host,
+            "port": req.port,
+            "user": req.user,
+            "password": req.password,
+            "database": req.database,
+        } if req.target_engine.lower() == "mysql" else None
+
+        info = switch_active_database(
+            target_engine=req.target_engine,
+            params=params,
+            run_migrations=req.run_migrations,
+        )
+        return DatabaseActiveInfoResponse(
+            engine=info["engine"],
+            location=info["location"],
+            is_sqlite=info["is_sqlite"],
+            size_mb=info["size_mb"],
+            table_counts=info["table_counts"],
+            schema_synced=info["schema_synced"],
+            missing_tables=info["missing_tables"],
+            missing_columns=info["missing_columns"],
+            is_fallback_active=info["is_fallback_active"],
+            configured=req.target_engine.lower() == "mysql",
+        )
+    except Exception as exc:
+        logger.error(f"Switch database failed: {exc}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Database switch failed: {exc}")
+
+
+@app.post("/api/v1/database/switch-to-sqlite", response_model=DatabaseActiveInfoResponse, tags=["database"])
+def switch_to_sqlite_endpoint(
+    request: Request,
+    authorized: bool = Depends(_verify_auth_or_setup_token),
+) -> DatabaseActiveInfoResponse:
+    """Revert active database to default local SQLite."""
+    from .database import switch_active_database
+    try:
+        info = switch_active_database("sqlite")
+        return DatabaseActiveInfoResponse(
+            engine=info["engine"],
+            location=info["location"],
+            is_sqlite=info["is_sqlite"],
+            size_mb=info["size_mb"],
+            table_counts=info["table_counts"],
+            schema_synced=info["schema_synced"],
+            missing_tables=info["missing_tables"],
+            missing_columns=info["missing_columns"],
+            is_fallback_active=info["is_fallback_active"],
+            configured=False,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed reverting to SQLite: {exc}")
+
+
+@app.get("/api/v1/data/import/history", response_model=list[ImportHistoryItem], tags=["data-management"])
+def get_import_history_endpoint() -> list[ImportHistoryItem]:
+    """Retrieve list of previous import batches from ledger."""
+    return data_manager_service.get_import_history()
+
+
+@app.post("/api/v1/data/import/dry-run", response_model=ImportExecuteResponse, tags=["data-management"])
+def dry_run_data_import_endpoint(req: ImportExecuteRequest) -> ImportExecuteResponse:
+    """Simulate data import without committing any changes."""
+    req.dry_run = True
+    return data_manager_service.execute_import(req)
+
+
+@app.post("/api/v1/data/import/undo/{batch_id}", response_model=UndoImportResponse, tags=["data-management"])
+def undo_data_import_endpoint(
+    batch_id: str,
+    request: Request,
+    authorized: bool = Depends(_verify_auth_or_setup_token),
+) -> UndoImportResponse:
+    """Safely undo a previously executed import batch with pre-undo backup."""
+    try:
+        return data_manager_service.undo_import(batch_id)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Undo import failed: {exc}")
 
 
 @app.middleware("http")

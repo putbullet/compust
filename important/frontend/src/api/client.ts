@@ -2186,6 +2186,60 @@ export const api = {
     }
     return response.json() as Promise<BackupRestoreResponse>;
   },
+
+  // Database Doctor & Configuration
+  getDoctorStatus: () => request<DoctorStatusResponse>('/doctor/status'),
+  repairDatabase: (setupToken?: string) =>
+    request<DoctorRepairResponse>('/doctor/repair', {
+      method: 'POST',
+      headers: setupToken ? { 'X-Setup-Token': setupToken } : undefined,
+    }),
+  restoreDoctorBackup: (filename: string, setupToken?: string) =>
+    request<{ success: boolean; message: string }>(`/doctor/restore?filename=${encodeURIComponent(filename)}`, {
+      method: 'POST',
+      headers: setupToken ? { 'X-Setup-Token': setupToken } : undefined,
+    }),
+  getActiveDatabaseInfo: () => request<DatabaseActiveInfoResponse>('/database/active'),
+  detectDatabaseServers: () => request<DatabaseDetectResponse>('/database/detect'),
+  testDatabaseConnection: (data: DatabaseTestRequest) =>
+    request<DatabaseTestResponse>('/database/test', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  createDatabase: (data: DatabaseTestRequest, setupToken?: string) =>
+    request<{ success: boolean; message: string }>('/database/create-database', {
+      method: 'POST',
+      headers: setupToken ? { 'X-Setup-Token': setupToken } : undefined,
+      body: JSON.stringify(data),
+    }),
+  switchDatabase: (data: { target_engine: string; host?: string; port?: number; user?: string; password?: string; database?: string; run_migrations?: boolean }, setupToken?: string) =>
+    request<DatabaseActiveInfoResponse>('/database/switch', {
+      method: 'POST',
+      headers: setupToken ? { 'X-Setup-Token': setupToken } : undefined,
+      body: JSON.stringify(data),
+    }),
+  switchToSqlite: (setupToken?: string) =>
+    request<DatabaseActiveInfoResponse>('/database/switch-to-sqlite', {
+      method: 'POST',
+      headers: setupToken ? { 'X-Setup-Token': setupToken } : undefined,
+    }),
+  dryRunDataImport: (sourceId: string, userId?: number, email?: string, conflictStrategy: string = 'merge') =>
+    request<ImportExecuteResponse>('/data/import/dry-run', {
+      method: 'POST',
+      body: JSON.stringify({
+        source_id: sourceId,
+        user_id: userId,
+        email,
+        conflict_strategy: conflictStrategy,
+        dry_run: true,
+      }),
+    }),
+  getImportHistory: () => request<ImportHistoryItem[]>('/data/import/history'),
+  undoDataImport: (batchId: string, setupToken?: string) =>
+    request<UndoImportResponse>(`/data/import/undo/${batchId}`, {
+      method: 'POST',
+      headers: setupToken ? { 'X-Setup-Token': setupToken } : undefined,
+    }),
 };
 
 
@@ -3252,6 +3306,99 @@ export interface TTSStatusResponse {
   voices: TTSVoiceItem[];
   fallback_available: boolean;
   fallback_engine: string;
+}
+
+
+export interface DetectedServerInfo {
+  host: string;
+  port: number;
+  reachable: boolean;
+  is_mysql: boolean;
+  server_version: string;
+}
+
+export interface DatabaseDetectResponse {
+  detected_servers: DetectedServerInfo[];
+}
+
+export interface DatabaseTestRequest {
+  host: string;
+  port: number;
+  user: string;
+  password?: string;
+  database: string;
+}
+
+export interface DatabaseTestResponse {
+  success: boolean;
+  error_code?: string | null;
+  message: string;
+  server_version?: string | null;
+  database_exists: boolean;
+  schema_state: 'empty' | 'compatible' | 'outdated' | 'foreign' | 'unreachable' | 'auth_failed' | string;
+  table_counts: Record<string, number>;
+}
+
+export interface DatabaseActiveInfoResponse {
+  engine: string;
+  location: string;
+  is_sqlite: boolean;
+  size_mb?: number | null;
+  table_counts: Record<string, number>;
+  schema_synced: boolean;
+  missing_tables: string[];
+  missing_columns: Record<string, string[]>;
+  is_fallback_active: boolean;
+  configured: boolean;
+}
+
+export interface DoctorStatusResponse {
+  is_healthy: boolean;
+  active_engine: string;
+  active_location: string;
+  is_sqlite: boolean;
+  size_mb?: number | null;
+  schema_synced: boolean;
+  missing_tables: string[];
+  missing_columns: Record<string, string[]>;
+  table_counts: Record<string, number>;
+  is_fallback_active: boolean;
+  available_backups: Array<{
+    filename: string;
+    size_bytes: number;
+    size_mb: number;
+    created_at: string;
+  }>;
+  error_message?: string | null;
+}
+
+export interface DoctorRepairResponse {
+  success: boolean;
+  message: string;
+  is_synced: boolean;
+  created_tables: string[];
+  added_columns: Record<string, string[]>;
+  applied_migrations: string[];
+  backup_file?: string | null;
+}
+
+export interface ImportHistoryItem {
+  batch_id: string;
+  source_type: string;
+  source_location: string;
+  strategy: string;
+  imported_at: string;
+  counts: Record<string, number>;
+  status: string;
+  undone_at?: string | null;
+}
+
+export interface UndoImportResponse {
+  success: boolean;
+  batch_id: string;
+  message: string;
+  removed_counts: Record<string, number>;
+  backup_file?: string | null;
 }
 
 export interface UserDataSummary {

@@ -255,6 +255,7 @@ def prepare_python_runtime(repo_root: Path, staging_runtime: Path, use_venv: boo
         str(req_file),
         "pystray",
         "pillow",
+        "cryptography",
     ]
     subprocess.run(pip_cmd, check=True)
     logger.info("✓ Python runtime and dependencies staged successfully.")
@@ -325,6 +326,16 @@ def stage_application(repo_root: Path, staging_dir: Path, version: str, use_venv
         shutil.copy2(important_dir / "alembic.ini", imp_dst / "alembic.ini")
     if (important_dir / "migrations").is_dir():
         shutil.copytree(important_dir / "migrations", imp_dst / "migrations", ignore=shutil.ignore_patterns("__pycache__"))
+
+    # Verify migration package completeness
+    repo_migs = sorted([p.name for p in (important_dir / "migrations").glob("*.sql")])
+    staged_migs = sorted([p.name for p in (imp_dst / "migrations").glob("*.sql")])
+    assert repo_migs == staged_migs, f"Migration packaging discrepancy! Repo: {repo_migs}, Staged: {staged_migs}"
+    for m in repo_migs:
+        repo_h = hashlib.sha256((important_dir / "migrations" / m).read_bytes()).hexdigest()
+        staged_h = hashlib.sha256((imp_dst / "migrations" / m).read_bytes()).hexdigest()
+        assert repo_h == staged_h, f"Migration hash mismatch for {m}!"
+    logger.info(f"✓ All {len(repo_migs)} SQL migrations verified identical in staging.")
 
     # reference datasets
     if (important_dir / "job-titles.json").is_file():

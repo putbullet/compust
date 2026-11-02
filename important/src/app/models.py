@@ -565,4 +565,18 @@ class UserUnifiedProfile(Base):
 
     user: Mapped["User"] = relationship(back_populates="unified_profile")
 
+class ImportBatch(Base):
+    __tablename__ = "import_batches"
+
+    id: Mapped[int] = mapped_column(UnsignedInt, primary_key=True)
+    batch_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    source_type: Mapped[str] = mapped_column(String(50))
+    source_location: Mapped[str] = mapped_column(String(500))
+    strategy: Mapped[str] = mapped_column(String(50))
+    target_user_id: Mapped[int | None] = mapped_column(UnsignedInt, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    imported_at: Mapped[datetime] = mapped_column(DateTime)
+    counts: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    created_row_ids: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    status: Mapped[str] = mapped_column(String(50), default="completed")  # completed, undone
+    undone_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 

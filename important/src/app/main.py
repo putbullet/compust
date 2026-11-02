@@ -475,7 +475,7 @@ def health_deep(db: Session = Depends(get_db)) -> dict[str, Any]:
 
     # 2. Schema & migration status
     from .schema_reconciler import get_schema_diff
-    from .database import get_active_database_info
+    from .database import get_active_database_info, engine
     diff = get_schema_diff(engine)
     active_info = get_active_database_info()
     migration_status = "synced" if diff["is_synced"] else "update_required"
@@ -504,7 +504,7 @@ def health_deep(db: Session = Depends(get_db)) -> dict[str, Any]:
     return {
         "status": "ok" if is_healthy else "degraded",
         "app": "compust",
-        "version": "1.0.5",
+        "version": "1.0.6",
         "mode": app_mode,
         "instance_id": os.environ.get("COMPUST_INSTANCE_ID", f"compust_{app_mode}_{os.getpid()}"),
         "pid": os.getpid(),
@@ -4619,102 +4619,6 @@ def toggle_unified_matching(
 
 
 
-# Standalone Frontend Production Mount & Global Fallback
-_frontend_dist = pathlib.Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
-_assets_dir = _frontend_dist / "assets"
-if _assets_dir.is_dir():
-    from fastapi.staticfiles import StaticFiles
-    app.mount("/assets", StaticFiles(directory=str(_assets_dir)), name="assets")
-
-_illustrations_dir = pathlib.Path(__file__).resolve().parent.parent.parent / "frontend" / "public" / "illustrations"
-if _illustrations_dir.is_dir():
-    from fastapi.staticfiles import StaticFiles
-    app.mount("/illustrations", StaticFiles(directory=str(_illustrations_dir)), name="illustrations")
-
-
-@app.get("/{full_path:path}", include_in_schema=False)
-async def serve_spa_frontend(request: Request, full_path: str):
-    # Do not intercept API, documentation, or system routes
-    if (
-        full_path.startswith("api/")
-        or full_path.startswith("docs")
-        or full_path.startswith("redoc")
-        or full_path.startswith("openapi.json")
-        or full_path.startswith("health")
-    ):
-        raise HTTPException(status_code=404, detail="API route not found.")
-
-    # 1. Check if direct static file exists in dist
-    if _frontend_dist.is_dir():
-        file_candidate = _frontend_dist / full_path
-        if file_candidate.is_file():
-            return FileResponse(str(file_candidate))
-
-        # 2. Check if index.html exists in dist
-        index_candidate = _frontend_dist / "index.html"
-        if index_candidate.is_file():
-            return FileResponse(str(index_candidate))
-
-    # 3. Fallback: missing or stale frontend build -> render friendly diagnostic page
-    from .diagnostics_view import render_missing_frontend_page
-    from .paths import get_app_mode, get_logs_dir
-
-    active_port = int(os.environ.get("COMPUST_ACTIVE_PORT", os.environ.get("PORT", 8000)))
-    app_mode = get_app_mode()
-    logs_file = str(get_logs_dir() / "backend.log")
-
-    html_content = render_missing_frontend_page(
-        port=active_port,
-        mode=app_mode,
-        logs_path=logs_file,
-        db_status="ok",
-        version="1.0.4",
-    )
-    return HTMLResponse(content=html_content, status_code=200)
-
-
-def make_error_response(request: Request, exc: Exception) -> Response:
-    request_id = getattr(request.state, "request_id", None) or f"req_{uuid.uuid4().hex[:12]}"
-    logger = get_logger("compust.server")
-    logger.error(
-        f"Unhandled exception [Request ID: {request_id}] on {request.method} {request.url.path}: {exc}",
-        exc_info=True,
-    )
-
-    try:
-        from .paths import get_logs_dir
-        logs_dir_str = str(get_logs_dir())
-        logs_path = str(get_logs_dir() / "backend.log")
-    except Exception:
-        logs_dir_str = "logs"
-        logs_path = "logs/backend.log"
-
-    # Return friendly HTML for direct browser page requests
-    accept_header = request.headers.get("accept", "")
-    if "text/html" in accept_header and not request.url.path.startswith("/api/") and not request.url.path.startswith("/health"):
-        from .diagnostics_view import render_friendly_error_page
-        html_err = render_friendly_error_page(
-            request_id=request_id,
-            path=request.url.path,
-            logs_path=logs_path,
-            error_summary="An unexpected server error occurred while processing your request.",
-        )
-        return HTMLResponse(content=html_err, status_code=500, headers={"X-Request-ID": request_id})
-
-    return JSONResponse(
-        status_code=500,
-        content={
-            "error": "Internal Server Error",
-            "message": "An unexpected error occurred on the server. Please check the logs or run Check & Repair.",
-            "request_id": request_id,
-            "logs_dir": logs_dir_str,
-        },
-        headers={"X-Request-ID": request_id},
-    )
-
-
-
-# ---------------------------------------------------------------------------
 # Database Management & Doctor Endpoints
 # ---------------------------------------------------------------------------
 
@@ -4748,8 +4652,11 @@ def _verify_auth_or_setup_token(request: Request, user: User | None = Depends(ge
 
     # Check setup token from data folder
     try:
-        from .paths import get_user_data_dir
+        import json
+        import logging
         import secrets
+        logger = logging.getLogger("compust.server")
+        from .paths import get_user_data_dir
         token_file = get_user_data_dir() / "setup_token.json"
         if token_file.is_file():
             data = json.loads(token_file.read_text(encoding="utf-8"))
@@ -4775,7 +4682,7 @@ def get_doctor_status(request: Request) -> DoctorStatusResponse:
     """Pre-login safe health & schema audit of active database."""
     _validate_loopback_host(request)
     from .schema_reconciler import get_schema_diff
-    from .database import get_active_database_info
+    from .database import get_active_database_info, engine
     from .paths import get_backups_dir
 
     active_info = get_active_database_info()
@@ -4815,6 +4722,7 @@ def repair_database_schema(request: Request) -> DoctorRepairResponse:
     _validate_loopback_host(request)
     _validate_same_origin(request)
     from .schema_reconciler import reconcile_database_schema
+    from .database import engine
 
     try:
         res = reconcile_database_schema(engine, auto_backup=True)
@@ -5020,6 +4928,104 @@ def undo_data_import_endpoint(
         raise HTTPException(status_code=500, detail=f"Undo import failed: {exc}")
 
 
+
+
+# Standalone Frontend Production Mount & Global Fallback
+_frontend_dist = pathlib.Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
+_assets_dir = _frontend_dist / "assets"
+if _assets_dir.is_dir():
+    from fastapi.staticfiles import StaticFiles
+    app.mount("/assets", StaticFiles(directory=str(_assets_dir)), name="assets")
+
+_illustrations_dir = pathlib.Path(__file__).resolve().parent.parent.parent / "frontend" / "public" / "illustrations"
+if _illustrations_dir.is_dir():
+    from fastapi.staticfiles import StaticFiles
+    app.mount("/illustrations", StaticFiles(directory=str(_illustrations_dir)), name="illustrations")
+
+
+@app.get("/{full_path:path}", include_in_schema=False)
+async def serve_spa_frontend(request: Request, full_path: str):
+    # Do not intercept API, documentation, or system routes
+    if (
+        full_path.startswith("api/")
+        or full_path.startswith("docs")
+        or full_path.startswith("redoc")
+        or full_path.startswith("openapi.json")
+        or full_path.startswith("health")
+    ):
+        raise HTTPException(status_code=404, detail="API route not found.")
+
+    # 1. Check if direct static file exists in dist
+    if _frontend_dist.is_dir():
+        file_candidate = _frontend_dist / full_path
+        if file_candidate.is_file():
+            return FileResponse(str(file_candidate))
+
+        # 2. Check if index.html exists in dist
+        index_candidate = _frontend_dist / "index.html"
+        if index_candidate.is_file():
+            return FileResponse(str(index_candidate))
+
+    # 3. Fallback: missing or stale frontend build -> render friendly diagnostic page
+    from .diagnostics_view import render_missing_frontend_page
+    from .paths import get_app_mode, get_logs_dir
+
+    active_port = int(os.environ.get("COMPUST_ACTIVE_PORT", os.environ.get("PORT", 8000)))
+    app_mode = get_app_mode()
+    logs_file = str(get_logs_dir() / "backend.log")
+
+    html_content = render_missing_frontend_page(
+        port=active_port,
+        mode=app_mode,
+        logs_path=logs_file,
+        db_status="ok",
+        version="1.0.4",
+    )
+    return HTMLResponse(content=html_content, status_code=200)
+
+
+def make_error_response(request: Request, exc: Exception) -> Response:
+    request_id = getattr(request.state, "request_id", None) or f"req_{uuid.uuid4().hex[:12]}"
+    logger = get_logger("compust.server")
+    logger.error(
+        f"Unhandled exception [Request ID: {request_id}] on {request.method} {request.url.path}: {exc}",
+        exc_info=True,
+    )
+
+    try:
+        from .paths import get_logs_dir
+        logs_dir_str = str(get_logs_dir())
+        logs_path = str(get_logs_dir() / "backend.log")
+    except Exception:
+        logs_dir_str = "logs"
+        logs_path = "logs/backend.log"
+
+    # Return friendly HTML for direct browser page requests
+    accept_header = request.headers.get("accept", "")
+    if "text/html" in accept_header and not request.url.path.startswith("/api/") and not request.url.path.startswith("/health"):
+        from .diagnostics_view import render_friendly_error_page
+        html_err = render_friendly_error_page(
+            request_id=request_id,
+            path=request.url.path,
+            logs_path=logs_path,
+            error_summary="An unexpected server error occurred while processing your request.",
+        )
+        return HTMLResponse(content=html_err, status_code=500, headers={"X-Request-ID": request_id})
+
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "Internal Server Error",
+            "message": "An unexpected error occurred on the server. Please check the logs or run Check & Repair.",
+            "request_id": request_id,
+            "logs_dir": logs_dir_str,
+        },
+        headers={"X-Request-ID": request_id},
+    )
+
+
+
+# ---------------------------------------------------------------------------
 @app.middleware("http")
 async def error_handling_middleware(request: Request, call_next):
     request_id = request.headers.get("X-Request-ID") or f"req_{uuid.uuid4().hex[:12]}"

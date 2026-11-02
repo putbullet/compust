@@ -119,6 +119,10 @@ def _decrypt_password(enc_str: str) -> str:
     return enc_str
 
 
+encrypt_password = _encrypt_password
+decrypt_password = _decrypt_password
+
+
 def get_db_config_file() -> Path:
     """Resolve location of db_config.json based on user data dir."""
     return get_user_data_dir() / "db_config.json"

@@ -48,12 +48,12 @@
 ---
 
 > [!NOTE]
-> ### 📢 What's New in v1.0.5
-> - **Deterministic "Copy as Prompt" Tailored Resume Generator**: Copy a complete, ready-to-paste Markdown prompt formatted for ChatGPT, Claude, or Gemini containing cleaned job postings, de-duplicated unified profile (resume + LinkedIn), ATS compliance rules, and adjustment notes. Includes an interactive "Include contact info" toggle pill with persistent preference memory. 100% offline-compatible, consuming zero external LLM API quota.
-> - **Multi-Lingual Resume Parsing & Automatic Profile Synchronization**: Extended canonical resume parser with Dutch section headers (`werkervaring`, `opleiding`, `vaardigheden`, etc.) and multi-block experience extraction. Automated event-driven profile recomputation across all resume lifecycle operations (upload, switch default, parse, update, delete) with zero-stale cache busting.
-> - **2-Tier Opportunities & Internships Action Layouts**: Standardized 38px uniform button heights, crisp icon-label alignments, and eliminated jagged multi-line wrapping across all modal action buttons. Restructured modal footer into a dedicated AI Tools bar and a clean dialog action row. Redesigned Internship card and table row actions with side-by-side buttons and full source repository tag visibility.
-> - **Local AI Gateway & Ollama Stabilization**: Resolved mutual recursion and timeout locks between Ollama health checks and model retrieval. Added provider isolation across Gemini, OpenAI, and Ollama model lists with non-blocking status probes.
-> - **Curated High-Yield Interview Explanations**: 80+ curated technical explanations and sanitized SVG architecture diagrams across AI Engineering, Security Engineering, and Data Engineering tracks.
+> ### 📢 What's New in v1.0.6
+> - **Self-Healing Schema Reconciler**: Automatic startup reconciliation eliminates empty stub tables, fixes missing columns (`users.email`, etc.) across SQLite migrations, and creates pre-migration safety backups with zero data loss.
+> - **Pre-Login Database Doctor (`/doctor`)**: Direct health diagnostics, missing column audits, table row counters, one-click schema auto-repair, and instant fallback to SQLite before authentication.
+> - **Multi-Port MySQL Discovery & DPAPI Encryption**: Automatically scans ports `3306-3309` and XAMPP configurations, secures saved database passwords using Windows DPAPI, and bundles `cryptography` in the Python runtime for seamless MySQL 8 authentication.
+> - **Import Wizard Overhaul with Dry-Run & Undo**: Data Supervision now features dry-run import simulation, comprehensive import history batches, and one-click rollback (`undo_import`) while keeping database configuration accessible even when MySQL is offline.
+> - **Deterministic "Copy as Prompt" & Dynamic Profile Synchronization**: Ready-to-paste tailored Markdown prompts for ChatGPT, Claude, and Gemini with privacy toggles and dynamic resume ↔ profile synchronization.
 
 ---
 
@@ -61,17 +61,17 @@
 
 Get Compust up and running on Windows in less than two minutes. **No Python, Node.js, XAMPP, MySQL, Git, or command-line experience required.**
 
-### 📥 1. Official Downloads (v1.0.5)
+### 📥 1. Official Downloads (v1.0.6)
 Download the release assets directly from GitHub Releases:
-- 💿 **[Windows Setup Wizard (Compust-Setup-v1.0.5.exe)](https://github.com/putbullet/compust/releases/latest)** (~225 MB) — Recommended for most users. Includes bundled Python runtime, automatic updates, start menu and desktop shortcuts, and system tray integration.
-- 📦 **[Windows Portable Release (Compust-Windows-Portable-v1.0.5.zip)](https://github.com/putbullet/compust/releases/latest)** (~85 MB) — Zero installation required. Simply extract anywhere and launch `Compust.bat`.
+- 💿 **[Windows Setup Wizard (Compust-Setup-v1.0.6.exe)](https://github.com/putbullet/compust/releases/latest)** (~225 MB) — Recommended for most users. Includes bundled Python runtime, automatic updates, start menu and desktop shortcuts, and system tray integration.
+- 📦 **[Windows Portable Release (Compust-Windows-Portable-v1.0.6.zip)](https://github.com/putbullet/compust/releases/latest)** (~85 MB) — Zero installation required. Simply extract anywhere and launch `Compust.bat`.
 - Each release provides an official SHA-256 checksum file to independently verify package integrity.
 
 ---
 
 ### 🪄 2. The 5-Step Setup Walkthrough
 
-1. **Download the Setup File**: Click the link above to download `Compust-Setup-v1.0.5.exe` (or extract `Compust-Windows-Portable-v1.0.5.zip`).
+1. **Download the Setup File**: Click the link above to download `Compust-Setup-v1.0.6.exe` (or extract `Compust-Windows-Portable-v1.0.6.zip`).
 2. **Start the Installer**: Double-click the downloaded setup file. Choose your preferred language: **English**, **Français**, or **Nederlands**.
 3. **Choose Installation Folder**: The installer defaults to your user profile directory (`%LOCALAPPDATA%\Programs\Compust`), requiring **zero administrator permissions**.
 4. **AI Assistance Setup**:

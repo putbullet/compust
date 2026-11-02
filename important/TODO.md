@@ -128,3 +128,25 @@ milestones.
   - [x] Standardize 38px uniform button heights and resolve multi-line text wrapping across all modal action buttons.
   - [x] Redesign Internship card footers: meta row (repo tag + date) and actions row (side-by-side prompt and apply buttons).
   - [x] Full dark/light contrast safety with explicit `[data-theme='light']` and system `@media (prefers-color-scheme: light)` support.
+
+
+## Milestone v1.0.6 — Data Integrity, Self-Healing Schema & Database Doctor
+
+- [x] **Self-Healing Schema Reconciler**
+  - [x] Fix migration runner table creation race condition to prevent 1-column stub tables.
+  - [x] Dynamic schema reconciliation (`reconcile_database_schema`) on startup/upgrade to sync missing columns, indexes, and tables.
+  - [x] Automated pre-migration SQLite safety backups before executing any schema mutations or repairs.
+- [x] **Pre-Login Database Doctor (`/doctor`)**
+  - [x] Diagnostics view accessible before authentication showing dialect, health status, and missing columns count.
+  - [x] One-click Auto-Repair and snapshot rollback (`restore_pre_migration_backup`).
+  - [x] Instant SQLite switch for offline/remote database recovery.
+- [x] **Multi-Port MySQL Discovery & Resilient DB Engine**
+  - [x] Auto-detect running MySQL/MariaDB instances across ports `3306-3309` and XAMPP `my.ini`.
+  - [x] Windows DPAPI encryption for saved database passwords in `db_config.json`.
+  - [x] Bundled `cryptography` runtime dependency for MySQL 8 authentication.
+  - [x] Non-blocking schema fallback warning banner on login view.
+- [x] **Import Wizard Overhaul with Dry-Run & Safe Undo**
+  - [x] Dry-run simulation mode (`is_dry_run`) to preview import record counts without database writes.
+  - [x] Auditable import history ledger (`import_batches` table).
+  - [x] Safe Undo Import (`undo_import`) reverting imported records with pre-rollback safety backup.
+  - [x] Always-accessible `DatabaseSection` embedded in Data Supervision view even when MySQL is stopped.

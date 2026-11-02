@@ -17,6 +17,9 @@ import {
   FileText,
   Server,
   Sparkles,
+  History,
+  RotateCcw,
+  PlayCircle,
 } from 'lucide-react';
 import {
   api,
@@ -25,7 +28,9 @@ import {
   type ImportExecuteResponse,
   type BackupExportResponse,
   type BackupRestoreResponse,
+  type ImportHistoryItem,
 } from '../api/client';
+import { DatabaseSection } from './DatabaseSection';
 
 interface DataManagementProps {
   onImportComplete?: () => void;
@@ -45,12 +50,23 @@ export const DataManagementView: React.FC<DataManagementProps> = ({ onImportComp
   const [importResult, setImportResult] = useState<ImportExecuteResponse | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
 
+  // Dry-run state
+  const [dryRunning, setDryRunning] = useState(false);
+  const [dryRunResult, setDryRunResult] = useState<ImportExecuteResponse | null>(null);
+
   // Backup & Restore state
   const [exporting, setExporting] = useState(false);
   const [exportResult, setExportResult] = useState<BackupExportResponse | null>(null);
   const [restoring, setRestoring] = useState(false);
   const [restoreResult, setRestoreResult] = useState<BackupRestoreResponse | null>(null);
   const [restoreError, setRestoreError] = useState<string | null>(null);
+
+  // Import History & Undo state
+  const [history, setHistory] = useState<ImportHistoryItem[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [undoingBatchId, setUndoingBatchId] = useState<string | null>(null);
+  const [undoMessage, setUndoMessage] = useState<string | null>(null);
+  const [undoError, setUndoError] = useState<string | null>(null);
 
   const fetchSources = async () => {
     try {
@@ -73,14 +89,28 @@ export const DataManagementView: React.FC<DataManagementProps> = ({ onImportComp
     }
   };
 
+  const fetchHistory = async () => {
+    try {
+      setLoadingHistory(true);
+      const res = await api.getImportHistory();
+      setHistory(res);
+    } catch (err: any) {
+      console.error('Failed to load import history:', err);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
   useEffect(() => {
     fetchSources();
+    fetchHistory();
   }, []);
 
   const handleSelectSource = (sId: string) => {
     setSelectedSourceId(sId);
     setPreviewData(null);
     setImportResult(null);
+    setDryRunResult(null);
     setImportError(null);
     const src = sourcesData?.sources.find((s) => s.id === sId);
     if (src && src.users && src.users.length > 0) {
@@ -105,19 +135,56 @@ export const DataManagementView: React.FC<DataManagementProps> = ({ onImportComp
     }
   };
 
+  const handleDryRun = async () => {
+    if (!selectedSourceId) return;
+    try {
+      setDryRunning(true);
+      setImportError(null);
+      setDryRunResult(null);
+      const res = await api.dryRunDataImport(selectedSourceId, selectedUserId, conflictStrategy);
+      setDryRunResult(res);
+    } catch (err: any) {
+      setImportError(err.message || 'Dry run simulation failed.');
+    } finally {
+      setDryRunning(false);
+    }
+  };
+
   const handleExecuteImport = async () => {
     if (!selectedSourceId) return;
     try {
       setImporting(true);
       setImportError(null);
+      setDryRunResult(null);
       const res = await api.executeDataImport(selectedSourceId, selectedUserId, undefined, conflictStrategy);
       setImportResult(res);
-      await fetchSources();
+      await Promise.all([fetchSources(), fetchHistory()]);
       onImportComplete?.();
     } catch (err: any) {
       setImportError(err.message || 'Data import failed.');
     } finally {
       setImporting(false);
+    }
+  };
+
+  const handleUndoImport = async (batchId: string) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to undo Import Batch #${batchId}?\n\nThis will safely remove all records created in this import batch. A pre-undo database backup will be created.`
+    );
+    if (!confirmed) return;
+
+    try {
+      setUndoingBatchId(batchId);
+      setUndoMessage(null);
+      setUndoError(null);
+      const res = await api.undoDataImport(batchId);
+      setUndoMessage(res.message);
+      await Promise.all([fetchSources(), fetchHistory()]);
+      onImportComplete?.();
+    } catch (err: any) {
+      setUndoError(err.message || 'Failed to undo import.');
+    } finally {
+      setUndoingBatchId(null);
     }
   };
 
@@ -127,7 +194,6 @@ export const DataManagementView: React.FC<DataManagementProps> = ({ onImportComp
       setExportResult(null);
       const res = await api.exportDataBackup();
       setExportResult(res);
-      // Trigger download
       window.location.href = res.download_url;
     } catch (err: any) {
       alert(`Export failed: ${err.message || 'Unknown error'}`);
@@ -157,7 +223,7 @@ export const DataManagementView: React.FC<DataManagementProps> = ({ onImportComp
       setRestoreResult(null);
       const res = await api.restoreDataBackup(file);
       setRestoreResult(res);
-      await fetchSources();
+      await Promise.all([fetchSources(), fetchHistory()]);
       onImportComplete?.();
     } catch (err: any) {
       setRestoreError(err.message || 'Restore failed.');
@@ -176,13 +242,13 @@ export const DataManagementView: React.FC<DataManagementProps> = ({ onImportComp
         <div className="title-row">
           <Database size={24} className="header-icon" />
           <div>
-            <h2>Data Management & Portability</h2>
+            <h2>Data Management &amp; Portability</h2>
             <p className="subtitle">
-              Safely import jobs, applications, and contacts from existing databases or create portable zip backups.
+              Safely import jobs, applications, and contacts from detected databases, switch storage engines, or create portable backups.
             </p>
           </div>
         </div>
-        <button className="refresh-btn" onClick={fetchSources} disabled={loading}>
+        <button className="refresh-btn" onClick={() => { fetchSources(); fetchHistory(); }} disabled={loading || loadingHistory}>
           <RefreshCw size={14} className={loading ? 'spin' : ''} />
           <span>Refresh Status</span>
         </button>
@@ -194,7 +260,7 @@ export const DataManagementView: React.FC<DataManagementProps> = ({ onImportComp
           <div className="db-info">
             <HardDrive size={18} className="icon-blue" />
             <div>
-              <div className="db-title">Active Local Database (SQLite Standalone)</div>
+              <div className="db-title">Active Local Database Storage</div>
               <code className="db-path">{sourcesData?.target_database_path || 'Loading...'}</code>
             </div>
           </div>
@@ -234,7 +300,7 @@ export const DataManagementView: React.FC<DataManagementProps> = ({ onImportComp
           <Sparkles size={20} className="icon-sparkle" />
           <div>
             <h3>Guided Data Import Wizard</h3>
-            <p>Import your existing applications and jobs from a detected MySQL or SQLite database.</p>
+            <p>Import your existing applications, companies, and jobs from detected MySQL or SQLite databases with dry-run verification.</p>
           </div>
         </div>
 
@@ -282,6 +348,7 @@ export const DataManagementView: React.FC<DataManagementProps> = ({ onImportComp
                         setSelectedUserId(Number(e.target.value));
                         setPreviewData(null);
                         setImportResult(null);
+                        setDryRunResult(null);
                       }}
                     >
                       {selectedSource.users.map((u) => (
@@ -344,7 +411,7 @@ export const DataManagementView: React.FC<DataManagementProps> = ({ onImportComp
             <div className="wizard-step">
               <div className="step-num">3</div>
               <div className="step-content">
-                <div className="step-title">Conflict Strategy & Execution</div>
+                <div className="step-title">Conflict Strategy &amp; Execution</div>
                 <div className="strategy-options">
                   <label className="radio-label">
                     <input
@@ -375,15 +442,26 @@ export const DataManagementView: React.FC<DataManagementProps> = ({ onImportComp
                 </div>
 
                 <div className="execute-row">
+                  {/* Dry Run Button */}
+                  <button
+                    className="dryrun-btn"
+                    onClick={handleDryRun}
+                    disabled={dryRunning || importing || !selectedSourceId}
+                  >
+                    <PlayCircle size={15} className={dryRunning ? 'spin' : ''} />
+                    <span>{dryRunning ? 'Simulating Dry Run...' : 'Simulate (Dry Run)'}</span>
+                  </button>
+
+                  {/* Real Execute Button */}
                   <button
                     className="execute-btn"
                     onClick={handleExecuteImport}
-                    disabled={importing || !selectedSourceId}
+                    disabled={importing || dryRunning || !selectedSourceId}
                   >
                     {importing ? (
                       <>
                         <RefreshCw size={15} className="spin" />
-                        <span>Safely Importing Data & Files...</span>
+                        <span>Safely Importing Data &amp; Files...</span>
                       </>
                     ) : (
                       <>
@@ -397,6 +475,20 @@ export const DataManagementView: React.FC<DataManagementProps> = ({ onImportComp
                   </span>
                 </div>
 
+                {/* Dry Run Simulation Banner */}
+                {dryRunResult && (
+                  <AlertBox $type="success">
+                    <CheckCircle2 size={16} />
+                    <div>
+                      <strong>Simulation Successful (Dry Run — Zero Changes Committed)</strong>
+                      <div className="counts-breakdown">
+                        Would import: {dryRunResult.jobs_imported} jobs, {dryRunResult.companies_imported} companies,{' '}
+                        {dryRunResult.applications_imported} applications, {dryRunResult.contacts_imported} contacts.
+                      </div>
+                    </div>
+                  </AlertBox>
+                )}
+
                 {importError && (
                   <AlertBox $type="error">
                     <AlertTriangle size={16} />
@@ -409,6 +501,10 @@ export const DataManagementView: React.FC<DataManagementProps> = ({ onImportComp
                     <CheckCircle2 size={16} />
                     <div>
                       <strong>{importResult.message}</strong>
+                      <div className="counts-breakdown">
+                        Imported: {importResult.jobs_imported} jobs, {importResult.companies_imported} companies,{' '}
+                        {importResult.applications_imported} applications.
+                      </div>
                       {importResult.backup_file && (
                         <div className="backup-loc">Safety backup saved to: {importResult.backup_file}</div>
                       )}
@@ -422,22 +518,115 @@ export const DataManagementView: React.FC<DataManagementProps> = ({ onImportComp
           <EmptySourcesNotice>
             <Server size={24} className="notice-icon" />
             <div>
-              <strong>No external data sources detected.</strong>
+              <strong>No external data sources detected automatically.</strong>
               <p>
-                Compust is running standalone with its local database. If you have a legacy MySQL server, start it
-                on port 3306 and click &quot;Refresh Status&quot;.
+                Compust is running standalone with its local database. If you have MySQL or MariaDB running on another port,
+                use the Connection &amp; Port Linking section below to detect and link it, or restore from a backup.
               </p>
             </div>
           </EmptySourcesNotice>
         )}
       </WizardSection>
 
+      {/* Import History & Ledger Section */}
+      <HistorySection>
+        <div className="section-header">
+          <History size={20} className="icon-blue" />
+          <div>
+            <h3>Import History &amp; Ledger</h3>
+            <p>Every executed data import is tracked in an auditable ledger with one-click undo support.</p>
+          </div>
+        </div>
+
+        {undoMessage && (
+          <AlertBox $type="success">
+            <CheckCircle2 size={16} />
+            <span>{undoMessage}</span>
+          </AlertBox>
+        )}
+
+        {undoError && (
+          <AlertBox $type="error">
+            <AlertTriangle size={16} />
+            <span>{undoError}</span>
+          </AlertBox>
+        )}
+
+        {history && history.length > 0 ? (
+          <div className="history-table-wrap">
+            <table className="history-table">
+              <thead>
+                <tr>
+                  <th>Batch ID</th>
+                  <th>Source</th>
+                  <th>User Email</th>
+                  <th>Imported Counts</th>
+                  <th>Date &amp; Time</th>
+                  <th>Status</th>
+                  <th style={{ textAlign: 'right' }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((item) => (
+                  <tr key={item.batch_id}>
+                    <td>
+                      <code className="batch-id">#{item.batch_id}</code>
+                    </td>
+                    <td>
+                      <span className="source-label">{item.source_type.toUpperCase()}</span>
+                      <div className="source-name">{item.source_location}</div>
+                    </td>
+                    <td><span className="source-label">{item.strategy}</span></td>
+                    <td>
+                      <span className="count-tag">{item.counts?.jobs || 0} jobs</span>
+                      <span className="count-tag">{item.counts?.companies || 0} companies</span>
+                      <span className="count-tag">{item.counts?.applications || 0} apps</span>
+                    </td>
+                    <td>{new Date(item.imported_at).toLocaleString()}</td>
+                    <td>
+                      <span className={`status-badge ${item.status}`}>
+                        {item.status.toUpperCase()}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      {item.status === 'completed' && (
+                        <button
+                          className="undo-btn"
+                          onClick={() => handleUndoImport(item.batch_id)}
+                          disabled={undoingBatchId === item.batch_id}
+                        >
+                          <RotateCcw size={13} className={undoingBatchId === item.batch_id ? 'spin' : ''} />
+                          <span>{undoingBatchId === item.batch_id ? 'Undoing...' : 'Undo Import'}</span>
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="no-history-note">
+            No imports have been executed yet in this database.
+          </div>
+        )}
+      </HistorySection>
+
+      {/* Embedded DatabaseSection (Multi-port detection, test, live switch) */}
+      <DatabaseSection
+        onDatabaseChanged={() => {
+          fetchSources();
+          fetchHistory();
+          onImportComplete?.();
+        }}
+      />
+
       {/* Backup & Restore Section */}
       <BackupSection>
         <div className="section-header">
           <FileArchive size={20} className="icon-blue" />
           <div>
-            <h3>Portable Backup & Disaster Recovery</h3>
+            <h3>Portable Backup &amp; Disaster Recovery</h3>
             <p>Export a full zip snapshot of your local database and storage files or restore an existing backup.</p>
           </div>
         </div>
@@ -521,40 +710,50 @@ const HeaderSection = styled.div`
     }
 
     h2 {
-      font-size: 1.5rem;
+      font-size: 1.4rem;
       font-weight: 700;
       color: #f8fafc;
       margin: 0;
     }
 
     .subtitle {
-      font-size: 0.88rem;
+      font-size: 0.85rem;
       color: #94a3b8;
-      margin: 4px 0 0 0;
+      margin: 2px 0 0 0;
     }
   }
 
   .refresh-btn {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     padding: 8px 14px;
-    background: rgba(255, 255, 255, 0.05);
+    background: #1e293b;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #e2e8f0;
+    color: #94a3b8;
     border-radius: 8px;
     cursor: pointer;
     font-size: 0.85rem;
-    font-weight: 500;
     transition: all 0.2s ease;
 
-    &:hover {
-      background: rgba(255, 255, 255, 0.1);
+    &:hover:not(:disabled) {
+      background: #334155;
+      color: #f8fafc;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
   }
 
   .spin {
     animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
   }
 `;
 
@@ -562,10 +761,10 @@ const StatusCard = styled.div`
   background: #0f172a;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
-  padding: 20px;
+  padding: 20px 24px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 
   .card-top {
     display: flex;
@@ -582,18 +781,15 @@ const StatusCard = styled.div`
       }
 
       .db-title {
+        font-size: 0.95rem;
         font-weight: 600;
         color: #f8fafc;
-        font-size: 0.95rem;
       }
 
       .db-path {
         font-size: 0.78rem;
         color: #94a3b8;
-        background: rgba(0, 0, 0, 0.3);
-        padding: 2px 6px;
-        border-radius: 4px;
-        word-break: break-all;
+        font-family: monospace;
       }
     }
 
@@ -603,7 +799,7 @@ const StatusCard = styled.div`
       gap: 6px;
       padding: 4px 10px;
       border-radius: 20px;
-      font-size: 0.78rem;
+      font-size: 0.75rem;
       font-weight: 600;
 
       .dot {
@@ -808,8 +1004,33 @@ const WizardSection = styled.div`
   .execute-row {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 14px;
     margin-top: 6px;
+    flex-wrap: wrap;
+
+    .dryrun-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 12px 18px;
+      background: #1e293b;
+      border: 1px solid #8b5cf6;
+      color: #a78bfa;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: all 0.2s ease;
+
+      &:hover:not(:disabled) {
+        background: rgba(139, 92, 246, 0.15);
+      }
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+    }
 
     .execute-btn {
       display: inline-flex;
@@ -934,6 +1155,141 @@ const PreviewCard = styled.div`
     gap: 6px;
     font-size: 0.8rem;
     color: #fbbf24;
+  }
+`;
+
+const HistorySection = styled.div`
+  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    .icon-blue {
+      color: #3b82f6;
+    }
+
+    h3 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: #f8fafc;
+      margin: 0;
+    }
+
+    p {
+      font-size: 0.85rem;
+      color: #94a3b8;
+      margin: 2px 0 0 0;
+    }
+  }
+
+  .history-table-wrap {
+    overflow-x: auto;
+  }
+
+  .history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+
+    th, td {
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      text-align: left;
+    }
+
+    th {
+      font-weight: 600;
+      color: #94a3b8;
+      font-size: 0.78rem;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .batch-id {
+      font-family: monospace;
+      color: #60a5fa;
+      font-weight: 600;
+    }
+
+    .source-label {
+      font-size: 0.7rem;
+      background: rgba(59, 130, 246, 0.15);
+      color: #60a5fa;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+      display: inline-block;
+      margin-bottom: 2px;
+    }
+
+    .source-name {
+      font-size: 0.8rem;
+      color: #94a3b8;
+    }
+
+    .count-tag {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-right: 4px;
+      font-size: 0.75rem;
+      color: #e2e8f0;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.72rem;
+      font-weight: 700;
+
+      &.completed {
+        background: rgba(16, 185, 129, 0.15);
+        color: #34d399;
+      }
+
+      &.undone {
+        background: rgba(239, 68, 68, 0.15);
+        color: #f87171;
+      }
+    }
+
+    .undo-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #f87171;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.78rem;
+      font-weight: 600;
+      transition: all 0.2s ease;
+
+      &:hover:not(:disabled) {
+        background: rgba(239, 68, 68, 0.2);
+        border-color: #ef4444;
+      }
+    }
+  }
+
+  .no-history-note {
+    font-size: 0.85rem;
+    color: #94a3b8;
+    background: rgba(255, 255, 255, 0.02);
+    padding: 16px;
+    border-radius: 8px;
+    text-align: center;
   }
 `;
 
@@ -1089,6 +1445,12 @@ const AlertBox = styled.div<{ $type: 'success' | 'error' }>`
   background: ${(props) => (props.$type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)')};
   border: 1px solid ${(props) => (props.$type === 'success' ? '#10b981' : '#ef4444')};
   color: ${(props) => (props.$type === 'success' ? '#34d399' : '#f87171')};
+
+  .counts-breakdown {
+    font-size: 0.8rem;
+    color: #e2e8f0;
+    margin-top: 4px;
+  }
 
   .backup-loc {
     font-size: 0.75rem;

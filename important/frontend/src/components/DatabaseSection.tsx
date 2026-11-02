@@ -6,7 +6,6 @@ import {
   RefreshCw,
   CheckCircle2,
   AlertTriangle,
-  ArrowRight,
   HardDrive,
   ShieldAlert,
   ShieldCheck,

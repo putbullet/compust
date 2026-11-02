@@ -26,16 +26,17 @@ import { GuideView } from './components/Guide/GuideView';
 import { InternshipScraperView } from './components/Internships/InternshipScraperView';
 import { InterviewPrepView } from './components/InterviewPrep/InterviewPrepView';
 import { ExtensionInstallView } from './components/ExtensionInstallView';
+import { DatabaseDoctorView } from './components/DatabaseDoctorView';
 import { FloatingHelpControls } from './components/Guide/FloatingHelpControls';
 import { AISettingsModal } from './components/AISettingsModal';
 import { AIAssistantWidget } from './components/AIAssistantWidget';
 import { SyncStatusBanner } from './components/common/SyncStatusBanner';
 import { StatPill } from './components/common/StatPill';
 import { Loader } from './components/Loader';
-import { Sparkles, Layers, ShieldCheck, ChevronLeft, ChevronRight, Bookmark, Briefcase, Building2, Globe2 } from 'lucide-react';
+import { Sparkles, Layers, ShieldCheck, AlertTriangle, ChevronLeft, ChevronRight, Bookmark, Briefcase, Building2, Globe2 } from 'lucide-react';
 import { useTranslation } from './i18n';
 
-type AppTab = 'directory' | 'profile' | 'scraper' | 'applications' | 'companies' | 'supervision' | 'guide' | 'internships' | 'interview-prep' | 'extension';
+type AppTab = 'directory' | 'profile' | 'scraper' | 'applications' | 'companies' | 'supervision' | 'guide' | 'internships' | 'interview-prep' | 'extension' | 'doctor';
 
 export const App: React.FC = () => {
   const { t } = useTranslation();
@@ -45,8 +46,11 @@ export const App: React.FC = () => {
     try {
       const params = new URLSearchParams(window.location.search);
       const tab = params.get('tab');
-      if (tab && ['directory', 'profile', 'scraper', 'applications', 'companies', 'supervision', 'guide', 'internships', 'interview-prep', 'extension'].includes(tab)) {
+      if (tab && ['directory', 'profile', 'scraper', 'applications', 'companies', 'supervision', 'guide', 'internships', 'interview-prep', 'extension', 'doctor'].includes(tab)) {
         return tab as AppTab;
+      }
+      if (window.location.pathname.includes('/doctor') || window.location.hash.startsWith('#doctor')) {
+        return 'doctor';
       }
       if (window.location.pathname.includes('/interview-prep') || window.location.hash.startsWith('#interview-prep')) {
         return 'interview-prep';
@@ -61,6 +65,7 @@ export const App: React.FC = () => {
     return 'directory';
   });
   const [isAISettingsOpen, setIsAISettingsOpen] = useState(false);
+  const [dbWarning, setDbWarning] = useState<string | null>(null);
   const [targetJobForAssistant, setTargetJobForAssistant] = useState<{
     role: string;
     description: string;
@@ -151,6 +156,19 @@ export const App: React.FC = () => {
             setStoredToken(null);
           }
         }
+        // Check Database Doctor health
+        api.getDoctorStatus().then((doc) => {
+          if (!doc.is_healthy || doc.is_fallback_active || !doc.schema_synced) {
+            setDbWarning(
+              doc.is_fallback_active
+                ? 'Active Database Fallback: Configured MySQL was unreachable, safely operating on local SQLite.'
+                : !doc.schema_synced
+                ? 'Database schema requires verification or auto-repair.'
+                : 'Database attention recommended.'
+            );
+          }
+        }).catch(() => {});
+
         // Warm AI status cache in background
         api.getAIStatus().then((statusRes) => {
           try {
@@ -274,6 +292,19 @@ export const App: React.FC = () => {
         onLogout={handleLogout}
         onOpenAISettings={() => setIsAISettingsOpen(true)}
       />
+
+      {dbWarning && activeTab !== 'doctor' && (
+        <div className="db-top-alert-banner">
+          <AlertTriangle size={16} className="alert-icon" />
+          <span>{dbWarning}</span>
+          <button className="banner-doc-btn" onClick={() => setActiveTab('doctor')}>
+            Open Database Doctor
+          </button>
+          <button className="banner-close-btn" onClick={() => setDbWarning(null)} aria-label="Dismiss">
+            ×
+          </button>
+        </div>
+      )}
 
       <main className={`main-content ${activeTab === 'profile' || activeTab === 'interview-prep' ? 'wide' : ''}`}>
         {/* VIEW 1: DIRECTORY */}
@@ -512,6 +543,11 @@ export const App: React.FC = () => {
         {activeTab === 'extension' && (
           <ExtensionInstallView />
         )}
+
+        {/* VIEW 10: DATABASE DOCTOR & RECOVERY */}
+        {activeTab === 'doctor' && (
+          <DatabaseDoctorView onNavigateHome={() => setActiveTab('directory')} />
+        )}
       </main>
 
       {/* Footer */}
@@ -532,6 +568,8 @@ export const App: React.FC = () => {
             <button type="button" className="footer-link-btn" onClick={() => setActiveTab('interview-prep')}>Interview Prep</button>
             <span className="footer-dot" aria-hidden="true">•</span>
             <button type="button" className="footer-link-btn" onClick={() => setActiveTab('guide')}>Guide & Docs</button>
+            <span className="footer-dot" aria-hidden="true">•</span>
+            <button type="button" className="footer-link-btn" onClick={() => setActiveTab('doctor')}>Database Doctor</button>
           </div>
           <div className="footer-meta">
             <ShieldCheck size={14} className="f-shield" />
@@ -586,6 +624,54 @@ const StyledApp = styled.div`
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+
+  .db-top-alert-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 10px 20px;
+    background: rgba(245, 158, 11, 0.15);
+    border-bottom: 1px solid rgba(245, 158, 11, 0.35);
+    color: #d97706;
+    font-size: 13px;
+    font-weight: 500;
+    z-index: 99;
+
+    .alert-icon {
+      flex-shrink: 0;
+    }
+
+    .banner-doc-btn {
+      padding: 4px 10px;
+      background: #d97706;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-left: 6px;
+
+      &:hover {
+        background: #b45309;
+      }
+    }
+
+    .banner-close-btn {
+      background: none;
+      border: none;
+      font-size: 18px;
+      color: #d97706;
+      cursor: pointer;
+      padding: 0 4px;
+      line-height: 1;
+
+      &:hover {
+        opacity: 0.7;
+      }
+    }
+  }
 
   .main-content {
     flex: 1;

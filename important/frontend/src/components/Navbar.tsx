@@ -20,8 +20,8 @@ import type { UserProfile, AIStatus } from '../api/client';
 import { useTranslation } from '../i18n';
 
 interface NavbarProps {
-  activeTab: 'directory' | 'profile' | 'scraper' | 'applications' | 'companies' | 'supervision' | 'guide' | 'internships' | 'interview-prep' | 'extension';
-  setActiveTab: (tab: 'directory' | 'profile' | 'scraper' | 'applications' | 'companies' | 'supervision' | 'guide' | 'internships' | 'interview-prep' | 'extension') => void;
+  activeTab: 'directory' | 'profile' | 'scraper' | 'applications' | 'companies' | 'supervision' | 'guide' | 'internships' | 'interview-prep' | 'extension' | 'doctor';
+  setActiveTab: (tab: 'directory' | 'profile' | 'scraper' | 'applications' | 'companies' | 'supervision' | 'guide' | 'internships' | 'interview-prep' | 'extension' | 'doctor') => void;
   user: UserProfile | null;
   onOpenAuth: () => void;
   onLogout: () => void;

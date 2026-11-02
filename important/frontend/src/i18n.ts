@@ -27,6 +27,7 @@ export interface Translations {
     guide: string;
     extension: string;
     aiSettings: string;
+    doctor: string;
     login: string;
     logout: string;
   };
@@ -341,6 +342,7 @@ export const translations: Record<Language, Translations> = {
       guide: 'Guide & Docs',
       extension: 'Browser Extension',
       aiSettings: 'AI Settings',
+      doctor: 'Database Doctor',
       login: 'Sign In',
       logout: 'Sign Out',
     },
@@ -653,6 +655,7 @@ export const translations: Record<Language, Translations> = {
       guide: 'Guide & Documentation',
       extension: 'Extension Navigateur',
       aiSettings: 'Paramètres IA',
+      doctor: 'Docteur Base de Données',
       login: 'Connexion',
       logout: 'Déconnexion',
     },
@@ -965,6 +968,7 @@ export const translations: Record<Language, Translations> = {
       guide: 'Anleitung & Docs',
       extension: 'Browser-Erweiterung',
       aiSettings: 'KI-Einstellungen',
+      doctor: 'Datenbank-Doktor',
       login: 'Anmelden',
       logout: 'Abmelden',
     },
@@ -1222,6 +1226,7 @@ export const translations: Record<Language, Translations> = {
       guide: 'Handleiding & Documentatie',
       extension: 'Browserextensie',
       aiSettings: 'AI-instellingen',
+      doctor: 'Database Dokter',
       login: 'Inloggen',
       logout: 'Uitloggen',
     },

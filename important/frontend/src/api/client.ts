@@ -2223,6 +2223,11 @@ export const api = {
       method: 'POST',
       headers: setupToken ? { 'X-Setup-Token': setupToken } : undefined,
     }),
+  switchToSQLite: (setupToken?: string) =>
+    request<DatabaseActiveInfoResponse>('/database/switch-to-sqlite', {
+      method: 'POST',
+      headers: setupToken ? { 'X-Setup-Token': setupToken } : undefined,
+    }),
   dryRunDataImport: (sourceId: string, userId?: number, email?: string, conflictStrategy: string = 'merge') =>
     request<ImportExecuteResponse>('/data/import/dry-run', {
       method: 'POST',
